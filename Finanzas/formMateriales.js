@@ -1,3 +1,5 @@
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
+
 let listaMateriales = [];
 let categoriasCargadas = [];
 
@@ -28,7 +30,7 @@ function inicializarCamposFechas() {
 
 async function cargarSelectoresIniciales() {
     try {
-        const resEmpleados = await fetch('http://localhost:3000/api/empleados');
+        const resEmpleados = await fetch(`${API_URL}/empleados`);
         if (resEmpleados.ok) {
             const empleados = await resEmpleados.json();
             const lista = empleados.map(emp => ({
@@ -39,7 +41,7 @@ async function cargarSelectoresIniciales() {
             llenarSelect('solicitante', lista);
         }
 
-        const resProyectos = await fetch('http://localhost:3000/api/proyectos');
+        const resProyectos = await fetch(`${API_URL}/proyectos`);
         if (resProyectos.ok) {
             const proyectos = await resProyectos.json();
             const lista = proyectos.map(p => ({ 
@@ -59,7 +61,8 @@ function configurarEventos() {
         if (!idProyecto) return;
 
         try {
-            const res = await fetch(`http://localhost:3000/api/proyectos/${idProyecto}/categorias`);
+            const res = await fetch(`${API_URL}/proyectos/${idProyecto}/categorias`);
+
             if (res.ok) {
                 categoriasCargadas = await res.json();
                 
@@ -191,7 +194,7 @@ function enviarSolicitudFinal(e) {
     // 🔍 Esto te mostrará en la consola del navegador qué datos viajan
     console.log("🚀 Enviando este paquete al backend:", payloadOrden);
 
-    fetch('http://localhost:3000/api/materiales', {
+    fetch(`${API_URL}/materiales`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payloadOrden)

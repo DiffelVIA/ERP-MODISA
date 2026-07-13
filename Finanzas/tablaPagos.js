@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:3000/api";
+API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
 const ROL_RAW = localStorage.getItem('userRol');
 const ROL_USUARIO = ROL_RAW ? ROL_RAW.trim().toLowerCase() : 'residente';
 

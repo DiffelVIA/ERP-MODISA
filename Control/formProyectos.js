@@ -1,4 +1,8 @@
 (() => {
+    const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:3000/api' 
+      : 'https://erp-modisa.onrender.com/api';
+
     const ROLES_PERMITIDOS = ["Director Operativo", "Subdirector de Obra"];
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -38,7 +42,7 @@
         if (!selectResponsable) return;
 
         try {
-            const response = await fetch('/api/empleados');
+            const response = await fetch(`${API_URL}/empleados`);
             if (!response.ok) throw new Error(`Estado HTTP: ${response.status}`);
 
             const empleados = await response.json();
@@ -75,7 +79,7 @@
         }
 
         try {
-            const response = await fetch('/api/projects', {
+            const response = await fetch(`${API_URL}/projects`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

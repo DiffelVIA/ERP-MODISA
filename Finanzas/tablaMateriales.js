@@ -1,3 +1,7 @@
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:3000/api' 
+  : 'https://erp-modisa.onrender.com/api';
+
 let esResidente = false;
 
 (function verificarAcceso() {
@@ -105,13 +109,13 @@ async function inicializarDatos() {
 
         // ✅ CORRECCIÓN: Ahora le pasamos el x-user-rol al GET de materiales
         const [resMateriales, resProyectos] = await Promise.all([
-            fetch('http://localhost:3000/api/materiales', {
+            fetch(`${API_URL}/materiales`, {
                 method: 'GET',
                 headers: {
                     'x-user-rol': rolParaHeaders
                 }
             }),
-            fetch('http://localhost:3000/api/proyectos')
+            fetch(`${API_URL}/proyectos`)
         ]);
         
         if (!resMateriales.ok || !resProyectos.ok) {
@@ -322,7 +326,7 @@ function renderizarTabla(materialesAVer) {
                         elementoGlobal.estado = estadoFinal;
                     }
 
-                    const respuesta = await fetch(`http://localhost:3000/api/materiales/detalle/${item.id_detail}`,{
+                    const respuesta = await fetch(`${API_URL}/materiales/detalle/${item.id_detail}`, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',

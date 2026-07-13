@@ -1,3 +1,7 @@
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:3000/api' 
+  : 'https://erp-modisa.onrender.com/api';
+
 let actividadesAcumuladas = [];
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -36,7 +40,7 @@ async function cargarResponsablesDesdeNube() {
   if (!selectResponsable) return;
 
   try {
-    const respuesta = await fetch(  'https://modisa.onrender.com/api/empleados');
+    const respuesta = await fetch(`${API_URL}/empleados`);
     if (!respuesta.ok) throw new Error('Error al traer empleados');
 
     const empleados = await respuesta.json();
@@ -59,8 +63,8 @@ async function cargarProyectosDesdeNube() {
   const selectProyecto = document.getElementById('proyecto');
   if (!selectProyecto) return;
 
-  try { 
-    const respuesta = await fetch('https://modisa.onrender.com/api/proyectos');
+  try {
+    const respuesta = await fetch(`${API_URL}/proyectos`);
     if (!respuesta.ok) throw new Error('Error al obtener los proyectos');
 
     const proyectos = await respuesta.json();
@@ -259,7 +263,7 @@ function armarCuerpoPDF(doc, listaDeActividades) {
 
 async function procesarEnvioNube(listaDeActividades) {
   try {
-    const respuesta = await fetch('https://modisa.onrender.com/api/minutas', {
+    const respuesta = await fetch(`${API_URL}/minutas`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

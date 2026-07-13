@@ -1,3 +1,7 @@
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:3000/api' 
+  : 'https://erp-modisa.onrender.com/api';
+
 let todosLosCreditos = [];
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -38,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchCreditos() {
     try {
-        const response = await fetch('http://localhost:3000/api/creditos'); 
+        const response = await fetch(`${API_URL}/creditos`);
         if (!response.ok) throw new Error('Error en la API');
         
         todosLosCreditos = await response.json();
@@ -172,7 +176,7 @@ function renderTabla(datos) {
             }
 
             try {
-                await fetch(`http://localhost:3000/api/creditos/${credito.id_credit}`, {
+                await fetch(`${API_URL}/creditos/${credito.id_credit}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ amount_paid: currentPago, status: currentStatus, observations: currentObs })

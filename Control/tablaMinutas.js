@@ -8,6 +8,10 @@ let filtroSemana;
 
 let cuerpoTabla;
 
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:3000/api' 
+  : 'https://erp-modisa.onrender.com/api';
+
 document.addEventListener('DOMContentLoaded', () => {
   cuerpoTabla = document.querySelector('.cuerpoTabla');
   filtroProyecto = document.getElementById("filtroProyecto");
@@ -40,8 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function cargarActividades() {
   try {
-    //const respuesta = await fetch('https://modisa.onrender.com/api/tabla_minutas'); // Para render
-    const respuesta = await fetch('http://localhost:3000/api/tabla_minutas'); // Para local
+    const respuesta = await fetch(`${API_URL}/tabla_minutas`);
     
     if (!respuesta.ok) {
       throw new Error('Error al conectar con el servidor');
@@ -299,7 +302,7 @@ function asignarEventosInteractivos() {
 
 async function guardarEnNubeUrgente(actividadActualizada) {
   try {
-    const url = 'https://modisa.onrender.com/api/minutas';
+    const url = `${API_URL}/minutas`;
 
     const indice = concentradoMinutas.findIndex(item => String(item.id) === String(actividadActualizada.id));
     if (indice !== -1) {

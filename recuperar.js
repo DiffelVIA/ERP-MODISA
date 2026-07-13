@@ -1,6 +1,8 @@
-const API_URL = "http://localhost:3000/api"; // Cambiar por tu URL de Render en producción
-
-// Elementos del Paso 1
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:3000/api' 
+  : 'https://erp-modisa.onrender.com/api';
+  
+  // Elementos del Paso 1
 const formVerificar = document.getElementById('form-verificar');
 const inputUsuario = document.getElementById('recuperar-usuario');
 const inputCorreo = document.getElementById('recuperar-correo');

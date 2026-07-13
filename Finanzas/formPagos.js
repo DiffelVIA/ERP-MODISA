@@ -1,3 +1,5 @@
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
+
 let listaConceptosPagos = [];
 let categoriasCargadas = [];
 let contratosCargados = [];
@@ -31,7 +33,7 @@ function inicializarCamposFechas() {
 
 async function cargarSelectoresIniciales() {
     try {
-        const resEmpleados = await fetch('http://localhost:3000/api/empleados');
+        const resEmpleados = await fetch(`${API_URL}/empleados`);
         if (resEmpleados.ok) {
             const empleados = await resEmpleados.json();
             const lista = empleados.map(emp => ({
@@ -41,7 +43,7 @@ async function cargarSelectoresIniciales() {
             llenarSelect('solicitante', lista);
         }
 
-        const resProyectos = await fetch('http://localhost:3000/api/proyectos');
+        const resProyectos = await fetch(`${API_URL}/proyectos`);
         if (resProyectos.ok) {
             const proyectos = await resProyectos.json();
             const lista = proyectos.map(p => ({ 
@@ -51,7 +53,7 @@ async function cargarSelectoresIniciales() {
             llenarSelect('proyecto', lista);
         }
 
-        const resContratos = await fetch('http://localhost:3000/api/contratos');
+        const resContratos = await fetch(`${API_URL}/contratos`);
         if (resContratos.ok) {
             contratosCargados = await resContratos.json();
         }
@@ -176,7 +178,8 @@ function configurarEventos() {
             }
 
             try {
-                const res = await fetch(`http://localhost:3000/api/proyectos/${idProyecto}/categorias`);
+                const res = await fetch(`${API_URL}/proyectos/${idProyecto}/categorias`);
+
                 if (res.ok) {
                     categoriasCargadas = await res.json();
                     ejecutarCascadaFiltrosConceptos();
@@ -335,7 +338,7 @@ async function enviarSolicitudFinal(e) {
     }
 
     try {
-        const res = await fetch('http://localhost:3000/api/pagos', {
+        const res = await fetch(`${API_URL}/pagos`, {
             method: 'POST',
             body: formData
         });

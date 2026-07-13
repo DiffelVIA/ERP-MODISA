@@ -1,7 +1,9 @@
-(() => { // 🛡️ Encapsulamiento de seguridad: Protege las funciones de edición contra ejecuciones directas desde DevTools
+(() => {
     
-    // 🔄 RESTAURADO: Se define la URL base para que Live Server (:5500) sepa hablar con Node.js (:3000)
-    const API_BASE_URL = "http://localhost:3000/api";
+    const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:3000/api' 
+      : 'https://erp-modisa.onrender.com/api';
+
     let proyectosOriginales = [];
 
     document.addEventListener("DOMContentLoaded", () => {
