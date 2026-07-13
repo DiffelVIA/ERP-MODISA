@@ -1,7 +1,3 @@
-// =========================================================================================
-// Nombre del Fragmento de Código
-// =========================================================================================
-
 require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql2/promise');
@@ -18,14 +14,19 @@ const { google } = require('googleapis');
 const credentialsPath = path.join(__dirname, 'credentials.json');
 const credentials = JSON.parse(fs.readFileSync(credentialsPath));
 const { client_id, client_secret, redirect_uris } = credentials.web;
+
+const redirectUri = process.env.NODE_ENV === 'production' 
+  ? 'https://erp-modisa.onrender.com/oauth2callback'
+  : redirect_uris[0];
+
 const oauth2Client = new google.auth.OAuth2(
   client_id,
   client_secret,
-  redirect_uris[0]
+  redirectUri
 );
 
 oauth2Client.setCredentials({
-  refresh_token: GOOGLE_TOKEN
+  refresh_token: process.env.GOOGLE_TOKEN
 });
 
 const drive = google.drive({ version: 'v3', auth: oauth2Client });
