@@ -73,7 +73,7 @@ const pool = mysql.createPool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  port: Number(process.env.DB_PORT) || 21921,
+  port: process.env.DB_PORT,
   ssl: {
     ca: fs.readFileSync(path.join(__dirname, 'ca.pem'))
   },
@@ -906,7 +906,7 @@ app.put('/api/creditos/:id', async (req, res) => {
 
 // CONTRATOS //
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
