@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proyectos MODISA</title>
+  <link rel="icon" type="image/x-icon" href="../img/MODISA-favicon.ico">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <header id="header">
+    <div>
+      <img src="../img/logo.png" alt="logo" id="logo">
+    </div>
+    <nav>
+      <ul>
+        <li><a href="../principal.html">Volver a Panel Principal</a></li>
+      </ul>
+    </nav>
+  </header>
+
+<!---------------------------------------------------------------------------------------------------------->
+
+  <main class="main-tabla">
+    <h1>Proyectos</h1>
+    <div class="contenedorFiltros">
+
+      <div class="filtros" id="dropdownProyecto">
+        <button type="button" class="btn-dropdown">Filtro Proyecto ▾</button>
+        <div class="contenido-dropdown" id="filtroProyecto">
+        </div>
+      </div>
+
+      <div class="filtros" id="dropdownEstado">
+        <button type="button" class="btn-dropdown">Filtro Estado ▾</button>
+        <div class="contenido-dropdown" id="filtroEstado">
+        </div>
+      </div>
+
+      <div class="filtros" id="dropdownResponsable">
+        <button type="button" class="btn-dropdown">Filtro Responsable ▾</button>
+        <div class="contenido-dropdown" id="filtroResponsable">
+        </div>
+      </div>
+    </div>
+
+    <div class="tabla">
+      <table>
+
+        <thead>
+          <tr>
+            <th>Proyecto</th>
+            <th>Responsable</th>
+            <th>Ubicación</th>
+            <th>Estado</th>
+            <th>Fecha Inicio</th>
+            <th>Fecha Fin</th>
+            <th>Avance en Tiempo</th>
+          </tr>
+        </thead>
+
+        <tbody class="cuerpoTabla">
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+<!---------------------------------------------------------------------------------------------------------->
+
+  <footer id="footer">
+    <p>Aplicación para el control de minutas MODISA ®</p>
+    <p>Esta aplicación web está diseñada exclusivamente para consultar los proyectos registrados</p>
+  </footer>
+
+<!---------------------------------------------------------------------------------------------------------->
+  <script src="tablaProyectos.js"></script>
+</body>
+</html>

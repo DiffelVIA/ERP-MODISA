@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MODISA</title>
+    <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header id="header">
+        <div>
+            <img src="/img/logo.png" alt="logo" id="logo">
+        </div>
+    </header>
+
+    <main class="principal-main">
+        <h1 id="titulo-dashboard">Sistema de Gestión MODISA</h1>
+        
+        <!-- Botón de regreso exclusivo para los sub-paneles -->
+        <button id="btn-regresar-panel" class="btn-regresar panel-oculto">◀️ Volver al Menú Principal</button>
+
+        <div class="carrusel">
+            <div class="carrusel-ventana">
+                <div class="contenedor-tarjetas vista-menu" id="carrusel-track">
+                    
+                    <!-- ==========================================
+                         NIVEL 0: LAS 2 TARJETAS MÁSTER
+                         ========================================== -->
+                    <div class="tarjeta tarjeta-master" data-target="control">
+                        <img src="img/categorizacion.png" alt="Control" class="icono-tarjeta">
+                        <h2>Control Operativo</h2>
+                        <p>Gestión de Minutas, Gestión de Proyectos, Gestión de Contratos</p>
+                        <button class="btn-tarjeta">Abrir Módulos</button>
+                    </div>
+
+                    <div class="tarjeta tarjeta-master" data-target="finanzas">
+                        <img src="img/creditos.png" alt="Finanzas" class="icono-tarjeta">
+                        <h2>Administración y Finanzas</h2>
+                        <p>Gestión de pagos</p>
+                        <button class="btn-tarjeta">Abrir Módulos</button>
+                    </div>
+
+                    <!-- ==========================================
+                         NIVEL 1: SUB-PANEL DE CONTROL (Oculto al inicio)
+                         ========================================== -->
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="control">
+                        <img src="img/reg-minuta.png" alt="Registrar Minuta" class="icono-tarjeta">
+                        <h2>Registrar Minuta</h2>
+                        <p>Captura de nuevas minutas y acuerdos</p>
+                        <a href="Control/form_minutas.html" class="btn-tarjeta" id="btn-registro-minuta">Ir a Registrar Minuta</a>
+                    </div>
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="control">
+                        <img src="img/minuta.png" alt="Consultar Minuta" class="icono-tarjeta">
+                        <h2>Consulta de Minutas</h2>
+                        <p>Consulta y descarga de las Minutas capturadas</p>
+                        <a href="Control/tabla_minutas.html" class="btn-tarjeta" id="btn-consulta-minuta">Ir a Minutas</a>
+                    </div>
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="control">
+                        <img src="img/contratos.png" alt="Registrar Contrato" class="icono-tarjeta">
+                        <h2>Registrar Contrato</h2>
+                        <p>Captura de contratos nuevos con proveedores</p>
+                        <a href="Control/form_contratos.html" class="btn-tarjeta">Ir a Registrar Contrato</a>
+                    </div>
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="control">
+                        <img src="img/consulta-contratos.png" alt="Consulta Contrato" class="icono-tarjeta">
+                        <h2>Consulta de Contratos</h2>
+                        <p>Consulta y autorización de Contratos</p>
+                        <a href="Control/tabla_contratos.html" class="btn-tarjeta">Ir a Contratos</a>
+                    </div>
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="control">
+                        <img src="img/categorizacion.png" alt="Categorizacion" class="icono-tarjeta">
+                        <h2>Registro de Proyectos</h2>
+                        <p>Registra un nuevo proyecto con su categorización</p>
+                        <a href="Control/form_proyecto.html" class="btn-tarjeta">Ir a Registro de Proyecto</a>
+                    </div>
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="control">
+                        <img src="img/proyectos.png" alt="proyectos" class="icono-tarjeta">
+                        <h2>Consulta de Proyectos</h2>
+                        <p>Consulta de Proyectos y Modificación de Estados</p>
+                        <a href="Control/tabla_proyectos.html" class="btn-tarjeta">Ir a Proyectos</a>
+                    </div>
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="control">
+                        <img src="img/categories.png" alt="categories" class="icono-tarjeta">
+                        <h2>Gestión de Categorías</h2>
+                        <p>Registro, modificación y eliminación de categorías</p>
+                        <a href="Control/form_categorias.html" class="btn-tarjeta">Ir a Categorización</a>
+                    </div>
+
+                    <!-- ==========================================
+                         NIVEL 1: SUB-PANEL DE FINANZAS (Oculto al inicio)
+                         ========================================== -->
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="finanzas">
+                        <img src="img/material.png" alt="Material" class="icono-tarjeta">
+                        <h2>Requisición de Material</h2>
+                        <p>Genera tu Requisición de Materiales</p>
+                        <a href="Finanzas/form_material.html" class="btn-tarjeta">Ir a Solicitud</a>
+                    </div>
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="finanzas">
+                        <img src="img/materiales-Consulta.png" alt="Material-Consulta" class="icono-tarjeta">
+                        <h2>Consulta de Materiales</h2>
+                        <p>Gestión de solicitudes de materiales</p>
+                        <a href="Finanzas/tabla_materiales.html" class="btn-tarjeta">Ir a Materiales</a>
+                    </div>
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="finanzas">
+                        <img src="img/creditos.png" alt="creditos" class="icono-tarjeta">
+                        <h2>Consulta de Créditos</h2>
+                        <p>Gestión de Cuentas Por Pagar</p>
+                        <a href="Finanzas/tabla_creditos.html" class="btn-tarjeta">Ir a Créditos</a>
+                    </div>
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="finanzas">
+                        <img src="img/pagos.png" alt="Pagos" class="icono-tarjeta">
+                        <h2>Solicitud Pagos</h2>
+                        <p>Genera tu solicitud de pago (Contrato, Raya y Caja Chica)</p>
+                        <a href="Finanzas/form_pagos.html" class="btn-tarjeta">Ir a Solicitud</a>
+                    </div>
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="finanzas">
+                        <img src="img/consulta-pagos.png" alt="Consulta Pagos" class="icono-tarjeta">
+                        <h2>Pagos</h2>
+                        <p>Consulta los pagos solicitados y los ya realizados</p>
+                        <a href="Finanzas/tabla_pagos.html" class="btn-tarjeta">Ir a Pagos</a>
+                    </div>
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="finanzas">
+                        <img src="img/dashboard.png" alt="Dashboard" class="icono-tarjeta">
+                        <h2>Dashboard de pagos</h2>
+                        <p>Consulta los egresos por proyecto en tiempo real</p>
+                        <a href="https://app.powerbi.com/" target="_blank" class="btn-tarjeta" rel="noopener noreferrer">Ir a Dashboard</a>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer id="footer">
+        <p>Software especializado MODISA ® 2026</p>
+    </footer>
+
+    <script src="principal.js"></script>
+</body>
+</html>

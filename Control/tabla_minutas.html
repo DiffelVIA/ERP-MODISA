@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seguimiento a Minutas</title>
+  <link rel="icon" type="image/x-icon" href="../img/MODISA-favicon.ico">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+
+<body>
+  <header id="header">
+    <div>
+      <img src="../img/logo.png" alt="logo" id="logo">
+    </div>
+    <nav>
+      <ul>
+        <li><a href="../principal.html">Volver a Panel Principal</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="main-tabla">
+    <h1>Minutas Registradas</h1>
+    <div class="contenedorFiltros">
+
+      <div class="filtros" id="dropdownProyecto">
+        <button type="button" class="btn-dropdown">Filtro Proyecto ▾</button>
+        <div class="contenido-dropdown" id="filtroProyecto">
+        </div>
+      </div>
+
+      <div class="filtros" id="dropdownEstado">
+        <button type="button" class="btn-dropdown">Filtro Estado ▾</button>
+        <div class="contenido-dropdown" id="filtroEstado">
+        </div>
+      </div>
+
+      <div class="filtros" id="dropdownResponsable">
+        <button type="button" class="btn-dropdown">Filtro Responsable ▾</button>
+        <div class="contenido-dropdown" id="filtroResponsable">
+        </div>
+      </div>
+
+      <div class="filtros" id="dropdownSemana">
+        <button type="button" class="btn-dropdown">Filtro Semana ▾</button>
+        <div class="contenido-dropdown" id="filtroSemana">
+        </div>
+      </div>
+    </div>
+
+    <div class="contenedor-accion">
+      <button type="button" id="descargar" class="btn">Descargar</button>
+    </div>
+
+    <div class="tabla">
+      <table>
+
+        <thead>
+          <tr>
+            <th>Proyecto</th>
+            <th>Responsable</th>
+            <th>Semana</th>
+            <th>Fecha límite</th>
+            <th>Descripción</th>
+            <th>Estado</th>
+            <th>Comentario</th>
+            <th>Avance</th>
+          </tr>
+        </thead>
+
+        <tbody class="cuerpoTabla">
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <footer id="footer">
+    <p>Aplicación para el control de minutas MODISA ®</p>
+    <p>Esta aplicación web está diseñada exclusivamente para controlar y asegurar el cumplimiento de los acuerdos de las reuniones. Permite capturar rápidamente los datos de la reunión, los temas tratados y asignar tareas específicas con responsables y fechas límite.</p>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="tablaMinutas.js"></script>
+
+</body>
+</html>

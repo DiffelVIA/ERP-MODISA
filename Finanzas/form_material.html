@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Requisición de Material</title>
+    <link rel="icon" type="image/x-icon" href="../img/MODISA-favicon.ico">
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <header id="header">
+        <div>
+            <img src="../img/logo.png" alt="logo" id="logo">
+        </div>
+        <nav>
+      <ul>
+        <li><a href="../principal.html">Volver a Panel Principal</a></li>
+      </ul>
+    </nav>
+    </header>
+    <!--
+    <main class="form_main">
+        <h1>📝 Requisición de Materiales</h1>
+        <form id="form-requisicion" data-accion="requisicion" novalidate>
+            <div class="contenedor-formulario">
+                <label for="solicitante">Solicitante</label>
+                <select name="solicitante" id="solicitante" required>
+                    <option value="">-- Selecciona --</option>
+                </select>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="proyecto">Proyecto</label>
+                <select name="proyecto" id="proyecto" required>
+                    <option value="">-- Selecciona --</option>
+                </select>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="fecha">Fecha</label>
+                <input type="date" id="fecha" name="fecha" readonly style="cursor: not-allowed;">
+            </div>
+            <div class="contenedor-formulario">
+                <label for="semana-fiscal">Semana</label>
+                <input type="text" id="semana-fiscal" name="semana" readonly style="cursor: not-allowed;">
+            </div>
+            <div class="contenedor-formulario">
+                <label for="grupo">Grupo</label>
+                <select name="grupo" id="grupo" required>
+                    <option value="">-- Selecciona --</option>
+                </select>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="categoria">Categoría</label>
+                <select name="categoria" id="categoria" required>
+                    <option value="">-- Selecciona --</option>
+                </select>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="subcategoria">Subcategoría</label>
+                <select name="subcategoria" id="subcategoria" required>
+                    <option value="">-- Selecciona --</option>
+                </select>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="descripcion">Descripción del Material</label>
+                <input type="text" id="descripcion" name="descripcion" placeholder="Describe el material que necesitas" required>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="unidad">Unidad</label>
+                <select name="unidad" id="unidad">
+                    <option value="PZA">Pieza</option>
+                    <option value="KIT">KIT</option>
+                    <option value="Lt">Litro</option>
+                    <option value="G">Galón</option>
+                    <option value="Cb">Cubeta</option>
+                    <option value="m">Metros</option>
+                    <option value="Kg">Kilogramos</option>
+                    <option value="TN">Tonelada</option>
+                    <option value="Cj">Caja</option>
+                    <option value="Tr">Tramo</option>
+                    <option value="M2">Metro Cuadrado</option>
+                    <option value="Rol">Rollo</option>
+                </select>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="cantidad">Cantidad</label>
+                <input type="number" id="cantidad" step="any" placeholder="0.00" min="0.01" required>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="comentario">Comentario</label>
+                <input type="text" id="comentario" placeholder="Detalles extras de la compra...">
+            </div>
+
+            <div class="contenedor-mini-tabla">
+                <h3 class="titulo-mini-tabla">
+                    📋 Materiales Añadidos
+                </h3>
+                <div id="tabla-materiales-vacia" class="tabla-vacia">
+                    (sin material aún)
+                </div>
+                <table id="tabla-mini-materiales" class="mini-tabla">
+                    <thead>
+                        <tr>
+                            <th>Descripción</th>
+                            <th class="txt-centro col-cant">Cant.</th>
+                            <th class="txt-centro col-unidad">Unidad</th>
+                            <th>Comentario</th>
+                            <th class="col-accion"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpo-mini-tabla">
+                        </tbody>
+                </table>
+            </div>
+
+            <div class="contenedor-botones">
+                <button type="button" id="descargar" data-accion="añadir" class="btn">
+                    ➕ Añadir Material a la Lista
+                </button>
+                <button type="submit" id="descargar" data-accion="enviar" class="btn">
+                   🚀 Enviar Solicitud
+                </button>
+            </div>
+        </form>
+    </main>
+-->
+    <main class="form_main">
+        <div style="text-align: center; padding: 80px 20px; font-family: sans-serif;">
+            <!-- Animación/Icono del Monito de Construcción -->
+            <div style="font-size: 72px; margin-bottom: 20px; animation: bounce 2s infinite;">👷‍♂️🚧</div>
+            
+            <h1 style="color: #1e293b; font-size: 32px; margin-bottom: 15px; font-weight: bold;">
+                Sección en Construcción
+            </h1>
+            
+            <p style="color: #64748b; font-size: 16px; max-width: 450px; margin: 0 auto 30px auto; line-height: 1.6;">
+                Estamos preparando este módulo con los estándares de calidad de <strong>MODISA</strong>. Muy pronto estará disponible para su uso.
+            </p>
+        </div>
+    </main>
+
+<!-- Pequeño estilo opcional por si quieres que el monito tenga movimiento flotante -->
+    <style>
+    @keyframes bounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+    </style>
+
+    <footer id="footer">
+        <p>Software especializado MODISA ®</p>
+        <p>Esta aplicación web está diseñada exclusivamente para realizar tu requisición de material</p>
+    </footer>
+
+    <!--
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="formMateriales.js"></script>
+    -->
+
+</body>
+</html>

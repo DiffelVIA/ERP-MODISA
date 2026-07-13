@@ -1,0 +1,77 @@
+<!DOCTYPE html> <!-- esto es para especificar el tipo de documento HTML5 -->
+<html lang="es"> <!-- el atributo lang="es" indica que el idioma principal del contenido es español -->
+<head> <!-- este es el encabezado del documento -->
+    <meta charset="UTF-8"> <!-- este es el conjunto de caracteres utilizado -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!--Sirve para el diseño responsivo-->
+    <title>Registro de Minutas</title>
+    <link rel="icon" type="image/x-icon" href="../img/MODISA-favicon.ico">
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+    <header id="header">
+        <div>
+            <img src="../img/logo.png" alt="logo" id="logo">
+        </div>
+        <nav>
+            <ul>
+                <li><a href="../principal.html">Volver a Panel Principal</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="form_main">
+        <h1>Control de Minutas</h1>
+        <form id="form-minutas">
+
+            <div class="contenedor-formulario">
+                <label for="actividad">Actividad:</label>
+                <input type="text" id="actividad" name="actividad" placeholder="Escribe aquí la actividad" required>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="comentarioDirector">Comentario:</label>
+                <input type="text" id="comentarioDirector" name="comentarioDirector" placeholder="Escribe un comentario" required>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="responsable">Responsable:</label>
+                <select name="responsable" id="responsable" required>
+                    <option value="">-- Selecciona --</option>
+                </select>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="proyecto">Proyecto:</label>
+                <select name="proyecto" id="proyecto" required>
+                    <option value="">-- Selecciona --</option>
+                </select>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="fecha">Fecha de Cumplimiento:</label>
+                <input type="date" name="fecha" id="fecha" required>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="avance">Avance:</label>
+                <input type="text" id="avance" name="avance" placeholder="% Avance" required>
+            </div>
+            
+            <div class="contenedor-botones">
+                <button type="button" id="agregar" class="btn">+ Agregar otra actividad</button>
+                <button type="submit" id="guardar" class="btn">Guardar Minuta</button>
+            </div>        
+        </form>
+    </main>
+
+    <footer id="footer">
+        <p>Aplicación para el control de minutas MODISA ®</p>
+        <p>Esta aplicación web está diseñada exclusivamente para controlar y asegurar el cumplimiento de los acuerdos de las reuniones. Permite capturar rápidamente los datos de la reunión, los temas tratados y asignar tareas específicas con responsables y fechas límite.</p>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="formMinutas.js"></script>
+
+</body>
+</html>

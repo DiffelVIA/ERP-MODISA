@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta de Contratos</title>
+    <link rel="icon" type="image/x-icon" href="../img/MODISA-favicon.ico">
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <header id="header">
+        <div>
+            <img src="../img/logo.png" alt="logo" id="logo">
+        </div>
+        <nav>
+      <ul>
+        <li><a href="../principal.html">Volver a Panel Principal</a></li>
+      </ul>
+    </nav>
+    </header>
+    <main class="main-tabla">
+        <h1>Consulta de Contratos</h1>
+        <div class="contenedorFiltros">
+
+            <div class="filtros" id="dropdownObra">
+                <button type="button" class="btn-dropdown">Filtro Obra ▾</button>
+                <div class="contenido-dropdown" id="filtroObra">
+                </div>
+            </div>
+
+            <div class="filtros" id="dropdownEstado">
+                <button type="button" class="btn-dropdown">Filtro Estado ▾</button>
+                <div class="contenido-dropdown" id="filtroEstado">
+                </div>
+            </div>
+        </div>  
+
+        <div class="tabla">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Proyecto</th>
+                        <th>Grupo</th>
+                        <th>Categoría</th>
+                        <th>Subcategoría</th>
+                        <th>Fecha</th>
+                        <th>Semana</th>
+                        <th>Clave</th>
+                        <th>Descripción</th>
+                        <th>Proveedor</th>
+                        <th>Total</th>
+                        <th>Monto Pagado</th>
+                        <th>Porcentaje pagado</th>
+                        <th>Saldo ($)</th>
+                        <th>Saldo (%)</th>
+                        <th>Estado de Pago</th>
+                        <th>Estado Costos</th>
+                        <th>Estado Dirección</th>
+                        <th>Firmado</th>
+                    </tr>
+                </thead>
+                <tbody class="cuerpoTabla">
+                </tbody>
+            </table>
+        </div>
+    </main>
+    <footer id="footer">
+        <p>Software especializado MODISA ®</p>
+        <p>Esta aplicación web está diseñada exclusivamente para consultar los contratos registrados</p>
+    </footer>
+    <script src="tablaContratos.js"></script>
+</body>
+</html>

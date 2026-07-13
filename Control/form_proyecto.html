@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Proyectos</title>
+    <link rel="icon" type="image/x-icon" href="../img/MODISA-favicon.ico">
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <header id="header">
+    <div>
+      <img src="../img/logo.png" alt="logo" id="logo">
+    </div>
+    <nav>
+      <ul>
+        <li><a href="../principal.html">Volver a Panel Principal</a></li>
+      </ul>
+    </nav>
+    </header>
+    <main class="form_main">
+        <h1>📝 Registro de Proyectos</h1>
+        <form id="form-proyecto">
+            <div class="contenedor-formulario">
+                <label for="proyecto">Nombre de Proyecto</label>
+                <input type="text" id="proyecto" name="proyecto" required>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="responsable">Residente Responsable</label>
+                <select name="responsable" id="responsable" required>
+                    <option value="">-- Selecciona --</option>
+                </select>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="fechaInicio">Fecha de Inicio</label>
+                <input type="date" id="fechaInicio" name="fechaInicio" required>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="fechaFin">Fecha de Finalización</label>
+                <input type="date" id="fechaFin" name="fechaFin" required>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="ubicacion">Ubicación</label>
+                <input type="text" id="ubicacion" name="ubicacion" required>
+            </div>
+            <div class="contenedor-botones">
+                <button type="submit" id="descargar" class="btn">
+                   🚀 Registrar Proyecto
+                </button>
+            </div>
+        </form>
+    </main>
+    <footer id="footer">
+        <p>Software especializado MODISA ®</p>
+        <p>Esta aplicación web está diseñada exclusivamente para registrar nuevos proyectos </p>
+    </footer>
+    <script src="formProyectos.js"></script>
+</body>
+</html>

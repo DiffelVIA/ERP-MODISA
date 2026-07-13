@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Contratos</title>
+    <link rel="icon" type="image/x-icon" href="../img/MODISA-favicon.ico">
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <header id="header">
+        <div>
+            <img src="../img/logo.png" alt="logo" id="logo">
+        </div>
+        <nav>
+            <ul>
+                <li><a href="../principal.html">Volver a Panel Principal</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main class="form_main">
+        <h1>📝 Registro de Contratos</h1>
+        <form id="form-contratos">
+            
+            <div class="contenedor-formulario">
+                <label for="solicitante">Solicitante</label>
+                <input type="text" name="solicitante" id="solicitante" readonly style="cursor: not-allowed;">
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="proyecto">Proyecto</label>
+                <select name="proyecto" id="proyecto" required>
+                    <option value="">-- Selecciona --</option>
+                </select>
+            </div>
+            
+            <div class="contenedor-formulario">
+                <label for="grupo">Grupo</label>
+                <select name="grupo" id="grupo" required disabled>
+                    <option value="">-- Selecciona Proyecto Primero --</option>
+                </select>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="categoria">Categoría</label>
+                <select name="categoria" id="categoria" required disabled>
+                    <option value="">-- Selecciona Grupo Primero --</option>
+                </select>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="subcategoria">Subcategoría</label>
+                <select name="subcategoria" id="subcategoria" required disabled>
+                    <option value="">-- Selecciona Categoría Primero --</option>
+                </select>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="fecha">Fecha de Registro</label>
+                <input type="date" id="fecha" name="fecha" readonly style="cursor: not-allowed;">
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="semana-fiscal">Semana</label>
+                <input type="text" id="semana-fiscal" name="semana" readonly style="cursor: not-allowed;">
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="clave">Clave</label>
+                <input type="text" id="clave" name="clave" required>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="concepto">Concepto</label>
+                <input type="text" id="concepto" name="concepto" required>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="proveedor">Proveedor</label>
+                <input type="text" id="proveedor" name="proveedor" required>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="monto">Monto</label>
+                <input type="number" id="monto" step="any" placeholder="0.00" required min="0.01">
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="link-drive">Enlace a Drive (PDF)</label>
+                <input type="url" required id="link-drive" name="link_drive" placeholder="Copia tu link aquí">
+            </div>
+
+            <div class="contenedor-botones">
+                <button type="submit" id="descargar" class="btn">
+                   🚀 Enviar Contrato
+                </button>
+            </div>
+        </form>
+    </main>
+    <footer id="footer">
+        <p>Software especializado MODISA ®</p>
+        <p>Esta aplicación web está diseñada exclusivamente para registrar contratos</p>
+    </footer>
+    <script src="formContratos.js"></script>
+</body>
+</html>

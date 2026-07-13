@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Categorías MODISA</title>
+    <link rel="icon" type="image/x-icon" href="../img/MODISA-favicon.ico">
+    <link rel="stylesheet" href="../styles.css">
+    <style>
+        /* Ajuste para ocultar secciones dinámicas de forma limpia */
+        .seccion-accion { display: none; margin-top: 20px; }
+        .visible { display: block; }
+        .grupo-campos { margin-bottom: 15px; }
+        .btn-danger { background-color: #dc3545 !important; }
+        .btn-warning { background-color: #ffc107 !important; color: black !important; }
+        .grid-costos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <header id="header">
+        <div>
+            <img src="../img/logo.png" alt="logo" id="logo">
+        </div>
+        <nav>
+            <ul>
+                <li><a href="../principal.html">Volver a Panel Principal</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <div class="form_main">
+            <h1>🚀 Gestión de Categorías</h1>
+            
+            <div class="contenedor-formulario">
+                <label for="selectProyecto">Proyecto</label>
+                <select id="selectProyecto" required>
+                    <option value="">-- Selecciona --</option>
+                </select>
+            </div>
+
+            <div class="contenedor-formulario" style="margin-top: 15px;">
+                <label for="selectAccion">¿Qué deseas hacer?</label>
+                <select id="selectAccion" disabled>
+                    <option value="">-- Primero selecciona un proyecto --</option>
+                    <option value="masiva">📁 Carga De Categorías (Archivo CSV)</option>
+                    <option value="agregar">➕ Agregar Nueva Categoría</option>
+                    <option value="modificar">🛠️ Modificar / Eliminar Existente</option>
+                </select>
+            </div>
+
+            <hr style="margin: 25px 0; border: 0; border-top: 1px solid #ccc;">
+
+            <!-- OPCIÓN A: CARGA MASIVA CSV -->
+            <div id="seccion-masiva" class="seccion-accion">
+                <form id="formCategorias">
+                    <div class="drop-zone" id="dropZone">
+                        <span>Arrastra tu archivo .csv aquí o haz clic para buscar</span>
+                        <input type="file" id="fileInput" accept=".csv">
+                    </div>
+                    <div class="contenedor-botones" style="margin-top: 15px;">
+                        <button type="submit" id="descargar" data-accion="iniciar" class="btn">⚡ Iniciar Categorización</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- OPCIÓN B: AGREGAR MANUALMENTE -->
+            <div id="seccion-agregar" class="seccion-accion">
+                <h3>Añadir Nueva Categoría y Presupuesto</h3>
+                <div class="contenedor-formulario grupo-campos">
+                    <label for="addGrupo">Grupo</label>
+                    <input type="text" id="addGrupo" placeholder="Ej: Obra Civil" class="input_form">
+                </div>
+                <div class="contenedor-formulario grupo-campos">
+                    <label for="addCategoria">Categoría</label>
+                    <input type="text" id="addCategoria" placeholder="Ej: Cimentaciones" class="input_form">
+                </div>
+                <div class="contenedor-formulario grupo-campos">
+                    <label for="addSubcategoria">Subcategoría</label>
+                    <input type="text" id="addSubcategoria" placeholder="Ej: Excavación Manual" class="input_form">
+                </div>
+
+                <!-- Nuevos campos financieros para Agregar -->
+                <div class="grid-costos">
+                    <div class="contenedor-formulario">
+                        <label for="addManoObra">Mano de Obra ($)</label>
+                        <input type="number" id="addManoObra" step="0.01" value="0.00" class="input_form">
+                    </div>
+                    <div class="contenedor-formulario">
+                        <label for="addMateriales">Materiales ($)</label>
+                        <input type="number" id="addMateriales" step="0.01" value="0.00" class="input_form">
+                    </div>
+                    <div class="contenedor-formulario">
+                        <label for="addMaquinaria">Maquinaria y Equipo ($)</label>
+                        <input type="number" id="addMaquinaria" step="0.01" value="0.00" class="input_form">
+                    </div>
+                    <div class="contenedor-formulario">
+                        <label for="addContratos">Contratos ($)</label>
+                        <input type="number" id="addContratos" step="0.01" value="0.00" class="input_form">
+                    </div>
+                </div>
+                <div class="contenedor-formulario grupo-campos" style="margin-top: 10px;">
+                    <label for="addTotal">Total ($)</label>
+                    <input type="number" id="addTotal" step="0.01" value="0.00" class="input_form" readonly style="background-color: #f0f0f0;">
+                </div>
+
+                <div class="contenedor-botones" style="margin-top: 15px;">
+                    <button type="button" id="descargar" data-accion="guardar" class="btn">💾 Guardar Registro</button>
+                </div>
+            </div>
+
+            <!-- OPCIÓN C: MODIFICAR O ELIMINAR EXISTENTE -->
+            <div id="seccion-modificar" class="seccion-accion">
+                <h3>Modificar o Eliminar Fila del Proyecto</h3>
+                
+                <div class="contenedor-formulario grupo-campos">
+                    <label for="modSelectGrupo">1. Selecciona Grupo</label>
+                    <select id="modSelectGrupo">
+                        <option value="">-- Selecciona un grupo --</option>
+                    </select>
+                </div>
+
+                <div class="contenedor-formulario grupo-campos">
+                    <label for="modSelectCategoria">2. Selecciona Categoría</label>
+                    <select id="modSelectCategoria" disabled>
+                        <option value="">-- Primero selecciona un grupo --</option>
+                    </select>
+                </div>
+
+                <div class="contenedor-formulario grupo-campos">
+                    <label for="modSelectSubcategoria">3. Selecciona Subcategoría</label>
+                    <select id="modSelectSubcategoria" disabled>
+                        <option value="">-- Primero selecciona una categoría --</option>
+                    </select>
+                </div>
+
+                <div id="camposEdicion" style="display: none; margin-top: 20px;">
+                    <div class="contenedor-formulario grupo-campos">
+                        <label for="editGrupo">Editar Nombre de Grupo</label>
+                        <input type="text" id="editGrupo" class="input_form">
+                    </div>
+                    <div class="contenedor-formulario grupo-campos">
+                        <label for="editCategoria">Editar Nombre de Categoría</label>
+                        <input type="text" id="editCategoria" class="input_form">
+                    </div>
+                    <div class="contenedor-formulario grupo-campos">
+                        <label for="editSubcategoria">Editar Nombre de Subcategoría</label>
+                        <input type="text" id="editSubcategoria" class="input_form">
+                    </div>
+
+                    <!-- Nuevos campos financieros para Edición -->
+                    <div class="grid-costos">
+                        <div class="contenedor-formulario">
+                            <label for="editManoObra">Editar Mano de Obra ($)</label>
+                            <input type="number" id="editManoObra" step="0.01" class="input_form">
+                        </div>
+                        <div class="contenedor-formulario">
+                            <label for="editMateriales">Editar Materiales ($)</label>
+                            <input type="number" id="editMateriales" step="0.01" class="input_form">
+                        </div>
+                        <div class="contenedor-formulario">
+                            <label for="editMaquinaria">Editar Maquinaria y Equipo ($)</label>
+                            <input type="number" id="editMaquinaria" step="0.01" class="input_form">
+                        </div>
+                        <div class="contenedor-formulario">
+                            <label for="editContratos">Editar Contratos ($)</label>
+                            <input type="number" id="editContratos" step="0.01" class="input_form">
+                        </div>
+                    </div>
+                    <div class="contenedor-formulario grupo-campos" style="margin-top: 10px;">
+                        <label for="editTotal">Editar Total ($)</label>
+                        <input type="number" id="editTotal" step="0.01" class="input_form" readonly style="background-color: #f0f0f0;">
+                    </div>
+                    
+                    <div class="contenedor-botones" style="gap: 10px; display: flex; margin-top: 15px;">
+                        <button type="button" id="descargar" data-accion="actualizar" class="btn">✏️ Aplicar Cambios</button>
+                        <button type="button" id="descargar" data-accion="eliminar" class="btn">🗑️ Eliminar Fila</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer id="footer">
+        <p>Aplicación para el control de minutas MODISA ®</p>
+        <p>Esta aplicación web está diseñada exclusivamente para registrar las categorias de los proyectos registrados</p>
+    </footer>
+
+    <script src="categorias.js"></script>
+</body>
+</html>

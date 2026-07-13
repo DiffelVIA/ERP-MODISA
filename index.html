@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inicio de Sesión</title>
+    <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+    <header id="header">
+        <div>
+            <img src="/img/logo.png" alt="logo" id="logo">
+        </div>
+    </header>
+
+    <main class="index_main">
+        <div id="login" class="login-container">
+            <h1>Inicio de Sesión</h1>
+            <form id="form-login">
+                <div class="contenedor-formulario">
+                    <label for="usuario">Usuario</label>
+                    <input type="text" id="usuario" placeholder="Escribe tu Usuario" required>
+                </div>
+                <div class="contenedor-formulario">
+                    <label for="contrasena">Contraseña</label>
+                    <input type="password" id="contrasena" placeholder="Escribe tu Contraseña" required>
+                </div>
+                <div class="contenedor-botones">
+                    <button type="submit" id="descargar" class="btn">Ingresar</button>
+                    <a href="recuperar.html" style="margin-top: 15px; display: block; text-align: center; color: #555; text-decoration: none; font-size: 0.9rem;">¿Olvidaste tu contraseña?</a>
+                </div>
+
+                <div id="error-login" class="error-msg" style="display: none;"></div>
+            </form>
+        </div>
+        <div id="login-primera" class="login-container" style="display: none;">
+            <h1>Actualizar Contraseña</h1>
+            <p>Al ser tu primer ingreso, por seguridad, debes cambiar tu contraseña para continuar</p>
+            <form id="login-update">
+                <div class="contenedor-formulario">
+                    <label for="nueva-contrasena">Nueva Contraseña</label>
+                    <input type="password" id="nueva-contrasena" placeholder="Mínimo 6 caracteres" minlength="6" required>
+                </div>
+                <div class="contenedor-formulario">
+                    <label for="confirmar-contrasena">Confirmar Contraseña</label>
+                    <input type="password" id="confirmar-contrasena" placeholder="Repite tu Contraseña" minlength="6" required>
+                </div>
+                <div class="contenedor-botones">
+                    <button type="submit" id="descargar" class="btn">Ingresar</button>
+                </div>
+                <div id="error-change" class="error-msg" style="display: none;"></div>
+            </form>
+        </div>
+    </main>
+
+    <footer id="footer">
+        <p>Software especializado MODISA ® 2026</p>
+    </footer>
+
+    <script src="login.js"></script>
+
+</body>
+
+</html>
