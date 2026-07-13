@@ -16,7 +16,7 @@ const credentials = JSON.parse(fs.readFileSync(credentialsPath));
 const { client_id, client_secret, redirect_uris } = credentials.web;
 
 const redirectUri = process.env.NODE_ENV === 'production' 
-  ? 'https://erp-modisa.onrender.com/oauth2callback'
+  ? 'https://erp-modisa.onrender.com'
   : redirect_uris[0];
 
 const oauth2Client = new google.auth.OAuth2(
