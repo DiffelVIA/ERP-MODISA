@@ -263,7 +263,7 @@ function armarCuerpoPDF(doc, listaDeActividades) {
 
 async function procesarEnvioNube(listaDeActividades) {
   try {
-    const respuesta = await fetch(`${API_URL}/api/tabla_minutas`, {
+    const respuesta = await fetch(`${API_URL}/tabla_minutas`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
