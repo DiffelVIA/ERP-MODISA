@@ -334,14 +334,16 @@ app.post('/api/tabla_minutas', async (req, res) => {
   const listaMinutas = Array.isArray(minutas) ? minutas : [minutas];
 
   try {
-    const promesas = listaMinutas.map(async (item) => {
+    // MEJOR PRÁCTICA: Procesar de forma controlada y segura para capturar errores de forma síncrona
+    for (const item of listaMinutas) {
+      
       // 1. Validar si la actividad ya está registrada para obtener su histórico
       const [registroPrevio] = await pool.query(
         'SELECT fecha, semana, estado, comentarioDirector FROM minutas WHERE id = ?', 
         [item.id]
       );
       
-      let comentarioFinal = item.comentariodirector || item.comentarioDirector || '';
+      let comentarioFinal = item.comentarioDirector || item.comentariodirector || '';
       let fechaDestino = item.fecha ? item.fecha.split('T')[0] : new Date().toISOString().split('T')[0];
       let semanaOriginal;
 
@@ -349,7 +351,7 @@ app.post('/api/tabla_minutas', async (req, res) => {
         // --- REGLAS PARA REGISTROS EXISTENTES ---
         const datosOriginales = registroPrevio[0];
 
-        // 🛡️ PRÁCTICA DE SEGURIDAD: Bloquear la semana fiscal de origen. Nunca se recalcula.
+        // Bloquear la semana fiscal de origen
         semanaOriginal = datosOriginales.semana;
 
         // Si se cambia cualquier dato pero NO es aplazada, se respeta la fecha que ya estaba en BD
@@ -357,12 +359,11 @@ app.post('/api/tabla_minutas', async (req, res) => {
           fechaDestino = datosOriginales.fecha ? new Date(datosOriginales.fecha).toISOString().split('T')[0] : fechaDestino;
         }
 
-        // 🚨 LÓGICA DE DÍAS RETRASADOS AL COMPLETAR
+        // LÓGICA DE DÍAS RETRASADOS AL COMPLETAR
         if (item.estado === 'completada' && datosOriginales.estado !== 'completada') {
           const fechaLimiteOriginal = new Date(datosOriginales.fecha);
           const fechaCompletadoHoy = new Date();
 
-          // Normalizar tiempos a las 00:00:00 para evitar desajustes por husos horarios en la sustracción
           fechaLimiteOriginal.setHours(0, 0, 0, 0);
           fechaCompletadoHoy.setHours(0, 0, 0, 0);
 
@@ -372,7 +373,6 @@ app.post('/api/tabla_minutas', async (req, res) => {
             
             const prefijoRetraso = `⚠️ Esta actividad se completó con ${diasRetrasados} días retrasados.`;
 
-            // Validar si el texto ya se encuentra anexado en el comentario para prevenir duplicados
             if (comentarioFinal) {
               if (!comentarioFinal.includes(`con ${diasRetrasados} días retrasados`)) {
                 comentarioFinal = `${comentarioFinal} | ${prefijoRetraso}`;
@@ -384,7 +384,6 @@ app.post('/api/tabla_minutas', async (req, res) => {
         }
       } else {
         // --- REGLAS PARA NUEVOS REGISTROS ---
-        // Si el cliente envía la semana la usamos, de lo contrario se computa de forma dinámica
         if (item.semana !== undefined && item.semana !== null && !isNaN(Number(item.semana)) && Number(item.semana) !== 0) {
           semanaOriginal = Number(item.semana);
         } else {
@@ -395,21 +394,21 @@ app.post('/api/tabla_minutas', async (req, res) => {
         }
       }
 
-      // 2. Ejecución con asignaciones controladas mediante parámetros atómicos
+      // MEJOR PRÁCTICA: Evitar VALUES() ambiguos en ON DUPLICATE KEY UPDATE asignando parámetros limpios
       const querySQL = `
         INSERT INTO minutas (id, proyecto, avance, responsable, semana, fecha, descripcion, estado, comentarioDirector)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
-          estado = VALUES(estado),
+          estado = ?,
           comentarioDirector = ?,
-          proyecto = VALUES(proyecto),
-          avance = VALUES(avance),
-          responsable = VALUES(responsable),
+          proyecto = ?,
+          avance = ?,
+          responsable = ?,
           fecha = ?, 
-          descripcion = VALUES(descripcion);
+          descripcion = ?;
       `;
 
-      return pool.query(querySQL, [
+      const valoresControlados = [
         item.id, 
         item.proyecto, 
         item.avance !== undefined && item.avance !== null ? Number(item.avance) : 0, 
@@ -418,17 +417,25 @@ app.post('/api/tabla_minutas', async (req, res) => {
         fechaDestino, 
         item.descripcion, 
         item.estado, 
-        comentarioFinal, // Inyección controlada de comentarioDirector en el INSERT
-        comentarioFinal, // Inyección controlada de comentarioDirector en el UPDATE
-        fechaDestino     // Inyección de fecha (sólo mutará si el estado fue 'aplazada')
-      ]);
-    });
+        comentarioFinal, // Para el INSERT inicial
+        // Valores explícitos para el UPDATE (Previene fallas de mapeo atómico):
+        item.estado,
+        comentarioFinal,
+        item.proyecto,
+        item.avance !== undefined && item.avance !== null ? Number(item.avance) : 0,
+        item.responsable,
+        fechaDestino,
+        item.descripcion
+      ];
 
-    await Promise.all(promesas);
+      // Ejecutar y esperar de manera segura dentro del bloque try/catch
+      await pool.query(querySQL, valoresControlados);
+    }
+
     res.json({ mensaje: 'Minutas sincronizadas con éxito en Aiven' });
   } catch (error) {
-    console.error('Error crítico en el guardado de minutas:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error crítico controlado en el guardado de minutas:', error);
+    res.status(500).json({ error: 'Error al persistir minutas en la base de datos', detalle: error.message });
   }
 });
 

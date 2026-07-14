@@ -263,17 +263,26 @@ function armarCuerpoPDF(doc, listaDeActividades) {
 
 async function procesarEnvioNube(listaDeActividades) {
   try {
+    // Sanitizar datos antes de enviarlos (Mejor Práctica)
+    const datosSanitizados = listaDeActividades.map(act => ({
+      ...act,
+      avance: Number(act.avance) || 0,
+      comentarioDirector: act.comentarioDirector ? act.comentarioDirector.trim() : ''
+    }));
+
     const respuesta = await fetch(`${API_URL}/tabla_minutas`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-user-rol': localStorage.getItem('userRol')
+        'x-user-rol': localStorage.getItem('userRol') || ''
       },
-      body: JSON.stringify(listaDeActividades)
+      body: JSON.stringify(datosSanitizados)
     });
 
     if (!respuesta.ok) {
-      throw new Error('Error en la respuesta del servidor');
+      // Intentar leer el error real que escupa el backend antes de lanzar la excepción
+      const errorBackend = await respuesta.json().catch(() => ({}));
+      throw new Error(errorBackend.detalle || 'Error en la respuesta del servidor');
     }
 
     const resultado = await respuesta.json();
