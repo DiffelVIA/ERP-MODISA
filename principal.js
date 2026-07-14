@@ -17,12 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (btnRegistroMinuta) {
         btnRegistroMinuta.addEventListener('click', (e) =>{
             e.preventDefault();
-
-            if (rolUsuario === "Director Operativo") {
-                window.location.href = "Control/form_minutas.html";
-            } else {
-                alert("⛔ Acceso denegado");
-            }
+            window.location.href = "Control/form_minutas.html";
         });
     }
 
