@@ -302,7 +302,7 @@ function asignarEventosInteractivos() {
 
 async function guardarEnNubeUrgente(actividadActualizada) {
   try {
-    const url = `${API_URL}/minutas`;
+    const url = `${API_URL}/tabla_minutas`;
 
     const indice = concentradoMinutas.findIndex(item => String(item.id) === String(actividadActualizada.id));
     if (indice !== -1) {
