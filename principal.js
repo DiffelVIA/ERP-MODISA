@@ -77,3 +77,17 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 });
+
+// === Cierre de Sesión ===
+    const btnLogout = document.getElementById('btn-logout');
+
+    if (btnLogout) {
+        btnLogout.addEventListener('click', (e) => {
+            e.preventDefault(); 
+
+            localStorage.removeItem('userRol');
+            sessionStorage.removeItem('usuarioMODISA');
+
+            window.location.replace("../index.html"); 
+        });
+    }
