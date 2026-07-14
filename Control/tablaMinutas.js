@@ -1,17 +1,16 @@
+// Sección de variables globales que almacenan los datos de minutas y filtros para la tabla de actividades.
 let concentradoMinutas = [];
 let actividadesFiltradas = [];
-
 let filtroProyecto;
 let filtroEstado;
 let filtroResponsable;
 let filtroSemana;
-
 let cuerpoTabla;
 
-const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? 'http://localhost:3000/api' 
-  : 'https://erp-modisa.onrender.com/api';
+// Seccion de configuracion de la URL de la API dependiendo del entorno (local o producción)
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
 
+// sección de eventos que se ejecutan cuando el DOM está completamente cargado
 document.addEventListener('DOMContentLoaded', () => {
   cuerpoTabla = document.querySelector('.cuerpoTabla');
   filtroProyecto = document.getElementById("filtroProyecto");
@@ -19,11 +18,12 @@ document.addEventListener('DOMContentLoaded', () => {
   filtroResponsable = document.getElementById("filtroResponsable");
   filtroSemana = document.getElementById("filtroSemana");
 
-  if(!cuerpoTabla) return;
+  if(!cuerpoTabla) return; // Si no se encuentra el elemento del cuerpo de la tabla, se detiene la ejecución
 
-  cargarActividades();
-  configurarDropdowns();
+  cargarActividades(); // Llamada a la función que carga las actividades desde la API y las renderiza en la tabla
+  configurarDropdowns(); // Llamada a la función que configura los dropdowns de filtros para que se puedan abrir y cerrar correctamente
 
+  // Sección de eventos que se ejecutan cuando se cambia el estado de los checkboxes de los filtros
   document.addEventListener('change', (e) => {
     if (
       e.target.classList.contains('chk-proyecto') ||
@@ -31,17 +31,19 @@ document.addEventListener('DOMContentLoaded', () => {
       e.target.classList.contains('chk-responsable') ||
       e.target.classList.contains('chk-semana')
     ){
-      console.log(`Filtro cambiado: ${e.target.value} -> Estado actual: ${e.target.checked}`);
+      console.log(`Filtro cambiado: ${e.target.value} -> Estado actual: ${e.target.checked}`); // 
       aplicarFiltros();
     }
   });
 
+  // Sección de evento que se ejecuta cuando se hace clic en el botón de descargar PDF
   const btnDescargar = document.getElementById("descargar");
   if (btnDescargar) {
-    btnDescargar.addEventListener('click', MinutasPDF);
+    btnDescargar.addEventListener('click', MinutasPDF); // addEventListener para ejecutar la función MinutasPDF cuando se hace clic en el botón de descargar PDF
   }
 });
 
+// Función asíncrona que carga las actividades desde la API y las renderiza en la tabla
 async function cargarActividades() {
   try {
     const respuesta = await fetch(`${API_URL}/tabla_minutas`);
@@ -57,7 +59,7 @@ async function cargarActividades() {
 
     if (!Array.isArray(datosCrudos)) {
       concentradoMinutas = [];
-    } else {
+    } else { // Bloque que transforma los datos crudos recibidos de la API en un formato más limpio y consistente para su uso en la aplicación
       concentradoMinutas = datosCrudos.map(item => {
         const comentario = item.comentariodirector || item.comentarioDirector || '';
         const avance = item.avance !== undefined && item.avance !== null ? Number(item.avance) : 0;
@@ -87,6 +89,7 @@ async function cargarActividades() {
   }
 }
 
+// Función que filtra y genera las opciones de los filtros de proyecto, estado, responsable y semana en la interfaz de usuario
 function filtroOpciones(datos){
   if (!datos || datos.length === 0) return;
 
@@ -137,6 +140,7 @@ function filtroOpciones(datos){
   }
 }
 
+// Función que renderiza la tabla de actividades en la interfaz de usuario según los filtros aplicados y el rol del usuario
 function renderizarTabla(actividadesAFiltrar) {
   if (!cuerpoTabla) return;
   cuerpoTabla.innerHTML = '';
@@ -207,7 +211,7 @@ function renderizarTabla(actividadesAFiltrar) {
   }
 }
 
-
+// Función que aplica los filtros seleccionados por el usuario y actualiza la tabla de actividades en consecuencia
 function aplicarFiltros() {
   const obtenerValoresCheckboxes = (selector) => {
     return Array.from(document.querySelectorAll(selector))
@@ -233,6 +237,7 @@ function aplicarFiltros() {
   renderizarTabla(resultadoFiltrado);
 }
 
+// Función que configura los comportamientos de los dropdowns de filtros
 function configurarDropdowns() {
   const dropdowns = document.querySelectorAll('.filtros');
 
@@ -244,7 +249,6 @@ function configurarDropdowns() {
       boton.addEventListener('click', (e) => {
         e.stopPropagation();
         
-        // Cerrar otros dropdowns abiertos
         document.querySelectorAll('.contenido-dropdown').forEach(c => {
           if (c !== contenido) c.classList.remove('mostrar');
         });
@@ -258,7 +262,6 @@ function configurarDropdowns() {
     }
   });
 
-  // Cerrar al hacer clic fuera
   document.addEventListener('click', () => {
     document.querySelectorAll('.contenido-dropdown').forEach(c => {
       c.classList.remove('mostrar');
@@ -266,6 +269,7 @@ function configurarDropdowns() {
   });
 }
 
+// Función que asigna eventos interactivos a los elementos de la tabla, como cambios en el estado y comentarios
 function asignarEventosInteractivos() {
   cuerpoTabla.querySelectorAll('.selector-estatus').forEach((select) => {
     select.addEventListener('change', async (e) => {
@@ -300,6 +304,7 @@ function asignarEventosInteractivos() {
   });
 }
 
+// Función asíncrona que guarda los cambios de una actividad en la nube mediante una solicitud POST a la API
 async function guardarEnNubeUrgente(actividadActualizada) {
   try {
     const url = `${API_URL}/tabla_minutas`;
@@ -349,6 +354,7 @@ async function guardarEnNubeUrgente(actividadActualizada) {
   }
 }
 
+// Función que formatea una fecha en formato YYYY-MM-DD a DD/MM/YYYY para su visualización en la interfaz de usuario
 function formatearFechaHTML(fechaInput) {
   if (!fechaInput) return '';
   const partes = fechaInput.split('-');
@@ -356,6 +362,7 @@ function formatearFechaHTML(fechaInput) {
   return `${partes[2]}/${partes[1]}/${partes[0]}`;
 }
 
+// Función que genera un PDF con las minutas filtradas y lo descarga automáticamente
 function MinutasPDF() {
   if (actividadesFiltradas.length === 0) {
     alert('No hay actividades para generar el PDF. Aplica filtros que muestren actividades o elimina los filtros.');
@@ -485,6 +492,7 @@ function MinutasPDF() {
   doc.save(nombreArchivo);
 }
 
+// Función que muestra un modal para seleccionar una nueva fecha de entrega al cambiar el estado de una actividad a "aplazada"
 function nuevaFechaEstado(actividad, selectElement) {
   const modalBg = document.createElement('div');
   modalBg.style.position = 'fixed';
