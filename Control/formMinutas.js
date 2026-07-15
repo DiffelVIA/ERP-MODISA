@@ -4,6 +4,7 @@ const API_URL = window.location.hostname === 'localhost' || window.location.host
 
 let actividadesAcumuladas = [];
 
+// Función que se ejecuta cuando el DOM está completamente cargado y contiene roles de usuario para controlar el acceso a la sección de minutas
 document.addEventListener('DOMContentLoaded', () => {
 
   const rolUsuario = localStorage.getItem('userRol');
@@ -35,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+// Función asíncrona que carga los responsables desde la nube y los agrega a un elemento select en el formulario
 async function cargarResponsablesDesdeNube() {
   const selectResponsable = document.getElementById('responsable');
   if (!selectResponsable) return;
@@ -59,6 +61,7 @@ async function cargarResponsablesDesdeNube() {
   }
 }
 
+// Función asíncrona que carga los proyectos desde la nube y los agrega a un elemento select en el formulario
 async function cargarProyectosDesdeNube() {
   const selectProyecto = document.getElementById('proyecto');
   if (!selectProyecto) return;
@@ -80,10 +83,11 @@ async function cargarProyectosDesdeNube() {
     
     console.log('¡Proyectos cargados con éxito desde la tabla projects!');
   } catch (error) {
-    console.error('Error al rellenar el select de proyectos:', error);
+    console.error('Error al rellenar proyectos:', error);
   }
 }
 
+//Fragmento que sirve para guardar temporalmente las actividades al dar click
 const botonAgregar = document.getElementById('agregar');
 
 if (botonAgregar) {
@@ -217,6 +221,7 @@ function ejecutarGeneracionPDF(actividadesParaPDF) {
   img.src = rutaLogoLocal;
 }
 
+// Estructura del PDF
 function armarCuerpoPDF(doc, listaDeActividades) {
   doc.setTextColor(51, 65, 85);
   let coordenadaY = 55;
@@ -261,6 +266,7 @@ function armarCuerpoPDF(doc, listaDeActividades) {
   });
 }
 
+// Función asíncrona que procesa el envío de actividades a la nube
 async function procesarEnvioNube(listaDeActividades) {
   try {
     // Sanitizar datos antes de enviarlos (Mejor Práctica)
@@ -280,7 +286,7 @@ async function procesarEnvioNube(listaDeActividades) {
     });
 
     if (!respuesta.ok) {
-      // Intentar leer el error real que escupa el backend antes de lanzar la excepción
+
       const errorBackend = await respuesta.json().catch(() => ({}));
       throw new Error(errorBackend.detalle || 'Error en la respuesta del servidor');
     }
@@ -294,13 +300,14 @@ async function procesarEnvioNube(listaDeActividades) {
     if (formulario) formulario.reset();
 
     document.getElementById('actividad').focus();
-    alert('¡Minuta guardada con éxito en la nube!');
+    alert('¡Minuta guardada con éxito');
   } catch (error) {
     console.error('Error al conectar el backend:', error);
     alert('❌ Error al conectar con la base de datos. Se generó PDF local de respaldo');
   }
 }
 
+// Función que configura el botón de guardar para que dispare el evento de envío del formulario
 function configurarBotonGuardarAlterno(){
   const botonGuardar = document.getElementById('guardar') || document.getElementById('guardarMinuta');
   if (botonGuardar) {
@@ -311,6 +318,7 @@ function configurarBotonGuardarAlterno(){
   }
 }
 
+// Función que obtiene el número de semana fiscal a partir de una fecha
 function obtenerNumeroSemana(fecha){
   const d = new Date(Date.UTC(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()));
   const dianNum = d.getUTCDay() || 7;
