@@ -120,28 +120,26 @@ function mostrarError(elemento, mensaje) {
     elemento.style.display = "block";
 }
 
-// 🧹 ANULAR EL BOTÓN DE ATRÁS EN LA PANTALLA DE LOGIN
-// Crea una página vacía artificial en el historial del navegador para atrapar el clic de retroceso
+// 🛡️ BLOQUEO ESTRÉPITO DEL BOTÓN "ATRÁS"
+// Genera estados artificiales en el historial del navegador para capturar y neutralizar el retroceso
 window.history.pushState(null, "", window.location.href);
 window.onpopstate = function () {
     window.history.pushState(null, "", window.location.href);
 };
 
-// 🧼 LIMPIEZA ABSOLUTA DE FORMULARIO AL CARGAR
+// 🧼 LIMPIEZA ABSOLUTA DE FORMULARIO Y DATOS DE SESIÓN AL CARGAR
 window.addEventListener('pageshow', () => {
-    // Si un usuario ya tiene sesión activa, que no pueda ver la pantalla de login
+    // Si un usuario ya tiene sesión activa en este navegador, que no pueda ver el login (redirige al dashboard)
     if (localStorage.getItem('userRol') && sessionStorage.getItem('usuarioMODISA')) {
         window.location.replace('principal.html');
         return;
     }
 
-    // Asegurarnos que todo rastro en memoria del navegador esté limpio
+    // Si llegó aquí tras un logout o redirección por timeout, limpiamos todo rastro de almacenamiento
     localStorage.removeItem('userRol');
     sessionStorage.removeItem('usuarioMODISA');
 
-    // Forzar la limpieza física de los campos
-    const inputUsuario = document.getElementById('usuario');
-    const inputContrasena = document.getElementById('contrasena');
+    // Forzamos al DOM a resetear físicamente los campos y evitar que la caché autocomplete el form al retroceder
     if (inputUsuario) inputUsuario.value = "";
     if (inputContrasena) inputContrasena.value = "";
 });
