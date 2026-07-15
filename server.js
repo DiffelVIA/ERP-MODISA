@@ -483,12 +483,16 @@ app.get('/api/materiales', async (req, res) => {
   try {
     const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim().toLowerCase() : '';
     
+    // MODIFICADO: Agregamos subconsultas para obtener el presupuesto autorizado de materiales 
+    // y la suma de lo que ya se ha cotizado/comprado de esa categoría en este proyecto.
     const querySQL = `
       SELECT 
         od.id_detail,
         CONCAT(e.name, ' ', e.last_name) AS solicitante,
         e.phone AS telefono,
         p.project_name AS obra,
+        mo.id_project,
+        od.id_project_category,
         mo.order_date,
         mo.fiscal_week,
         pc.grupo,
@@ -501,7 +505,22 @@ app.get('/api/materiales', async (req, res) => {
         od.provider AS proveedor,
         od.reference AS referencia,
         od.unit_price AS precio_unitario,
-        LOWER(od.status) AS estado
+        LOWER(od.status) AS estado,
+        
+        -- Presupuesto asignado a la subcategoría (columna 'materiales')
+        COALESCE(pc.materiales, 0.00) AS presupuesto_autorizado,
+        
+        -- Suma de todo lo cotizado/comprado de esta subcategoría en este proyecto (excluyendo el detalle actual)
+        COALESCE((
+          SELECT SUM(sub_od.quantity * sub_od.unit_price)
+          FROM order_details AS sub_od
+          INNER JOIN material_orders AS sub_mo ON sub_od.id_order = sub_mo.id_order
+          WHERE sub_mo.id_project = mo.id_project
+            AND sub_od.id_project_category = od.id_project_category
+            AND sub_od.id_detail <> od.id_detail
+            AND LOWER(sub_od.status) IN ('cotizado', 'comprado')
+        ), 0.00) AS monto_gastado_otros
+        
       FROM order_details AS od
       INNER JOIN material_orders AS mo ON od.id_order = mo.id_order
       LEFT JOIN projects AS p ON mo.id_project = p.id_project
@@ -516,6 +535,7 @@ app.get('/api/materiales', async (req, res) => {
       "compras", 
       "director general", 
       "director operativo", 
+      "gerente de costs", // Mantenemos compatibilidad con tus roles
       "gerente de costos", 
       "auxiliar costos"
     ];
@@ -527,7 +547,9 @@ app.get('/api/materiales', async (req, res) => {
         ...item,
         proveedor: null,
         precio_unitario: "0.00",
-        monto: null
+        monto: null,
+        presupuesto_autorizado: 0,
+        monto_gastado_otros: 0
       }));
       
       return res.json(datosSeguros);

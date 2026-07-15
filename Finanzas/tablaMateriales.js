@@ -212,6 +212,35 @@ function generarOpcionesFiltros(datos) {
     }
 }
 
+// =========================================================================
+// MODIFICADO: Nueva función de utilidad para calcular el semáforo de presupuesto
+// =========================================================================
+function obtenerClaseSemaforo(datosItem, totalFila) {
+    // Si la cotización está pendiente o cancelada, mantendremos el estilo original azul
+    if (datosItem.estado === 'pendiente' || datosItem.estado === 'cancelado') {
+        return 'monto-pendiente';
+    }
+
+    const autorizado = parseFloat(datosItem.presupuesto_autorizado) || 0;
+    // Si no hay presupuesto asignado en la base de datos para esta subcategoría, no activamos alertas
+    if (autorizado <= 0) {
+        return 'monto-pendiente';
+    }
+
+    const gastadoOtros = parseFloat(datosItem.monto_gastado_otros) || 0;
+    const disponible = autorizado - gastadoOtros;
+    const diferencia = disponible - totalFila;
+
+    if (diferencia < 0) {
+        return 'monto-rojo';       // Se rebasó el monto autorizado
+    } else if (diferencia < 1000) {
+        return 'monto-amarillo';   // Cercano a rebasarse (menos de $1,000 pesos)
+    } else {
+        return 'monto-verde';      // Monto seguro (lejos por más de $1,000 pesos)
+    }
+}
+// =========================================================================
+
 function renderizarTabla(materialesAVer) {
     if (!cuerpoTabla) return;
     cuerpoTabla.innerHTML = '';
@@ -255,6 +284,12 @@ function renderizarTabla(materialesAVer) {
                 <td style="width: 10%; font-weight: 500; text-align: center;">${estadoVisual}</td>
             `;
         } else {
+            // =========================================================================
+            // MODIFICADO: Cálculo e integración del semáforo en la inicialización de la fila
+            // =========================================================================
+            const totalFilaInicial = parseFloat(montoCalculado) || 0;
+            const claseColorInicial = obtenerClaseSemaforo(item, totalFilaInicial);
+
             tr.innerHTML = `
                 <td style="width: 6%; font-weight: bold;">${item.solicitante || 'Sin Nombre'}</td>
                 <td style="width: 8%;">${item.obra || 'Sin Obra'}</td>
@@ -276,7 +311,8 @@ function renderizarTabla(materialesAVer) {
                 <td style="width: 5%;">
                     <input type="number" class="input-tabla precio-input" value="${item.precio_unitario > 0 ? item.precio_unitario : ''}" step="any" placeholder="0.00">
                 </td>
-                <td style="width: 5%; font-weight: bold; color: var(--accent-color); text-align: right; padding-right: 10px;" class="monto-celda">$${montoCalculado}</td>
+                <!-- MODIFICADO: Quitamos color inline para usar las clases CSS de semáforo -->
+                <td style="width: 5%; font-weight: bold; text-align: right; padding-right: 10px;" class="monto-celda ${claseColorInicial}">$${montoCalculado}</td>
                 <td style="width: 5%;">
                     <select class="select-tabla estado-select" style="padding: 4px 4px;">
                         <option value="pendiente" ${item.estado === 'pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
@@ -310,13 +346,20 @@ function renderizarTabla(materialesAVer) {
                     }
                     let estadoFinal = selectEstado.value;
 
-                    const nuevoMonto = (item.quantity * precio).toFixed(2);
-                    celdaMonto.textContent = `$${nuevoMonto}`;
+                    const totalFilaCalculado = item.quantity * precio;
+                    const nuevoMonto = totalFilaCalculado.toFixed(2);
 
                     item.proveedor = nuevoProveedor;
                     item.referencia = nuevaReferencia;
                     item.precio_unitario = precio;
                     item.estado = estadoFinal;
+
+                    // =========================================================================
+                    // MODIFICADO: Actualización del contenido y la clase del semáforo al confirmar cambios (blur)
+                    // =========================================================================
+                    celdaMonto.textContent = `$${nuevoMonto}`;
+                    celdaMonto.className = `monto-celda ${obtenerClaseSemaforo(item, totalFilaCalculado)}`;
+                    // =========================================================================
 
                     const elementoGlobal = concentradoMateriales.find(m => m.id_detail === item.id_detail);
                     if (elementoGlobal) {
@@ -324,6 +367,10 @@ function renderizarTabla(materialesAVer) {
                         elementoGlobal.referencia = nuevaReferencia;
                         elementoGlobal.precio_unitario = precio;
                         elementoGlobal.estado = estadoFinal;
+                        
+                        // Mantenemos la información de presupuesto también en la lista global
+                        elementoGlobal.presupuesto_autorizado = item.presupuesto_autorizado;
+                        elementoGlobal.monto_gastado_otros = item.monto_gastado_otros;
                     }
 
                     const respuesta = await fetch(`${API_URL}/materiales/detalle/${item.id_detail}`, {
@@ -351,6 +398,27 @@ function renderizarTabla(materialesAVer) {
                     estadoGuardado = false;
                 }
             };
+
+            // =========================================================================
+            // MODIFICADO: Evento de escritura fluida ("input") para actualizar el semáforo al instante
+            // =========================================================================
+            inputPrecio.addEventListener('input', () => {
+                const precioTemporal = parseFloat(inputPrecio.value) || 0;
+                const totalTemporal = item.quantity * precioTemporal;
+                
+                let estadoTemp = selectEstado.value;
+                if (precioTemporal > 0 && estadoTemp === 'pendiente') {
+                    estadoTemp = 'cotizado';
+                } else if (precioTemporal === 0 && inputPrecio.value === '') {
+                    estadoTemp = 'pendiente';
+                }
+                
+                const itemTemporal = { ...item, estado: estadoTemp };
+                celdaMonto.textContent = `$${totalTemporal.toFixed(2)}`;
+                celdaMonto.className = `monto-celda ${obtenerClaseSemaforo(itemTemporal, totalTemporal)}`;
+            });
+            // =========================================================================
+
             inputProveedor.addEventListener('blur', actualizarFila);
             inputReferencia.addEventListener('blur', actualizarFila);
             inputPrecio.addEventListener('blur', actualizarFila);
