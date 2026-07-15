@@ -16,16 +16,18 @@
     </header>
 
     <main class="index_main">
+        <!-- 🔒 Se añade autocomplete="off" al formulario para evitar filtraciones de sesión al dar "Atrás" -->
         <div id="login" class="login-container">
             <h1>Inicio de Sesión</h1>
-            <form id="form-login">
+            <form id="form-login" autocomplete="off">
                 <div class="contenedor-formulario">
                     <label for="usuario">Usuario</label>
-                    <input type="text" id="usuario" placeholder="Escribe tu Usuario" required>
+                    <!-- autocomplete="username" ayuda a mantener el estándar semántico -->
+                    <input type="text" id="usuario" placeholder="Escribe tu Usuario" autocomplete="username" required>
                 </div>
                 <div class="contenedor-formulario">
                     <label for="contrasena">Contraseña</label>
-                    <input type="password" id="contrasena" placeholder="Escribe tu Contraseña" required>
+                    <input type="password" id="contrasena" placeholder="Escribe tu Contraseña" autocomplete="new-password" required>
                 </div>
                 <div class="contenedor-botones">
                     <button type="submit" id="descargar" class="btn">Ingresar</button>
@@ -35,20 +37,22 @@
                 <div id="error-login" class="error-msg" style="display: none;"></div>
             </form>
         </div>
+
+        <!-- Formulario de cambio de contraseña en primer ingreso -->
         <div id="login-primera" class="login-container" style="display: none;">
             <h1>Actualizar Contraseña</h1>
             <p>Al ser tu primer ingreso, por seguridad, debes cambiar tu contraseña para continuar</p>
-            <form id="login-update">
+            <form id="login-update" autocomplete="off">
                 <div class="contenedor-formulario">
                     <label for="nueva-contrasena">Nueva Contraseña</label>
-                    <input type="password" id="nueva-contrasena" placeholder="Mínimo 6 caracteres" minlength="6" required>
+                    <input type="password" id="nueva-contrasena" placeholder="Mínimo 6 caracteres" minlength="6" autocomplete="new-password" required>
                 </div>
                 <div class="contenedor-formulario">
                     <label for="confirmar-contrasena">Confirmar Contraseña</label>
-                    <input type="password" id="confirmar-contrasena" placeholder="Repite tu Contraseña" minlength="6" required>
+                    <input type="password" id="confirmar-contrasena" placeholder="Repite tu Contraseña" minlength="6" autocomplete="new-password" required>
                 </div>
                 <div class="contenedor-botones">
-                    <button type="submit" id="descargar" class="btn">Ingresar</button>
+                    <button type="submit" id="descargar-update" class="btn">Ingresar</button>
                 </div>
                 <div id="error-change" class="error-msg" style="display: none;"></div>
             </form>

@@ -1,7 +1,12 @@
 (() => {
-    // Control de acceso: Redirigir a la página principal si no ha iniciado sesión
+    window.addEventListener('pageshow', (event) => {
+    if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+        window.location.reload();
+    }
+    });
+
     if (!localStorage.getItem('userRol')) {
-    window.location.replace('/');
+    window.location.replace('/'); 
     }
     
     const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
