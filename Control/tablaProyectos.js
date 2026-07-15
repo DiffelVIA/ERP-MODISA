@@ -1,13 +1,19 @@
-(() => {
+(() => {// 🛡️ CONTROL DE ACCESO E HISTORIAL AL INICIO
     window.addEventListener('pageshow', (event) => {
-    if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
-        window.location.reload();
-    }
+        if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+            window.location.reload();
+        }
     });
 
-    if (!localStorage.getItem('userRol')) {
-    window.location.replace('/'); 
+    // Validar de forma estricta ambos storages
+    if (!localStorage.getItem('userRol') || !sessionStorage.getItem('usuarioMODISA')) {
+        window.location.replace('/'); 
+        return; // Detener la ejecución del resto del script
     }
+    
+    const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:3000/api' 
+      : 'https://erp-modisa.onrender.com/api';
     
     const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       ? 'http://localhost:3000/api' 

@@ -1,3 +1,16 @@
+// 🛡️ CONTROL DE ACCESO E HISTORIAL AL INICIO
+window.addEventListener('pageshow', (event) => {
+    // Si se accede con "Atrás", forzar recarga para validar sesión
+    if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+        window.location.reload();
+    }
+});
+
+if (!localStorage.getItem('userRol') || !sessionStorage.getItem('usuarioMODISA')) {
+    window.location.replace('/');
+}
+
+// === TU LÓGICA ORIGINAL CONTINÚA AQUÍ ===
 document.addEventListener("DOMContentLoaded", () => {
     const rolUsuario = localStorage.getItem('userRol');
     const ventana = document.querySelector('.carrusel-ventana');
@@ -6,13 +19,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnRegistroMinuta = document.getElementById('btn-registro-minuta');
     const btnConsultaMinuta = document.getElementById('btn-consulta-minuta');
 
-    // === ELEMENTOS ADICIONALES PARA NAVEGACIÓN ENTRE CATEGORÍAS ===
     const tituloDashboard = document.getElementById('titulo-dashboard');
     const btnRegresarPanel = document.getElementById('btn-regresar-panel');
     const tarjetasMaster = document.querySelectorAll('.tarjeta-master');
     const tarjetasSub = document.querySelectorAll('.tarjeta-sub');
-
-    // (Se eliminó por completo el código de btnDer y btnIzq para evitar errores de referencia)
 
     if (btnRegistroMinuta) {
         btnRegistroMinuta.addEventListener('click', (e) =>{
@@ -28,18 +38,11 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // === LÓGICA DE INTERMUTACIÓN DE PANELES (CONTROL / FINANZAS) ===
     tarjetasMaster.forEach(master => {
         master.addEventListener('click', () => {
             const seccionObjetivo = master.getAttribute('data-target');
-            
-            // Quitar el centrado para que los listados largos hagan scroll correctamente a la izquierda
             if (trackContenedor) trackContenedor.classList.remove('vista-menu');
-            
-            // Ocultar tarjetas principales
             tarjetasMaster.forEach(m => m.classList.add('panel-oculto'));
-            
-            // Mostrar los elementos correspondientes a la subcategoría seleccionada
             tarjetasSub.forEach(sub => {
                 if (sub.getAttribute('data-seccion') === seccionObjetivo) {
                     sub.classList.remove('panel-oculto');
@@ -48,46 +51,34 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
 
-            // Actualizar interfaz general
             if (seccionObjetivo === 'control') {
                 tituloDashboard.textContent = "Sistema de Gestión - Control Operativo";
             } else {
                 tituloDashboard.textContent = "Sistema de Gestión - Administración y Finanzas";
             }
-            
             btnRegresarPanel.classList.remove('panel-oculto');
-            if (ventana) ventana.scrollLeft = 0; // Reiniciar posición del carrusel
+            if (ventana) ventana.scrollLeft = 0;
         });
     });
 
     if (btnRegresarPanel) {
         btnRegresarPanel.addEventListener('click', () => {
-            // Regresar el centrado perfecto a las 2 tarjetas máster
-            if (trackContenedor) trackContenedor.classList.add('vista-menu');
-
-            // Regresar todo al estado inicial
+            if (trackContenedor) trackContenedor.add('vista-menu');
             tarjetasMaster.forEach(m => m.classList.remove('panel-oculto'));
-            
-            // CORREGIDO: Se añadió .classList antes del .add para solucionar el TypeError
             tarjetasSub.forEach(sub => sub.classList.add('panel-oculto')); 
-            
             tituloDashboard.textContent = "Sistema de Gestión MODISA";
             btnRegresarPanel.classList.add('panel-oculto');
-            if (ventana) ventana.scrollLeft = 0; // Reiniciar posición del carrusel
+            if (ventana) ventana.scrollLeft = 0;
         });
     }
 });
 
-// === Cierre de Sesión ===
-    const btnLogout = document.getElementById('btn-logout');
-
-    if (btnLogout) {
-        btnLogout.addEventListener('click', (e) => {
-            e.preventDefault(); 
-
-            localStorage.removeItem('userRol');
-            sessionStorage.removeItem('usuarioMODISA');
-
-            window.location.replace("../index.html"); 
-        });
-    }
+const btnLogout = document.getElementById('btn-logout');
+if (btnLogout) {
+    btnLogout.addEventListener('click', (e) => {
+        e.preventDefault(); 
+        localStorage.removeItem('userRol');
+        sessionStorage.removeItem('usuarioMODISA');
+        window.location.replace("../index.html"); 
+    });
+}

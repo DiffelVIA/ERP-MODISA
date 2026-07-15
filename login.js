@@ -1,7 +1,3 @@
-if (localStorage.getItem('userRol')) {
-  window.location.replace('/');
-}
-
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:3000/api' 
   : 'https://erp-modisa.onrender.com/api';
@@ -48,7 +44,6 @@ formLogin.addEventListener('submit', async function(e){
 
         usuarioActual = userVal;
 
-        // Si es primer ingreso (first_entry = 1)
         if (datos.primerIngreso) {
             contenedorLogin.style.display = "none";
             contenedorCambio.style.display = "block";
@@ -119,7 +114,34 @@ formCambio.addEventListener('submit', async function(e){
     }
 });
 
+// Función para mostrar mensajes de error en el DOM
 function mostrarError(elemento, mensaje) {
     elemento.textContent = mensaje;
     elemento.style.display = "block";
 }
+
+// 🧹 ANULAR EL BOTÓN DE ATRÁS EN LA PANTALLA DE LOGIN
+// Crea una página vacía artificial en el historial del navegador para atrapar el clic de retroceso
+window.history.pushState(null, "", window.location.href);
+window.onpopstate = function () {
+    window.history.pushState(null, "", window.location.href);
+};
+
+// 🧼 LIMPIEZA ABSOLUTA DE FORMULARIO AL CARGAR
+window.addEventListener('pageshow', () => {
+    // Si un usuario ya tiene sesión activa, que no pueda ver la pantalla de login
+    if (localStorage.getItem('userRol') && sessionStorage.getItem('usuarioMODISA')) {
+        window.location.replace('principal.html');
+        return;
+    }
+
+    // Asegurarnos que todo rastro en memoria del navegador esté limpio
+    localStorage.removeItem('userRol');
+    sessionStorage.removeItem('usuarioMODISA');
+
+    // Forzar la limpieza física de los campos
+    const inputUsuario = document.getElementById('usuario');
+    const inputContrasena = document.getElementById('contrasena');
+    if (inputUsuario) inputUsuario.value = "";
+    if (inputContrasena) inputContrasena.value = "";
+});
