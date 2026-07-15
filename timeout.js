@@ -13,7 +13,7 @@
 
     alert("Tu sesión ha expirado por inactividad. Por favor, inicia sesión de nuevo.");
     
-    window.location.href = '/'; 
+    window.location.replace('/'); 
   }
 
   function reiniciarTemporizador() {

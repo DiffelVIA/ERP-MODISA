@@ -1,4 +1,8 @@
 (() => {
+    // Control de acceso: Redirigir a la página principal si no ha iniciado sesión
+    if (!localStorage.getItem('userRol')) {
+    window.location.replace('/');
+    }
     
     const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       ? 'http://localhost:3000/api' 
