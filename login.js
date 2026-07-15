@@ -103,7 +103,7 @@ formCambio.addEventListener('submit', async function(e){
 
         sessionStorage.setItem("usuarioMODISA", JSON.stringify({
             id_employee: datos.id_employee,
-            nombre: datos.nombre,
+            nombre: usuarioActual,
             rol: datos.rol || "Director Operativo"
         }));
 
