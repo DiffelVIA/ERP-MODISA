@@ -3,17 +3,17 @@
  */
 
 (() => {
-  const TIEMPO_LIMITE_INACTIVIDAD = 2 * 60 * 1000; 
+  const TIEMPO_LIMITE_INACTIVIDAD = 10 * 1000; 
   let temporizadorInactividad;
 
   function cerrarSesionPorInactividad() {
-    console.warn("⚠️ Sesión expirada debido a inactividad prolongada (2 minutos).");
+    console.warn("⚠️ Sesión expirada debido a inactividad prolongada (10 segundos).");
     
     localStorage.removeItem('userRol');
 
     alert("Tu sesión ha expirado por inactividad. Por favor, inicia sesión de nuevo.");
     
-    window.location.href = 'login.html'; 
+    window.location.href = 'index.html'; 
   }
 
   function reiniciarTemporizador() {

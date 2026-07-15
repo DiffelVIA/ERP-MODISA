@@ -1,16 +1,15 @@
 (() => {
-    // ROL EXCLUSIVO AUTORIZADO
+    // Rol autorizado para acceder a esta sección
     const ROL_AUTORIZADO = "Gerente de Costos";
 
     document.addEventListener("DOMContentLoaded", () => {
-        // Obtenemos el rol guardado en el login de forma limpia
+
         const rolActual = localStorage.getItem('userRol') ? localStorage.getItem('userRol').trim() : '';
 
-        // 🚨 VERIFICACIÓN INMEDIATA Y DESTRUCCIÓN EN CASO DE INTRUSIÓN
         if (rolActual !== ROL_AUTORIZADO) {
             const contenedorPrincipal = document.querySelector('.form_main');
             if (contenedorPrincipal) {
-                window.stop(); // Cortar peticiones asíncronas colgadas en red
+                window.stop();
                 contenedorPrincipal.innerHTML = `
                   <div style="text-align: center; padding: 60px 20px; font-family: system-ui, sans-serif;">
                     <div style="font-size: 70px; margin-bottom: 15px;">🔒</div>
