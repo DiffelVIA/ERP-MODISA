@@ -16,13 +16,11 @@
     </header>
 
     <main class="index_main">
-        <!-- 🔒 Se añade autocomplete="off" al formulario para evitar filtraciones de sesión al dar "Atrás" -->
         <div id="login" class="login-container">
             <h1>Inicio de Sesión</h1>
             <form id="form-login" autocomplete="off">
                 <div class="contenedor-formulario">
                     <label for="usuario">Usuario</label>
-                    <!-- autocomplete="username" ayuda a mantener el estándar semántico -->
                     <input type="text" id="usuario" placeholder="Escribe tu Usuario" autocomplete="username" required>
                 </div>
                 <div class="contenedor-formulario">
@@ -52,7 +50,7 @@
                     <input type="password" id="confirmar-contrasena" placeholder="Repite tu Contraseña" minlength="6" autocomplete="new-password" required>
                 </div>
                 <div class="contenedor-botones">
-                    <button type="submit" id="descargar-update" class="btn">Ingresar</button>
+                    <button type="submit" id="descargar" class="btn">Ingresar</button>
                 </div>
                 <div id="error-change" class="error-msg" style="display: none;"></div>
             </form>
