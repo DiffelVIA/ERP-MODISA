@@ -132,7 +132,7 @@ header nav ul li a:hover{ /* Selección para el estado hover (cuando el cursor e
   transition: all 0.2s ease;
 }
 
-#agregar, #descargar{
+#agregar, #descargar, [data-action]{
   background-color: var(--bg-hover);
   color: var(--primary-color);
   border: 1px solid var(--border-color);
