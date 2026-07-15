@@ -59,6 +59,17 @@
                     <option value="">-- Selecciona --</option>
                 </select>
             </div>
+            <div id="contenedor-formulario">
+                <p style="margin: 3px 0; font-size: 0.95rem; color: #333;">
+                    <strong>💰 Monto Autorizado:</strong> <span id="monto-autorizado" style="font-weight: bold; color: #1a365d;">$0.00</span>
+                </p>
+                <p style="margin: 3px 0; font-size: 0.95rem; color: #333;">
+                    <strong>⚖️ Monto Restante:</strong> <span id="monto-restante" style="font-weight: bold; color: #2e7d32;">$0.00</span>
+                </p>
+                <p id="alerta-presupuesto" style="display: none; margin: 5px 0 0 0; font-size: 0.85rem; color: #c62828; font-weight: bold;">
+                    ⚠️ Atención: No queda presupuesto suficiente para esta subcategoría.
+                </p>
+            </div>
             <div class="contenedor-formulario">
                 <label for="descripcion">Descripción del Material</label>
                 <input type="text" id="descripcion" name="descripcion" placeholder="Describe el material que necesitas" required>
@@ -121,28 +132,6 @@
             </div>
         </form>
     </main>
-<!--
-    <main class="form_main">
-        <div style="text-align: center; padding: 80px 20px; font-family: sans-serif;">
-            <div style="font-size: 72px; margin-bottom: 20px; animation: bounce 2s infinite;">👷‍♂️🚧</div>
-            
-            <h1 style="color: #1e293b; font-size: 32px; margin-bottom: 15px; font-weight: bold;">
-                Sección en Construcción
-            </h1>
-            
-            <p style="color: #64748b; font-size: 16px; max-width: 450px; margin: 0 auto 30px auto; line-height: 1.6;">
-                Estamos preparando este módulo con los estándares de calidad de <strong>MODISA</strong>. Muy pronto estará disponible para su uso.
-            </p>
-        </div>
-    </main>
-
-    <style>
-    @keyframes bounce {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-10px); }
-    }
-    </style>
--->
     <footer id="footer">
         <p>Software especializado MODISA ®</p>
         <p>Esta aplicación web está diseñada exclusivamente para realizar tu requisición de material</p>

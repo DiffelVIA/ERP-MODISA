@@ -3,9 +3,12 @@ const API_URL = window.location.hostname === 'localhost' || window.location.host
 let listaMateriales = [];
 let categoriasCargadas = [];
 
+// 🛡️ NUEVA VARIABLE GLOBAL: Registra la categoría y el presupuesto activo actual
+let categoriaSeleccionadaActiva = null;
+
 document.addEventListener('DOMContentLoaded', () => {
     inicializarCamposFechas();
-    establecerSolicitanteLogueado(); // 🛡️ Nueva inicialización de seguridad
+    establecerSolicitanteLogueado(); 
     cargarSelectoresIniciales(); 
     configurarEventos();
     renderizarMiniTabla();
@@ -29,21 +32,16 @@ function inicializarCamposFechas() {
     inputSemana.value = `Semana ${numeroSemana}`;
 }
 
-// 🛡️ NUEVA FUNCIÓN: Extrae de forma segura el usuario actual y bloquea el campo
 function establecerSolicitanteLogueado() {
     const inputSolicitante = document.getElementById('solicitante');
     if (!inputSolicitante) return;
 
     try {
-        // Obtenemos los datos de sesión almacenados en el login
         const usuarioSesion = JSON.parse(sessionStorage.getItem('usuarioMODISA'));
-        
         if (usuarioSesion && usuarioSesion.id_employee) {
-            // Guardamos el ID en un atributo data-id y pintamos el nombre completo en pantalla
             inputSolicitante.setAttribute('data-id', usuarioSesion.id_employee);
             inputSolicitante.value = usuarioSesion.nombre;
         } else {
-            // Salvaguarda por si ocurre un caso sumamente extraño
             inputSolicitante.value = "Usuario Desconocido";
             console.error("❌ No se encontró el id_employee en sessionStorage.");
         }
@@ -55,8 +53,6 @@ function establecerSolicitanteLogueado() {
 
 async function cargarSelectoresIniciales() {
     try {
-        // 🧹 Eliminado el fetch innecesario a `/empleados` para máxima velocidad
-
         const resProyectos = await fetch(`${API_URL}/proyectos`);
         if (resProyectos.ok) {
             const proyectos = await resProyectos.json();
@@ -84,6 +80,7 @@ function configurarEventos() {
                 
                 const gruposUnicos = [...new Set(categoriasCargadas.map(c => c.grupo))];
                 llenarSelectSencillo('grupo', gruposUnicos);
+                ocultarContenedorPresupuesto(); // 🛡️ Limpiar presupuestos al cambiar de proyecto
             }
         } catch (error) {
             console.error("❌ Error al cargar categorías de la obra:", error);
@@ -96,7 +93,8 @@ function configurarEventos() {
         const categoriasUnicas = [...new Set(filtradas.map(c => c.categoria))];
         
         llenarSelectSencillo('categoria', categoriasUnicas);
-        llenarSelectSencillo('subcategoria', []); // Limpiar subcategoría
+        llenarSelectSencillo('subcategoria', []); 
+        ocultarContenedorPresupuesto(); // 🛡️ Limpiar presupuesto
     });
 
     document.getElementById('categoria').addEventListener('change', (e) => {
@@ -106,10 +104,69 @@ function configurarEventos() {
         const subcategoriasUnicas = [...new Set(filtradas.map(c => c.subcategoria))];
         
         llenarSelectSencillo('subcategoria', subcategoriasUnicas);
+        ocultarContenedorPresupuesto(); // 🛡️ Limpiar presupuesto
+    });
+
+    // 🛡️ NUEVO EVENTO: Captura la selección de subcategoría y muestra los montos financieros
+    document.getElementById('subcategoria').addEventListener('change', (e) => {
+        const subCatSeleccionada = e.target.value;
+        const grupoSeleccionado = document.getElementById('grupo').value;
+        const catSeleccionada = document.getElementById('categoria').value;
+
+        if (!subCatSeleccionada) {
+            ocultarContenedorPresupuesto();
+            return;
+        }
+
+        // Buscamos el registro que coincida para extraer los montos
+        const registroMatch = categoriasCargadas.find(c => 
+            c.grupo === grupoSeleccionado && 
+            c.categoria === catSeleccionada && 
+            c.subcategoria === subCatSeleccionada
+        );
+
+        if (registroMatch) {
+            categoriaSeleccionadaActiva = registroMatch;
+            mostrarPresupuesto(registroMatch.monto_autorizado, registroMatch.monto_restante);
+        } else {
+            ocultarContenedorPresupuesto();
+        }
     });
 
     document.querySelector('[data-accion="añadir"]').addEventListener('click', añadirMaterialALista);
     document.querySelector('[data-accion="requisicion"]').addEventListener('submit', enviarSolicitudFinal);
+}
+
+// 🛡️ NUEVA FUNCIÓN AUXILIAR: Muestra el bloque del presupuesto con formato de moneda local
+function mostrarPresupuesto(autorizado, restante) {
+    const contenedor = document.getElementById('contenedor-presupuesto');
+    const txtAutorizado = document.getElementById('monto-autorizado');
+    const txtRestante = document.getElementById('monto-restante');
+    const alerta = document.getElementById('alerta-presupuesto');
+
+    const formatoMoneda = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+
+    txtAutorizado.textContent = formatoMoneda.format(autorizado);
+    txtRestante.textContent = formatoMoneda.format(restante);
+
+    if (restante <= 0) {
+        txtRestante.style.color = '#c62828';
+        alerta.style.display = 'block';
+    } else {
+        txtRestante.style.color = '#2e7d32';
+        alerta.style.display = 'none';
+    }
+
+    contenedor.style.display = 'block';
+}
+
+// 🛡️ NUEVA FUNCIÓN AUXILIAR: Oculta y limpia el panel del presupuesto
+function ocultarContenedorPresupuesto() {
+    const contenedor = document.getElementById('contenedor-presupuesto');
+    if (contenedor) {
+        contenedor.style.display = 'none';
+    }
+    categoriaSeleccionadaActiva = null;
 }
 
 function llenarSelect(id, lista) {
@@ -158,6 +215,18 @@ function añadirMaterialALista(e) {
         return false;
     }
 
+    // 🛡️ VALIDACIÓN DE MONTO DISPONIBLE AL AGREGAR A LA LISTA
+    if (categoriaSeleccionadaActiva) {
+        const totalAcumuladoLote = listaMateriales
+            .filter(m => m.id_project_category === categoriaSeleccionadaActiva.id_project_category)
+            // Se asume costo unitario tentativo en $0 para cálculo de validación en la requisición previa a cotizar;
+            // si la requisición lleva cantidades físicas, la validación se enfoca en el monto total de la subcategoría
+            if (categoriaSeleccionadaActiva.monto_restante <= 0) {
+                alert(`❌ No es posible añadir materiales. El presupuesto restante para esta categoría es de $0.00 o está agotado.`);
+                return false;
+            }
+    }
+
     const registroMatch = categoriasCargadas.find(c => 
         c.grupo === grupo && c.categoria === categoria && c.subcategoria === subcategoria
     );
@@ -167,7 +236,11 @@ function añadirMaterialALista(e) {
         material_description: descripcion,
         unit: unidad,
         quantity: cantidad,
-        commentary: comentario || null
+        commentary: comentario || null,
+        // Almacenamos temporalmente referencias para validaciones visuales
+        grupo: grupo,
+        categoria: categoria,
+        subcategoria: subcategoria
     };
 
     listaMateriales.push(nuevoMaterial);
@@ -188,16 +261,25 @@ function enviarSolicitudFinal(e) {
         return;
     }
 
+    // 🛡️ CONTROL DE PRESUPUESTO INFRANQUEABLE
+    // Si alguna de las subcategorías añadidas en el lote ya no cuenta con monto restante, bloquea el envío
+    for (const material of listaMateriales) {
+        const catMatch = categoriasCargadas.find(c => c.id_project_category === material.id_project_category);
+        if (catMatch && catMatch.monto_restante <= 0) {
+            alert(`🛑 Envío Cancelado: La subcategoría "${material.subcategoria}" tiene el presupuesto agotado ($0.00). Por favor, retírala de la lista para continuar.`);
+            return;
+        }
+    }
+
     const semanaTexto = document.getElementById('semana-fiscal').value;
     const semanaNumero = parseInt(semanaTexto.replace(/[^0-9]/g, '')); 
 
-    // 🛡️ CORRECCIÓN DE EXTRACCIÓN: Tomamos el ID directamente de la metadata segura del input
     const idEmpleadoLogueado = document.getElementById('solicitante').getAttribute('data-id');
     const idSelectProyecto = document.getElementById('proyecto').value;
 
     const payloadOrden = {
         id_project: idSelectProyecto ? parseInt(idSelectProyecto) : null,
-        id_employee: idEmpleadoLogueado ? parseInt(idEmpleadoLogueado) : null, // 🚀 Viaja de forma impecable y robusta
+        id_employee: idEmpleadoLogueado ? parseInt(idEmpleadoLogueado) : null, 
         order_date: document.getElementById('fecha').value,
         fiscal_week: semanaNumero,
         materiales: listaMateriales 
@@ -221,8 +303,9 @@ function enviarSolicitudFinal(e) {
         alert(`🚀 ¡Solicitud guardada en MySQL con éxito!`);
         listaMateriales = [];
         document.getElementById('form-requisicion').reset();
-        establecerSolicitanteLogueado(); // 🛡️ Re-asigna el solicitante tras el reset del formulario
+        establecerSolicitanteLogueado(); 
         inicializarCamposFechas();
+        ocultarContenedorPresupuesto(); // 🛡️ Limpiar vista de presupuesto
     })
     .catch((error) => {
         alert(`❌ Error al guardar: ${error.message}`);
