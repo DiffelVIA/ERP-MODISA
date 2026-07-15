@@ -1303,26 +1303,10 @@ const verificarGerenteCostos = (req, res, next) => {
 app.get('/api/proyectos/:id/categorias', async (req, res) => {
   const { id } = req.params;
   try {
-    // 🛡️ MODIFICADO: Ahora el query calcula el monto_autorizado (columna materiales)
-    // y el monto_restante restando lo que ya se ha acumulado en order_details para ese id_project_category.
-    const querySQL = `
-      SELECT 
-        pc.id_project_category, 
-        pc.grupo, 
-        pc.categoria, 
-        pc.subcategoria,
-        COALESCE(pc.materiales, 0) AS monto_autorizado,
-        (COALESCE(pc.materiales, 0) - COALESCE(
-          (SELECT SUM(od.quantity * COALESCE(od.unit_price, 0))
-           FROM order_details od
-           WHERE od.id_project_category = pc.id_project_category
-          ), 0)
-        ) AS monto_restante
-      FROM project_categories pc
-      WHERE pc.id_project = ?
-    `;
-
-    const [rows] = await pool.query(querySQL, [id]);
+    const [rows] = await pool.query(
+      `SELECT id_project_category, grupo, categoria, subcategoria FROM project_categories WHERE id_project = ?`, 
+      [id]
+    );
     res.json(rows);
   } catch (error) {
     console.error('Error al obtener categorías del proyecto:', error);
