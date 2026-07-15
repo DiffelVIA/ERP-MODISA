@@ -41,7 +41,7 @@ function establecerSolicitanteLogueado() {
         if (usuarioSesion && usuarioSesion.id_employee) {
             // Guardamos el ID en un atributo data-id y pintamos el nombre completo en pantalla
             inputSolicitante.setAttribute('data-id', usuarioSesion.id_employee);
-            inputSolicitante.value = `${usuarioSesion.name} ${usuarioSesion.last_name || ''}`.trim();
+            inputSolicitante.value = usuarioSesion.nombre;
         } else {
             // Salvaguarda por si ocurre un caso sumamente extraño
             inputSolicitante.value = "Usuario Desconocido";

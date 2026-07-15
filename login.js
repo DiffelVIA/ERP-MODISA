@@ -52,6 +52,7 @@ formLogin.addEventListener('submit', async function(e){
             localStorage.setItem("userRol", datos.rol);
 
             sessionStorage.setItem("usuarioMODISA", JSON.stringify({
+                id_employee: datos.id_employee,
                 nombre: datos.nombre,
                 rol: datos.rol
             }));
@@ -101,7 +102,8 @@ formCambio.addEventListener('submit', async function(e){
         localStorage.setItem("userRol", datos.rol || "Director Operativo");
 
         sessionStorage.setItem("usuarioMODISA", JSON.stringify({
-            nombre: usuarioActual,
+            id_employee: datos.id_employee,
+            nombre: datos.nombre,
             rol: datos.rol || "Director Operativo"
         }));
 
