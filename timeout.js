@@ -2,7 +2,7 @@
  * 🔒 GESTOR DE INACTIVIDAD DE SESIÓN - MODISA (Seguro y robusto)
  */
 (() => {
-  const TIEMPO_LIMITE_INACTIVIDAD = 10 * 1000; // 10 segundos para tus pruebas
+  const TIEMPO_LIMITE_INACTIVIDAD = 40 * 60 * 1000; // 40 minutos para tus pruebas
   let temporizadorInactividad;
 
   function cerrarSesionPorInactividad() {
