@@ -1,6 +1,7 @@
 if (localStorage.getItem('userRol')) {
   window.location.replace('tabla_proyectos.html');
 }
+
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:3000/api' 
   : 'https://erp-modisa.onrender.com/api';
