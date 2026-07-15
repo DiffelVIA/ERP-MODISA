@@ -628,7 +628,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     res.json({
-      id: usuarioBD.id_employee,
+      id_employee: usuarioBD.id_employee,
       nombre: usuarioBD.name,
       rol: usuarioBD.job_title,
       primerIngreso: usuarioBD.first_entry === 1 
