@@ -1,5 +1,5 @@
 if (localStorage.getItem('userRol')) {
-  window.location.replace('tabla_proyectos.html');
+  window.location.replace('/');
 }
 
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
