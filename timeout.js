@@ -14,7 +14,7 @@
         }
     });
 
-    const TIEMPO_LIMITE_INACTIVIDAD = 10 * 1000; // 10 segundos en milisegundos
+    const TIEMPO_LIMITE_INACTIVIDAD = 30 * 60 * 1000; // 30 minutos en milisegundos
     let temporizadorInactividad;
 
     function cerrarSesionPorInactividad() {
