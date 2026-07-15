@@ -19,7 +19,7 @@
 
 
     // ⏱️ 2. GESTOR DE INACTIVIDAD (TIMEOUT DE 30 MINUTOS)
-    const TIEMPO_LIMITE_INACTIVIDAD = 30 * 60 * 1000; // 30 minutos en milisegundos
+    const TIEMPO_LIMITE_INACTIVIDAD = 10 * 1000; // 10 segundos en milisegundos
     let temporizadorInactividad;
 
     function cerrarSesionPorInactividad() {
