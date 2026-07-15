@@ -138,7 +138,7 @@ header nav ul li a:hover{ /* Selección para el estado hover (cuando el cursor e
   border: 1px solid var(--border-color);
 }
 
-#agregar:hover, #descargar:hover {
+#agregar:hover, #descargar:hover, [data-action]:hover {
   background-color: var(--border-color);
 }
 
