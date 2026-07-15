@@ -5,6 +5,7 @@ let categoriasCargadas = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     inicializarCamposFechas();
+    establecerSolicitanteLogueado(); // 🛡️ Nueva inicialización de seguridad
     cargarSelectoresIniciales(); 
     configurarEventos();
     renderizarMiniTabla();
@@ -28,18 +29,33 @@ function inicializarCamposFechas() {
     inputSemana.value = `Semana ${numeroSemana}`;
 }
 
+// 🛡️ NUEVA FUNCIÓN: Extrae de forma segura el usuario actual y bloquea el campo
+function establecerSolicitanteLogueado() {
+    const inputSolicitante = document.getElementById('solicitante');
+    if (!inputSolicitante) return;
+
+    try {
+        // Obtenemos los datos de sesión almacenados en el login
+        const usuarioSesion = JSON.parse(sessionStorage.getItem('usuarioMODISA'));
+        
+        if (usuarioSesion && usuarioSesion.id_employee) {
+            // Guardamos el ID en un atributo data-id y pintamos el nombre completo en pantalla
+            inputSolicitante.setAttribute('data-id', usuarioSesion.id_employee);
+            inputSolicitante.value = `${usuarioSesion.name} ${usuarioSesion.last_name || ''}`.trim();
+        } else {
+            // Salvaguarda por si ocurre un caso sumamente extraño
+            inputSolicitante.value = "Usuario Desconocido";
+            console.error("❌ No se encontró el id_employee en sessionStorage.");
+        }
+    } catch (e) {
+        console.error("❌ Error al parsear sessionStorage.usuarioMODISA:", e);
+        inputSolicitante.value = "Error al recuperar sesión";
+    }
+}
+
 async function cargarSelectoresIniciales() {
     try {
-        const resEmpleados = await fetch(`${API_URL}/empleados`);
-        if (resEmpleados.ok) {
-            const empleados = await resEmpleados.json();
-            const lista = empleados.map(emp => ({
-                id: emp.id_employee,
-                nombre: `${emp.name} ${emp.last_name}`.trim()
-            }));
-            
-            llenarSelect('solicitante', lista);
-        }
+        // 🧹 Eliminado el fetch innecesario a `/empleados` para máxima velocidad
 
         const resProyectos = await fetch(`${API_URL}/proyectos`);
         if (resProyectos.ok) {
@@ -100,7 +116,6 @@ function llenarSelect(id, lista) {
     const select = document.getElementById(id);
     if (!select) return;
     
-    // Limpieza total y creación segura del valor por defecto
     select.innerHTML = `<option value="">-- Selecciona --</option>`;
     
     lista.forEach(item => {
@@ -115,7 +130,6 @@ function llenarSelectSencillo(id, lista) {
     const select = document.getElementById(id);
     if (!select) return;
     
-    // Limpieza total y creación segura del valor por defecto
     select.innerHTML = `<option value="">-- Selecciona --</option>`;
     
     lista.forEach(item => {
@@ -127,7 +141,6 @@ function llenarSelectSencillo(id, lista) {
     });
 }
 
-// 4. 📝 Añadir Material
 function añadirMaterialALista(e) {
     if (e) e.preventDefault();
 
@@ -145,7 +158,6 @@ function añadirMaterialALista(e) {
         return false;
     }
 
-    // Buscamos el ID real de la combinación en nuestro mapa de categorías cargadas
     const registroMatch = categoriasCargadas.find(c => 
         c.grupo === grupo && c.categoria === categoria && c.subcategoria === subcategoria
     );
@@ -176,22 +188,21 @@ function enviarSolicitudFinal(e) {
         return;
     }
 
-    // Extraer el número de la semana eliminando cualquier texto extra de forma segura
     const semanaTexto = document.getElementById('semana-fiscal').value;
-    const semanaNumero = parseInt(semanaTexto.replace(/[^0-9]/g, '')); // Deja solo los números
+    const semanaNumero = parseInt(semanaTexto.replace(/[^0-9]/g, '')); 
 
-    const idSelectSolicitante = document.getElementById('solicitante').value;
+    // 🛡️ CORRECCIÓN DE EXTRACCIÓN: Tomamos el ID directamente de la metadata segura del input
+    const idEmpleadoLogueado = document.getElementById('solicitante').getAttribute('data-id');
     const idSelectProyecto = document.getElementById('proyecto').value;
 
     const payloadOrden = {
         id_project: idSelectProyecto ? parseInt(idSelectProyecto) : null,
-        id_employee: idSelectSolicitante ? parseInt(idSelectSolicitante) : null,
+        id_employee: idEmpleadoLogueado ? parseInt(idEmpleadoLogueado) : null, // 🚀 Viaja de forma impecable y robusta
         order_date: document.getElementById('fecha').value,
         fiscal_week: semanaNumero,
         materiales: listaMateriales 
     };
 
-    // 🔍 Esto te mostrará en la consola del navegador qué datos viajan
     console.log("🚀 Enviando este paquete al backend:", payloadOrden);
 
     fetch(`${API_URL}/materiales`, {
@@ -199,7 +210,6 @@ function enviarSolicitudFinal(e) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payloadOrden)
     })
-    // Modificamos aquí para poder leer el mensaje de error exacto del 400
     .then(async res => {
         const datos = await res.json();
         if (!res.ok) {
@@ -211,6 +221,7 @@ function enviarSolicitudFinal(e) {
         alert(`🚀 ¡Solicitud guardada en MySQL con éxito!`);
         listaMateriales = [];
         document.getElementById('form-requisicion').reset();
+        establecerSolicitanteLogueado(); // 🛡️ Re-asigna el solicitante tras el reset del formulario
         inicializarCamposFechas();
     })
     .catch((error) => {
