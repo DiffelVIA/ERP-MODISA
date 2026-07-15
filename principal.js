@@ -63,7 +63,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (btnRegresarPanel) {
         btnRegresarPanel.addEventListener('click', () => {
-            if (trackContenedor) trackContenedor.add('vista-menu');
+            // ==========================================
+            // 🛡️ MODIFICACIÓN AQUÍ:
+            // Se corrigió el error "trackContenedor.add is not a function".
+            // Para modificar clases de elementos del DOM se debe acceder primero a la propiedad ".classList".
+            if (trackContenedor) trackContenedor.classList.add('vista-menu');
+            // ==========================================
+            
             tarjetasMaster.forEach(m => m.classList.remove('panel-oculto'));
             tarjetasSub.forEach(sub => sub.classList.add('panel-oculto')); 
             tituloDashboard.textContent = "Sistema de Gestión MODISA";
