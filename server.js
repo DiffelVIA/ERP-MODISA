@@ -1462,19 +1462,33 @@ app.delete('/api/project-categories/:id', verificarGerenteCostos, async (req, re
     }
 });
 
-// OBTENER PROYECTOS ACTIVOS PARA EL DROPDOWN DE PRESUPUESTOS
+// OBTENER PROYECTOS ACTIVOS PARA EL DROPDOWN DE PRESUPUESTOS (Adaptado)
 app.get('/api/projects-active', async (req, res) => {
   try {
-    // Consulta simple usando tu pool de MySQL
+    // Intentamos con 'projects' (inglés) y 'status' (inglés)
     const [rows] = await pool.query(
       `SELECT id_project, project_name 
-       FROM proyectos 
-       WHERE estatus = 'Activo' 
+       FROM projects 
+       WHERE status = 'Activo' OR status = 'activo'
        ORDER BY project_name ASC`
     );
     res.json(rows);
   } catch (error) {
-    console.error('❌ Error al obtener proyectos activos:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    // Si falla, intentamos con la tabla en español 'proyectos' por si acaso
+    try {
+      const [rows] = await pool.query(
+        `SELECT id_project, project_name 
+         FROM proyectos 
+         WHERE estatus = 'Activo' OR estatus = 'activo'
+         ORDER BY project_name ASC`
+      );
+      return res.json(rows);
+    } catch (innerError) {
+      console.error('❌ Error detallado en MySQL:', innerError);
+      res.status(500).json({ 
+        error: 'Error interno del servidor', 
+        detalles: innerError.message 
+      });
+    }
   }
 });
