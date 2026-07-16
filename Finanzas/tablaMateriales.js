@@ -1,6 +1,4 @@
-const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? 'http://localhost:3000/api' 
-  : 'https://erp-modisa.onrender.com/api';
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
 
 let esResidente = false;
 
@@ -104,10 +102,8 @@ async function inicializarDatos() {
     try {
         cuerpoTabla.innerHTML = `<tr><td colspan="15" style="text-align: center; padding: 25px;">⏳ Cargando materiales desde la base de datos...</td></tr>`;
 
-        // OBTENEMOS EL ROL GUARDADO DESDE LOCALSTORAGE
         const rolParaHeaders = localStorage.getItem("userRol") || '';
 
-        // ✅ CORRECCIÓN: Ahora le pasamos el x-user-rol al GET de materiales
         const [resMateriales, resProyectos] = await Promise.all([
             fetch(`${API_URL}/materiales`, {
                 method: 'GET',
@@ -212,21 +208,14 @@ function generarOpcionesFiltros(datos) {
     }
 }
 
-// =========================================================================
-// MODIFICADO: Nueva función de utilidad para calcular el semáforo de presupuesto
-// =========================================================================
-// --- LOGICA REVISADA ---
 function obtenerClaseSemaforo(datosItem, totalFila) {
-    // Si la cotización está pendiente o cancelada, se mantiene azul/gris original
     if (datosItem.estado === 'pendiente' || datosItem.estado === 'cancelado') {
         return 'monto-pendiente';
     }
 
-    // Convertimos estrictamente a número plano para evitar fallos de string concatenado
     const autorizado = parseFloat(datosItem.presupuesto_autorizado);
     const gastadoOtros = parseFloat(datosItem.monto_gastado_otros);
     
-    // DIAGNÓSTICO EN CONSOLA (Solo si detectamos inconsistencias en los datos del Backend)
     if (isNaN(autorizado) || autorizado <= 0) {
         console.warn(
             `⚠️ Semáforo inactivo para "${datosItem.material_description}": ` +
@@ -238,7 +227,6 @@ function obtenerClaseSemaforo(datosItem, totalFila) {
     const disponible = autorizado - (isNaN(gastadoOtros) ? 0 : gastadoOtros);
     const diferencia = disponible - totalFila;
 
-    // Evaluamos los umbrales de presupuesto
     if (diferencia < 0) {
         return 'monto-rojo';       // Excedido
     } else if (diferencia < 1000) {
@@ -248,13 +236,10 @@ function obtenerClaseSemaforo(datosItem, totalFila) {
     }
 }
 
-inputPrecio.addEventListener('input', () => {
-    const precioTemporal = parseFloat(inputPrecio.value) || 0;
-    const totalTemporal = item.quantity * precioTemporal;
-    
-    celdaMonto.textContent = `$${totalTemporal.toFixed(2)}`;
-    celdaMonto.className = `monto-celda ${obtenerClaseSemaforo(item, totalTemporal)}`;
-});
+/* =========================================================================
+   MODIFICACIÓN: Se removió el bloque duplicado y fuera de contexto (huérfano)
+   que provocaba el error 'ReferenceError: inputPrecio is not defined'.
+   ========================================================================= */
 
 function renderizarTabla(materialesAVer) {
     if (!cuerpoTabla) return;
@@ -299,7 +284,6 @@ function renderizarTabla(materialesAVer) {
                 <td style="width: 10%; font-weight: 500; text-align: center;">${estadoVisual}</td>
             `;
         } else {
-            // Cálculo del semáforo en la carga inicial de la fila
             const totalFilaInicial = parseFloat(montoCalculado) || 0;
             const claseColorInicial = obtenerClaseSemaforo(item, totalFilaInicial);
 
@@ -366,7 +350,6 @@ function renderizarTabla(materialesAVer) {
                     item.precio_unitario = precio;
                     item.estado = estadoFinal;
 
-                    // Actualización del contenido y la clase del semáforo al confirmar cambios (blur)
                     celdaMonto.textContent = `$${nuevoMonto}`;
                     celdaMonto.className = `monto-celda ${obtenerClaseSemaforo(item, totalFilaCalculado)}`;
 
@@ -407,9 +390,6 @@ function renderizarTabla(materialesAVer) {
                 }
             };
 
-            // =========================================================================
-            // MODIFICADO: Evento "input" reubicado DENTRO de la inicialización de la fila
-            // =========================================================================
             inputPrecio.addEventListener('input', () => {
                 const precioTemporal = parseFloat(inputPrecio.value) || 0;
                 const totalTemporal = item.quantity * precioTemporal;
@@ -426,7 +406,6 @@ function renderizarTabla(materialesAVer) {
                 celdaMonto.className = `monto-celda ${obtenerClaseSemaforo(itemTemporal, totalTemporal)}`;
             });
 
-            // Asignación de listeners restantes
             inputProveedor.addEventListener('blur', actualizarFila);
             inputReferencia.addEventListener('blur', actualizarFila);
             inputPrecio.addEventListener('blur', actualizarFila);
@@ -509,7 +488,6 @@ function formatearFecha(fechaString) {
 }
 
 function generarOrdenCompraPDF() {
-
     const idsVisibles = materialesFiltrados.map(m => m.id_detail);
     const materialesAProcesar = concentradoMateriales.filter(item => idsVisibles.includes(item.id_detail));
     
