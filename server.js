@@ -941,10 +941,10 @@ app.post('/api/contratos', async (req, res) => {
     // CAPA DE SEGURIDAD BACKEND: Validación del rol a través de los headers de control
     const userRol = req.headers['x-user-rol'];
 
-    if (!userRol || userRol !== 'Residente') {
+    if (!userRol || userRol !== 'Residente de Obra') {
         return res.status(403).json({ 
             success: false, 
-            error: "⛔ Acceso denegado: Solo usuarios con rol de 'Residente' pueden registrar contratos." 
+            error: "⛔ Acceso denegado: Solo usuarios con rol de 'Residente de Obra' pueden registrar contratos." 
         });
     }
 

@@ -1,7 +1,5 @@
 (() => {
-    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? 'http://localhost:3000/api' 
-  : 'https://erp-modisa.onrender.com/api';
+    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
 
     let categoriasCache = [];
 
@@ -11,7 +9,7 @@
     document.addEventListener("DOMContentLoaded", () => {
         
         // UNIFICACIÓN VISUAL DE ACCESO DENEGADO: Validación de rol integrada en el ciclo de vida del DOM
-        if (!sesionUsuario || sesionUsuario.rol !== "Residente") {
+        if (!sesionUsuario || sesionUsuario.rol !== "Residente de Obra") {
             const mainContent = document.querySelector('.form_main');
             if (mainContent) {
                 mainContent.innerHTML = `
