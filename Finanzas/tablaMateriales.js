@@ -299,9 +299,7 @@ function renderizarTabla(materialesAVer) {
                 <td style="width: 10%; font-weight: 500; text-align: center;">${estadoVisual}</td>
             `;
         } else {
-            // =========================================================================
-            // MODIFICADO: Cálculo e integración del semáforo en la inicialización de la fila
-            // =========================================================================
+            // Cálculo del semáforo en la carga inicial de la fila
             const totalFilaInicial = parseFloat(montoCalculado) || 0;
             const claseColorInicial = obtenerClaseSemaforo(item, totalFilaInicial);
 
@@ -326,7 +324,6 @@ function renderizarTabla(materialesAVer) {
                 <td style="width: 5%;">
                     <input type="number" class="input-tabla precio-input" value="${item.precio_unitario > 0 ? item.precio_unitario : ''}" step="any" placeholder="0.00">
                 </td>
-                <!-- MODIFICADO: Quitamos color inline para usar las clases CSS de semáforo -->
                 <td style="width: 5%; font-weight: bold; text-align: right; padding-right: 10px;" class="monto-celda ${claseColorInicial}">$${montoCalculado}</td>
                 <td style="width: 5%;">
                     <select class="select-tabla estado-select" style="padding: 4px 4px;">
@@ -369,12 +366,9 @@ function renderizarTabla(materialesAVer) {
                     item.precio_unitario = precio;
                     item.estado = estadoFinal;
 
-                    // =========================================================================
-                    // MODIFICADO: Actualización del contenido y la clase del semáforo al confirmar cambios (blur)
-                    // =========================================================================
+                    // Actualización del contenido y la clase del semáforo al confirmar cambios (blur)
                     celdaMonto.textContent = `$${nuevoMonto}`;
                     celdaMonto.className = `monto-celda ${obtenerClaseSemaforo(item, totalFilaCalculado)}`;
-                    // =========================================================================
 
                     const elementoGlobal = concentradoMateriales.find(m => m.id_detail === item.id_detail);
                     if (elementoGlobal) {
@@ -383,7 +377,6 @@ function renderizarTabla(materialesAVer) {
                         elementoGlobal.precio_unitario = precio;
                         elementoGlobal.estado = estadoFinal;
                         
-                        // Mantenemos la información de presupuesto también en la lista global
                         elementoGlobal.presupuesto_autorizado = item.presupuesto_autorizado;
                         elementoGlobal.monto_gastado_otros = item.monto_gastado_otros;
                     }
@@ -415,7 +408,7 @@ function renderizarTabla(materialesAVer) {
             };
 
             // =========================================================================
-            // MODIFICADO: Evento de escritura fluida ("input") para actualizar el semáforo al instante
+            // MODIFICADO: Evento "input" reubicado DENTRO de la inicialización de la fila
             // =========================================================================
             inputPrecio.addEventListener('input', () => {
                 const precioTemporal = parseFloat(inputPrecio.value) || 0;
@@ -432,8 +425,8 @@ function renderizarTabla(materialesAVer) {
                 celdaMonto.textContent = `$${totalTemporal.toFixed(2)}`;
                 celdaMonto.className = `monto-celda ${obtenerClaseSemaforo(itemTemporal, totalTemporal)}`;
             });
-            // =========================================================================
 
+            // Asignación de listeners restantes
             inputProveedor.addEventListener('blur', actualizarFila);
             inputReferencia.addEventListener('blur', actualizarFila);
             inputPrecio.addEventListener('blur', actualizarFila);
