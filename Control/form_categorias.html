@@ -8,7 +8,6 @@
     <link rel="icon" type="image/x-icon" href="../img/MODISA-favicon.ico">
     <link rel="stylesheet" href="../styles.css">
     <style>
-        /* Ajuste para ocultar secciones dinámicas de forma limpia */
         .seccion-accion { display: none; margin-top: 20px; }
         .visible { display: block; }
         .grupo-campos { margin-bottom: 15px; }
@@ -52,7 +51,6 @@
 
             <hr style="margin: 25px 0; border: 0; border-top: 1px solid #ccc;">
 
-            <!-- OPCIÓN A: CARGA MASIVA CSV -->
             <div id="seccion-masiva" class="seccion-accion">
                 <form id="formCategorias">
                     <div class="drop-zone" id="dropZone">
@@ -65,7 +63,6 @@
                 </form>
             </div>
 
-            <!-- OPCIÓN B: AGREGAR MANUALMENTE -->
             <div id="seccion-agregar" class="seccion-accion">
                 <h3>Añadir Nueva Categoría y Presupuesto</h3>
                 <div class="contenedor-formulario grupo-campos">
@@ -81,7 +78,6 @@
                     <input type="text" id="addSubcategoria" placeholder="Ej: Excavación Manual" class="input_form">
                 </div>
 
-                <!-- Nuevos campos financieros para Agregar -->
                 <div class="grid-costos">
                     <div class="contenedor-formulario">
                         <label for="addManoObra">Mano de Obra ($)</label>
@@ -110,7 +106,6 @@
                 </div>
             </div>
 
-            <!-- OPCIÓN C: MODIFICAR O ELIMINAR EXISTENTE -->
             <div id="seccion-modificar" class="seccion-accion">
                 <h3>Modificar o Eliminar Fila del Proyecto</h3>
                 
@@ -149,7 +144,6 @@
                         <input type="text" id="editSubcategoria" class="input_form">
                     </div>
 
-                    <!-- Nuevos campos financieros para Edición -->
                     <div class="grid-costos">
                         <div class="contenedor-formulario">
                             <label for="editManoObra">Editar Mano de Obra ($)</label>

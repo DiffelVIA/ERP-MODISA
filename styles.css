@@ -16,45 +16,45 @@
 }
 
 .monto-celda.monto-pendiente {
-  color: var(--accent-color) !important; /* Azul original */
+  color: var(--accent-color) !important;
 }
 
 .monto-celda.monto-verde {
-  color: var(--verde--) !important; /* Verde Esmeralda (Seguro) */
+  color: var(--verde--) !important;
   font-weight: bold;
 }
 
 .monto-celda.monto-amarillo {
-  color: var(--amarillo--) !important; /* Amarillo/Naranja (A menos de $1,000 del límite) */
+  color: var(--amarillo--) !important;
   font-weight: bold;
 }
 
 .monto-celda.monto-rojo {
-  color: var(--red--) !important; /* Rojo Intenso (Límite excedido) */
+  color: var(--red--) !important;
   font-weight: bold;
   animation: sutil-parpadeo 1.5s infinite ease-in-out;
 }
 
-body{ /* Selecciona el elemento <body> de la página */
-  margin: 0; /* Elimina el margen exterior por defecto del navegador */
-  padding: 0; /* Elimina el relleno interior por defecto del navegador */
-  display: flex; /* Activa el modelo de diseño flexible para el cuerpo de la página */
-  flex-direction: column; /* Coloca los elementos del cuerpo en columna, uno debajo de otro */
-  min-height: 100vh; /* Asegura que el cuerpo tenga al menos la altura de la ventana del navegador */
+body{
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
   font-family: var(--font-main);
 }
 
-input, select, button { /* Selecciona los elementos de formulario para aplicar estilos */
-  font-family: inherit; /* Asegura que los elementos de formulario usen la misma fuente que el cuerpo de la página */
+input, select, button {
+  font-family: inherit;
 }
 
-header{ /* Selecciona el elemento <header> para el encabezado de la página */
-  background-color: var(--primary-color); /* Fija el color de fondo del encabezado */
-  padding: 10px 40px; /* Agrega espacio interno: 10px arriba y abajo, 40px a los lados */
-  display: flex; /* Activa el modelo de diseño flexible para el contenido del header */
-  flex-direction: column; /* Coloca los elementos del header en columna, uno debajo de otro */
-  align-items: center; /* Centra horizontalmente los elementos dentro del header */
-  gap: 20px; /* Espacio de 20px entre los elementos hijos del header */
+header{
+  background-color: var(--primary-color);
+  padding: 10px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
 }
 
 @media (min-width:768px){
@@ -64,36 +64,35 @@ header{ /* Selecciona el elemento <header> para el encabezado de la página */
   }
 }
 
-header img{ /* Selecciona la imagen dentro del header */
-  height: 60px; /* Establece la altura fija de la imagen */
-  width: auto; /* Ajusta el ancho automáticamente para mantener la proporción */
-  object-fit: contain; /* Escala la imagen para que quepa sin recortarse */
-  margin: 0; /* Elimina cualquier margen exterior en la imagen */
+header img{
+  height: 60px;
+  width: auto;
+  object-fit: contain;
+  margin: 0;
 }
 
-header nav ul{ /* Selecciona la lista de navegación dentro del header */
-  list-style: none; /* Elimina los puntos de viñeta predeterminados de la lista */
-  display: flex; /* Coloca los ítems de la lista en una fila */
-  padding: 0; /* Elimina el relleno interno de la lista */
-  margin: 0; /* Elimina el margen externo de la lista */
+header nav ul{
+  list-style: none;
+  display: flex;
+  padding: 0;
+  margin: 0;
 }
 
-header nav ul li a{ /* Selecciona los enlaces dentro de los elementos de lista del header */
-  color: var(--bg-light); /* Pinta el texto del enlace de color blanco */
-  text-decoration: none; /* Quita el subrayado de los enlaces */
-  font-size: 12px; /* Define un tamaño de fuente pequeño para los enlaces */
-  background-color: var(--text-muted); /* Pone un fondo gris semi-transparente al enlace */
-  padding: 8px 16px; /* Agrega relleno dentro del enlace para hacerlo más ancho */
-  border-radius: 4px; /* Redondea ligeramente las esquinas del enlace */
-  display: inline-block; /* Permite aplicar tamaño y padding correctamente */
-  transition: background-color 0.2s ease; /* Suaviza el cambio de color de fondo al pasar el cursor */
+header nav ul li a{
+  color: var(--bg-light);
+  text-decoration: none;
+  font-size: 12px;
+  background-color: var(--text-muted);
+  padding: 8px 16px;
+  border-radius: 4px;
+  display: inline-block;
+  transition: background-color 0.2s ease; 
 }
 
 header nav ul li a:hover{ /* Selección para el estado hover (cuando el cursor está sobre el enlace) */
   background-color: var(--accent-color); /* Cambia el fondo del enlace al pasar el cursor */
 }
 
-/*---------------------------------------------------------------------------------------------------------------*/
 .form_main{
   max-width: 600px; /* Limita el ancho máximo del contenido principal a 600px */
   margin: 40px auto;
@@ -247,15 +246,15 @@ header nav ul li a:hover{ /* Selección para el estado hover (cuando el cursor e
 .opcion-filtro input {
   margin-right: 8px;
   cursor: pointer;
-  accent-color: var(--accent-color); /* Los cuadros de verificación usarán tu azul de énfasis */
+  accent-color: var(--accent-color);
 }
 
 /*///////////// Tabla //////////////////*/
 
 .main-tabla { 
   margin: 30px auto; 
-  width: 98%;        /* ➡️ Expandimos al 98% para usar prácticamente toda la pantalla */
-  max-width: 100%;   /* ➡️ Eliminamos el límite de 1400px para pantallas grandes */
+  width: 98%;
+  max-width: 100%;
   padding: 10px;     
   box-sizing: border-box; 
 }
@@ -269,7 +268,7 @@ header nav ul li a:hover{ /* Selección para el estado hover (cuando el cursor e
 .tabla {
   width: 100%;       
   margin: 20px auto; 
-  overflow-x: auto;  /* ➡️ Cambiado de hidden a AUTO: Si la pantalla se reduce, saldrá un scroll suave sin romper el diseño */
+  overflow-x: auto;
   box-shadow: 0 4px 15px rgba(0,0,0,0.05);
   border-radius: 6px;
 }
@@ -301,11 +300,11 @@ header nav ul li a:hover{ /* Selección para el estado hover (cuando el cursor e
   vertical-align: middle;
 }
 
-.tabla tbody tr:nth-child(even) { /* Selecciona las filas pares dentro del cuerpo de la tabla para aplicar estilos */
-  background-color: var(--bg-light); /* Pinta el fondo de las filas pares con un color gris muy claro para mejorar la legibilidad */
+.tabla tbody tr:nth-child(even) {
+  background-color: var(--bg-light);
 }
 
-.tabla tbody tr:hover { /* Selecciona las filas dentro del cuerpo de la tabla cuando el cursor está sobre ellas para aplicar estilos */
+.tabla tbody tr:hover { 
   background-color: var(--bg-hover);
 }
 
@@ -361,21 +360,21 @@ header nav ul li a:hover{ /* Selección para el estado hover (cuando el cursor e
 
 /*---------------------------------------------------------------------------------------------------------------*/
 footer{
- background-color: var(--primary-color); /* Fija el color de fondo del pie de página */
- color: var(--bg-light); /* Pinta el texto del pie de página de color blanco */
- padding: 20px 20px; /* Agrega espacio interno: 20px arriba y abajo, 40px a los lados */
- margin-top: auto; /* Agrega un margen superior para separar el pie de página del contenido anterior */
- display: flex; /* Activa el modelo de diseño flexible para el contenido del footer */
- flex-direction: column; /* Coloca los elementos del footer en columna, uno debajo de otro */
- align-items: center; /* Centra horizontalmente los elementos dentro del footer */
- justify-content: center; /* Centra verticalmente los elementos dentro del footer */
- text-align: center; /* Centra el texto dentro del footer */
- gap: 5px; /* Espacio de 10px entre los elementos hijos del footer */
- font-size: 10px; /* Define un tamaño de fuente pequeño para el texto del footer */
+ background-color: var(--primary-color);
+ color: var(--bg-light);
+ padding: 20px 20px;
+ margin-top: auto;
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ justify-content: center;
+ text-align: center;
+ gap: 5px;
+ font-size: 10px;
 }
 
-footer p{ /* Selecciona los párrafos dentro del footer */
- margin: 0; /* Elimina el margen exterior de los párrafos */
+footer p{
+ margin: 0;
 }
 
 @media (max-width: 767px) {
@@ -387,7 +386,7 @@ footer p{ /* Selecciona los párrafos dentro del footer */
 
   header img {
     height: auto !important;
-    max-width: 220px; /* Limita el ancho del logo en celulares */
+    max-width: 220px;
     width: 100% !important;
   }
 
@@ -688,7 +687,6 @@ footer p{ /* Selecciona los párrafos dentro del footer */
 }
 
 /* --------- Mini Tabla ---------- */
-/* --- CONTENEDOR Y TITULO DE LA MINI TABLA --- */
 .contenedor-mini-tabla {
     margin: 25px 0;
     background-color: var(--blanco);
@@ -708,7 +706,6 @@ footer p{ /* Selecciona los párrafos dentro del footer */
     gap: 6px;
 }
 
-/* --- ESTADO VACÍO --- */
 .tabla-vacia {
     text-align: center;
     color: var(--black--);
@@ -719,11 +716,10 @@ footer p{ /* Selecciona los párrafos dentro del footer */
     border-radius: 6px;
 }
 
-/* --- ESTRUCTURA DE LA TABLA --- */
 .mini-tabla {
     width: 100%;
     border-collapse: collapse;
-    display: none; /* JS la activa cambiando a 'table' */
+    display: none;
     font-size: 13px;
 }
 
@@ -739,7 +735,6 @@ footer p{ /* Selecciona los párrafos dentro del footer */
     padding: 8px 4px;
 }
 
-/* --- ESTILOS DE FILAS DINÁMICAS (INYECTADAS POR JS) --- */
 #cuerpo-mini-tabla tr {
     border-bottom: 1px solid var(--blanco);
     color: var(--text-muted);
@@ -783,7 +778,6 @@ footer p{ /* Selecciona los párrafos dentro del footer */
     transform: scale(1.2);
 }
 
-/* --- CLASES AUXILIARES DE ALINEACIÓN Y ANCHOS --- */
 .txt-centro { text-align: center; }
 .col-cant { width: 60px; }
 .col-unidad { width: 60px; }
