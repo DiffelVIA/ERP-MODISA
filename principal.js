@@ -36,42 +36,35 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // =========================================================================
-    // SECCIÓN MODIFICADA: MEJOR PRÁCTICA PARA REDIRECCIONAR ÚNICAMENTE POR BOTÓN
-    // =========================================================================
     tarjetasMaster.forEach(master => {
-        // Buscamos el botón específico dentro de esta tarjeta master
-        const botonAbrir = master.querySelector('.btn-tarjeta');
-        
-        if (botonAbrir) {
-            botonAbrir.addEventListener('click', (e) => {
-                // Detiene cualquier propagación que pudiera disparar eventos de la tarjeta padre
-                e.stopPropagation();
+        master.addEventListener('click', (e) => {
+            // Evaluamos si el elemento clickeado es el botón de la tarjeta
+            const esBoton = e.target.classList.contains('btn-tarjeta') || e.target.closest('.btn-tarjeta');
+            
+            if (!esBoton) {
+                return; 
+            }
 
-                // Obtenemos el atributo "data-target" desde la tarjeta master contenedora
-                const seccionObjetivo = master.getAttribute('data-target');
-                
-                if (trackContenedor) trackContenedor.classList.remove('vista-menu');
-                tarjetasMaster.forEach(m => m.classList.add('panel-oculto'));
-                tarjetasSub.forEach(sub => {
-                    if (sub.getAttribute('data-seccion') === seccionObjetivo) {
-                        sub.classList.remove('panel-oculto');
-                    } else {
-                        sub.classList.add('panel-oculto');
-                    }
-                });
-
-                if (seccionObjetivo === 'control') {
-                    tituloDashboard.textContent = "Sistema de Gestión - Control Operativo";
+            const seccionObjetivo = master.getAttribute('data-target');
+            if (trackContenedor) trackContenedor.classList.remove('vista-menu');
+            tarjetasMaster.forEach(m => m.classList.add('panel-oculto'));
+            tarjetasSub.forEach(sub => {
+                if (sub.getAttribute('data-seccion') === seccionObjetivo) {
+                    sub.classList.remove('panel-oculto');
                 } else {
-                    tituloDashboard.textContent = "Sistema de Gestión - Administración y Finanzas";
+                    sub.classList.add('panel-oculto');
                 }
-                btnRegresarPanel.classList.remove('panel-oculto');
-                if (ventana) ventana.scrollLeft = 0;
             });
-        }
+
+            if (seccionObjetivo === 'control') {
+                tituloDashboard.textContent = "Sistema de Gestión - Control Operativo";
+            } else {
+                tituloDashboard.textContent = "Sistema de Gestión - Administración y Finanzas";
+            }
+            btnRegresarPanel.classList.remove('panel-oculto');
+            if (ventana) ventana.scrollLeft = 0;
+        });
     });
-    // =========================================================================
 
     if (btnRegresarPanel) {
         btnRegresarPanel.addEventListener('click', () => {
