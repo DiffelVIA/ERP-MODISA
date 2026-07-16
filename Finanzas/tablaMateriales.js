@@ -215,30 +215,45 @@ function generarOpcionesFiltros(datos) {
 // =========================================================================
 // MODIFICADO: Nueva función de utilidad para calcular el semáforo de presupuesto
 // =========================================================================
+// --- LOGICA REVISADA ---
 function obtenerClaseSemaforo(datosItem, totalFila) {
-    // Si la cotización está pendiente o cancelada, mantendremos el estilo original azul
+    // Si la cotización está pendiente o cancelada, usamos la clase base
     if (datosItem.estado === 'pendiente' || datosItem.estado === 'cancelado') {
         return 'monto-pendiente';
     }
 
+    // Forzamos conversión a número para evitar comparaciones erróneas de tipos
     const autorizado = parseFloat(datosItem.presupuesto_autorizado) || 0;
-    // Si no hay presupuesto asignado en la base de datos para esta subcategoría, no activamos alertas
+    const gastadoOtros = parseFloat(datosItem.monto_gastado_otros) || 0;
+    
+    // Si no hay presupuesto configurado, no aplicamos semáforo
     if (autorizado <= 0) {
         return 'monto-pendiente';
     }
-
-    const gastadoOtros = parseFloat(datosItem.monto_gastado_otros) || 0;
+    
     const disponible = autorizado - gastadoOtros;
     const diferencia = disponible - totalFila;
 
+    // Lógica estricta de umbrales
     if (diferencia < 0) {
-        return 'monto-rojo';       // Se rebasó el monto autorizado
+        return 'monto-rojo';       // Se rebasó el presupuesto
     } else if (diferencia < 1000) {
-        return 'monto-amarillo';   // Cercano a rebasarse (menos de $1,000 pesos)
+        return 'monto-amarillo';   // Alerta de margen bajo
     } else {
-        return 'monto-verde';      // Monto seguro (lejos por más de $1,000 pesos)
+        return 'monto-verde';      // Presupuesto saludable
     }
 }
+
+// --- EN EL RENDERIZADO (DENTRO DEL BLOQUE ELSE DEL RESIDENTE) ---
+// En el evento 'input' del inputPrecio, aplica esto para ver el cambio instantáneo:
+inputPrecio.addEventListener('input', () => {
+    const precioTemporal = parseFloat(inputPrecio.value) || 0;
+    const totalTemporal = item.quantity * precioTemporal;
+    
+    // Actualizamos visualmente el monto y su clase CSS según el cálculo
+    celdaMonto.textContent = `$${totalTemporal.toFixed(2)}`;
+    celdaMonto.className = `monto-celda ${obtenerClaseSemaforo(item, totalTemporal)}`;
+});
 // =========================================================================
 
 function renderizarTabla(materialesAVer) {
