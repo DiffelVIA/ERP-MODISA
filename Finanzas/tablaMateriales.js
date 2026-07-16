@@ -137,6 +137,9 @@ async function inicializarDatos() {
     }
 }
 
+// ==========================================
+// FUNCIÓN MODIFICADA: generarOpcionesFiltros
+// ==========================================
 function generarOpcionesFiltros(datos) {
     if (!datos || datos.length === 0) return;
 
@@ -149,7 +152,16 @@ function generarOpcionesFiltros(datos) {
 
     const obrasUnicas = [...new Set(datos.map(item => item.obra))].filter(Boolean).sort();
     const solicitantesUnicos = [...new Set(datos.map(item => item.solicitante))].filter(Boolean).sort();
-    const fechasUnicas = [...new Set(datos.map(item => item.order_date))].filter(Boolean).sort();
+    
+    // --- [NUEVA LÓGICA DE JERARQUÍA PARA FILTRADO DE FECHAS] ---
+    // Obtenemos las fechas únicas pero únicamente de los materiales que pertenezcan a las semanas seleccionadas (si hay alguna seleccionada)
+    const fechasUnicas = [...new Set(
+        datos
+            .filter(item => semanasSeleccionadas.length === 0 || semanasSeleccionadas.includes(String(item.fiscal_week)))
+            .map(item => item.order_date)
+    )].filter(Boolean).sort();
+    // ----------------------------------------------------------
+
     const semanasUnicas = [...new Set(datos.map(item => String(item.fiscal_week)))].filter(Boolean).sort((a, b) => Number(a) - Number(b));
     const proveedoresUnicos = [...new Set(datos.map(item => item.proveedor))].filter(p => p && p.trim() !== "" && p !== "-").sort();
 
@@ -191,13 +203,25 @@ function generarOpcionesFiltros(datos) {
         `).join('');
     }
 
+    // --- [NUEVA LÓGICA DE RENDERIZADO CONDICIONAL DE FECHAS] ---
     if (filtroFecha) {
-        filtroFecha.innerHTML = fechasUnicas.map(f => `
-            <label class="opcion-filtro">
-                <input type="checkbox" value="${f}" class="chk-fecha" ${fechasSeleccionadas.includes(f) ? 'checked' : ''}> ${formatearFecha(f)}
-            </label>
-        `).join('');
+        if (semanasSeleccionadas.length === 0) {
+            // Si no hay ninguna semana seleccionada, dejamos el contenedor vacío o con una sugerencia visual amigable
+            filtroFecha.innerHTML = `
+                <div style="padding: 10px; color: var(--text-muted); font-size: 11px; font-style: italic; text-align: center;">
+                    ⚠️ Selecciona una semana primero
+                </div>
+            `;
+        } else {
+            // Si hay semanas seleccionadas, renderizamos únicamente las fechas correspondientes a esas semanas
+            filtroFecha.innerHTML = fechasUnicas.map(f => `
+                <label class="opcion-filtro">
+                    <input type="checkbox" value="${f}" class="chk-fecha" ${fechasSeleccionadas.includes(f) ? 'checked' : ''}> ${formatearFecha(f)}
+                </label>
+            `).join('');
+        }
     }
+    // ------------------------------------------------------------
 
     if (filtroSemana) {
         filtroSemana.innerHTML = semanasUnicas.map(s => `
@@ -411,6 +435,9 @@ function renderizarTabla(materialesAVer) {
     });
 }
 
+// ==========================================
+// FUNCIÓN OPTIMIZADA: aplicarFiltros
+// ==========================================
 function aplicarFiltros() {
     const obtenerValoresCheckboxes = (selector) => {
         return Array.from(document.querySelectorAll(selector))
@@ -420,18 +447,25 @@ function aplicarFiltros() {
 
     const obrasSeleccionadas = obtenerValoresCheckboxes('.chk-obra');
     const solicitantesSeleccionados = obtenerValoresCheckboxes('.chk-solicitante');
-    const estadosSeleccionados = obtenerValoresCheckboxes('.chk-estado');
+    const estadosSeleccionadas = obtenerValoresCheckboxes('.chk-estado');
     const proveedoresSeleccionados = obtenerValoresCheckboxes('.chk-proveedor');
     const fechasSeleccionadas = obtenerValoresCheckboxes('.chk-fecha');
     const semanasSeleccionadas = obtenerValoresCheckboxes('.chk-semana');
+
+    // --- [NUEVO REGENERADOR DE FILTROS] ---
+    // Volvemos a construir las opciones disponibles en base al estado actual de las semanas seleccionadas
+    generarOpcionesFiltros(concentradoMateriales);
+    // ---------------------------------------
 
     const resultadoFiltrado = concentradoMateriales.filter((item) => {
         const estadoLimpio = item.estado ? item.estado.toLowerCase().trim() : '';
 
         const cumpleObra = obrasSeleccionadas.length === 0 || obrasSeleccionadas.includes(item.obra);
         const cumpleSolicitante = solicitantesSeleccionados.length === 0 || solicitantesSeleccionados.includes(item.solicitante);
-        const cumpleEstado = estadosSeleccionados.length === 0 || estadosSeleccionados.includes(estadoLimpio);
+        const cumpleEstado = estadosSeleccionadas.length === 0 || estadosSeleccionadas.includes(estadoLimpio);
         const cumpleProveedor = proveedoresSeleccionados.length === 0 || proveedoresSeleccionados.includes(item.proveedor);
+        
+        // Evitamos que queden fechas seleccionadas huérfanas si se desmarca la semana que las contenía
         const cumpleFecha = fechasSeleccionadas.length === 0 || fechasSeleccionadas.includes(item.order_date);
         const cumpleSemana = semanasSeleccionadas.length === 0 || semanasSeleccionadas.includes(String(item.fiscal_week));
 
