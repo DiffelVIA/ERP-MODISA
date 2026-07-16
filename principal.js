@@ -1,4 +1,3 @@
-// 🛡️ CONTROL DE ACCESO E HISTORIAL AL INICIO
 window.addEventListener('pageshow', (event) => {
     if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
         window.location.reload();
@@ -9,7 +8,6 @@ if (!localStorage.getItem('userRol') || !sessionStorage.getItem('usuarioMODISA')
     window.location.replace('/');
 }
 
-// === TU LÓGICA ORIGINAL CONTINÚA AQUÍ ===
 document.addEventListener("DOMContentLoaded", () => {
     const rolUsuario = localStorage.getItem('userRol');
     const ventana = document.querySelector('.carrusel-ventana');
@@ -37,20 +35,8 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // =========================================================================
-    // SECCIÓN MODIFICADA: EVALUACIÓN DE ORIGEN DEL CLICK (SOLO BOTÓN)
-    // =========================================================================
     tarjetasMaster.forEach(master => {
-        master.addEventListener('click', (e) => {
-            // Evaluamos de forma nativa si el elemento presionado es el botón
-            const dioClicEnBoton = e.target.classList.contains('btn-tarjeta') || e.target.closest('.btn-tarjeta');
-            
-            // Si el usuario dio click en cualquier otra parte de la tarjeta, salimos sin hacer nada
-            if (!dioClicEnBoton) {
-                return;
-            }
-
-            // Si dio click en el botón, ejecutamos tu lógica de cambio de vista
+        master.addEventListener('click', () => {
             const seccionObjetivo = master.getAttribute('data-target');
             if (trackContenedor) trackContenedor.classList.remove('vista-menu');
             tarjetasMaster.forEach(m => m.classList.add('panel-oculto'));
@@ -62,20 +48,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
 
-            // Cambiamos dinámicamente el título según la sección elegida (incluyendo Visualizaciones)
             if (seccionObjetivo === 'control') {
                 tituloDashboard.textContent = "Sistema de Gestión - Control Operativo";
-            } else if (seccionObjetivo === 'finanzas') {
+            } else {
                 tituloDashboard.textContent = "Sistema de Gestión - Administración y Finanzas";
-            } else if (seccionObjetivo === 'visualizaciones') {
-                tituloDashboard.textContent = "Sistema de Gestión - Visualizaciones";
             }
-            
             btnRegresarPanel.classList.remove('panel-oculto');
             if (ventana) ventana.scrollLeft = 0;
         });
     });
-    // =========================================================================
 
     if (btnRegresarPanel) {
         btnRegresarPanel.addEventListener('click', () => {
