@@ -635,6 +635,9 @@ function generarOrdenCompraPDF() {
 
     let yFinalEntrega = y;
 
+    // =========================================================================
+    // SECCIÓN OPTIMIZADA: DATOS DE FACTURACIÓN CON AJUSTE DINÁMICO DE ANCHO
+    // =========================================================================
     let xFacturacion = 295;
     let yFacturacion = 105; 
 
@@ -649,35 +652,36 @@ function generarOrdenCompraPDF() {
     doc.setTextColor(...textoOscuro);
     
     yFacturacion += 20;
-    doc.text("RAZÓN SOCIAL:", xFacturacion, yFacturacion);
-    doc.setFont("helvetica", "normal");
-    doc.text("Servicios Integrales de Construcción Modisa S.A. de C.V.", xFacturacion + 80, yFacturacion);
 
-    yFacturacion += 14;
-    doc.setFont("helvetica", "bold");
-    doc.text("RFC:", xFacturacion, yFacturacion);
-    doc.setFont("helvetica", "normal");
-    doc.text("SIC191202RT9", xFacturacion + 80, yFacturacion);
+    const xValor = xFacturacion + 70;      // Espacio asignado horizontalmente a las etiquetas (70pt)
+    const maxAnchoTexto = 572 - xValor;    // El texto se ajustará automáticamente antes de salir de la zona segura (572pt)
 
-    yFacturacion += 14;
-    doc.setFont("helvetica", "bold");
-    doc.text("USO CFDI:", xFacturacion, yFacturacion);
-    doc.setFont("helvetica", "normal");
-    doc.text("Adquisición de Mercancías", xFacturacion + 80, yFacturacion);
+    // Declaramos de forma paramétrica las claves para procesarlas dinámicamente sin encimarse
+    const datosFacturacion = [
+        { etiqueta: "RAZÓN SOCIAL:", valor: "Servicios Integrales de Construcción Modisa S.A. de C.V." },
+        { etiqueta: "RFC:", valor: "SIC191202RT9" },
+        { etiqueta: "USO CFDI:", valor: "Adquisición de Mercancías" },
+        { etiqueta: "REGIMEN:", valor: "Régimen General de Ley Personas Morales" },
+        { etiqueta: "DIRECCIÓN:", valor: "Av. Ventura Puente 999 Int. 35 Col Del Empleado 58280" }
+    ];
 
-    yFacturacion += 14;
-    doc.setFont("helvetica", "bold");
-    doc.text("REGIMEN:", xFacturacion, yFacturacion);
-    doc.setFont("helvetica", "normal");
-    doc.text("Régimen General de Ley Personas Morales", xFacturacion + 80, yFacturacion);
+    datosFacturacion.forEach(campo => {
+        // Imprimimos la etiqueta
+        doc.setFont("helvetica", "bold");
+        doc.text(campo.etiqueta, xFacturacion, yFacturacion);
 
-    yFacturacion += 14;
-    doc.setFont("helvetica", "bold");
-    doc.text("DIRECCIÓN:", xFacturacion, yFacturacion);
-    doc.setFont("helvetica", "normal");
-    doc.text("Av. Ventura Puente 999 Int. 35 Col Del Empleado 58280", xFacturacion + 80, yFacturacion);
+        // Imprimimos el valor con el ajuste dinámico
+        doc.setFont("helvetica", "normal");
+        const lineasTexto = doc.splitTextToSize(campo.valor, maxAnchoTexto);
+        doc.text(lineasTexto, xValor, yFacturacion);
 
-    y = Math.max(yFinalEntrega, yFacturacion) + 30;
+        // Desplazamos verticalmente según el número de líneas que ocupe el valor actual
+        yFacturacion += (lineasTexto.length * 9.5) + 4.5;
+    });
+    // =========================================================================
+
+    // Determinamos dinámicamente cuál bloque fue más alto para no encimar la tabla inferior
+    y = Math.max(yFinalEntrega, yFacturacion) + 20;
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
