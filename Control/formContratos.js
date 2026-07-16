@@ -3,12 +3,18 @@
 
     let categoriasCache = [];
 
-    // Recuperamos la sesión del usuario logueado desde el almacenamiento local
-    const sesionUsuario = JSON.parse(localStorage.getItem("usuarioBD")) || null;
+    const sesionUsuarioRaw = JSON.parse(localStorage.getItem("usuarioBD")) || null;
+    const userRolString = localStorage.getItem("userRol") || null;
+
+    // Estructuramos un objeto de sesión unificado y consistente
+    const sesionUsuario = {
+        id: sesionUsuarioRaw ? sesionUsuarioRaw.id : null,
+        nombre: sesionUsuarioRaw ? sesionUsuarioRaw.nombre : 'Solicitante',
+        rol: (sesionUsuarioRaw && sesionUsuarioRaw.rol) ? sesionUsuarioRaw.rol : userRolString
+    };
 
     document.addEventListener("DOMContentLoaded", () => {
         
-        // UNIFICACIÓN VISUAL DE ACCESO DENEGADO: Validación de rol integrada en el ciclo de vida del DOM
         if (!sesionUsuario || sesionUsuario.rol !== "Residente de Obra") {
             const mainContent = document.querySelector('.form_main');
             if (mainContent) {
@@ -17,16 +23,14 @@
                         <div style="font-size: 64px; margin-bottom: 20px;">🔒</div>
                         <h1 style="color: #1e293b; font-size: 28px; margin-bottom: 10px; font-weight: bold;">Acceso Denegado</h1>
                         <p style="color: #64748b; font-size: 16px; max-width: 400px; margin: 0 auto 30px auto; line-height: 1.5;">
-                            No tienes los permisos necesarios para ver esta sección.
+                            No tienes los permisos necesarios para ver esta sección. Solo los Residentes de Obra autorizados pueden acceder.
                         </p>
                     </div>
                 `;
-                
                 return; // Corta la inicialización de funciones del formulario
             }
         }
 
-        // Si el rol es correcto, arranca la lógica normal que ya funciona perfectamente
         inicializarFechas();
         cargarDatosUsuarioLogueado(); 
         cargarSelectoresIniciales();
