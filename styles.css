@@ -585,30 +585,24 @@ footer p{ /* Selecciona los párrafos dentro del footer */
   min-height: 72px;
 }
 
-/* =========================================================================
-   MODIFICACIÓN CORREGIDA: INTERACCIÓN Y HOVER EN TARJETAS MÁSTER
-   ========================================================================= */
-
-/* Las tarjetas Máster reaccionan visualmente al pasar el cursor */
-.tarjeta-master {
-  cursor: default; /* Muestra cursor por defecto sobre el cuerpo de la tarjeta */
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  border: 1px solid transparent; /* O el color de borde que utilices normalmente */
-  pointer-events: auto; /* Asegura que la tarjeta sí detecte el cursor */
+.btn-tarjeta{
+  background-color: var(--primary-color);
+  color: var(--blanco);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 15px;
+  border-radius: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  display: block;
+  text-align: center;
+  margin-top: auto;
+  transition: background-color 0.2s ease;
 }
 
-/* El efecto visual hover en la tarjeta */
-.tarjeta-master:hover {
-  border-color: var(--accent-color); /* Se ilumina con tu azul de acento */
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15); /* Sombreado azulado */
-}
-
-/* El botón debe forzar el cursor interactivo y asegurar la recepción de eventos */
-.tarjeta-master .btn-tarjeta {
-  cursor: pointer !important;
-  pointer-events: auto !important; /* Garantiza matemáticamente que sea clickeable */
-  position: relative; /* Asegura que se sitúe por encima de cualquier otra capa del contenedor */
-  z-index: 2; /* Lo posiciona al frente para recibir de inmediato el clic del mouse */
+.btn-tarjeta:hover{
+  background-color: var(--accent-color);
 }
 
 .carrusel-ventana::-webkit-scrollbar {
