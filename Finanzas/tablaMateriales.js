@@ -217,44 +217,44 @@ function generarOpcionesFiltros(datos) {
 // =========================================================================
 // --- LOGICA REVISADA ---
 function obtenerClaseSemaforo(datosItem, totalFila) {
-    // Si la cotización está pendiente o cancelada, usamos la clase base
+    // Si la cotización está pendiente o cancelada, se mantiene azul/gris original
     if (datosItem.estado === 'pendiente' || datosItem.estado === 'cancelado') {
         return 'monto-pendiente';
     }
 
-    // Forzamos conversión a número para evitar comparaciones erróneas de tipos
-    const autorizado = parseFloat(datosItem.presupuesto_autorizado) || 0;
-    const gastadoOtros = parseFloat(datosItem.monto_gastado_otros) || 0;
+    // Convertimos estrictamente a número plano para evitar fallos de string concatenado
+    const autorizado = parseFloat(datosItem.presupuesto_autorizado);
+    const gastadoOtros = parseFloat(datosItem.monto_gastado_otros);
     
-    // Si no hay presupuesto configurado, no aplicamos semáforo
-    if (autorizado <= 0) {
+    // DIAGNÓSTICO EN CONSOLA (Solo si detectamos inconsistencias en los datos del Backend)
+    if (isNaN(autorizado) || autorizado <= 0) {
+        console.warn(
+            `⚠️ Semáforo inactivo para "${datosItem.material_description}": ` +
+            `Presupuesto autorizado es ${datosItem.presupuesto_autorizado} (¿problema de rol o base de datos?).`
+        );
         return 'monto-pendiente';
     }
-    
-    const disponible = autorizado - gastadoOtros;
+
+    const disponible = autorizado - (isNaN(gastadoOtros) ? 0 : gastadoOtros);
     const diferencia = disponible - totalFila;
 
-    // Lógica estricta de umbrales
+    // Evaluamos los umbrales de presupuesto
     if (diferencia < 0) {
-        return 'monto-rojo';       // Se rebasó el presupuesto
+        return 'monto-rojo';       // Excedido
     } else if (diferencia < 1000) {
-        return 'monto-amarillo';   // Alerta de margen bajo
+        return 'monto-amarillo';   // Alerta crítica (< $1,000 libres)
     } else {
-        return 'monto-verde';      // Presupuesto saludable
+        return 'monto-verde';      // Presupuesto suficiente
     }
 }
 
-// --- EN EL RENDERIZADO (DENTRO DEL BLOQUE ELSE DEL RESIDENTE) ---
-// En el evento 'input' del inputPrecio, aplica esto para ver el cambio instantáneo:
 inputPrecio.addEventListener('input', () => {
     const precioTemporal = parseFloat(inputPrecio.value) || 0;
     const totalTemporal = item.quantity * precioTemporal;
     
-    // Actualizamos visualmente el monto y su clase CSS según el cálculo
     celdaMonto.textContent = `$${totalTemporal.toFixed(2)}`;
     celdaMonto.className = `monto-celda ${obtenerClaseSemaforo(item, totalTemporal)}`;
 });
-// =========================================================================
 
 function renderizarTabla(materialesAVer) {
     if (!cuerpoTabla) return;
