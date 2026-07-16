@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Presupuestos Autorizados por Proyecto</title>
+  <script src="/timeout.js"> </script>
+  <link rel="icon" type="image/x-icon" href="../img/MODISA-favicon.ico">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+
+<body>
+  <header id="header">
+    <div>
+      <img src="../img/logo.png" alt="logo" id="logo">
+    </div>
+    <nav>
+      <ul>
+        <li><a href="../principal.html">Volver a Panel Principal</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="main-tabla">
+    <h1>Presupuestos Autorizados</h1>
+    
+    <div class="contenedorFiltros">
+      <!-- Filtro tipo Dropdown idéntico al de Minutas para seleccionar el Proyecto Activo -->
+      <div class="filtros" id="dropdownProyecto">
+        <button type="button" class="btn-dropdown">Seleccionar Proyecto ▾</button>
+        <div class="contenido-dropdown" id="filtroProyecto">
+          <!-- Se cargará dinámicamente con los proyectos activos de la BD -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Contenedor de la tabla con los mismos estilos unificados -->
+    <div class="tabla">
+      <table>
+        <thead>
+          <tr>
+            <th>Grupo / Categoría</th>
+            <th>Subcategoría</th>
+            <th style="text-align: right;">Mano de Obra</th>
+            <th style="text-align: right;">Materiales</th>
+            <th style="text-align: right;">Maquinaria y Equipo</th>
+            <th style="text-align: right;">Contratos</th>
+            <th style="text-align: right;">Total General</th>
+          </tr>
+        </thead>
+        <tbody class="cuerpoTabla">
+          <tr>
+            <td colspan="7" style="text-align: center; padding: 30px; color: #64748b;">
+              👈 Por favor, despliega el filtro superior y selecciona un proyecto para auditar sus presupuestos.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <footer id="footer">
+    <p>Aplicación para el control de presupuestos MODISA ® 2026</p>
+    <p>Esta herramienta permite al encargado de compras verificar en tiempo real las categorías, subcategorías y montos límite autorizados para cada obra activa, asegurando el control financiero.</p>
+  </footer>
+
+  <script src="tablaPresupuestos.js"></script>
+</body>
+</html>
