@@ -37,33 +37,31 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     tarjetasMaster.forEach(master => {
-        master.addEventListener('click', (e) => {
-            // Evaluamos si el elemento clickeado es el botón de la tarjeta
-            const esBoton = e.target.classList.contains('btn-tarjeta') || e.target.closest('.btn-tarjeta');
-            
-            if (!esBoton) {
-                return; 
-            }
+        const botonAbrir = master.querySelector('.btn-tarjeta');
 
-            const seccionObjetivo = master.getAttribute('data-target');
-            if (trackContenedor) trackContenedor.classList.remove('vista-menu');
-            tarjetasMaster.forEach(m => m.classList.add('panel-oculto'));
-            tarjetasSub.forEach(sub => {
-                if (sub.getAttribute('data-seccion') === seccionObjetivo) {
-                    sub.classList.remove('panel-oculto');
+        if (botonAbrir) {
+            botonAbrir.addEventListener('click', () => {
+                const seccionObjetivo = master.getAttribute('data-target');
+                
+                if (trackContenedor) trackContenedor.classList.remove('vista-menu');
+                tarjetasMaster.forEach(m => m.classList.add('panel-oculto'));
+                tarjetasSub.forEach(sub => {
+                    if (sub.getAttribute('data-seccion') === seccionObjetivo) {
+                        sub.classList.remove('panel-oculto');
+                    } else {
+                        sub.classList.add('panel-oculto');
+                    }
+                });
+
+                if (seccionObjetivo === 'control') {
+                    tituloDashboard.textContent = "Sistema de Gestión - Control Operativo";
                 } else {
-                    sub.classList.add('panel-oculto');
+                    tituloDashboard.textContent = "Sistema de Gestión - Administración y Finanzas";
                 }
+                btnRegresarPanel.classList.remove('panel-oculto');
+                if (ventana) ventana.scrollLeft = 0;
             });
-
-            if (seccionObjetivo === 'control') {
-                tituloDashboard.textContent = "Sistema de Gestión - Control Operativo";
-            } else {
-                tituloDashboard.textContent = "Sistema de Gestión - Administración y Finanzas";
-            }
-            btnRegresarPanel.classList.remove('panel-oculto');
-            if (ventana) ventana.scrollLeft = 0;
-        });
+        }
     });
 
     if (btnRegresarPanel) {
