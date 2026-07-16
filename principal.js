@@ -36,32 +36,26 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     tarjetasMaster.forEach(master => {
-        const botonAbrir = master.querySelector('.btn-tarjeta');
-        
-        if (botonAbrir) {
-            botonAbrir.addEventListener('click', (e) => {
-                e.stopPropagation();
-
-                const seccionObjetivo = master.getAttribute('data-target');
-                if (trackContenedor) trackContenedor.classList.remove('vista-menu');
-                tarjetasMaster.forEach(m => m.classList.add('panel-oculto'));
-                tarjetasSub.forEach(sub => {
-                    if (sub.getAttribute('data-seccion') === seccionObjetivo) {
-                        sub.classList.remove('panel-oculto');
-                    } else {
-                        sub.classList.add('panel-oculto');
-                    }
-                });
-
-                if (seccionObjetivo === 'control') {
-                    tituloDashboard.textContent = "Sistema de Gestión - Control Operativo";
+        master.addEventListener('click', () => {
+            const seccionObjetivo = master.getAttribute('data-target');
+            if (trackContenedor) trackContenedor.classList.remove('vista-menu');
+            tarjetasMaster.forEach(m => m.classList.add('panel-oculto'));
+            tarjetasSub.forEach(sub => {
+                if (sub.getAttribute('data-seccion') === seccionObjetivo) {
+                    sub.classList.remove('panel-oculto');
                 } else {
-                    tituloDashboard.textContent = "Sistema de Gestión - Administración y Finanzas";
+                    sub.classList.add('panel-oculto');
                 }
-                btnRegresarPanel.classList.remove('panel-oculto');
-                if (ventana) ventana.scrollLeft = 0;
             });
-        }
+
+            if (seccionObjetivo === 'control') {
+                tituloDashboard.textContent = "Sistema de Gestión - Control Operativo";
+            } else {
+                tituloDashboard.textContent = "Sistema de Gestión - Administración y Finanzas";
+            }
+            btnRegresarPanel.classList.remove('panel-oculto');
+            if (ventana) ventana.scrollLeft = 0;
+        });
     });
 
     if (btnRegresarPanel) {
