@@ -1,7 +1,3 @@
-
-/* NOMBRE DE LA SECCIÓN */
-
-/* VARIABLES DE COLOR UNIFICADAS PARA SU FÁCIL MODIFICACIÓN */
 :root {
   --primary-color: #06121E;
   --accent-color: #3b82f6;
@@ -383,7 +379,6 @@ footer p{ /* Selecciona los párrafos dentro del footer */
 }
 
 @media (max-width: 767px) {
-  /* 1. Evita que el Header se desborde reduciendo el padding lateral fijo */
   header {
     padding: 15px 20px !important;
     width: 100%;
@@ -590,24 +585,19 @@ footer p{ /* Selecciona los párrafos dentro del footer */
   min-height: 72px;
 }
 
-.btn-tarjeta{
-  background-color: var(--primary-color);
-  color: var(--blanco);
-  text-decoration: none;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 10px 15px;
-  border-radius: 6px;
-  width: 100%;
-  box-sizing: border-box;
-  display: block;
-  text-align: center;
-  margin-top: auto;
-  transition: background-color 0.2s ease;
+.tarjeta-master {
+  cursor: default; /* El cursor de click solo aparece cuando se apunta al botón */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid transparent; /* O el color de borde que tengan por defecto */
 }
 
-.btn-tarjeta:hover{
-  background-color: var(--accent-color);
+.tarjeta-master:hover {
+  border-color: var(--accent-color); /* El color azul claro de tu paleta */
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15); /* Efecto hover elegante */
+}
+
+.btn-tarjeta {
+  cursor: pointer;
 }
 
 .carrusel-ventana::-webkit-scrollbar {
