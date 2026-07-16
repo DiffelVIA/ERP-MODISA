@@ -670,7 +670,7 @@ footer p{ /* Selecciona los párrafos dentro del footer */
 }
 
 .tarjeta-master button {
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .nav-panel{
