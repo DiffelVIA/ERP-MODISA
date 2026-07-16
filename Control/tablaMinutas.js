@@ -6,8 +6,8 @@ let filtroEstado;
 let filtroResponsable;
 let filtroSemana;
 let cuerpoTabla;
-// [AJUSTE]: Criterio establecido en 'alfabetico' por defecto
-let criterioOrden = 'alfabetico'; 
+// [AJUSTE]: Criterio establecido en 'proyecto' por defecto para ordenamiento alfabético de proyectos
+let criterioOrden = 'proyecto'; 
 
 // Seccion de configuracion de la URL de la API dependiendo del entorno (local o producción)
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
@@ -42,9 +42,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// [AJUSTE]: Función de ordenamiento alfabético por Responsable (A-Z)
+// [AJUSTE]: Función de ordenamiento alfabético por Proyecto (A-Z)
 function ordenarDatos(lista) {
-  if (criterioOrden === 'alfabetico') {
+  if (criterioOrden === 'proyecto') {
+    // Ordena alfabéticamente A-Z por el nombre del proyecto
+    lista.sort((a, b) => a.proyecto.localeCompare(b.proyecto, 'es', { sensitivity: 'base' }));
+  } else if (criterioOrden === 'alfabetico') {
+    // Ordena alfabéticamente A-Z por el nombre del responsable
     lista.sort((a, b) => a.responsable.localeCompare(b.responsable, 'es', { sensitivity: 'base' }));
   } else if (criterioOrden === 'fecha') {
     lista.sort((a, b) => {
@@ -91,12 +95,12 @@ async function cargarActividades() {
 
     actividadesFiltradas = [...concentradoMinutas];
     
-    // [AJUSTE]: Ordenamos alfabéticamente el array antes de mandarlo a la pantalla
+    // [AJUSTE]: Ordenamos alfabéticamente por proyecto el array antes de mandarlo a la pantalla
     ordenarDatos(actividadesFiltradas);
 
     filtroOpciones(concentradoMinutas);
     
-    // [AJUSTE]: Renderizamos la variable "actividadesFiltradas" (que ya está ordenada) en lugar del "concentradoMinutas" original
+    // Renderizamos la variable actividadesFiltradas (que ya está ordenada)
     renderizarTabla(actividadesFiltradas);
 
   } catch (error) {
@@ -251,7 +255,7 @@ function aplicarFiltros() {
 
   actividadesFiltradas = resultadoFiltrado;
   
-  // [AJUSTE]: Ordenamos alfabéticamente las actividades filtradas antes de actualizar la vista
+  // [AJUSTE]: Ordenamos alfabéticamente por Proyecto las actividades filtradas antes de actualizar la vista
   ordenarDatos(actividadesFiltradas);
   
   renderizarTabla(actividadesFiltradas);
