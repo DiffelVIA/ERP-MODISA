@@ -236,11 +236,6 @@ function obtenerClaseSemaforo(datosItem, totalFila) {
     }
 }
 
-/* =========================================================================
-   MODIFICACIÓN: Se removió el bloque duplicado y fuera de contexto (huérfano)
-   que provocaba el error 'ReferenceError: inputPrecio is not defined'.
-   ========================================================================= */
-
 function renderizarTabla(materialesAVer) {
     if (!cuerpoTabla) return;
     cuerpoTabla.innerHTML = '';
@@ -408,7 +403,7 @@ function renderizarTabla(materialesAVer) {
 
             inputProveedor.addEventListener('blur', actualizarFila);
             inputReferencia.addEventListener('blur', actualizarFila);
-            inputPrecio.addEventListener('blur', actualizarFila);
+            inputPrecio.addEventListener('blur', actualizarFila); 
             selectEstado.addEventListener('change', actualizarFila);
         }
 
