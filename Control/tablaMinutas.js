@@ -6,6 +6,8 @@ let filtroEstado;
 let filtroResponsable;
 let filtroSemana;
 let cuerpoTabla;
+// [AJUSTE]: Control del estado del criterio de orden seleccionado (por defecto 'fecha')
+let criterioOrden = 'fecha'; 
 
 // Seccion de configuracion de la URL de la API dependiendo del entorno (local o producción)
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
@@ -23,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
   cargarActividades(); // Llamada a la función que carga las actividades desde la API y las renderiza en la tabla
   configurarDropdowns(); // Llamada a la función que configura los dropdowns de filtros para que se puedan abrir y cerrar correctamente
 
-  // Sección de eventos que se ejecutan cuando se cambia el estado de los checkboxes de los filtros
+  // Sección de eventos que se ejecutan cuando se cambia el estado de los checkboxes de los filtros o inputs de radio de orden
   document.addEventListener('change', (e) => {
     if (
       e.target.classList.contains('chk-proyecto') ||
@@ -31,8 +33,15 @@ document.addEventListener('DOMContentLoaded', () => {
       e.target.classList.contains('chk-responsable') ||
       e.target.classList.contains('chk-semana')
     ){
-      console.log(`Filtro cambiado: ${e.target.value} -> Estado actual: ${e.target.checked}`); // 
+      console.log(`Filtro cambiado: ${e.target.value} -> Estado actual: ${e.target.checked}`); 
       aplicarFiltros();
+    }
+
+    // [AJUSTE]: Escucha los cambios en los radio buttons de ordenamiento dinámico
+    if (e.target.classList.contains('rd-orden')) {
+      criterioOrden = e.target.value;
+      console.log(`Criterio de orden cambiado a: ${criterioOrden}`);
+      aplicarFiltros(); // Re-aplica filtros y ordena los resultados
     }
   });
 
@@ -42,6 +51,21 @@ document.addEventListener('DOMContentLoaded', () => {
     btnDescargar.addEventListener('click', MinutasPDF); // addEventListener para ejecutar la función MinutasPDF cuando se hace clic en el botón de descargar PDF
   }
 });
+
+// [AJUSTE]: Función pura y reutilizable encargada de ordenar las listas de actividades in-place
+function ordenarDatos(lista) {
+  if (criterioOrden === 'fecha') {
+    // Ordena de la fecha más reciente a la más antigua
+    lista.sort((a, b) => {
+      const fechaA = a.fecha ? new Date(a.fecha) : new Date(0);
+      const fechaB = b.fecha ? new Date(b.fecha) : new Date(0);
+      return fechaB - fechaA;
+    });
+  } else if (criterioOrden === 'alfabetico') {
+    // Ordena alfabéticamente A-Z por el nombre del responsable
+    lista.sort((a, b) => a.responsable.localeCompare(b.responsable, 'es', { sensitivity: 'base' }));
+  }
+}
 
 // Función asíncrona que carga las actividades desde la API y las renderiza en la tabla
 async function cargarActividades() {
@@ -78,13 +102,18 @@ async function cargarActividades() {
     }
 
     actividadesFiltradas = [...concentradoMinutas];
+    
+    // [AJUSTE]: Asegura el ordenamiento inicial al cargar la página
+    ordenarDatos(actividadesFiltradas);
+
     filtroOpciones(concentradoMinutas);
-    renderizarTabla(concentradoMinutas);
+    renderizarTabla(actividadesFiltradas);
 
   } catch (error) {
     console.error("Error al cargar minutas desde Aiven:", error);
     if (cuerpoTabla) {
-      cuerpoTabla.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:red; font-weight:bold;">Error al conectar con la base de datos en la nube. Revisa el backend.</td></tr>`;
+      // [AJUSTE]: Modificado colspan a 7 para que coincida con la remoción de la columna "Avance"
+      cuerpoTabla.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px; color:red; font-weight:bold;">Error al conectar con la base de datos en la nube. Revisa el backend.</td></tr>`;
     }
   }
 }
@@ -146,7 +175,8 @@ function renderizarTabla(actividadesAFiltrar) {
   cuerpoTabla.innerHTML = '';
 
   if (actividadesAFiltrar.length === 0) {
-    cuerpoTabla.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#64748b;">No hay actividades registradas con estos filtros.</td></tr>`;
+    // [AJUSTE]: Ajustado colspan a 7 debido a la eliminación de la columna "Avance"
+    cuerpoTabla.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px; color:#64748b;">No hay actividades registradas con estos filtros.</td></tr>`;
     return;
   }
 
@@ -163,6 +193,7 @@ function renderizarTabla(actividadesAFiltrar) {
       else if (actividad.estado === 'completada') estadoVisual = '✅ Completada';
       else if (actividad.estado === 'aplazada') estadoVisual = '📅 Aplazada';
 
+      // [AJUSTE]: Se removió la columna final td de Avance (<td style="font-weight: 600; color: #0284c7;">${actividad.avance}%</td>)
       fila.innerHTML = `
         <td><strong>${actividad.proyecto}</strong></td>
         <td>${actividad.responsable}</td>
@@ -171,11 +202,11 @@ function renderizarTabla(actividadesAFiltrar) {
         <td style="text-align: left;">${actividad.descripcion}</td>
         <td style="font-weight: 500; text-align: center;">${estadoVisual}</td>
         <td style="color: #64748b; font-style: italic; max-width: 220px; word-wrap: break-word;">${actividad.comentarioDirector || '-'}</td>
-        <td><span style="font-weight: 600; color: #0284c7;">${actividad.avance}%</span></td>
       `;
     }
 
     else {
+      // [AJUSTE]: Se removió la columna final td de Avance en la vista de Director Operativo
       fila.innerHTML = `
         <td><strong>${actividad.proyecto}</strong></td>
         <td>${actividad.responsable}</td>
@@ -199,7 +230,6 @@ function renderizarTabla(actividadesAFiltrar) {
             style="width: 100%; min-width: 140px; max-width: 220px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit; font-size: 13px; resize: vertical; box-sizing: border-box;"
             >${actividad.comentarioDirector || ''}</textarea>
         </td>
-        <td><span style="font-weight: 600; color: #0284c7;">${actividad.avance}%</span></td>
       `;
     }
 
@@ -234,7 +264,11 @@ function aplicarFiltros() {
   });
 
   actividadesFiltradas = resultadoFiltrado;
-  renderizarTabla(resultadoFiltrado);
+
+  // [AJUSTE]: Se ejecuta el ordenamiento del array filtrado antes de mandar a renderizar
+  ordenarDatos(actividadesFiltradas);
+
+  renderizarTabla(actividadesFiltradas);
 }
 
 // Función que configura los comportamientos de los dropdowns de filtros

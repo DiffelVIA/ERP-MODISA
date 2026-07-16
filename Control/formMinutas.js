@@ -1,6 +1,4 @@
-const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? 'http://localhost:3000/api' 
-  : 'https://erp-modisa.onrender.com/api';
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
 
 let actividadesAcumuladas = [];
 
@@ -104,10 +102,8 @@ if (botonAgregar) {
 
   const fechaHoy = new Date();
   const semanaFiscalCalculada = obtenerNumeroSemana(fechaHoy);
-  const inputAvance = document.getElementById('avance');
   const comentario = document.getElementById('comentarioDirector');
-  const avanceValor = inputAvance ? parseFloat(inputAvance.value) || 0 : 0;
-  const comentarioValor = comentario ? comentario.value.trim() : '';
+
 
   const actividadNueva = {
     id: 'id_' + Math.random().toString(36).substr(2, 9),
@@ -117,8 +113,7 @@ if (botonAgregar) {
     fecha: fecha,
     descripcion: actividad,
     estado: 'pendiente',
-    avance: avanceValor,
-    comentarioDirector: comentarioValor
+    comentarioDirector: comentario
   };
 
   actividadesAcumuladas.push(actividadNueva);
@@ -145,8 +140,6 @@ document.querySelector('form').addEventListener('submit', function(event) {event
       const semanaFiscal = obtenerNumeroSemana(fechaHoy);
       const inputAvance = document.getElementById('avance');
       const comentario = document.getElementById('comentarioDirector');
-      const avanceValor = inputAvance ? parseFloat(inputAvance.value) || 0 : 0;
-      const comentarioValor = comentario ? comentario.value.trim() : '';
 
       const ultimaActividad = {
         id:'id_' + Math.random().toString(36).substr(2,9),
@@ -156,8 +149,7 @@ document.querySelector('form').addEventListener('submit', function(event) {event
         fecha : fechaFlotante,
         descripcion: actividadFlotante,
         estado: 'pendiente',
-        avance: avanceValor,
-        comentarioDirector: comentarioValor
+        comentarioDirector: comentario
       };
       actividadesAcumuladas.push(ultimaActividad);
     }
@@ -234,8 +226,7 @@ function armarCuerpoPDF(doc, listaDeActividades) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   const proyectoGeneral = listaDeActividades[0] ? listaDeActividades[0].proyecto : 'Sin Proyecto';
-  const avanceGeneral = listaDeActividades[0] ? listaDeActividades[0].avance : 0;
-  doc.text(`Proyecto: ${proyectoGeneral} | Avance: ${avanceGeneral}%`, 15, coordenadaY);
+  doc.text(`Proyecto: ${proyectoGeneral}`, 15, coordenadaY);
   coordenadaY += 10;
 
   listaDeActividades.forEach(function(item, indice) {

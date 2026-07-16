@@ -6,7 +6,6 @@
     const sesionUsuarioRaw = JSON.parse(localStorage.getItem("usuarioBD")) || null;
     const userRolString = localStorage.getItem("userRol") || null;
 
-    // Estructuramos un objeto de sesión unificado y consistente
     const sesionUsuario = {
         id: sesionUsuarioRaw ? sesionUsuarioRaw.id : null,
         nombre: sesionUsuarioRaw ? sesionUsuarioRaw.nombre : 'Solicitante',
@@ -27,7 +26,7 @@
                         </p>
                     </div>
                 `;
-                return; // Corta la inicialización de funciones del formulario
+                return;
             }
         }
 
