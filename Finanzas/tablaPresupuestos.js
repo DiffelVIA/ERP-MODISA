@@ -88,7 +88,8 @@ async function cargarPresupuestoProyecto(idProject) {
   try {
     cuerpoTabla.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 30px; color: #64748b;">⏳ Consultando base de datos presupuestal...</td></tr>`;
 
-    const respuesta = await fetch(`${API_URL}/projects/${idProject}/categories`);
+    // APUNTA DIRECTAMENTE A TU ENDPOINT EXISTENTE DEL SERVIDOR
+    const respuesta = await fetch(`${API_URL}/project-categories/${idProject}`);
     if (!respuesta.ok) throw new Error('Error en respuesta de base de datos');
 
     const rubros = await respuesta.json();

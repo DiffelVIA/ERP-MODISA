@@ -1461,3 +1461,20 @@ app.delete('/api/project-categories/:id', verificarGerenteCostos, async (req, re
         connection.release();
     }
 });
+
+// OBTENER PROYECTOS ACTIVOS PARA EL DROPDOWN DE PRESUPUESTOS
+app.get('/api/projects-active', async (req, res) => {
+  try {
+    // Consulta simple usando tu pool de MySQL
+    const [rows] = await pool.query(
+      `SELECT id_project, project_name 
+       FROM proyectos 
+       WHERE estatus = 'Activo' 
+       ORDER BY project_name ASC`
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('❌ Error al obtener proyectos activos:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});

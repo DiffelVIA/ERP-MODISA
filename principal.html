@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MODISA</title>
     <script src="/timeout.js"> </script>
-    <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
+    <link class="favicon" rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -126,6 +126,14 @@
                         <p>Consulta los pagos solicitados y los ya realizados</p>
                         <a href="Finanzas/tabla_pagos.html" class="btn-tarjeta">Ir a Pagos</a>
                     </div>
+                    <!-- MODIFICACIÓN: Se añade el módulo de consulta de presupuestos autorizados de forma unificada -->
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="finanzas">
+                        <img src="img/categorizacion.png" alt="Presupuestos" class="icono-tarjeta">
+                        <h2>Presupuestos Autorizados</h2>
+                        <p>Verifica los montos asignados y límites por categoría de obra</p>
+                        <a href="Finanzas/tabla_presupuestos.html" class="btn-tarjeta">Ir a Presupuestos</a>
+                    </div>
+                    <!-- FIN DE MODIFICACIÓN -->
                     <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="finanzas">
                         <img src="img/dashboard.png" alt="Dashboard" class="icono-tarjeta">
                         <h2>Dashboard de pagos</h2>
