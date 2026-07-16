@@ -260,8 +260,6 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 // PROYECTOS //
-
-// 📌 GET /api/proyectos/:id/contratos (Trae los contratistas asignados a una obra específica)
 app.get('/api/proyectos/:id/contracts', async (req, res) => {
   const { id } = req.params;
   try {
@@ -440,7 +438,6 @@ app.post('/api/tabla_minutas', async (req, res) => {
 });
 
 // EMPLEADOS //
-
 app.get('/api/empleados', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT id_employee, name, last_name FROM employees ORDER BY name ASC;');
@@ -1462,33 +1459,19 @@ app.delete('/api/project-categories/:id', verificarGerenteCostos, async (req, re
     }
 });
 
-// OBTENER PROYECTOS ACTIVOS PARA EL DROPDOWN DE PRESUPUESTOS (Adaptado)
 app.get('/api/projects-active', async (req, res) => {
   try {
-    // Intentamos con 'projects' (inglés) y 'status' (inglés)
-    const [rows] = await pool.query(
-      `SELECT id_project, project_name 
-       FROM projects 
-       WHERE status = 'Activo' OR status = 'activo'
-       ORDER BY project_name ASC`
-    );
+    const querySQL = `
+      SELECT id_project, project_name 
+      FROM projects 
+      WHERE project_name IS NOT NULL 
+      ORDER BY project_name ASC;
+    `;
+
+    const [rows] = await pool.query(querySQL);
     res.json(rows);
   } catch (error) {
-    // Si falla, intentamos con la tabla en español 'proyectos' por si acaso
-    try {
-      const [rows] = await pool.query(
-        `SELECT id_project, project_name 
-         FROM proyectos 
-         WHERE estatus = 'Activo' OR estatus = 'activo'
-         ORDER BY project_name ASC`
-      );
-      return res.json(rows);
-    } catch (innerError) {
-      console.error('❌ Error detallado en MySQL:', innerError);
-      res.status(500).json({ 
-        error: 'Error interno del servidor', 
-        detalles: innerError.message 
-      });
-    }
+    console.error('❌ Error al obtener proyectos activos:', error);
+    res.status(500).json({ error: 'Error interno al consultar los proyectos activos.' });
   }
 });
