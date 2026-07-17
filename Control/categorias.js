@@ -5,7 +5,7 @@
 
         const rolActual = localStorage.getItem('userRol') ? localStorage.getItem('userRol').trim() : '';
 
-        if (rolActual !== ROL_AUTORIZADO) {
+        if (!ROL_AUTORIZADO.includes(rolActual)) {
             const contenedorPrincipal = document.querySelector('.form_main');
             if (contenedorPrincipal) {
                 window.stop();

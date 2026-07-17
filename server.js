@@ -1264,13 +1264,14 @@ app.put('/api/pagos/:id/monto-pagado', async (req, res) => {
 
 // CATEGORIZACIÓN
 const verificarGerenteCostos = (req, res, next) => {
-    // Extraemos la cabecera idéntica a la lógica del módulo de proyectos
     const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim() : '';
 
-    if (rolUsuario !== "Gerente de Costos") {
+    const rolesPermitidos = ["Gerente de Costos", "Director Operativo"];
+
+    if (!rolesPermitidos.includes(rolUsuario)) {
         return res.status(403).json({ 
             success: false, 
-            error: "⛔ Acceso denegado. Este endpoint es confidencial y solo permite modificaciones por el Gerente de Costos." 
+            error: "⛔ Acceso denegado. Este endpoint es confidencial y solo permite modificaciones por el Gerente de Costos o la Dirección Operativa." 
         });
     }
     next();
