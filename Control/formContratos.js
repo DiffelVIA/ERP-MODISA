@@ -162,14 +162,14 @@
         document.getElementById("form-contratos").addEventListener("submit", async (e) => {
             e.preventDefault();
 
-            // ==========================================
-            // [MODIFICACIÓN - MEJOR PRÁCTICA DE SOLUCIÓN]:
-            // Capturamos el valor del input de fecha del HTML ('#fecha') para asignarlo a 'start_date'.
-            // Esto previene enviar valores NULL a un campo obligatorio (NOT NULL) en tu base de datos.
-            // ==========================================
             const inputFecha = document.getElementById("fecha");
             const fechaSeleccionada = inputFecha ? inputFecha.value : null;
 
+            // ==========================================
+            // [MODIFICACIÓN - MEJOR PRÁCTICA DE SOLUCIÓN]:
+            // Asignamos 'fechaSeleccionada' tanto a 'start_date' como a 'end_date'.
+            // Esto evita enviar un valor NULL a la columna 'end_date', la cual tiene la restricción NOT NULL en la base de datos.
+            // ==========================================
             const payload = {
                 id_project: document.getElementById("proyecto").value,
                 id_project_category: document.getElementById("subcategoria").value || null,
@@ -177,8 +177,8 @@
                 Concept: document.getElementById("concepto").value, 
                 supplier: document.getElementById("proveedor").value,
                 id_employee: sesionUsuario ? sesionUsuario.id : null, 
-                start_date: fechaSeleccionada, // <-- [AJUSTE]: Ya no es null, envía la fecha del formulario
-                end_date: null,   
+                start_date: fechaSeleccionada,
+                end_date: fechaSeleccionada, // <-- [AJUSTE]: En lugar de null, enviamos la misma fecha por defecto para cumplir con la base de datos
                 total_amount: document.getElementById("monto").value
             };
             // ==========================================
