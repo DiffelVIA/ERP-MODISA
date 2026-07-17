@@ -167,9 +167,12 @@
 
             // ==========================================
             // [MODIFICACIÓN - MEJOR PRÁCTICA DE SOLUCIÓN]:
-            // Asignamos 'fechaSeleccionada' tanto a 'start_date' como a 'end_date'.
-            // Esto evita enviar un valor NULL a la columna 'end_date', la cual tiene la restricción NOT NULL en la base de datos.
+            // 1. Asignamos 'fechaSeleccionada' tanto a 'start_date' como a 'end_date' para cumplir con las restricciones NOT NULL de tu Base de Datos.
+            // 2. Extraemos el enlace del campo input '#link-drive' de tu formulario HTML para guardarlo bajo 'contract_file_url' en el backend.
             // ==========================================
+            const inputLinkDrive = document.getElementById("link-drive");
+            const linkDriveVal = inputLinkDrive ? inputLinkDrive.value.trim() : null;
+
             const payload = {
                 id_project: document.getElementById("proyecto").value,
                 id_project_category: document.getElementById("subcategoria").value || null,
@@ -178,8 +181,9 @@
                 supplier: document.getElementById("proveedor").value,
                 id_employee: sesionUsuario ? sesionUsuario.id : null, 
                 start_date: fechaSeleccionada,
-                end_date: fechaSeleccionada, // <-- [AJUSTE]: En lugar de null, enviamos la misma fecha por defecto para cumplir con la base de datos
-                total_amount: document.getElementById("monto").value
+                end_date: fechaSeleccionada, // <-- [AJUSTE ANTERIOR]: Cumple con la restricción de fecha de fin
+                total_amount: document.getElementById("monto").value,
+                contract_file_url: linkDriveVal || null // <-- [NUEVO AJUSTE]: Envía el enlace capturado de Drive al backend
             };
             // ==========================================
 
