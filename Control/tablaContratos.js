@@ -123,6 +123,37 @@
                    </select>`
                 : `<span>${mapaFirma[currentFirma] || currentFirma}</span>`;
 
+            // ==========================================
+            // [MODIFICACIÓN - MEJOR PRÁCTICA DE SOLUCIÓN]:
+            // 1. Evaluamos si el usuario es "residente de obra".
+            // 2. Si lo es, protegemos los datos sensibles renderizando un texto seguro sin alterar el número de columnas (evitando el desajuste de la tabla).
+            // ==========================================
+            const esResidente = rolUsuario === "residente de obra";
+
+            const celdaProveedorHTML = esResidente 
+                ? `<td><span style="color: #94a3b8; font-style: italic;">🔒 Confidencial</span></td>` 
+                : `<td>${c.supplier}</td>`;
+
+            const celdaTotalHTML = esResidente 
+                ? `<td style="color: #94a3b8; font-style: italic;">🔒 Confidencial</td>` 
+                : `<td data-campo="total" data-total="${total}">$${total.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>`;
+
+            const celdaMontoPagadoHTML = esResidente 
+                ? `<td style="color: #94a3b8; font-style: italic;">🔒 Confidencial</td>` 
+                : `<td data-campo="monto-consultar" data-monto-consultar="${pagado}">${celdaMontoPagado}</td>`;
+
+            const celdaPorcentajeHTML = esResidente 
+                ? `<td id="porcentaje-${c.id_contract}" style="color: #94a3b8; font-style: italic;">🔒 Confidencial</td>` 
+                : `<td id="porcentaje-${c.id_contract}"><strong>${porcentajePagado}%</strong></td>`;
+
+            const celdaSaldoDineroHTML = esResidente 
+                ? `<td style="color: #94a3b8; font-style: italic;">🔒 Confidencial</td>` 
+                : `<td data-campo="saldo-dinero" style="color: #64748b; font-weight: 500;">$${saldoPendienteDinero.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>`;
+
+            const celdaSaldoPorcentajeHTML = esResidente 
+                ? `<td style="color: #94a3b8; font-style: italic;">🔒 Confidencial</td>` 
+                : `<td data-campo="saldo-porcentaje" style="color: #64748b; font-weight: bold;">${saldoPendientePorcentaje}%</td>`;
+
             tr.innerHTML = `
                 <td>${c.project_name || 'Sin Proyecto'}</td>
                 <td><span style="font-weight: 500; color: #475569;">${c.grupo || '---'}</span></td>
@@ -132,17 +163,18 @@
                 <td>Semana ${numeroSemana}</td>
                 <td>${celdaClave}</td>
                 <td>${c.Concept || 'Sin descripción'}</td>
-                <td>${c.supplier}</td>
-                <td data-campo="total" data-total="${total}">$${total.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
-                <td data-campo="monto-consultar" data-monto-consultar="${pagado}">${celdaMontoPagado}</td>
-                <td id="porcentaje-${c.id_contract}"><strong>${porcentajePagado}%</strong></td>
-                <td data-campo="saldo-dinero" style="color: #64748b; font-weight: 500;">$${saldoPendienteDinero.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
-                <td data-campo="saldo-porcentaje" style="color: #64748b; font-weight: bold;">${saldoPendientePorcentaje}%</td>
+                ${celdaProveedorHTML}
+                ${celdaTotalHTML}
+                ${celdaMontoPagadoHTML}
+                ${celdaPorcentajeHTML}
+                ${celdaSaldoDineroHTML}
+                ${celdaSaldoPorcentajeHTML}
                 <td data-campo="status-pago" data-valor-real="${currentStatus}">${celdaStatusPago}</td>
                 <td data-campo="estado-costos">${celdaCostos}</td>
                 <td data-campo="status-direccion">${celdaDireccion}</td>
                 <td data-campo="firma">${celdaFirma}</td>
             `;
+            // ==========================================
 
             tbody.appendChild(tr);
         });
