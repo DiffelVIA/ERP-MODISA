@@ -15,9 +15,7 @@ const credentialsPath = path.join(__dirname, 'credentials.json');
 const credentials = JSON.parse(fs.readFileSync(credentialsPath));
 const { client_id, client_secret, redirect_uris } = credentials.web;
 
-const redirectUri = process.env.NODE_ENV === 'production' 
-  ? 'https://erp-modisa.onrender.com'
-  : redirect_uris[0];
+const redirectUri = process.env.NODE_ENV === 'production' ? 'https://erp-modisa.onrender.com' : redirect_uris[0];
 
 const oauth2Client = new google.auth.OAuth2(
   client_id,
@@ -86,7 +84,6 @@ const pool = mysql.createPool({
 // REGISTRO DE NUEVOS PROYECTOS
 // =========================================================================================
 app.post('/api/projects', async (req, res) => {
-    // 🛡️ CONTROL DE ACCESO BACKEND: Validación estricta multi-rol
     const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim() : '';
     const rolesPermitidos = ["Director Operativo", "Subdirector de Obra"];
 
@@ -630,7 +627,7 @@ app.post('/api/auth/login', async (req, res) => {
 
   try {
     const [usuarios] = await pool.query(
-      'SELECT id_employee, name, password, job_title, first_entry FROM employees WHERE name = ?',
+      'SELECT id_employee, name, password, job_title, first_entry FROM employees WHERE email = ?',
       [correo.trim()]
     );
 
