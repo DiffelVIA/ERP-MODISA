@@ -3,14 +3,21 @@
 
     let categoriasCache = [];
 
-    const sesionUsuarioRaw = JSON.parse(localStorage.getItem("usuarioBD")) || null;
+    // ==========================================
+    // [MODIFICACIÓN - MEJOR PRÁCTICA DE SOLUCIÓN]:
+    // 1. Cambiamos 'localStorage' por 'sessionStorage' para leer el almacén correcto de sesión activa.
+    // 2. Apuntamos a la clave exacta '"usuarioMODISA"' configurada durante el Login exitoso.
+    // ==========================================
+    const sesionUsuarioRaw = JSON.parse(sessionStorage.getItem("usuarioMODISA")) || null;
     const userRolString = localStorage.getItem("userRol") || null;
 
     const sesionUsuario = {
-        id: sesionUsuarioRaw ? sesionUsuarioRaw.id : null,
+        // [MEJOR PRÁCTICA]: Mapeamos 'id_employee' que viene del Backend en vez de '.id' inexistente
+        id: sesionUsuarioRaw ? sesionUsuarioRaw.id_employee : null,
         nombre: sesionUsuarioRaw ? sesionUsuarioRaw.nombre : 'Solicitante',
         rol: (sesionUsuarioRaw && sesionUsuarioRaw.rol) ? sesionUsuarioRaw.rol : userRolString
     };
+    // ==========================================
 
     const ROLES_PERMITIDOS = ["Residente de Obra", "Director Operativo"];
 

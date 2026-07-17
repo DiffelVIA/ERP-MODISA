@@ -935,15 +935,21 @@ app.listen(PORT, () => {
 });
 
 app.post('/api/contratos', async (req, res) => {
-    // CAPA DE SEGURIDAD BACKEND: Validación del rol a través de los headers de control
+    // ==========================================
+    // [MODIFICACIÓN - MEJOR PRÁCTICA DE SEGURIDAD]:
+    // Normalizamos el rol a minúsculas y eliminamos espacios en blanco (.trim()) 
+    // para evitar fallos por mayúsculas/minúsculas ("Residente de Obra" vs "residente de obra").
+    // ==========================================
     const userRol = req.headers['x-user-rol'];
+    const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
 
-    if (!userRol || userRol !== 'Residente de Obra') {
+    if (!rolNormalizado || rolNormalizado !== 'residente de obra') {
         return res.status(403).json({ 
             success: false, 
             error: "⛔ Acceso denegado: Solo usuarios con rol de 'Residente de Obra' pueden registrar contratos." 
         });
     }
+    // ==========================================
 
     const {
         id_project,
