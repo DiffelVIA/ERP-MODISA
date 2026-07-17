@@ -12,9 +12,11 @@
         rol: (sesionUsuarioRaw && sesionUsuarioRaw.rol) ? sesionUsuarioRaw.rol : userRolString
     };
 
+    const ROLES_PERMITIDOS = ["Residente de Obra", "Director Operativo"];
+
     document.addEventListener("DOMContentLoaded", () => {
         
-        if (!sesionUsuario || sesionUsuario.rol !== "Residente de Obra") {
+        if (!sesionUsuario || !ROLES_PERMITIDOS.includes(sesionUsuario.rol)) {
             const mainContent = document.querySelector('.form_main');
             if (mainContent) {
                 mainContent.innerHTML = `
@@ -22,7 +24,7 @@
                         <div style="font-size: 64px; margin-bottom: 20px;">🔒</div>
                         <h1 style="color: #1e293b; font-size: 28px; margin-bottom: 10px; font-weight: bold;">Acceso Denegado</h1>
                         <p style="color: #64748b; font-size: 16px; max-width: 400px; margin: 0 auto 30px auto; line-height: 1.5;">
-                            No tienes los permisos necesarios para ver esta sección. Solo los Residentes de Obra autorizados pueden acceder.
+                            No tienes los permisos necesarios para ver esta sección.
                         </p>
                     </div>
                 `;
