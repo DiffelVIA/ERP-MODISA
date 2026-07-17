@@ -1,6 +1,6 @@
 (() => {
     // Rol autorizado para acceder a esta sección
-    const ROL_AUTORIZADO = "Gerente de Costos";
+    const ROL_AUTORIZADO = ["Gerente de Costos", "Director Operativo"];
 
     document.addEventListener("DOMContentLoaded", () => {
 

@@ -15,7 +15,6 @@
         try {
             cuerpoTabla.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px;">⏳ Cargando proyectos desde el servidor...</td></tr>`;
 
-            // 🔄 CORRECCIÓN APLICADA: Uso de la constante absoluta local
             const response = await fetch(`${API_BASE_URL}/projects-report`);
             if (!response.ok) throw new Error(`Error en el servidor: ${response.status}`);
 
@@ -71,7 +70,6 @@
             const porcentaje = calcularPorcentajeTiempo(fInicio, fFin, proy.status);
             const estadoEspañol = traduccionEstados[proy.status] || proy.status;
 
-            // 🟢 TU LÓGICA: Si no es director, renderiza texto plano (Solo lectura)
             if (!esDirector) {
                 fila.innerHTML = `
                     <td><strong>${proy.project_name}</strong></td>
@@ -90,7 +88,6 @@
                     </td>
                 `;
             } else {
-                // 🟢 TU LÓGICA: Si es director operativo, habilita controles inputs interactivos
                 fila.innerHTML = `
                     <td><strong>${proy.project_name}</strong></td>
                     <td>${proy.responsable_name || "<i>Sin asignar</i>"}</td>
@@ -133,7 +130,6 @@
                 const nuevoEstado = e.target.value;
                 const fila = e.target.closest("tr");
                 
-                // 🛡️ CORRECCIÓN ANTICRASH: Se previene la lectura nula si el input fecha-fin no existe en la fila actual
                 const inputFecha = fila.querySelector(".input-fecha-fin");
                 const fechaFinActual = inputFecha ? inputFecha.value : new Date().toISOString().split('T')[0];
 
@@ -165,7 +161,6 @@
 
     async function procesarActualizacionRenglon(id, status, finishDate) {
         try {
-            // 🔄 CORRECCIÓN APLICADA: Conexión con puerto 3000 con inyección del Header con el Rol actual
             const response = await fetch(`${API_BASE_URL}/projects/${id}`, {
                 method: "PUT",
                 headers: { 

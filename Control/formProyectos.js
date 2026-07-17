@@ -1,9 +1,7 @@
 (() => {
-    const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-      ? 'http://localhost:3000/api' 
-      : 'https://erp-modisa.onrender.com/api';
+    const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
 
-    const ROLES_PERMITIDOS = ["Director Operativo", "Subdirector de Obra"];
+    const ROLES_PERMITIDOS = ["Director Operativo", "Subdirector de Obra", "Gerente Administración", "Compras"];
 
     document.addEventListener("DOMContentLoaded", () => {
         const rolUsuario = localStorage.getItem('userRol') ? localStorage.getItem('userRol').trim() : '';
@@ -17,7 +15,7 @@
                     <div style="font-size: 64px; margin-bottom: 20px;">🔒</div>
                     <h1 style="color: #1e293b; font-size: 28px; margin-bottom: 10px; font-weight: bold;">Acceso Denegado</h1>
                     <p style="color: #64748b; font-size: 16px; max-width: 400px; margin: 0 auto 30px auto; line-height: 1.5;">
-                      No cuentas con los permisos requeridos para registrar proyectos.
+                      No cuentas con los permisos requeridos para acceder a esta sección.
                     </p>
                   </div>
                 `;
