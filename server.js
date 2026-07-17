@@ -7,7 +7,6 @@ const path = require('path');
 const bcrypt = require('bcrypt');
 
 // DRIVE //
-
 const multer = require('multer');
 const { google } = require('googleapis');
 
@@ -58,10 +57,7 @@ async function subirArchivoADrive(fileObject, idCarpetaDrive) {
   }
 }
 
-// =========================================================================================
 // CONEXIÓN A MYSQL
-// =========================================================================================
-
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -80,9 +76,7 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
-// =========================================================================================
 // REGISTRO DE NUEVOS PROYECTOS
-// =========================================================================================
 app.post('/api/projects', async (req, res) => {
     const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim() : '';
     const rolesPermitidos = ["Director Operativo", "Subdirector de Obra"];
@@ -102,7 +96,6 @@ app.post('/api/projects', async (req, res) => {
         ubicacion
     } = req.body;
 
-    // Validación de integridad de los datos entrantes
     if (!proyecto || !responsable || !fechaInicio || !fechaFin || !ubicacion) {
         return res.status(400).json({
             success: false,
@@ -141,9 +134,7 @@ app.post('/api/projects', async (req, res) => {
     }
 });
 
-// ==========================================
 // TABLA DE PROYECTOS CON ROLES ASIGNADOS
-// ==========================================
 app.get('/api/projects-report', async (req, res) => {
     try {
         const sql = `
@@ -169,7 +160,6 @@ app.get('/api/projects-report', async (req, res) => {
 });
 
 app.put('/api/projects/:id', async (req, res) => {
-    // 🛡️ CONTROL DE ACCESO BACKEND: Validación estricta de Rol
     const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim() : '';
 
     if (rolUsuario !== "Director Operativo") {
@@ -182,7 +172,6 @@ app.put('/api/projects/:id', async (req, res) => {
     const { id } = req.params;
     let { status, finish_date } = req.body;
 
-    // 🩹 Salvavidas técnico: Validar que la fecha realmente exista antes de procesarla
     if (!finish_date) {
         return res.status(400).json({ success: false, error: "La fecha de finalización es obligatoria." });
     }
@@ -209,7 +198,6 @@ app.put('/api/projects/:id', async (req, res) => {
 
         const cambioLaFecha = (nuevaFechaFinClean !== fechaFinViejaClean);
 
-        // 🧠 Mantiene tu increíble lógica de negocio automatizada
         if (cambioLaFecha) {
             if (nuevaFechaFinClean >= formatoHoyLocal) {
                 status = 'Active';
@@ -239,9 +227,7 @@ app.put('/api/projects/:id', async (req, res) => {
     }
 });
 
-// =========================================================================================
 // MULTER
-// =========================================================================================
 const storage = multer.diskStorage({
   destination: (req, file, cb) =>{
     const dir = './uploads';
@@ -285,14 +271,12 @@ app.get('/api/tabla_minutas', async (req, res) => {
 
     console.log("Revisando actividades vencidas para la fecha local:", hoyFormateado);
 
-    // 1. Actualizar las tareas que ya vencieron automáticamente
     await pool.query(`
       UPDATE minutas 
       SET estado = 'atrasada' 
       WHERE fecha < ? AND estado != 'completada' AND estado != 'atrasada' AND estado != 'aplazada'
     `, [hoyFormateado]);
 
-    // 🔥 NUEVA LÓGICA DE LIMPIEZA: Borrar minutas completadas hace más de 4 semanas
     console.log("Ejecutando limpieza periódica de minutas completadas antiguas...");
     await pool.query(`
       DELETE FROM minutas 
@@ -310,7 +294,6 @@ app.get('/api/tabla_minutas', async (req, res) => {
     const [filas] = await pool.query(querySQL);
     console.log(`Se encontraron ${filas.length} minutas.`);
     
-    // Devolvemos la respuesta al frontend
     res.json(filas);
 
   } catch (error) {
@@ -329,10 +312,8 @@ app.post('/api/tabla_minutas', async (req, res) => {
   const listaMinutas = Array.isArray(minutas) ? minutas : [minutas];
 
   try {
-    // MEJOR PRÁCTICA: Procesar de forma controlada y segura para capturar errores de forma síncrona
     for (const item of listaMinutas) {
       
-      // 1. Validar si la actividad ya está registrada para obtener su histórico
       const [registroPrevio] = await pool.query(
         'SELECT fecha, semana, estado, comentarioDirector FROM minutas WHERE id = ?', 
         [item.id]
@@ -343,18 +324,14 @@ app.post('/api/tabla_minutas', async (req, res) => {
       let semanaOriginal;
 
       if (registroPrevio.length > 0) {
-        // --- REGLAS PARA REGISTROS EXISTENTES ---
         const datosOriginales = registroPrevio[0];
 
-        // Bloquear la semana fiscal de origen
         semanaOriginal = datosOriginales.semana;
 
-        // Si se cambia cualquier dato pero NO es aplazada, se respeta la fecha que ya estaba en BD
         if (item.estado !== 'aplazada') {
           fechaDestino = datosOriginales.fecha ? new Date(datosOriginales.fecha).toISOString().split('T')[0] : fechaDestino;
         }
 
-        // LÓGICA DE DÍAS RETRASADOS AL COMPLETAR
         if (item.estado === 'completada' && datosOriginales.estado !== 'completada') {
           const fechaLimiteOriginal = new Date(datosOriginales.fecha);
           const fechaCompletadoHoy = new Date();
@@ -378,7 +355,6 @@ app.post('/api/tabla_minutas', async (req, res) => {
           }
         }
       } else {
-        // --- REGLAS PARA NUEVOS REGISTROS ---
         if (item.semana !== undefined && item.semana !== null && !isNaN(Number(item.semana)) && Number(item.semana) !== 0) {
           semanaOriginal = Number(item.semana);
         } else {
@@ -389,7 +365,6 @@ app.post('/api/tabla_minutas', async (req, res) => {
         }
       }
 
-      // MEJOR PRÁCTICA: Evitar VALUES() ambiguos en ON DUPLICATE KEY UPDATE asignando parámetros limpios
       const querySQL = `
         INSERT INTO minutas (id, proyecto, avance, responsable, semana, fecha, descripcion, estado, comentarioDirector)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -412,8 +387,7 @@ app.post('/api/tabla_minutas', async (req, res) => {
         fechaDestino, 
         item.descripcion, 
         item.estado, 
-        comentarioFinal, // Para el INSERT inicial
-        // Valores explícitos para el UPDATE (Previene fallas de mapeo atómico):
+        comentarioFinal,
         item.estado,
         comentarioFinal,
         item.proyecto,
@@ -423,7 +397,6 @@ app.post('/api/tabla_minutas', async (req, res) => {
         item.descripcion
       ];
 
-      // Ejecutar y esperar de manera segura dentro del bloque try/catch
       await pool.query(querySQL, valoresControlados);
     }
 
@@ -476,9 +449,6 @@ app.get('/api/proyectos', async (req, res) => {
 app.get('/api/materiales', async (req, res) => {
   try {
     const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim().toLowerCase() : '';
-    
-    // MODIFICADO: Agregamos subconsultas para obtener el presupuesto autorizado de materiales 
-    // y la suma de lo que ya se ha cotizado/comprado de esa categoría en este proyecto.
     const querySQL = `
       SELECT 
         od.id_detail,
@@ -529,7 +499,7 @@ app.get('/api/materiales', async (req, res) => {
       "compras", 
       "director general", 
       "director operativo", 
-      "gerente de costs", // Mantenemos compatibilidad con tus roles
+      "gerente de costs",
       "gerente de costos", 
       "auxiliar costos"
     ];
@@ -935,11 +905,6 @@ app.listen(PORT, () => {
 });
 
 app.post('/api/contratos', async (req, res) => {
-    // ==========================================
-    // [MODIFICACIÓN - MEJOR PRÁCTICA DE SEGURIDAD]:
-    // Normalizamos el rol a minúsculas y eliminamos espacios en blanco (.trim()) 
-    // para evitar fallos por mayúsculas/minúsculas ("Residente de Obra" vs "residente de obra").
-    // ==========================================
     const userRol = req.headers['x-user-rol'];
     const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
 
@@ -949,7 +914,6 @@ app.post('/api/contratos', async (req, res) => {
             error: "⛔ Acceso denegado: Solo usuarios con rol de 'Residente de Obra' pueden registrar contratos." 
         });
     }
-    // ==========================================
 
     const {
         id_project,
@@ -1099,7 +1063,6 @@ app.post('/api/pagos', upload.single('ticketFile'), async (req, res) => {
   const { id_project, id_employee, request_date, fiscal_week, payment_type, payment_method, conceptos } = req.body;
 
   if (!id_project || !id_employee || !request_date || !fiscal_week || !payment_type || !payment_method) {
-    // Si llegó archivo y faltan datos, borramos el temporal
     if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     return res.status(400).json({ error: 'Faltan campos obligatorios en la cabecera de la solicitud.' });
   }
@@ -1116,7 +1079,6 @@ app.post('/api/pagos', upload.single('ticketFile'), async (req, res) => {
     return res.status(400).json({ error: 'El formato de los conceptos es inválido.' });
   }
 
-  // ☁️ SUBIDA A GOOGLE DRIVE SI EXISTE UN ARCHIVO
   let urlDestinoFinal = null;
   if (req.file) {
     try {
@@ -1135,7 +1097,6 @@ app.post('/api/pagos', upload.single('ticketFile'), async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    // 1️⃣ INSERTAR CABECERA CON LA URL DE GOOGLE DRIVE
     const [resOrder] = await connection.query(
       `INSERT INTO payment_orders (id_project, id_employee, request_date, fiscal_week, payment_type, payment_method, ticket_url) 
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -1159,7 +1120,7 @@ app.post('/api/pagos', upload.single('ticketFile'), async (req, res) => {
         item.concept_description, 
         item.unit, 
         item.quantity, 
-        item.price_unit, // Mapeado exacto desde el objeto sanitizado del frontend
+        item.price_unit,
         item.amount, 
         item.commentary
       ]);
@@ -1167,7 +1128,6 @@ app.post('/api/pagos', upload.single('ticketFile'), async (req, res) => {
 
     await connection.commit();
     console.log(`💾 ¡Éxito! Guardada solicitud de pago ID #${id_payment_order} en la nube.`);
-    console.log("======================================================");
     res.json({ status: 'success', mensaje: 'Solicitud de pago guardada con éxito en la base de datos.' });
 
   } catch (error) {
@@ -1302,12 +1262,7 @@ app.put('/api/pagos/:id/monto-pagado', async (req, res) => {
     }
 });
 
-// =========================================================================================
 // CATEGORIZACIÓN
-// =========================================================================================
-// ========================================================
-// 🔒 MIDDLEWARE DE SEGURIDAD ESTRICTA: GESTIÓN DE COSTOS
-// ========================================================
 const verificarGerenteCostos = (req, res, next) => {
     // Extraemos la cabecera idéntica a la lógica del módulo de proyectos
     const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim() : '';
@@ -1321,7 +1276,6 @@ const verificarGerenteCostos = (req, res, next) => {
     next();
 };
 
-// A. OBTENER CATEGORÍAS (Acceso de lectura interna)
 app.get('/api/proyectos/:id/categorias', async (req, res) => {
   const { id } = req.params;
   try {
@@ -1336,7 +1290,6 @@ app.get('/api/proyectos/:id/categorias', async (req, res) => {
   }
 });
 
-// B. CONSULTAR MATRIZ FINANCIERA COMPLETA
 app.get('/api/project-categories/:id_project', async (req, res) => {
     const idProject = req.params.id_project;
     const connection = await pool.getConnection();
@@ -1357,7 +1310,6 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
     }
 });
 
-// C. CARGA MASIVA CSV (🔒 Blindado)
 app.post('/api/upload-hierarchy', verificarGerenteCostos, async (req, res) => {
     const { id_project, csvData } = req.body;
     if (!id_project || !csvData) return res.status(400).json({ error: "Faltan parámetros requeridos." });
@@ -1403,7 +1355,6 @@ app.post('/api/upload-hierarchy', verificarGerenteCostos, async (req, res) => {
     }
 });
 
-// D. REGISTRO MANUAL INDIVIDUAL (🔒 Blindado)
 app.post('/api/project-categories', verificarGerenteCostos, async (req, res) => {
     const { id_project, grupo, categoria, subcategoria, mano_obra, materiales, maquinaria_equipo, contratos, total } = req.body;
     if (!id_project || !grupo || !categoria) return res.status(400).json({ error: "Campos obligatorios incompletos." });
@@ -1423,7 +1374,6 @@ app.post('/api/project-categories', verificarGerenteCostos, async (req, res) => 
     }
 });
 
-// E. MODIFICACIÓN DE FILA (🔒 Blindado)
 app.put('/api/project-categories/:id', verificarGerenteCostos, async (req, res) => {
     const idCategory = req.params.id;
     const { grupo, categoria, subcategoria, mano_obra, materiales, maquinaria_equipo, contratos, total } = req.body;
@@ -1445,7 +1395,6 @@ app.put('/api/project-categories/:id', verificarGerenteCostos, async (req, res) 
     }
 });
 
-// F. ELIMINACIÓN DE REGISTRO (🔒 Blindado)
 app.delete('/api/project-categories/:id', verificarGerenteCostos, async (req, res) => {
     const idCategory = req.params.id;
     const connection = await pool.getConnection();

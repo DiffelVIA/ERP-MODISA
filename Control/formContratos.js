@@ -3,21 +3,14 @@
 
     let categoriasCache = [];
 
-    // ==========================================
-    // [MODIFICACIÓN - MEJOR PRÁCTICA DE SOLUCIÓN]:
-    // 1. Cambiamos 'localStorage' por 'sessionStorage' para leer el almacén correcto de sesión activa.
-    // 2. Apuntamos a la clave exacta '"usuarioMODISA"' configurada durante el Login exitoso.
-    // ==========================================
     const sesionUsuarioRaw = JSON.parse(sessionStorage.getItem("usuarioMODISA")) || null;
     const userRolString = localStorage.getItem("userRol") || null;
 
     const sesionUsuario = {
-        // [MEJOR PRÁCTICA]: Mapeamos 'id_employee' que viene del Backend en vez de '.id' inexistente
         id: sesionUsuarioRaw ? sesionUsuarioRaw.id_employee : null,
         nombre: sesionUsuarioRaw ? sesionUsuarioRaw.nombre : 'Solicitante',
         rol: (sesionUsuarioRaw && sesionUsuarioRaw.rol) ? sesionUsuarioRaw.rol : userRolString
     };
-    // ==========================================
 
     const ROLES_PERMITIDOS = ["Residente de Obra", "Director Operativo"];
 
@@ -169,6 +162,14 @@
         document.getElementById("form-contratos").addEventListener("submit", async (e) => {
             e.preventDefault();
 
+            // ==========================================
+            // [MODIFICACIÓN - MEJOR PRÁCTICA DE SOLUCIÓN]:
+            // Capturamos el valor del input de fecha del HTML ('#fecha') para asignarlo a 'start_date'.
+            // Esto previene enviar valores NULL a un campo obligatorio (NOT NULL) en tu base de datos.
+            // ==========================================
+            const inputFecha = document.getElementById("fecha");
+            const fechaSeleccionada = inputFecha ? inputFecha.value : null;
+
             const payload = {
                 id_project: document.getElementById("proyecto").value,
                 id_project_category: document.getElementById("subcategoria").value || null,
@@ -176,10 +177,11 @@
                 Concept: document.getElementById("concepto").value, 
                 supplier: document.getElementById("proveedor").value,
                 id_employee: sesionUsuario ? sesionUsuario.id : null, 
-                start_date: null, 
+                start_date: fechaSeleccionada, // <-- [AJUSTE]: Ya no es null, envía la fecha del formulario
                 end_date: null,   
                 total_amount: document.getElementById("monto").value
             };
+            // ==========================================
 
             try {
                 const response = await fetch(`${API_BASE}/contratos`, {
