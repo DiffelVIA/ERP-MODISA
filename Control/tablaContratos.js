@@ -36,8 +36,31 @@
             }
         });
 
+        ocultarCabecerasFinancierasSiEsResidente(rolUsuario);
+
         cargarContratos();
     });
+
+    function ocultarCabecerasFinancierasSiEsResidente(rolUsuario) {
+        if (rolUsuario !== "residente de obra") return;
+
+        const cabeceras = document.querySelectorAll("table thead tr th");
+        const columnasA_Ocultar = [
+            "Proveedor", 
+            "Total", 
+            "Monto Pagado", 
+            "Porcentaje pagado", 
+            "Saldo ($)", 
+            "Saldo (%)"
+        ];
+
+        cabeceras.forEach(th => {
+            const textoLimpio = th.textContent.trim();
+            if (columnasA_Ocultar.includes(textoLimpio)) {
+                th.style.display = "none";
+            }
+        });
+    }
 
     async function cargarContratos() {
         try {
@@ -63,7 +86,8 @@
         tbody.innerHTML = "";
 
         if (listaContratos.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="18" style="text-align:center;">🚫 No se encontraron contratos con los filtros seleccionados.</td></tr>`;
+            const cols = (rolUsuario === "residente de obra") ? 12 : 18;
+            tbody.innerHTML = `<tr><td colspan="${cols}" style="text-align:center;">🚫 No se encontraron contratos con los filtros seleccionados.</td></tr>`;
             return;
         }
 
@@ -123,58 +147,45 @@
                    </select>`
                 : `<span>${mapaFirma[currentFirma] || currentFirma}</span>`;
 
-            // ==========================================
-            // [MODIFICACIÓN - MEJOR PRÁCTICA DE SOLUCIÓN]:
-            // 1. Evaluamos si el usuario es "residente de obra".
-            // 2. Si lo es, protegemos los datos sensibles renderizando un texto seguro sin alterar el número de columnas (evitando el desajuste de la tabla).
-            // ==========================================
             const esResidente = rolUsuario === "residente de obra";
 
-            const celdaProveedorHTML = esResidente 
-                ? `<td><span style="color: #94a3b8; font-style: italic;">🔒 Confidencial</span></td>` 
-                : `<td>${c.supplier}</td>`;
-
-            const celdaTotalHTML = esResidente 
-                ? `<td style="color: #94a3b8; font-style: italic;">🔒 Confidencial</td>` 
-                : `<td data-campo="total" data-total="${total}">$${total.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>`;
-
-            const celdaMontoPagadoHTML = esResidente 
-                ? `<td style="color: #94a3b8; font-style: italic;">🔒 Confidencial</td>` 
-                : `<td data-campo="monto-consultar" data-monto-consultar="${pagado}">${celdaMontoPagado}</td>`;
-
-            const celdaPorcentajeHTML = esResidente 
-                ? `<td id="porcentaje-${c.id_contract}" style="color: #94a3b8; font-style: italic;">🔒 Confidencial</td>` 
-                : `<td id="porcentaje-${c.id_contract}"><strong>${porcentajePagado}%</strong></td>`;
-
-            const celdaSaldoDineroHTML = esResidente 
-                ? `<td style="color: #94a3b8; font-style: italic;">🔒 Confidencial</td>` 
-                : `<td data-campo="saldo-dinero" style="color: #64748b; font-weight: 500;">$${saldoPendienteDinero.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>`;
-
-            const celdaSaldoPorcentajeHTML = esResidente 
-                ? `<td style="color: #94a3b8; font-style: italic;">🔒 Confidencial</td>` 
-                : `<td data-campo="saldo-porcentaje" style="color: #64748b; font-weight: bold;">${saldoPendientePorcentaje}%</td>`;
-
-            tr.innerHTML = `
-                <td>${c.project_name || 'Sin Proyecto'}</td>
-                <td><span style="font-weight: 500; color: #475569;">${c.grupo || '---'}</span></td>
-                <td>${c.categoria || '---'}</td>
-                <td>${c.subcategoria || '---'}</td>
-                <td>${fechaFormateada}</td>
-                <td>Semana ${numeroSemana}</td>
-                <td>${celdaClave}</td>
-                <td>${c.Concept || 'Sin descripción'}</td>
-                ${celdaProveedorHTML}
-                ${celdaTotalHTML}
-                ${celdaMontoPagadoHTML}
-                ${celdaPorcentajeHTML}
-                ${celdaSaldoDineroHTML}
-                ${celdaSaldoPorcentajeHTML}
-                <td data-campo="status-pago" data-valor-real="${currentStatus}">${celdaStatusPago}</td>
-                <td data-campo="estado-costos">${celdaCostos}</td>
-                <td data-campo="status-direccion">${celdaDireccion}</td>
-                <td data-campo="firma">${celdaFirma}</td>
-            `;
-            // ==========================================
+            if (esResidente) {
+                tr.innerHTML = `
+                    <td>${c.project_name || 'Sin Proyecto'}</td>
+                    <td><span style="font-weight: 500; color: #475569;">${c.grupo || '---'}</span></td>
+                    <td>${c.categoria || '---'}</td>
+                    <td>${c.subcategoria || '---'}</td>
+                    <td>${fechaFormateada}</td>
+                    <td>Semana ${numeroSemana}</td>
+                    <td>${celdaClave}</td>
+                    <td>${c.Concept || 'Sin descripción'}</td>
+                    <td data-campo="status-pago" data-valor-real="${currentStatus}">${celdaStatusPago}</td>
+                    <td data-campo="estado-costos">${celdaCostos}</td>
+                    <td data-campo="status-direccion">${celdaDireccion}</td>
+                    <td data-campo="firma">${celdaFirma}</td>
+                `;
+            } else {
+                tr.innerHTML = `
+                    <td>${c.project_name || 'Sin Proyecto'}</td>
+                    <td><span style="font-weight: 500; color: #475569;">${c.grupo || '---'}</span></td>
+                    <td>${c.categoria || '---'}</td>
+                    <td>${c.subcategoria || '---'}</td>
+                    <td>${fechaFormateada}</td>
+                    <td>Semana ${numeroSemana}</td>
+                    <td>${celdaClave}</td>
+                    <td>${c.Concept || 'Sin descripción'}</td>
+                    <td>${c.supplier}</td>
+                    <td data-campo="total" data-total="${total}">$${total.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                    <td data-campo="monto-consultar" data-monto-consultar="${pagado}">${celdaMontoPagado}</td>
+                    <td id="porcentaje-${c.id_contract}"><strong>${porcentajePagado}%</strong></td>
+                    <td data-campo="saldo-dinero" style="color: #64748b; font-weight: 500;">$${saldoPendienteDinero.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                    <td data-campo="saldo-porcentaje" style="color: #64748b; font-weight: bold;">${saldoPendientePorcentaje}%</td>
+                    <td data-campo="status-pago" data-valor-real="${currentStatus}">${celdaStatusPago}</td>
+                    <td data-campo="estado-costos">${celdaCostos}</td>
+                    <td data-campo="status-direccion">${celdaDireccion}</td>
+                    <td data-campo="firma">${celdaFirma}</td>
+                `;
+            }
 
             tbody.appendChild(tr);
         });
@@ -234,18 +245,17 @@
         };
 
         const obrasSeleccionadas = obtenerValoresCheckboxes('.chk-obra');
-        const estadosSeleccionados = obtenerValoresCheckboxes('.chk-estado');
+        const estadosSeleccionadas = obtenerValoresCheckboxes('.chk-estado');
 
         const resultadoFiltrado = todosLosContratos.filter(c => {
             const cumpleObra = obrasSeleccionadas.length === 0 || obrasSeleccionadas.includes(c.project_name);
-            const cumpleEstado = estadosSeleccionados.length === 0 || estadosSeleccionados.includes(c.status);
+            const cumpleEstado = estadosSeleccionadas.length === 0 || estadosSeleccionadas.includes(c.status);
             return cumpleObra && cumpleEstado;
         });
 
         renderizarTabla(resultadoFiltrado);
     }
 
-    // [MEJOR PRÁCTICA DE ÁMBITO GLOBAL]: Para que las llamadas "onchange" en los select de tu HTML puedan seguir encontrando esta función, la vinculamos estrictamente a window
     window.autoGuardarFila = async function(id) {
         const cellPorcentaje = document.getElementById(`porcentaje-${id}`);
         if (!cellPorcentaje) return;
