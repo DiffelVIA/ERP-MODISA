@@ -1,5 +1,4 @@
 (() => {
-    // Rol autorizado para acceder a esta sección
     const ROL_AUTORIZADO = ["Gerente de Costos", "Director Operativo"];
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -167,7 +166,6 @@
             }
         });
 
-        // GUARDAR REGISTRO MANUAL INDIVIDUAL (🔒 Rol Inyectado en Cabecera)
         const btnGuardar = document.querySelector('[data-accion="guardar"]');
         if (btnGuardar) {
             btnGuardar.addEventListener("click", async () => {
@@ -211,7 +209,6 @@
             });
         }
 
-        // APLICAR CAMBIOS / MODIFICAR (🔒 Rol Inyectado en Cabecera)
         const btnActualizar = document.querySelector('[data-accion="actualizar"]');
         if (btnActualizar) {
             btnActualizar.addEventListener("click", async () => {
@@ -256,7 +253,6 @@
             });
         }
 
-        // ELIMINAR FILA (🔒 Rol Inyectado en Cabecera)
         const btnEliminar = document.querySelector('[data-accion="eliminar"]');
         if (btnEliminar) {
             btnEliminar.addEventListener("click", async () => {
@@ -362,7 +358,6 @@
         idRegistroSeleccionado = null;
     }
 
-    // CARGA MASIVA CSV (🔒 Rol Inyectado en Cabecera)
     function configurarManejadorArchivo() {
         const dropZone = document.getElementById("dropZone");
         const fileInput = document.getElementById("fileInput");

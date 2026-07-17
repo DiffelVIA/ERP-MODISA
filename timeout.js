@@ -1,11 +1,7 @@
-/*
- * 🛡️ CONTROL GLOBAL DE SEGURIDAD E INACTIVIDAD - MODISA
- * Este script protege la página de intrusos y gestiona el timeout de 30 minutos.
- */
 (() => {
     if (!localStorage.getItem('userRol') || !sessionStorage.getItem('usuarioMODISA')) {
         window.location.replace('/'); 
-        return; // Detiene por completo la carga de cualquier otro script en la página
+        return;
     }
 
     window.addEventListener('pageshow', (event) => {
@@ -14,7 +10,7 @@
         }
     });
 
-    const TIEMPO_LIMITE_INACTIVIDAD = 30 * 60 * 1000; // 30 minutos en milisegundos
+    const TIEMPO_LIMITE_INACTIVIDAD = 30 * 60 * 1000;
     let temporizadorInactividad;
 
     function cerrarSesionPorInactividad() {

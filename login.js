@@ -15,11 +15,10 @@
     const errorChange = document.getElementById('error-change');
     const contenedorCambio = document.getElementById('login-primera');
 
-    // Validación de inicio de sesión real contra el servidor
     formLogin.addEventListener('submit', async function(e){
         e.preventDefault();
 
-        const correoVal = inputUsuario.value.trim(); // Captura el email como usuario
+        const correoVal = inputUsuario.value.trim();
         const passVal = inputContrasena.value;
 
         errorLogin.style.display = "none";
@@ -61,7 +60,6 @@
         }
     });
 
-    // Actualización de contraseña en primer ingreso
     formCambio.addEventListener('submit', async function(e){
         e.preventDefault();
 
@@ -117,13 +115,11 @@
         elemento.style.display = "block";
     }
 
-    // Evita el uso del botón de regreso del navegador
     window.history.pushState(null, "", window.location.href);
     window.onpopstate = function () {
         window.history.pushState(null, "", window.location.href);
     };
 
-    // Limpieza de caché para evitar el guardado del login previo
     window.addEventListener('pageshow', () => {
         if (localStorage.getItem('userRol') && sessionStorage.getItem('usuarioMODISA')) {
             window.location.replace('principal.html');

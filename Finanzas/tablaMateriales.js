@@ -3,7 +3,6 @@
 
     let esResidente = false;
 
-    // Verificar el acceso y determinar si el rol es Residente de Obra
     (() => {
         const rolUsuario = localStorage.getItem("userRol");
         const sesionRaw = sessionStorage.getItem("usuarioMODISA");
@@ -89,12 +88,6 @@
             const filtroProvContenedor = document.getElementById("filtroProveedor")?.closest('.filtros');
             if (filtroProvContenedor) filtroProvContenedor.style.display = "none";
 
-            // =========================================================================
-            // [MODIFICACIÓN - MEJOR PRÁCTICA]: 
-            // En vez de hacer .remove() a los <th> (lo que rompe la alineación del DOM), 
-            // les aplicamos 'display: none'. Esto nos permite ocultar de forma coordinada 
-            // tanto las cabeceras como las celdas en renderizarTabla().
-            // =========================================================================
             const encabezados = document.querySelectorAll('thead th, table th');
             encabezados.forEach(th => {
                 const texto = th.textContent.toLowerCase().trim();
@@ -255,11 +248,11 @@
         const diferencia = disponible - totalFila;
 
         if (diferencia < 0) {
-            return 'monto-rojo';       // Excedido
+            return 'monto-rojo';
         } else if (diferencia < 1000) {
-            return 'monto-amarillo';   // Alerta crítica (< $1,000 libres)
+            return 'monto-amarillo';
         } else {
-            return 'monto-verde';      // Presupuesto suficiente
+            return 'monto-verde';
         }
     }
 
@@ -282,12 +275,6 @@
             const tr = document.createElement('tr');
             const montoCalculado = (item.quantity * (item.precio_unitario || 0)).toFixed(2);
 
-            // =========================================================================
-            // [MODIFICACIÓN - SOLUCIÓN]:
-            // Conservamos exactamente la estructura de 16 td en ambos casos, pero para el
-            // residente aplicamos inline 'display: none' a las columnas confidenciales.
-            // Esto asegura simetría 1:1 con el thread de la cabecera y previene desalineaciones.
-            // =========================================================================
             if (esResidente) {
                 let estadoVisual = '-';
                 if (item.estado === 'pendiente') estadoVisual = '⏳ Pendiente';

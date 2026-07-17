@@ -165,11 +165,6 @@
             const inputFecha = document.getElementById("fecha");
             const fechaSeleccionada = inputFecha ? inputFecha.value : null;
 
-            // ==========================================
-            // [MODIFICACIÓN - MEJOR PRÁCTICA DE SOLUCIÓN]:
-            // 1. Asignamos 'fechaSeleccionada' tanto a 'start_date' como a 'end_date' para cumplir con las restricciones NOT NULL de tu Base de Datos.
-            // 2. Extraemos el enlace del campo input '#link-drive' de tu formulario HTML para guardarlo bajo 'contract_file_url' en el backend.
-            // ==========================================
             const inputLinkDrive = document.getElementById("link-drive");
             const linkDriveVal = inputLinkDrive ? inputLinkDrive.value.trim() : null;
 
@@ -181,11 +176,10 @@
                 supplier: document.getElementById("proveedor").value,
                 id_employee: sesionUsuario ? sesionUsuario.id : null, 
                 start_date: fechaSeleccionada,
-                end_date: fechaSeleccionada, // <-- [AJUSTE ANTERIOR]: Cumple con la restricción de fecha de fin
+                end_date: fechaSeleccionada,
                 total_amount: document.getElementById("monto").value,
-                contract_file_url: linkDriveVal || null // <-- [NUEVO AJUSTE]: Envía el enlace capturado de Drive al backend
+                contract_file_url: linkDriveVal || null
             };
-            // ==========================================
 
             try {
                 const response = await fetch(`${API_BASE}/contratos`, {

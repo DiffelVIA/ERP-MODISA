@@ -213,7 +213,6 @@
         renderizarTabla(resultadoFiltrado);
     }
 
-    // [MEJOR PRÁCTICA DE ÁMBITO GLOBAL]: Para que las llamadas "onchange" en los select de tu HTML puedan seguir encontrando esta función, la vinculamos estrictamente a window
     window.autoGuardarFila = async function(id) {
         const cellPorcentaje = document.getElementById(`porcentaje-${id}`);
         if (!cellPorcentaje) return;
