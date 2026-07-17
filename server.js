@@ -626,16 +626,16 @@ app.post('/api/materiales', async (req, res) => {
 // INICIO DE SESIÓN //
 
 app.post('/api/auth/login', async (req, res) => {
-  const { usuario, contrasena } = req.body;
+  const { correo, contrasena } = req.body;
 
   try {
     const [usuarios] = await pool.query(
       'SELECT id_employee, name, password, job_title, first_entry FROM employees WHERE name = ?',
-      [usuario.trim()]
+      [correo.trim()]
     );
 
     if (usuarios.length === 0) {
-      return res.status(404).json({ mensaje: 'El usuario ingresado no existe' });
+      return res.status(404).json({ mensaje: 'El correo ingresado no existe o es incorrecto.' });
     }
 
     const usuarioBD = usuarios[0];
@@ -660,15 +660,15 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.put('/api/auth/update-password', async (req, res) => {
-  const { usuario, nuevaContrasena } = req.body;
+  const { correo, nuevaContrasena } = req.body;
   try {
     const hashContrasena = await bcrypt.hash(nuevaContrasena.trim(), 10);
     await pool.query(
-      'UPDATE employees SET password = ?, first_entry = 0 WHERE name = ?',
-      [hashContrasena, usuario.trim()]
+      'UPDATE employees SET password = ?, first_entry = 0 WHERE email = ?',
+      [hashContrasena, correo.trim()]
     );
     
-    const [usuarios] = await pool.query('SELECT job_title FROM employees WHERE name = ?', [usuario.trim()]);
+    const [usuarios] = await pool.query('SELECT job_title FROM employees WHERE email = ?', [correo.trim()]);
     res.json({ mensaje: 'Contraseña actualizada', rol: usuarios[0].job_title });
   } catch (error) {
     res.status(500).json({ error: error.message });

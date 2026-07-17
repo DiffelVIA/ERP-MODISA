@@ -70,8 +70,6 @@ async function cargarActividades() {
 
     const datosCrudos = await respuesta.json();
 
-    console.log('Datos recibidos de Aiven:');
-
     if (!Array.isArray(datosCrudos)) {
       concentradoMinutas = [];
     } else { 
