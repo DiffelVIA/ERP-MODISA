@@ -93,7 +93,7 @@
         const selectProyecto = document.getElementById('proyecto');
         const selectGrupo = document.getElementById('grupo');
         const selectCategoria = document.getElementById('categoria');
-        const btnPago = document.getElementById('[data-action="añadir"]');
+        const btnPago = document.querySelector('[data-action="añadir"]');
         const formRequisicion = document.getElementById('form-requisicion');
 
         if (selectTipo) {
