@@ -1108,8 +1108,8 @@ app.post('/api/pagos', upload.single('ticketFile'), async (req, res) => {
 
     const queryDetails = `
       INSERT INTO payment_order_details 
-        (id_payment_order, id_project_category, provider, concept_description, unit, quantity, unit_price, amount, commentary) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id_payment_order, id_project_category, provider, concept_description, amount, commentary) 
+      VALUES (?, ?, ?, ?, ?, ?)
     `;
 
     for (const item of listaConceptos) {
@@ -1118,9 +1118,6 @@ app.post('/api/pagos', upload.single('ticketFile'), async (req, res) => {
         item.id_project_category || null, 
         item.provider_name, 
         item.concept_description, 
-        item.unit, 
-        item.quantity, 
-        item.price_unit,
         item.amount, 
         item.commentary
       ]);

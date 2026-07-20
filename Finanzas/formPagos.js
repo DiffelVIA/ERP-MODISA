@@ -264,7 +264,6 @@
         const inputProveedor = document.getElementById('proveedor');
         const selectTipo = document.getElementById('tipo');
 
-        // MODIFICADO: Captura de tipo, forma de pago y archivo ticket individual
         const selectFormaPago = document.getElementById('formaPago');
         const inputTicketFile = document.getElementById('ticketFile');
 
@@ -279,13 +278,11 @@
         const tipo = selectTipo ? selectTipo.value : '';
         const formaPago = selectFormaPago ? selectFormaPago.value : '';
 
-        // MODIFICADO: Validaciones obligatorias de concepto y de tipo/forma de pago por item
         if (!tipo || !formaPago || !concepto || isNaN(monto) || monto <= 0 || !grupo || !categoria || !subcategoria || !proveedor) {
             alert('⚠️ Error: Completa todos los campos obligatorios (Tipo, Forma de Pago, Grupo, Categoría, Subcategoría, Proveedor, Concepto y Monto).');
             return;
         }
 
-        // MODIFICADO: Validación de ticket individual si el tipo es cajaChica
         if (tipo === 'cajaChica' && (!inputTicketFile.files || inputTicketFile.files.length === 0)) {
             alert('❌ Error: Es obligatorio cargar la fotografía del ticket para conceptos de Caja Chica.');
             return;
@@ -303,16 +300,12 @@
             idCategoryFinal = registroMatch ? registroMatch.id_project_category : null;
         }
 
-        // MODIFICADO: Se incluyen los datos de pago y el archivo dentro del objeto del concepto
         const nuevoConcepto = {
             id_project_category: idCategoryFinal, 
             payment_type: tipo,
             payment_method: formaPago,
             provider_name: proveedor,
             concept_description: concepto,
-            unit: 'N/A',
-            quantity: 1,
-            price_unit: monto, 
             amount: monto,
             commentary: comentario || null,
             ticketFile: (tipo === 'cajaChica' && inputTicketFile.files[0]) ? inputTicketFile.files[0] : null
@@ -321,7 +314,6 @@
         listaConceptosPagos.push(nuevoConcepto);
         renderizarMiniTabla();
 
-        // Limpieza de inputs tras agregar el concepto
         if (inputConcepto) inputConcepto.value = '';
         if (inputMonto) inputMonto.value = '';
         if (inputComentario) inputComentario.value = '';
@@ -366,7 +358,6 @@
         const fecha = document.getElementById('fecha').value;
         const semanaTexto = document.getElementById('semana-fiscal').value;
 
-        // MODIFICADO: Validación reducida a los campos de cabecera
         if (!idProyecto || !idSolicitante || !fecha || !semanaTexto) {
             alert('⚠️ Campos de orden incompletos: Valida que Proyecto, Solicitante y Fecha estén seleccionados.');
             return;
@@ -374,7 +365,6 @@
 
         const semanaNumero = parseInt(semanaTexto.replace(/[^0-9]/g, '')) || 0;
 
-        // MODIFICADO: Limpieza de la propiedad de archivo antes de serializar JSON y adjuntar archivos al FormData
         const conceptosSinArchivo = listaConceptosPagos.map(({ ticketFile, ...resto }) => resto);
 
         const formData = new FormData();
@@ -384,7 +374,6 @@
         formData.append('fiscal_week', semanaNumero);
         formData.append('conceptos', JSON.stringify(conceptosSinArchivo));
 
-        // MODIFICADO: Adjuntar cada archivo de ticket individual por concepto
         listaConceptosPagos.forEach((concept, index) => {
             if (concept.ticketFile) {
                 formData.append(`ticketFile_${index}`, concept.ticketFile);
@@ -450,7 +439,6 @@
         listaConceptosPagos.forEach((concept, index) => {
             const tr = document.createElement('tr');
             
-            // MODIFICADO: Se complementa la descripción con Tipo, Forma de Pago y marca si adjuntó ticket
             tr.innerHTML = `
                 <td>
                     <strong>${concept.concept_description}</strong><br>
