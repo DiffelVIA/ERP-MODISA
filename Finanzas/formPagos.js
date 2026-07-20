@@ -8,6 +8,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         inicializarCamposFechas();
+        establecerSolicitanteLogueado();
         cargarSelectoresIniciales();
         configurarEventos();
         renderizarMiniTabla();
@@ -32,17 +33,29 @@
         inputSemana.value = `Semana ${numeroSemana}`;
     }
 
+    function establecerSolicitanteLogueado() {
+        const inputSolicitante = document.getElementById('solicitante');
+        if (!inputSolicitante) return;
+
+        try {
+            const usuarioSesion = JSON.parse(sessionStorage.getItem('usuarioMODISA'));
+            
+            if (usuarioSesion && usuarioSesion.id_employee) {
+                inputSolicitante.setAttribute('data-id', usuarioSesion.id_employee);
+                inputSolicitante.value = usuarioSesion.nombre;
+            } else {
+                inputSolicitante.value = "Usuario Desconocido";
+                console.error("❌ No se encontró el id_employee en sessionStorage.");
+            }
+        } catch (e) {
+            console.error("❌ Error al parsear sessionStorage.usuarioMODISA:", e);
+            inputSolicitante.value = "Error al recuperar sesión";
+        }
+    }
+
     async function cargarSelectoresIniciales() {
         try {
-            const resEmpleados = await fetch(`${API_URL}/empleados`);
-            if (resEmpleados.ok) {
-                const empleados = await resEmpleados.json();
-                const lista = empleados.map(emp => ({
-                    id: emp.id_employee,
-                    nombre: `${emp.name} ${emp.last_name}`.trim()
-                }));
-                llenarSelect('solicitante', lista);
-            }
+            // MODIFICADO: Se eliminó la petición a /empleados ya que la identidad proviene de la sesión
 
             const resProyectos = await fetch(`${API_URL}/proyectos`);
             if (resProyectos.ok) {
@@ -306,7 +319,16 @@
         }
 
         const idProyecto = document.getElementById('proyecto').value;
-        const idSolicitante = document.getElementById('solicitante').value;
+        
+        /* 
+           MODIFICADO: Extraemos el ID del empleado autenticado leyendo el atributo data-id 
+           o fallback al valor en caso de un input de texto tradicional, replicando formMateriales.js
+        */
+        const inputSolicitanteElem = document.getElementById('solicitante');
+        const idSolicitante = inputSolicitanteElem 
+            ? (inputSolicitanteElem.getAttribute('data-id') || inputSolicitanteElem.value)
+            : null;
+
         const tipo = document.getElementById('tipo').value;
         const formaPago = document.getElementById('formaPago').value;
         const fileInput = document.getElementById('ticketFile');
@@ -352,6 +374,9 @@
             listaConceptosPagos = [];
             document.getElementById('form-requisicion').reset();
             
+            // MODIFICADO: Restablecemos los valores del solicitante logueado tras el reset del formulario
+            establecerSolicitanteLogueado();
+
             restaurarControlesCascada(true);
             
             const bloqueTicket = document.getElementById('bloque-ticket');
