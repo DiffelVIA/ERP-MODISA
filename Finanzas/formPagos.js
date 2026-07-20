@@ -68,7 +68,6 @@
 
     async function cargarSelectoresIniciales() {
         try {
-            // MODIFICADO: Se eliminó la petición a /empleados ya que la identidad proviene de la sesión
 
             const resProyectos = await fetch(`${API_URL}/proyectos`);
             if (resProyectos.ok) {
@@ -107,6 +106,7 @@
                 
                 restaurarControlesCascada(true);
 
+                // MODIFICADO: Solo "Materiales (Caja chica)" solicita ticket obligatorio
                 if (tipoSeleccionado === 'cajaChica') {
                     if (bloqueTicket) bloqueTicket.style.display = 'block';
                     if (inputTicket) inputTicket.required = true;
@@ -118,6 +118,7 @@
                     }
                 }
 
+                // MODIFICADO: Solo "Contratista" activa el bloque de contrato; Mano de Obra y Maquinaria y Equipo usan la cascada estándar
                 if (tipoSeleccionado === 'contratista') {
                     if (bloqueClave) bloqueClave.style.display = 'block';
                     if (inputProveedor) {
@@ -140,6 +141,7 @@
                         inputProveedor.style.cursor = '';
                         inputProveedor.placeholder = "Nombre del proveedor o comercio";
                     }
+                    // Activa la cascada de categorías para Materiales, Mano de Obra y Maquinaria y Equipo
                     ejecutarCascadaFiltrosConceptos();
                 }
             });
@@ -333,10 +335,6 @@
 
         const idProyecto = document.getElementById('proyecto').value;
         
-        /* 
-           MODIFICADO: Extraemos el ID del empleado autenticado leyendo el atributo data-id 
-           o fallback al valor en caso de un input de texto tradicional, replicando formMateriales.js
-        */
         const inputSolicitanteElem = document.getElementById('solicitante');
         const idSolicitante = inputSolicitanteElem 
             ? (inputSolicitanteElem.getAttribute('data-id') || inputSolicitanteElem.value)

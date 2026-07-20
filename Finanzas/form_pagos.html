@@ -45,8 +45,9 @@
                 <select name="tipo" id="tipo" required>
                     <option value="">-- Selecciona --</option>
                     <option value="contratista">Contratista</option>
-                    <option value="especifico">Específico</option>
-                    <option value="cajaChica">Caja Chica</option>
+                    <option value="cajaChica">Materiales (Caja chica)</option>
+                    <option value="manoObra">Mano de Obra</option>
+                    <option value="maquinariaEquipo">Maquinaria y Equipo</option>
                 </select>
             </div>
             <div class="contenedor-formulario" id="bloque-clave-contrato" style="display: none;">
@@ -92,31 +93,6 @@
                 <input type="text" id="conceptoPago" name="conceptoPago" placeholder="Coloca el concepto del Pago" required>
             </div>
             <div class="contenedor-formulario">
-                <label for="unidad">Unidad</label>
-                <select name="unidad" id="unidad">
-                    <option value="PZA">Pieza</option>
-                    <option value="KIT">KIT</option>
-                    <option value="Lt">Litro</option>
-                    <option value="G">Galón</option>
-                    <option value="Cb">Cubeta</option>
-                    <option value="m">Metros</option>
-                    <option value="Kg">Kilogramos</option>
-                    <option value="TN">Tonelada</option>
-                    <option value="Cj">Caja</option>
-                    <option value="Tr">Tramo</option>
-                    <option value="M2">Metro Cuadrado</option>
-                    <option value="Rol">Rollo</option>
-                </select>
-            </div>
-            <div class="contenedor-formulario">
-                <label for="cantidad">Cantidad</label>
-                <input type="number" id="cantidad" step="any" placeholder="0.00" required>
-            </div>
-            <div class="contenedor-formulario">
-                <label for="precioUnitario">Precio Unitario</label>
-                <input type="number" id="precioUnitario" step="0.01" placeholder="0.00" min="0.01" required>
-            </div>
-            <div class="contenedor-formulario">
                 <label for="monto">Monto</label>
                 <input type="number" id="monto" step="0.01" placeholder="0.00" min="0.01" readonly style="cursor: not-allowed;">
             </div>
@@ -141,10 +117,7 @@
                     <thead>
                         <tr>
                             <th>Concepto</th>
-                            <th class="txt-centro col-cant">Cant.</th>
-                            <th class="txt-centro col-unidad">Unidad</th>
-                            <th class="txt-centro col-precio">Precio Unitario</th>
-                            <th class="txt-centro col-total">Total</th>
+                            <th class="txt-centro col-total">Monto</th>
                             <th>Comentario</th>
                             <th class="col-accion"></th>
                         </tr>
