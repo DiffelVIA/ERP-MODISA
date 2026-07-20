@@ -251,10 +251,6 @@
         if (formRequisicion) formRequisicion.addEventListener('submit', enviarSolicitudFinal);
     }
 
-    /* 
-       MODIFICADO: Ajustada la validación para evaluar el campo 'monto' disponible en el HTML 
-       evitando el bloqueo por la ausencia de los inputs de 'cantidad' y 'precioUnitario'.
-    */
     function añadirConceptoALista(e) {
         if (e) e.preventDefault();
 
@@ -268,6 +264,10 @@
         const inputProveedor = document.getElementById('proveedor');
         const selectTipo = document.getElementById('tipo');
 
+        // MODIFICADO: Captura de los campos adicionales a limpiar
+        const selectFormaPago = document.getElementById('formaPago');
+        const inputTicketFile = document.getElementById('ticketFile');
+
         const concepto = inputConcepto ? inputConcepto.value.trim() : '';
         const monto = inputMonto ? parseFloat(inputMonto.value) : 0;
         const comentario = inputComentario ? inputComentario.value.trim() : '';
@@ -278,7 +278,6 @@
         const proveedor = inputProveedor ? inputProveedor.value.trim() : '';
         const tipo = selectTipo ? selectTipo.value : '';
 
-        // MODIFICADO: Se valida 'monto' en lugar de 'cantidad' y 'precio'
         if (!concepto || isNaN(monto) || monto <= 0 || !grupo || !categoria || !subcategoria || !proveedor) {
             alert('⚠️ Error: Completa todos los campos obligatorios del concepto (Grupo, Categoría, Subcategoría, Proveedor, Concepto y Monto).');
             return;
@@ -296,7 +295,6 @@
             idCategoryFinal = registroMatch ? registroMatch.id_project_category : null;
         }
 
-        // MODIFICADO: Se envían la cantidad como 1 y el precio unitario igual al monto
         const nuevoConcepto = {
             id_project_category: idCategoryFinal, 
             provider_name: proveedor,
@@ -311,13 +309,24 @@
         listaConceptosPagos.push(nuevoConcepto);
         renderizarMiniTabla();
 
-        // Limpieza de inputs tras agregar el concepto
         if (inputConcepto) inputConcepto.value = '';
         if (inputMonto) inputMonto.value = '';
         if (inputComentario) inputComentario.value = '';
         
         if (tipo !== 'contratista' && inputProveedor) {
             inputProveedor.value = '';
+        }
+
+        if (selectFormaPago) selectFormaPago.value = '';
+        if (inputTicketFile) inputTicketFile.value = '';
+
+        if (tipo !== 'contratista') {
+            restaurarControlesCascada(true);
+            ejecutarCascadaFiltrosConceptos();
+        } else {
+            const selectClave = document.getElementById('claveContrato');
+            if (selectClave) selectClave.value = '';
+            restaurarControlesCascada(true);
         }
     }
 
@@ -381,7 +390,6 @@
             listaConceptosPagos = [];
             document.getElementById('form-requisicion').reset();
             
-            // MODIFICADO: Restablecemos los valores del solicitante logueado tras el reset del formulario
             establecerSolicitanteLogueado();
 
             restaurarControlesCascada(true);
@@ -427,7 +435,6 @@
         listaConceptosPagos.forEach((concept, index) => {
             const tr = document.createElement('tr');
             
-            // MODIFICADO: Se reducen las celdas <td> a 4 para alinearse perfectamente con las cabeceras <th> del HTML
             tr.innerHTML = `
                 <td>
                     <strong>${concept.concept_description}</strong><br>
