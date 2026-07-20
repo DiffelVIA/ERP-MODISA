@@ -33,7 +33,7 @@
 
     async function cargarPagosSolicitados() {
         try {
-            const response = await fetch(`${API_BASE}/pagos`);
+            const response = await fetch(`${API_URL}/pagos`);
             if (!response.ok) throw new Error(`Error en el servidor: Estado HTTP ${response.status}`);
 
             todosLosPagos = await response.json();
