@@ -1,5 +1,7 @@
 (() => {
-    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
+    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+        ? 'http://localhost:3000/api' 
+        : 'https://erp-modisa.onrender.com/api';
 
     const ROL_RAW = localStorage.getItem('userRol');
     const ROL_USUARIO = ROL_RAW ? ROL_RAW.trim().toLowerCase() : 'residente';
@@ -40,9 +42,7 @@
 
             todosLosPagos = await response.json();
             
-            /* MODIFICADO: Generar las opciones únicas de los filtros desplegables */
             poblarFiltrosEfectivos(todosLosPagos);
-            
             renderizarTablaPagos(todosLosPagos);
         } catch (error) {
             console.error("❌ Error al cargar solicitudes:", error);
@@ -59,7 +59,7 @@
     }
 
     /* ==========================================================================
-       MODIFICADO: SISTEMA DINÁMICO DE FILTROS MULTISELECCIÓN
+       FILTROS MULTISELECCIÓN
        ========================================================================== */
     function poblarFiltrosEfectivos(lista) {
         const extraerUnicos = (keyExtractor) => Array.from(new Set(lista.map(keyExtractor).filter(Boolean))).sort();
@@ -95,7 +95,6 @@
     }
 
     function inicializarEventosFiltros() {
-        // Manejo de visibilidad de los dropdowns al hacer clic en los botones
         document.querySelectorAll('.contenedorFiltros .filtros').forEach(grupo => {
             const btn = grupo.querySelector('.btn-dropdown');
             const contenido = grupo.querySelector('.contenido-dropdown');
@@ -113,7 +112,6 @@
             document.querySelectorAll('.contenido-dropdown').forEach(c => c.style.display = 'none');
         });
 
-        // Evento para re-filtrar al seleccionar/desseleccionar checkboxes
         const contenedorFiltros = document.querySelector('.contenedorFiltros');
         if (contenedorFiltros) {
             contenedorFiltros.addEventListener('change', (e) => {
@@ -152,7 +150,40 @@
     }
 
     /* ==========================================================================
-       RENDERIZADO CON MAPEO Y ADVERTENCIA DE PRESUPUESTO REBASADO
+       MODIFICADO: LÓGICA DE SEMÁFORO EN PORCENTAJE PAGADO
+       ========================================================================== */
+    function calcularSemaforoPresupuesto(montoPagado, presupuestoAutorizado) {
+        if (presupuestoAutorizado <= 0) {
+            return { color: '#1e293b', textoAlerta: '' };
+        }
+
+        const diferencia = presupuestoAutorizado - montoPagado;
+
+        // ROJO: Si pasa de lo autorizado
+        if (montoPagado > presupuestoAutorizado) {
+            return {
+                color: '#dc2626',
+                textoAlerta: `<br><span style="font-size: 10px; color: #dc2626; font-weight: bold;">⚠️ Excede Presupuesto ($${presupuestoAutorizado.toLocaleString('es-MX', {minimumFractionDigits: 2})})</span>`
+            };
+        }
+        // AMARILLO: Si está a menos de 1000
+        else if (diferencia <= 1000) {
+            return {
+                color: '#d97706',
+                textoAlerta: ''
+            };
+        }
+        // VERDE: Si está lejos más de 1000
+        else {
+            return {
+                color: '#16a34a',
+                textoAlerta: ''
+            };
+        }
+    }
+
+    /* ==========================================================================
+       RENDERIZADO DE TABLA
        ========================================================================== */
     function renderizarTablaPagos(listaPagos) {
         const tbody = document.querySelector(".cuerpoTabla");
@@ -180,8 +211,11 @@
             const presupuestoAutorizado = parseFloat(pod.presupuesto_autorizado || 0);
             const estadoActual = pod.status || 'Pendiente';
 
-            /* MODIFICADO: Validación si el monto pagado o del concepto excede el presupuesto autorizado de la categoría */
-            const excedePresupuesto = presupuestoAutorizado > 0 && (montoConcepto > presupuestoAutorizado || montoPagado > presupuestoAutorizado);
+            /* MODIFICADO: Cálculo dinámico de porcentaje persistente */
+            const porcentajeCalculado = montoConcepto > 0 ? Math.round((montoPagado / montoConcepto) * 100) : 0;
+
+            /* MODIFICADO: Aplicación del semáforo al Porcentaje Pagado */
+            const semaforo = calcularSemaforoPresupuesto(montoPagado, presupuestoAutorizado);
 
             const firmaContrato = pod.contrato_firma ? pod.contrato_firma.trim().toLowerCase() : 'pendiente';
             const estaFirmado = (firmaContrato === 'firmado' || firmaContrato === 'sí' || firmaContrato === 'si');
@@ -221,6 +255,7 @@
                             <input type="number" 
                                    class="input-monto-pagado" 
                                    data-id="${pod.id_payment_order}"
+                                   data-presupuesto="${presupuestoAutorizado}"
                                    value="${montoPagado}" 
                                    step="0.01" 
                                    min="0"
@@ -246,15 +281,6 @@
                     </a>`;
             }
 
-            /* MODIFICADO: Aplicación de estilos de advertencia si rebase el presupuesto autorizado */
-            const estiloExcesoCelda = excedePresupuesto 
-                ? 'background-color: #fef2f2; color: #dc2626;' 
-                : 'color: #1e293b;';
-
-            const etiquetaPresupuestoExcedido = excedePresupuesto 
-                ? `<br><span style="font-size: 10px; color: #dc2626; font-weight: bold;">⚠️ Excede Presupuesto ($${presupuestoAutorizado.toLocaleString('es-MX', {minimumFractionDigits: 2})})</span>` 
-                : '';
-
             tr.innerHTML = `
                 <td>${pod.project_name || '---'}</td>
                 <td>${fechaFormateada}</td>
@@ -266,12 +292,14 @@
                 <td>${pod.subcategoria || '---'}</td>
                 <td>${pod.provider || '---'}</td>
                 <td>${pod.concept_description || '---'}</td>
-                <td class="monto-total-celda" data-total="${montoConcepto}" style="font-weight: bold; text-align: right; ${estiloExcesoCelda}">
+                <td class="monto-total-celda" data-total="${montoConcepto}" style="font-weight: bold; color: #1e293b; text-align: right;">
                     $${montoConcepto.toLocaleString('es-MX', {minimumFractionDigits: 2})}
-                    ${etiquetaPresupuestoExcedido}
                 </td>
                 ${celdaMontoPagadoHTML}
-                <td style="text-align: center;"><strong class="porcentaje-celda" style="color: ${estadoActual === 'Pagado' ? '#16a34a' : '#1e293b'}">${estadoActual === 'Pagado' ? '100%' : '---'}</strong></td>
+                <td style="text-align: center;">
+                    <strong class="porcentaje-celda" style="color: ${semaforo.color}">${porcentajeCalculado}%</strong>
+                    ${semaforo.textoAlerta}
+                </td>
                 <td style="text-align: center;">
                     <span class="badge-status-pago" style="padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #fff; background-color: ${estadoActual === 'Pagado' ? '#16a34a' : '#eab308'}">
                         ${estadoActual}
@@ -295,19 +323,33 @@
             if (!trFila) return;
 
             const idOrden = inputElement.getAttribute('data-id');
+            const presupuestoAutorizado = parseFloat(inputElement.getAttribute('data-presupuesto') || 0);
             const nuevoMontoPagado = parseFloat(inputElement.value) || 0;
 
             const cellTotal = trFila.querySelector('.monto-total-celda');
             const montoTotal = cellTotal ? parseFloat(cellTotal.getAttribute('data-total') || 0) : 0;
 
+            /* MODIFICADO: Recálculo en tiempo real de porcentaje y semáforo */
             const porcentajeActualizado = montoTotal > 0 ? Math.round((nuevoMontoPagado / montoTotal) * 100) : 0;
-            
-            const txtPorcentaje = trFila.querySelector('.porcentaje-celda');
-            if (txtPorcentaje) {
-                txtPorcentaje.textContent = `${porcentajeActualizado}%`;
-                txtPorcentaje.style.color = porcentajeActualizado >= 100 ? '#16a34a' : '#1e293b';
+            const semaforo = calcularSemaforoPresupuesto(nuevoMontoPagado, presupuestoAutorizado);
+
+            const tdPorcentaje = trFila.querySelector('.porcentaje-celda')?.closest('td');
+            if (tdPorcentaje) {
+                tdPorcentaje.innerHTML = `
+                    <strong class="porcentaje-celda" style="color: ${semaforo.color}">${porcentajeActualizado}%</strong>
+                    ${semaforo.textoAlerta}
+                `;
             }
 
+            /* MODIFICADO: Actualización visual inmediata de estado en la fila */
+            const esPagado = montoTotal > 0 && nuevoMontoPagado >= (montoTotal - 0.01);
+            const badgeEstado = trFila.querySelector('.badge-status-pago');
+            if (badgeEstado) {
+                badgeEstado.textContent = esPagado ? 'Pagado' : 'Pendiente';
+                badgeEstado.style.backgroundColor = esPagado ? '#16a34a' : '#eab308';
+            }
+
+            // Persistencia en Backend
             await guardarMontoPagadoEnBD(idOrden, nuevoMontoPagado, trFila);
         });
     }
@@ -323,6 +365,13 @@
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Error al actualizar el registro.');
             
+            // Actualizar arreglo local en memoria para mantener sincronizado con los filtros
+            const registroLocal = todosLosPagos.find(p => String(p.id_payment_order) === String(idOrden));
+            if (registroLocal) {
+                registroLocal.monto_pagado = monto;
+                registroLocal.status = data.status;
+            }
+
             const badgeEstado = trElemento.querySelector('.badge-status-pago');
             if (badgeEstado && data.status) {
                 badgeEstado.textContent = data.status;

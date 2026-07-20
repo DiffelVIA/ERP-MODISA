@@ -1231,8 +1231,9 @@ app.put('/api/pagos/:id/monto-pagado', async (req, res) => {
 
         const montoTotalOrden = parseFloat(sumaDetalle[0]?.monto_total) || 0;
 
+        /* MODIFICADO: Tolerancia de centavos para cambio automático de estatus */
         let nuevoStatus = 'Pendiente';
-        if (montoTotalOrden > 0 && nuevoMonto >= montoTotalOrden) {
+        if (montoTotalOrden > 0 && nuevoMonto >= (montoTotalOrden - 0.01)) {
             nuevoStatus = 'Pagado';
         }
 
