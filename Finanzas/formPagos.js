@@ -264,7 +264,7 @@
         const inputProveedor = document.getElementById('proveedor');
         const selectTipo = document.getElementById('tipo');
 
-        // MODIFICADO: Captura de los campos adicionales a limpiar
+        // MODIFICADO: Captura de tipo, forma de pago y archivo ticket individual
         const selectFormaPago = document.getElementById('formaPago');
         const inputTicketFile = document.getElementById('ticketFile');
 
@@ -277,9 +277,17 @@
         const subcategoria = inputSubcategoria ? inputSubcategoria.value : '';
         const proveedor = inputProveedor ? inputProveedor.value.trim() : '';
         const tipo = selectTipo ? selectTipo.value : '';
+        const formaPago = selectFormaPago ? selectFormaPago.value : '';
 
-        if (!concepto || isNaN(monto) || monto <= 0 || !grupo || !categoria || !subcategoria || !proveedor) {
-            alert('⚠️ Error: Completa todos los campos obligatorios del concepto (Grupo, Categoría, Subcategoría, Proveedor, Concepto y Monto).');
+        // MODIFICADO: Validaciones obligatorias de concepto y de tipo/forma de pago por item
+        if (!tipo || !formaPago || !concepto || isNaN(monto) || monto <= 0 || !grupo || !categoria || !subcategoria || !proveedor) {
+            alert('⚠️ Error: Completa todos los campos obligatorios (Tipo, Forma de Pago, Grupo, Categoría, Subcategoría, Proveedor, Concepto y Monto).');
+            return;
+        }
+
+        // MODIFICADO: Validación de ticket individual si el tipo es cajaChica
+        if (tipo === 'cajaChica' && (!inputTicketFile.files || inputTicketFile.files.length === 0)) {
+            alert('❌ Error: Es obligatorio cargar la fotografía del ticket para conceptos de Caja Chica.');
             return;
         }
 
@@ -295,39 +303,49 @@
             idCategoryFinal = registroMatch ? registroMatch.id_project_category : null;
         }
 
+        // MODIFICADO: Se incluyen los datos de pago y el archivo dentro del objeto del concepto
         const nuevoConcepto = {
             id_project_category: idCategoryFinal, 
+            payment_type: tipo,
+            payment_method: formaPago,
             provider_name: proveedor,
             concept_description: concepto,
             unit: 'N/A',
             quantity: 1,
             price_unit: monto, 
             amount: monto,
-            commentary: comentario || null
+            commentary: comentario || null,
+            ticketFile: (tipo === 'cajaChica' && inputTicketFile.files[0]) ? inputTicketFile.files[0] : null
         };
 
         listaConceptosPagos.push(nuevoConcepto);
         renderizarMiniTabla();
 
+        // Limpieza de inputs tras agregar el concepto
         if (inputConcepto) inputConcepto.value = '';
         if (inputMonto) inputMonto.value = '';
         if (inputComentario) inputComentario.value = '';
-        
-        if (tipo !== 'contratista' && inputProveedor) {
-            inputProveedor.value = '';
-        }
-
+        if (selectTipo) selectTipo.value = '';
         if (selectFormaPago) selectFormaPago.value = '';
         if (inputTicketFile) inputTicketFile.value = '';
-
-        if (tipo !== 'contratista') {
-            restaurarControlesCascada(true);
-            ejecutarCascadaFiltrosConceptos();
-        } else {
-            const selectClave = document.getElementById('claveContrato');
-            if (selectClave) selectClave.value = '';
-            restaurarControlesCascada(true);
+        
+        if (inputProveedor) {
+            inputProveedor.value = '';
+            inputProveedor.readOnly = false;
+            inputProveedor.style.backgroundColor = '';
+            inputProveedor.style.cursor = '';
+            inputProveedor.placeholder = "Nombre del proveedor o comercio";
         }
+
+        const bloqueTicket = document.getElementById('bloque-ticket');
+        const bloqueClave = document.getElementById('bloque-clave-contrato');
+        if (bloqueTicket) bloqueTicket.style.display = 'none';
+        if (bloqueClave) bloqueClave.style.display = 'none';
+
+        const selectClave = document.getElementById('claveContrato');
+        if (selectClave) selectClave.value = '';
+
+        restaurarControlesCascada(true);
     }
 
     async function enviarSolicitudFinal(e) {
@@ -345,36 +363,33 @@
             ? (inputSolicitanteElem.getAttribute('data-id') || inputSolicitanteElem.value)
             : null;
 
-        const tipo = document.getElementById('tipo').value;
-        const formaPago = document.getElementById('formaPago').value;
-        const fileInput = document.getElementById('ticketFile');
         const fecha = document.getElementById('fecha').value;
         const semanaTexto = document.getElementById('semana-fiscal').value;
 
-        if (!idProyecto || !idSolicitante || !tipo || !formaPago || !fecha || !semanaTexto) {
-            alert('⚠️ Campos de orden incompletos: Valida que Proyecto, Solicitante, Tipo y Forma de pago estén seleccionados.');
-            return;
-        }
-
-        if (tipo === 'cajaChica' && (!fileInput.files || fileInput.files.length === 0)) {
-            alert('❌ Error: Es obligatorio cargar la fotografía del ticket para Caja Chica.');
+        // MODIFICADO: Validación reducida a los campos de cabecera
+        if (!idProyecto || !idSolicitante || !fecha || !semanaTexto) {
+            alert('⚠️ Campos de orden incompletos: Valida que Proyecto, Solicitante y Fecha estén seleccionados.');
             return;
         }
 
         const semanaNumero = parseInt(semanaTexto.replace(/[^0-9]/g, '')) || 0;
+
+        // MODIFICADO: Limpieza de la propiedad de archivo antes de serializar JSON y adjuntar archivos al FormData
+        const conceptosSinArchivo = listaConceptosPagos.map(({ ticketFile, ...resto }) => resto);
 
         const formData = new FormData();
         formData.append('id_project', parseInt(idProyecto));
         formData.append('id_employee', parseInt(idSolicitante));
         formData.append('request_date', fecha);
         formData.append('fiscal_week', semanaNumero);
-        formData.append('payment_type', tipo);
-        formData.append('payment_method', formaPago);
-        formData.append('conceptos', JSON.stringify(listaConceptosPagos));
+        formData.append('conceptos', JSON.stringify(conceptosSinArchivo));
 
-        if (tipo === 'cajaChica' && fileInput.files[0]) {
-            formData.append('ticketFile', fileInput.files[0]);
-        }
+        // MODIFICADO: Adjuntar cada archivo de ticket individual por concepto
+        listaConceptosPagos.forEach((concept, index) => {
+            if (concept.ticketFile) {
+                formData.append(`ticketFile_${index}`, concept.ticketFile);
+            }
+        });
 
         try {
             const res = await fetch(`${API_URL}/pagos`, {
@@ -385,7 +400,7 @@
             const datos = await res.json();
             if (!res.ok) throw new Error(datos.error || 'Error en el servidor.');
 
-            alert(`🚀 ¡Solicitud de pago y ticket guardados con éxito!`);
+            alert(`🚀 ¡Solicitud de pago guardada con éxito!`);
             
             listaConceptosPagos = [];
             document.getElementById('form-requisicion').reset();
@@ -435,10 +450,14 @@
         listaConceptosPagos.forEach((concept, index) => {
             const tr = document.createElement('tr');
             
+            // MODIFICADO: Se complementa la descripción con Tipo, Forma de Pago y marca si adjuntó ticket
             tr.innerHTML = `
                 <td>
                     <strong>${concept.concept_description}</strong><br>
-                    <small style="color: #666;">Prov: ${concept.provider_name}</small>
+                    <small style="color: #666;">
+                        Prov: ${concept.provider_name} | ${concept.payment_type} (${concept.payment_method})
+                        ${concept.ticketFile ? ' 📸' : ''}
+                    </small>
                 </td>
                 <td class="txt-centro col-total" style="font-weight: bold; color: var(--text-dark);">$${concept.amount.toFixed(2)}</td>
                 <td>${concept.commentary || '-'}</td>
