@@ -42,14 +42,27 @@
             
             if (usuarioSesion && usuarioSesion.id_employee) {
                 inputSolicitante.setAttribute('data-id', usuarioSesion.id_employee);
-                inputSolicitante.value = usuarioSesion.nombre;
+
+                if (inputSolicitante.tagName === 'SELECT') {
+                    inputSolicitante.innerHTML = `<option value="${usuarioSesion.id_employee}" selected>${usuarioSesion.nombre}</option>`;
+                } else {
+                    inputSolicitante.value = usuarioSesion.nombre;
+                }
             } else {
-                inputSolicitante.value = "Usuario Desconocido";
+                if (inputSolicitante.tagName === 'SELECT') {
+                    inputSolicitante.innerHTML = `<option value="">Usuario Desconocido</option>`;
+                } else {
+                    inputSolicitante.value = "Usuario Desconocido";
+                }
                 console.error("❌ No se encontró el id_employee en sessionStorage.");
             }
         } catch (e) {
             console.error("❌ Error al parsear sessionStorage.usuarioMODISA:", e);
-            inputSolicitante.value = "Error al recuperar sesión";
+            if (inputSolicitante.tagName === 'SELECT') {
+                inputSolicitante.innerHTML = `<option value="">Error al recuperar sesión</option>`;
+            } else {
+                inputSolicitante.value = "Error al recuperar sesión";
+            }
         }
     }
 
