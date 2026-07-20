@@ -163,7 +163,7 @@
         if (montoPagado > presupuestoAutorizado) {
             return {
                 color: '#dc2626',
-                textoAlerta: `<br><span style="font-size: 10px; color: #dc2626; font-weight: bold;">⚠️ Excede Presupuesto ($${presupuestoAutorizado.toLocaleString('es-MX', {minimumFractionDigits: 2})})</span>`
+                textoAlerta: `<br><span style="font-size: 10px; color: #dc2626; font-weight: bold;">⚠️ ($${presupuestoAutorizado.toLocaleString('es-MX', {minimumFractionDigits: 2})})</span>`
             };
         }
         // AMARILLO: Si está a menos de 1000
