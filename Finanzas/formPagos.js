@@ -93,7 +93,7 @@
         const selectProyecto = document.getElementById('proyecto');
         const selectGrupo = document.getElementById('grupo');
         const selectCategoria = document.getElementById('categoria');
-        const btnPago = document.getElementById('btn-pago');
+        const btnPago = document.getElementById('[data-action="añadir"]');
         const formRequisicion = document.getElementById('form-requisicion');
 
         if (selectTipo) {
@@ -251,13 +251,14 @@
         if (formRequisicion) formRequisicion.addEventListener('submit', enviarSolicitudFinal);
     }
 
+    /* 
+       MODIFICADO: Ajustada la validación para evaluar el campo 'monto' disponible en el HTML 
+       evitando el bloqueo por la ausencia de los inputs de 'cantidad' y 'precioUnitario'.
+    */
     function añadirConceptoALista(e) {
         if (e) e.preventDefault();
 
         const inputConcepto = document.getElementById('conceptoPago');
-        const inputUnidad = document.getElementById('unidad');
-        const inputCantidad = document.getElementById('cantidad');
-        const inputPrecio = document.getElementById('precioUnitario');
         const inputMonto = document.getElementById('monto');
         const inputComentario = document.getElementById('comentario');
         
@@ -268,9 +269,6 @@
         const selectTipo = document.getElementById('tipo');
 
         const concepto = inputConcepto ? inputConcepto.value.trim() : '';
-        const unidad = inputUnidad ? inputUnidad.value : '';
-        const cantidad = inputCantidad ? parseFloat(inputCantidad.value) : 0;
-        const precioUnitario = inputPrecio ? parseFloat(inputPrecio.value) : 0;
         const monto = inputMonto ? parseFloat(inputMonto.value) : 0;
         const comentario = inputComentario ? inputComentario.value.trim() : '';
         
@@ -280,8 +278,9 @@
         const proveedor = inputProveedor ? inputProveedor.value.trim() : '';
         const tipo = selectTipo ? selectTipo.value : '';
 
-        if (!concepto || isNaN(cantidad) || cantidad <= 0 || isNaN(precioUnitario) || precioUnitario <= 0 || !grupo || !categoria || !subcategoria || !proveedor) {
-            alert('⚠️ Error: Completa todos los campos obligatorios del concepto (Grupo, Categoría, Subcategoría, Proveedor, Concepto, Cantidad y Precio).');
+        // MODIFICADO: Se valida 'monto' en lugar de 'cantidad' y 'precio'
+        if (!concepto || isNaN(monto) || monto <= 0 || !grupo || !categoria || !subcategoria || !proveedor) {
+            alert('⚠️ Error: Completa todos los campos obligatorios del concepto (Grupo, Categoría, Subcategoría, Proveedor, Concepto y Monto).');
             return;
         }
 
@@ -297,13 +296,14 @@
             idCategoryFinal = registroMatch ? registroMatch.id_project_category : null;
         }
 
+        // MODIFICADO: Se envían la cantidad como 1 y el precio unitario igual al monto
         const nuevoConcepto = {
             id_project_category: idCategoryFinal, 
             provider_name: proveedor,
             concept_description: concepto,
-            unit: unidad,
-            quantity: cantidad,
-            price_unit: precioUnitario, 
+            unit: 'N/A',
+            quantity: 1,
+            price_unit: monto, 
             amount: monto,
             commentary: comentario || null
         };
@@ -311,16 +311,14 @@
         listaConceptosPagos.push(nuevoConcepto);
         renderizarMiniTabla();
 
+        // Limpieza de inputs tras agregar el concepto
         if (inputConcepto) inputConcepto.value = '';
-        if (inputCantidad) inputCantidad.value = '';
-        if (inputPrecio) inputPrecio.value = '';
         if (inputMonto) inputMonto.value = '';
         if (inputComentario) inputComentario.value = '';
         
         if (tipo !== 'contratista' && inputProveedor) {
             inputProveedor.value = '';
         }
-        if (inputUnidad) inputUnidad.value = 'PZA';
     }
 
     async function enviarSolicitudFinal(e) {
