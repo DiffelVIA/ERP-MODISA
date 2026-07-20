@@ -340,6 +340,11 @@
         restaurarControlesCascada(true);
     }
 
+    /* 
+       MODIFICADO: Ajustada la preparación del FormData para incluir los campos de cabecera 
+       obligatorios por MySQL (payment_type, payment_method y ticketFile) y manejo seguro
+       de respuestas para evitar excepciones de parseo HTML/JSON.
+    */
     async function enviarSolicitudFinal(e) {
         if (e) e.preventDefault(); 
 
@@ -365,6 +370,15 @@
 
         const semanaNumero = parseInt(semanaTexto.replace(/[^0-9]/g, '')) || 0;
 
+        // MODIFICADO: Extraer los datos de pago del primer concepto para alimentar la cabecera en payment_orders
+        const primerConcepto = listaConceptosPagos[0];
+        const paymentTypeHeader = primerConcepto.payment_type || '';
+        const paymentMethodHeader = primerConcepto.payment_method || '';
+
+        // MODIFICADO: Buscar si existe algún archivo adjunto en la lista de conceptos
+        const conceptoConTicket = listaConceptosPagos.find(c => c.ticketFile);
+
+        // Limpieza de la propiedad de archivo antes de serializar JSON
         const conceptosSinArchivo = listaConceptosPagos.map(({ ticketFile, ...resto }) => resto);
 
         const formData = new FormData();
@@ -372,13 +386,16 @@
         formData.append('id_employee', parseInt(idSolicitante));
         formData.append('request_date', fecha);
         formData.append('fiscal_week', semanaNumero);
+        
+        // MODIFICADO: Se envían a la raíz para cumplir con las restricciones NOT NULL de payment_orders
+        formData.append('payment_type', paymentTypeHeader);
+        formData.append('payment_method', paymentMethodHeader);
         formData.append('conceptos', JSON.stringify(conceptosSinArchivo));
 
-        listaConceptosPagos.forEach((concept, index) => {
-            if (concept.ticketFile) {
-                formData.append(`ticketFile_${index}`, concept.ticketFile);
-            }
-        });
+        // MODIFICADO: Adjuntar archivo con la clave 'ticketFile' requerida por upload.single('ticketFile')
+        if (conceptoConTicket && conceptoConTicket.ticketFile) {
+            formData.append('ticketFile', conceptoConTicket.ticketFile);
+        }
 
         try {
             const res = await fetch(`${API_URL}/pagos`, {
@@ -386,7 +403,17 @@
                 body: formData
             });
 
-            const datos = await res.json();
+            // MODIFICADO: Verificación previa del tipo de contenido de la respuesta (Previene el error <!DOCTYPE)
+            const contentType = res.headers.get('content-type') || '';
+            let datos = {};
+
+            if (contentType.includes('application/json')) {
+                datos = await res.json();
+            } else {
+                const textoError = await res.text();
+                throw new Error(`El servidor respondió con un error no estructurado (${res.status}). Detalle: ${textoError.substring(0, 150)}...`);
+            }
+
             if (!res.ok) throw new Error(datos.error || 'Error en el servidor.');
 
             alert(`🚀 ¡Solicitud de pago guardada con éxito!`);
