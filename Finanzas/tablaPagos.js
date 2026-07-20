@@ -1,7 +1,5 @@
 (() => {
-    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-        ? 'http://localhost:3000/api' 
-        : 'https://erp-modisa.onrender.com/api';
+    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
 
     const ROL_RAW = localStorage.getItem('userRol');
     const ROL_USUARIO = ROL_RAW ? ROL_RAW.trim().toLowerCase() : 'residente';
@@ -18,6 +16,7 @@
         verificarPermisosDeAcceso();
         cargarPagosSolicitados();
         configurarDelegacionEventos();
+        inicializarEventosFiltros();
     });
 
     function verificarPermisosDeAcceso() {
@@ -40,6 +39,10 @@
             if (!response.ok) throw new Error(`Error en el servidor: Estado HTTP ${response.status}`);
 
             todosLosPagos = await response.json();
+            
+            /* MODIFICADO: Generar las opciones únicas de los filtros desplegables */
+            poblarFiltrosEfectivos(todosLosPagos);
+            
             renderizarTablaPagos(todosLosPagos);
         } catch (error) {
             console.error("❌ Error al cargar solicitudes:", error);
@@ -55,6 +58,102 @@
         }
     }
 
+    /* ==========================================================================
+       MODIFICADO: SISTEMA DINÁMICO DE FILTROS MULTISELECCIÓN
+       ========================================================================== */
+    function poblarFiltrosEfectivos(lista) {
+        const extraerUnicos = (keyExtractor) => Array.from(new Set(lista.map(keyExtractor).filter(Boolean))).sort();
+
+        const obras = extraerUnicos(i => i.project_name);
+        const formas = extraerUnicos(i => i.payment_method);
+        const estados = extraerUnicos(i => i.status || 'Pendiente');
+        const fechas = extraerUnicos(i => i.request_date ? new Date(i.request_date).toLocaleDateString('es-MX') : null);
+        const semanas = extraerUnicos(i => i.fiscal_week ? `Semana ${i.fiscal_week}` : null);
+
+        llenarDropdownHTML('filtroObra', obras, 'obra');
+        llenarDropdownHTML('filtroForma', formas, 'forma');
+        llenarDropdownHTML('filtroEstado', estados, 'estado');
+        llenarDropdownHTML('filtroFecha', fechas, 'fecha');
+        llenarDropdownHTML('filtroSemana', semanas, 'semana');
+    }
+
+    function llenarDropdownHTML(containerId, listaOpciones, dataGroup) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        if (listaOpciones.length === 0) {
+            container.innerHTML = '<p style="padding: 8px; color: #94a3b8; font-size: 13px;">Sin opciones</p>';
+            return;
+        }
+
+        container.innerHTML = listaOpciones.map(opcion => `
+            <label style="display: block; padding: 6px 12px; cursor: pointer; font-size: 13px; color: #334155;">
+                <input type="checkbox" class="filtro-chk" data-group="${dataGroup}" value="${opcion}" style="margin-right: 8px;">
+                ${opcion}
+            </label>
+        `).join('');
+    }
+
+    function inicializarEventosFiltros() {
+        // Manejo de visibilidad de los dropdowns al hacer clic en los botones
+        document.querySelectorAll('.contenedorFiltros .filtros').forEach(grupo => {
+            const btn = grupo.querySelector('.btn-dropdown');
+            const contenido = grupo.querySelector('.contenido-dropdown');
+            if (!btn || !contenido) return;
+
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const visibleActual = contenido.style.display === 'block';
+                document.querySelectorAll('.contenido-dropdown').forEach(c => c.style.display = 'none');
+                contenido.style.display = visibleActual ? 'none' : 'block';
+            });
+        });
+
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.contenido-dropdown').forEach(c => c.style.display = 'none');
+        });
+
+        // Evento para re-filtrar al seleccionar/desseleccionar checkboxes
+        const contenedorFiltros = document.querySelector('.contenedorFiltros');
+        if (contenedorFiltros) {
+            contenedorFiltros.addEventListener('change', (e) => {
+                if (e.target.classList.contains('filtro-chk')) {
+                    aplicarFiltrosMultiples();
+                }
+            });
+        }
+    }
+
+    function aplicarFiltrosMultiples() {
+        const obtenerSeleccionados = (group) => 
+            Array.from(document.querySelectorAll(`.filtro-chk[data-group="${group}"]:checked`)).map(c => c.value);
+
+        const selObras = obtenerSeleccionados('obra');
+        const selFormas = obtenerSeleccionados('forma');
+        const selEstados = obtenerSeleccionados('estado');
+        const selFechas = obtenerSeleccionados('fecha');
+        const selSemanas = obtenerSeleccionados('semana');
+
+        const filtrados = todosLosPagos.filter(item => {
+            const fechaTxt = item.request_date ? new Date(item.request_date).toLocaleDateString('es-MX') : '';
+            const semanaTxt = item.fiscal_week ? `Semana ${item.fiscal_week}` : '';
+            const estadoTxt = item.status || 'Pendiente';
+
+            const matchObra = selObras.length === 0 || selObras.includes(item.project_name);
+            const matchForma = selFormas.length === 0 || selFormas.includes(item.payment_method);
+            const matchEstado = selEstados.length === 0 || selEstados.includes(estadoTxt);
+            const matchFecha = selFechas.length === 0 || selFechas.includes(fechaTxt);
+            const matchSemana = selSemanas.length === 0 || selSemanas.includes(semanaTxt);
+
+            return matchObra && matchForma && matchEstado && matchFecha && matchSemana;
+        });
+
+        renderizarTablaPagos(filtrados);
+    }
+
+    /* ==========================================================================
+       RENDERIZADO CON MAPEO Y ADVERTENCIA DE PRESUPUESTO REBASADO
+       ========================================================================== */
     function renderizarTablaPagos(listaPagos) {
         const tbody = document.querySelector(".cuerpoTabla");
         if (!tbody) return;
@@ -78,7 +177,11 @@
 
             const montoConcepto = parseFloat(pod.amount || 0);
             const montoPagado = parseFloat(pod.monto_pagado || 0);
+            const presupuestoAutorizado = parseFloat(pod.presupuesto_autorizado || 0);
             const estadoActual = pod.status || 'Pendiente';
+
+            /* MODIFICADO: Validación si el monto pagado o del concepto excede el presupuesto autorizado de la categoría */
+            const excedePresupuesto = presupuestoAutorizado > 0 && (montoConcepto > presupuestoAutorizado || montoPagado > presupuestoAutorizado);
 
             const firmaContrato = pod.contrato_firma ? pod.contrato_firma.trim().toLowerCase() : 'pendiente';
             const estaFirmado = (firmaContrato === 'firmado' || firmaContrato === 'sí' || firmaContrato === 'si');
@@ -143,10 +246,15 @@
                     </a>`;
             }
 
-            /* 
-               MODIFICADO: Se removieron las celdas de cantidad, unidad y precio unitario 
-               para reflejar únicamente el campo de monto total del concepto.
-            */
+            /* MODIFICADO: Aplicación de estilos de advertencia si rebase el presupuesto autorizado */
+            const estiloExcesoCelda = excedePresupuesto 
+                ? 'background-color: #fef2f2; color: #dc2626;' 
+                : 'color: #1e293b;';
+
+            const etiquetaPresupuestoExcedido = excedePresupuesto 
+                ? `<br><span style="font-size: 10px; color: #dc2626; font-weight: bold;">⚠️ Excede Presupuesto ($${presupuestoAutorizado.toLocaleString('es-MX', {minimumFractionDigits: 2})})</span>` 
+                : '';
+
             tr.innerHTML = `
                 <td>${pod.project_name || '---'}</td>
                 <td>${fechaFormateada}</td>
@@ -158,7 +266,10 @@
                 <td>${pod.subcategoria || '---'}</td>
                 <td>${pod.provider || '---'}</td>
                 <td>${pod.concept_description || '---'}</td>
-                <td class="monto-total-celda" data-total="${montoConcepto}" style="font-weight: bold; color: #1e293b; text-align: right;">$${montoConcepto.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                <td class="monto-total-celda" data-total="${montoConcepto}" style="font-weight: bold; text-align: right; ${estiloExcesoCelda}">
+                    $${montoConcepto.toLocaleString('es-MX', {minimumFractionDigits: 2})}
+                    ${etiquetaPresupuestoExcedido}
+                </td>
                 ${celdaMontoPagadoHTML}
                 <td style="text-align: center;"><strong class="porcentaje-celda" style="color: ${estadoActual === 'Pagado' ? '#16a34a' : '#1e293b'}">${estadoActual === 'Pagado' ? '100%' : '---'}</strong></td>
                 <td style="text-align: center;">

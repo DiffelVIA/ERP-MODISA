@@ -1151,6 +1151,7 @@ app.get('/api/pagos', async (req, res) => {
                 pc.grupo AS grupo,
                 pc.categoria AS categoria,
                 pc.subcategoria AS subcategoria,
+                IFNULL(pc.total, 0) AS presupuesto_autorizado,
                 pod.provider AS provider,
                 pod.concept_description AS concept_description,
                 pod.amount AS amount,
