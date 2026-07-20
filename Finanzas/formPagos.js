@@ -426,17 +426,16 @@
 
         listaConceptosPagos.forEach((concept, index) => {
             const tr = document.createElement('tr');
+            
+            // MODIFICADO: Se reducen las celdas <td> a 4 para alinearse perfectamente con las cabeceras <th> del HTML
             tr.innerHTML = `
                 <td>
                     <strong>${concept.concept_description}</strong><br>
                     <small style="color: #666;">Prov: ${concept.provider_name}</small>
                 </td>
-                <td class="txt-centro">${concept.quantity}</td>
-                <td class="txt-centro">${concept.unit}</td>
-                <td class="txt-centro">$${concept.price_unit.toFixed(2)}</td>
-                <td class="txt-centro" style="font-weight: bold; color: var(--text-dark);">$${concept.amount.toFixed(2)}</td>
+                <td class="txt-centro col-total" style="font-weight: bold; color: var(--text-dark);">$${concept.amount.toFixed(2)}</td>
                 <td>${concept.commentary || '-'}</td>
-                <td class="txt-centro">
+                <td class="txt-centro col-accion">
                     <button type="button" class="btn-eliminar-mini" data-index="${index}">❌</button>
                 </td>
             `;
