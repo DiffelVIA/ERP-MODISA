@@ -1141,7 +1141,6 @@ app.get('/api/pagos', async (req, res) => {
         const query = `
             SELECT 
                 po.id_payment_order AS id_payment_order,
-                -- CONCATG asegura un identificador único por fila en el frontend sin depender de nombres ocultos de PK
                 CONCAT(po.id_payment_order, '-', ROW_NUMBER() OVER (PARTITION BY po.id_payment_order ORDER BY po.id_payment_order)) AS id_payment_order_detail,
                 p.project_name,
                 po.request_date,
@@ -1154,9 +1153,6 @@ app.get('/api/pagos', async (req, res) => {
                 pc.subcategoria AS subcategoria,
                 pod.provider AS provider,
                 pod.concept_description AS concept_description,
-                pod.quantity AS quantity,
-                pod.unit AS unit,
-                pod.unit_price AS price_unit,
                 pod.amount AS amount,
                 po.status,
                 IFNULL(po.monto_pagado, 0) AS monto_pagado,

@@ -1,5 +1,8 @@
 (() => {
-    const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
+    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+        ? 'http://localhost:3000/api' 
+        : 'https://erp-modisa.onrender.com/api';
+
     const ROL_RAW = localStorage.getItem('userRol');
     const ROL_USUARIO = ROL_RAW ? ROL_RAW.trim().toLowerCase() : 'residente';
 
@@ -33,7 +36,7 @@
 
     async function cargarPagosSolicitados() {
         try {
-            const response = await fetch(`${API_URL}/pagos`);
+            const response = await fetch(`${API_BASE}/pagos`);
             if (!response.ok) throw new Error(`Error en el servidor: Estado HTTP ${response.status}`);
 
             todosLosPagos = await response.json();
@@ -44,7 +47,7 @@
             if (tbody) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="17" style="text-align:center; color:#dc2626; font-weight:bold; padding: 25px;">
+                        <td colspan="14" style="text-align:center; color:#dc2626; font-weight:bold; padding: 25px;">
                             ⚠️ Error al conectar con el servidor de pagos. Revisa la consola o el estado de tu backend.
                         </td>
                     </tr>`;
@@ -61,7 +64,7 @@
         if (!listaPagos || listaPagos.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="17" style="text-align:center; font-weight:bold; color:#64748b; padding: 30px;">
+                    <td colspan="14" style="text-align:center; font-weight:bold; color:#64748b; padding: 30px;">
                         🚫 No se encontraron solicitudes de pago registradas en el sistema.
                     </td>
                 </tr>`;
@@ -140,9 +143,10 @@
                     </a>`;
             }
 
-            const cantidadFormateada = pod.quantity ? parseFloat(pod.quantity) : 0;
-            const precioFormateado = pod.price_unit ? parseFloat(pod.price_unit) : 0;
-
+            /* 
+               MODIFICADO: Se removieron las celdas de cantidad, unidad y precio unitario 
+               para reflejar únicamente el campo de monto total del concepto.
+            */
             tr.innerHTML = `
                 <td>${pod.project_name || '---'}</td>
                 <td>${fechaFormateada}</td>
@@ -154,9 +158,6 @@
                 <td>${pod.subcategoria || '---'}</td>
                 <td>${pod.provider || '---'}</td>
                 <td>${pod.concept_description || '---'}</td>
-                <td style="text-align: center; font-weight: 500;">${cantidadFormateada > 0 ? cantidadFormateada : '---'}</td>
-                <td style="text-align: center; color: #475569;">${pod.unit || '---'}</td>
-                <td style="text-align: right; color: #475569;">${precioFormateado > 0 ? `$${precioFormateado.toLocaleString('es-MX', {minimumFractionDigits: 2})}` : '---'}</td>
                 <td class="monto-total-celda" data-total="${montoConcepto}" style="font-weight: bold; color: #1e293b; text-align: right;">$${montoConcepto.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
                 ${celdaMontoPagadoHTML}
                 <td style="text-align: center;"><strong class="porcentaje-celda" style="color: ${estadoActual === 'Pagado' ? '#16a34a' : '#1e293b'}">${estadoActual === 'Pagado' ? '100%' : '---'}</strong></td>
