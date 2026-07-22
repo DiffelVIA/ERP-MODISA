@@ -143,18 +143,23 @@ app.post('/api/auth/verify-identity', async (req, res) => {
   }
 });
 
-const createRawMessage = ({ to, subject, html }) => {
-  const message = [
-    `From: MODISA ERP <${process.env.GMAIL_USER}>`,
+// 🛡️ MODIFICACIÓN: Estructura MIME correcta para soportar caracteres UTF-8 (como la 'ñ') en el Subject de Gmail API
+const createRawMessage = ({ from, to, subject, html }) => {
+  const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
+  const messageParts = [
+    `From: MODISA ERP <${from}>`,
     `To: ${to}`,
-    `Content-Type: text/html; charset=utf-8`,
-    `MIME-Version: 1.0`,
-    `Subject: ${subject}`,
+    `Subject: ${utf8Subject}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=utf-8',
+    'Content-Transfer-Encoding: 7bit',
     '',
     html
-  ].join('\n');
+  ];
 
-  return Buffer.from(message)
+  const message = messageParts.join('\r\n');
+
+  return Buffer.from(message, 'utf-8')
     .toString('base64')
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
@@ -185,7 +190,8 @@ app.post('/api/auth/request-reset', async (req, res) => {
       [token, expires, email.trim()]
     );
 
-    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    // 🛡️ MODIFICACIÓN: Fallback a la URL pública de producción si FRONTEND_URL no está en Render
+    const baseUrl = process.env.FRONTEND_URL || 'https://erp-modisa.onrender.com';
     const resetUrl = `${baseUrl}/recuperar.html?token=${token}`;
 
     const htmlContent = `
@@ -200,7 +206,11 @@ app.post('/api/auth/request-reset', async (req, res) => {
       </div>
     `;
 
+    // 🛡️ MODIFICACIÓN: Fallback seguro para el remitente
+    const senderEmail = process.env.GMAIL_USER || 'dvillalva@modisa.com.mx';
+
     const rawMessage = createRawMessage({
+      from: senderEmail,
       to: email.trim(),
       subject: 'Restablecer Contraseña - MODISA ERP',
       html: htmlContent
