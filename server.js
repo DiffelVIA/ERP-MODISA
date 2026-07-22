@@ -8,6 +8,15 @@ const bcrypt = require('bcrypt');
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/recuperar.html', (req, res) => {
+  const filePath = fs.existsSync(path.join(__dirname, 'recuperar.html'))
+    ? path.join(__dirname, 'recuperar.html')
+    : path.join(__dirname, 'public', 'recuperar.html');
+
+  res.sendFile(filePath);
+});
 
 // CONEXIÓN A MYSQL
 
@@ -143,7 +152,6 @@ app.post('/api/auth/verify-identity', async (req, res) => {
   }
 });
 
-// 🛡️ MODIFICACIÓN: Estructura MIME correcta para soportar caracteres UTF-8 (como la 'ñ') en el Subject de Gmail API
 const createRawMessage = ({ from, to, subject, html }) => {
   const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
   const messageParts = [
@@ -190,7 +198,6 @@ app.post('/api/auth/request-reset', async (req, res) => {
       [token, expires, email.trim()]
     );
 
-    // 🛡️ MODIFICACIÓN: Fallback a la URL pública de producción si FRONTEND_URL no está en Render
     const baseUrl = process.env.FRONTEND_URL || 'https://erp-modisa.onrender.com';
     const resetUrl = `${baseUrl}/recuperar.html?token=${token}`;
 
@@ -206,7 +213,6 @@ app.post('/api/auth/request-reset', async (req, res) => {
       </div>
     `;
 
-    // 🛡️ MODIFICACIÓN: Fallback seguro para el remitente
     const senderEmail = process.env.GMAIL_USER || 'dvillalva@modisa.com.mx';
 
     const rawMessage = createRawMessage({
