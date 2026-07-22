@@ -12,7 +12,13 @@
     const errorNueva = document.getElementById('error-nueva');
     const contenedorNuevaPass = document.getElementById('contenedor-nueva-pass');
 
-    let resetToken = "";
+    const urlParams = new URLSearchParams(window.location.search);
+    let resetToken = urlParams.get('token') || "";
+
+    if (resetToken) {
+        contenedorVerificar.style.display = "none";
+        contenedorNuevaPass.style.display = "block";
+    }
 
     formVerificar.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -34,9 +40,8 @@
                 return;
             }
 
-            resetToken = datos.token;
-            contenedorVerificar.style.display = "none";
-            contenedorNuevaPass.style.display = "block";
+            alert(datos.mensaje || "Revisa tu bandeja de entrada para continuar con el restablecimiento.");
+            formVerificar.reset();
 
         } catch (err) {
             mostrarError(errorVerificar, "Error de conexión con el servidor.");

@@ -18,6 +18,8 @@
     "express": "^5.2.1",
     "googleapis": "^173.0.0",
     "multer": "^2.2.0",
-    "mysql2": "^3.22.5"
+    "mysql2": "^3.22.5",
+    "nodemailer": "^9.0.3",
+    "resend": "^6.18.0"
   }
 }

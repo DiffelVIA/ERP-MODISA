@@ -592,6 +592,9 @@ app.post('/api/materiales', async (req, res) => {
 
 // INICIO DE SESIÓN //
 const crypto = require('crypto');
+const { Resend } = require('resend');
+
+const resend = new Resend(process.env.RESEND_API_KEY || 're_WRRseztH_KCgjMGRw7XYGowhnmTVp2NTy');
 
 app.post('/api/auth/login', async (req, res) => {
   const { correo, contrasena } = req.body;
@@ -668,31 +671,52 @@ app.post('/api/auth/request-reset', async (req, res) => {
 
   try {
     const [resultado] = await pool.query(
-      'SELECT id_employee FROM employees WHERE email = ?',
+      'SELECT id_employee, name FROM employees WHERE email = ?',
       [email.trim()]
     );
 
     if (resultado.length === 0) {
-      return res.status(404).json({ mensaje: 'El correo electrónico no se encuentra registrado.' });
+      return res.json({ 
+        mensaje: 'Si el correo ingresado se encuentra registrado, recibirás un enlace de recuperación.' 
+      });
     }
 
+    const usuario = resultado[0];
     const token = crypto.randomBytes(32).toString('hex');
-    
-    const expires = new Date(Date.now() + 15 * 60 * 1000);
+    const expires = new Date(Date.now() + 5 * 60 * 1000);
 
     await pool.query(
       'UPDATE employees SET reset_token = ?, reset_expires = ? WHERE email = ?',
       [token, expires, email.trim()]
     );
 
+    const baseUrl = req.headers.origin || 'http://localhost:3000';
+    const resetUrl = `${baseUrl}/recuperar.html?token=${token}`;
+
+    await resend.emails.send({
+      from: 'MODISA ERP <onboarding@resend.dev>',
+      to: [email.trim()],
+      subject: 'Restablecer Contraseña - MODISA ERP',
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+          <h2>Hola, ${usuario.name}</h2>
+          <p>Has solicitado restablecer tu contraseña en el sistema <strong>MODISA ERP</strong>.</p>
+          <p>Haz clic en el siguiente botón para completar el proceso. Este enlace expirará en 5 minutos:</p>
+          <a href="${resetUrl}" style="background-color: #007bff; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 15px 0;">
+            Restablecer Contraseña
+          </a>
+          <p style="font-size: 0.85rem; color: #777;">Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
+        </div>
+      `
+    });
+
     res.json({ 
-      mensaje: 'Token de recuperación generado con éxito.',
-      token: token 
+      mensaje: 'Si el correo ingresado se encuentra registrado, recibirás un enlace de recuperación.' 
     });
 
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error al solicitar la recuperación' });
+    console.error('Error al solicitar la recuperación:', error);
+    res.status(500).json({ error: 'Error al procesar la solicitud de recuperación' });
   }
 });
 
