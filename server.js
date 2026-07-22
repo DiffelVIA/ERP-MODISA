@@ -594,7 +594,7 @@ app.post('/api/materiales', async (req, res) => {
 const crypto = require('crypto');
 const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY || 're_WRRseztH_KCgjMGRw7XYGowhnmTVp2NTy');
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 app.post('/api/auth/login', async (req, res) => {
   const { correo, contrasena } = req.body;
