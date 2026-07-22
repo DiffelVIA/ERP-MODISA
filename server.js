@@ -47,7 +47,7 @@ oauth2Client.setCredentials({
 
 const drive = google.drive({ version: 'v3', auth: oauth2Client });
 
-//Inicio de sesión
+// INICIO DE SESIÓN Y RECUPERACIÓN DE CONTRASEÑA //
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
@@ -55,12 +55,14 @@ const createTransporter = async () => {
   const accessTokenResponse = await oauth2Client.getAccessToken();
   
   return nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // TLS
     auth: {
       type: 'OAuth2',
       user: process.env.GMAIL_USER,
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientId: GOOGLE_CLIENT_ID,
+      clientSecret: GOOGLE_CLIENT_SECRET,
       refreshToken: process.env.GOOGLE_TOKEN,
       accessToken: accessTokenResponse.token,
     },
