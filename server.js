@@ -9,6 +9,21 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// CONEXIÓN A MYSQL
+
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT,
+  ssl: {
+    ca: fs.readFileSync(path.join(__dirname, 'ca.pem'))
+  },
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
 
 // DRIVE //
 const multer = require('multer');
@@ -32,6 +47,7 @@ oauth2Client.setCredentials({
 
 const drive = google.drive({ version: 'v3', auth: oauth2Client });
 
+//Inicio de sesión
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
@@ -253,22 +269,6 @@ async function subirArchivoADrive(fileObject, idCarpetaDrive) {
     throw error;
   }
 }
-
-// CONEXIÓN A MYSQL
-
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: process.env.DB_PORT,
-  ssl: {
-    ca: fs.readFileSync(path.join(__dirname, 'ca.pem'))
-  },
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
 
 // REGISTRO DE NUEVOS PROYECTOS
 app.post('/api/projects', async (req, res) => {
