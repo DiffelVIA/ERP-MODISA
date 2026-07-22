@@ -33,11 +33,14 @@ const credentialsPath = path.join(__dirname, 'credentials.json');
 const credentials = JSON.parse(fs.readFileSync(credentialsPath));
 const { client_id, client_secret, redirect_uris } = credentials.web;
 
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || client_id;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || client_secret;
+
 const redirectUri = process.env.NODE_ENV === 'production' ? 'https://erp-modisa.onrender.com' : redirect_uris[0];
 
 const oauth2Client = new google.auth.OAuth2(
-  client_id,
-  client_secret,
+  GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET,
   redirectUri
 );
 
