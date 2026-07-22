@@ -5,6 +5,10 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcrypt');
+const app = express();
+app.use(cors());
+app.use(express.json());
+
 
 // DRIVE //
 const multer = require('multer');
@@ -28,7 +32,6 @@ oauth2Client.setCredentials({
 
 const drive = google.drive({ version: 'v3', auth: oauth2Client });
 
-// INICIO DE SESIÓN Y RECUPERACIÓN DE CONTRASEÑA //
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
@@ -221,6 +224,7 @@ app.put('/api/auth/reset-password', async (req, res) => {
   }
 });
 
+//Envio de ticket a carpeta de Drive
 async function subirArchivoADrive(fileObject, idCarpetaDrive) {
   try {
     const fileMetadata = {
@@ -251,9 +255,6 @@ async function subirArchivoADrive(fileObject, idCarpetaDrive) {
 }
 
 // CONEXIÓN A MYSQL
-const app = express();
-app.use(cors());
-app.use(express.json());
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
