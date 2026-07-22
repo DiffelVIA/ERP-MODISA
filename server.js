@@ -49,6 +49,7 @@ oauth2Client.setCredentials({
 });
 
 const drive = google.drive({ version: 'v3', auth: oauth2Client });
+const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
 // INICIO DE SESIÓN Y RECUPERACIÓN DE CONTRASEÑA //
 const crypto = require('crypto');
@@ -142,6 +143,24 @@ app.post('/api/auth/verify-identity', async (req, res) => {
   }
 });
 
+const createRawMessage = ({ to, subject, html }) => {
+  const message = [
+    `From: MODISA ERP <${process.env.GMAIL_USER}>`,
+    `To: ${to}`,
+    `Content-Type: text/html; charset=utf-8`,
+    `MIME-Version: 1.0`,
+    `Subject: ${subject}`,
+    '',
+    html
+  ].join('\n');
+
+  return Buffer.from(message)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+};
+
 app.post('/api/auth/request-reset', async (req, res) => {
   const { email } = req.body;
 
@@ -169,23 +188,29 @@ app.post('/api/auth/request-reset', async (req, res) => {
     const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const resetUrl = `${baseUrl}/recuperar.html?token=${token}`;
 
-    const transporter = await createTransporter();
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+        <h2>Hola, ${usuario.name}</h2>
+        <p>Has solicitado restablecer tu contraseña en el sistema <strong>MODISA ERP</strong>.</p>
+        <p>Haz clic en el siguiente botón para completar el proceso. Este enlace expirará en 5 minutos:</p>
+        <a href="${resetUrl}" style="background-color: #007bff; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 15px 0;">
+          Restablecer Contraseña
+        </a>
+        <p style="font-size: 0.85rem; color: #777;">Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
+      </div>
+    `;
 
-    await transporter.sendMail({
-      from: `MODISA ERP <${process.env.GMAIL_USER}>`,
+    const rawMessage = createRawMessage({
       to: email.trim(),
       subject: 'Restablecer Contraseña - MODISA ERP',
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-          <h2>Hola, ${usuario.name}</h2>
-          <p>Has solicitado restablecer tu contraseña en el sistema <strong>MODISA ERP</strong>.</p>
-          <p>Haz clic en el siguiente botón para completar el proceso. Este enlace expirará en 5 minutos:</p>
-          <a href="${resetUrl}" style="background-color: #007bff; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 15px 0;">
-            Restablecer Contraseña
-          </a>
-          <p style="font-size: 0.85rem; color: #777;">Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
-        </div>
-      `
+      html: htmlContent
+    });
+
+    await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: {
+        raw: rawMessage
+      }
     });
 
     res.json({ 
