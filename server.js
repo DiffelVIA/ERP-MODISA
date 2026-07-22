@@ -591,6 +591,7 @@ app.post('/api/materiales', async (req, res) => {
 });
 
 // INICIO DE SESIÓN //
+const crypto = require('crypto');
 
 app.post('/api/auth/login', async (req, res) => {
   const { correo, contrasena } = req.body;
@@ -662,16 +663,79 @@ app.post('/api/auth/verify-identity', async (req, res) => {
   }
 });
 
-app.put('/api/auth/reset-password', async (req, res) => {
-  const { name, nuevaContrasena } = req.body;
+app.post('/api/auth/request-reset', async (req, res) => {
+  const { email } = req.body;
 
   try {
+    const [resultado] = await pool.query(
+      'SELECT id_employee FROM employees WHERE email = ?',
+      [email.trim()]
+    );
+
+    if (resultado.length === 0) {
+      return res.status(404).json({ mensaje: 'El correo electrónico no se encuentra registrado.' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    
+    const expires = new Date(Date.now() + 15 * 60 * 1000);
+
+    await pool.query(
+      'UPDATE employees SET reset_token = ?, reset_expires = ? WHERE email = ?',
+      [token, expires, email.trim()]
+    );
+
+    res.json({ 
+      mensaje: 'Token de recuperación generado con éxito.',
+      token: token 
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al solicitar la recuperación' });
+  }
+});
+
+app.post('/api/auth/verify-token', async (req, res) => {
+  const { token } = req.body;
+
+  try {
+    const [resultado] = await pool.query(
+      'SELECT id_employee FROM employees WHERE reset_token = ? AND reset_expires > NOW()',
+      [token.trim()]
+    );
+
+    if (resultado.length === 0) {
+      return res.status(400).json({ mensaje: 'El token de recuperación es inválido o ha expirado.' });
+    }
+
+    res.json({ verificado: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al verificar el token' });
+  }
+});
+
+app.put('/api/auth/reset-password', async (req, res) => {
+  const { token, nuevaContrasena } = req.body;
+
+  try {
+    const [resultado] = await pool.query(
+      'SELECT id_employee FROM employees WHERE reset_token = ? AND reset_expires > NOW()',
+      [token.trim()]
+    );
+
+    if (resultado.length === 0) {
+      return res.status(400).json({ mensaje: 'El token es inválido o ha expirado. Solicita un nuevo token.' });
+    }
+
     const hashContrasena = await bcrypt.hash(nuevaContrasena.trim(), 10);
 
     await pool.query(
-      'UPDATE employees SET password = ?, first_entry = 0 WHERE name = ?',
-      [hashContrasena, name.trim()]
+      'UPDATE employees SET password = ?, reset_token = NULL, reset_expires = NULL, first_entry = 0 WHERE reset_token = ?',
+      [hashContrasena, token.trim()]
     );
+
     res.json({ mensaje: 'Contraseña restablecida con éxito' });
   } catch (error) {
     console.error(error);

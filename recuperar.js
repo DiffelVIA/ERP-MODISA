@@ -2,7 +2,6 @@
     const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
     
     const formVerificar = document.getElementById('form-verificar');
-    const inputUsuario = document.getElementById('recuperar-usuario');
     const inputCorreo = document.getElementById('recuperar-correo');
     const errorVerificar = document.getElementById('error-verificar');
     const contenedorVerificar = document.getElementById('contenedor-verificar');
@@ -13,30 +12,29 @@
     const errorNueva = document.getElementById('error-nueva');
     const contenedorNuevaPass = document.getElementById('contenedor-nueva-pass');
 
-    let usuarioVerificado = "";
+    let resetToken = "";
 
     formVerificar.addEventListener('submit', async (e) => {
         e.preventDefault();
         errorVerificar.style.display = "none";
 
-        const usuario = inputUsuario.value.trim();
         const correo = inputCorreo.value.trim();
 
         try {
-            const respuesta = await fetch(`${API_URL}/auth/verify-identity`, {
+            const respuesta = await fetch(`${API_URL}/auth/request-reset`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: usuario, email: correo })
+                body: JSON.stringify({ email: correo })
             });
 
             const datos = await respuesta.json();
 
             if (!respuesta.ok) {
-                mostrarError(errorVerificar, datos.mensaje || "Los datos no coinciden.");
+                mostrarError(errorVerificar, datos.mensaje || "El correo ingresado no es válido.");
                 return;
             }
 
-            usuarioVerificado = usuario;
+            resetToken = datos.token;
             contenedorVerificar.style.display = "none";
             contenedorNuevaPass.style.display = "block";
 
@@ -62,7 +60,7 @@
             const respuesta = await fetch(`${API_URL}/auth/reset-password`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: usuarioVerificado, nuevaContrasena: nuevaVal })
+                body: JSON.stringify({ token: resetToken, nuevaContrasena: nuevaVal })
             });
 
             const datos = await respuesta.json();

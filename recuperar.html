@@ -18,19 +18,15 @@
         <div id="contenedor-verificar" class="login-container">
             <h1>Restablecer Contraseña</h1>
             <p>
-                Ingresa tu usuario y el correo electrónico registrado en el sistema para verificar tu identidad.
+                Ingresa el correo electrónico registrado en el sistema para enviar tu solicitud de recuperación.
             </p>
             <form id="form-verificar">
-                <div class="contenedor-formulario">
-                    <label for="recuperar-usuario">Usuario</label>
-                    <input type="text" id="recuperar-usuario" placeholder="Tu nombre de usuario" required>
-                </div>
                 <div class="contenedor-formulario">
                     <label for="recuperar-correo">Correo Electrónico</label>
                     <input type="email" id="recuperar-correo" placeholder="ejemplo@modisa.com" required>
                 </div>
                 <div class="contenedor-botones">
-                    <button type="submit" id="descargar" class="btn">Verificar Datos</button>
+                    <button type="submit" id="descargar" class="btn">Solicitar Código</button>
                     <a href="index.html" style="margin-top: 15px; display: block; text-align: center; color: #007bff; text-decoration: none">Volver al Login</a>
                 </div>
                 <div id="error-verificar" class="error-msg" style="display: none;"></div>
@@ -49,7 +45,7 @@
                     <input type="password" id="confirmar-pass" placeholder="Repite tu contraseña" minlength="6" required>
                 </div>
                 <div class="contenedor-botones">
-                    <button type="submit" id="descargar" class="btn">Actualizar Contraseña</button>
+                    <button type="submit" id="btn-actualizar" class="btn">Actualizar Contraseña</button>
                 </div>
                 <div id="error-nueva" class="error-msg" style="display: none;"></div>
             </form>
