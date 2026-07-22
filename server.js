@@ -690,7 +690,7 @@ app.post('/api/auth/request-reset', async (req, res) => {
       [token, expires, email.trim()]
     );
 
-    const baseUrl = req.headers.origin || 'http://localhost:3000';
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const resetUrl = `${baseUrl}/recuperar.html?token=${token}`;
 
     await resend.emails.send({
