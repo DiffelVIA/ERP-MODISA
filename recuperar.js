@@ -1,5 +1,7 @@
 (() => {
-    const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
+    const HOST_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000' : 'https://erp-modisa.onrender.com';
+        
+    const API_URL = `${HOST_BASE}/api`;
     
     const formVerificar = document.getElementById('form-verificar');
     const inputCorreo = document.getElementById('recuperar-correo');
@@ -16,76 +18,115 @@
     let resetToken = urlParams.get('token') || "";
 
     if (resetToken) {
-        contenedorVerificar.style.display = "none";
-        contenedorNuevaPass.style.display = "block";
+        if (contenedorVerificar) contenedorVerificar.style.display = "none";
+        if (contenedorNuevaPass) contenedorNuevaPass.style.display = "block";
     }
 
-    formVerificar.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        errorVerificar.style.display = "none";
+    if (formVerificar) {
+        formVerificar.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btnSubmit = formVerificar.querySelector('button[type="submit"]') || formVerificar.querySelector('button');
+            const textoOriginal = btnSubmit ? btnSubmit.textContent : '';
 
-        const correo = inputCorreo.value.trim();
+            if (errorVerificar) errorVerificar.style.display = "none";
 
-        try {
-            const respuesta = await fetch(`${API_URL}/auth/request-reset`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: correo })
-            });
+            const correo = inputCorreo ? inputCorreo.value.trim() : '';
 
-            const datos = await respuesta.json();
-
-            if (!respuesta.ok) {
-                mostrarError(errorVerificar, datos.mensaje || "El correo ingresado no es válido.");
+            if (!correo) {
+                mostrarError(errorVerificar, "Por favor, ingresa tu correo electrónico.");
                 return;
             }
 
-            alert(datos.mensaje || "Revisa tu bandeja de entrada para continuar con el restablecimiento.");
-            formVerificar.reset();
+            try {
+                if (btnSubmit) {
+                    btnSubmit.disabled = true;
+                    btnSubmit.textContent = 'Enviando...';
+                }
 
-        } catch (err) {
-            mostrarError(errorVerificar, "Error de conexión con el servidor.");
-            console.error(err);
-        }
-    });
+                const respuesta = await fetch(`${API_URL}/auth/request-reset`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: correo })
+                });
 
-    formNuevaPass.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        errorNueva.style.display = "none";
+                const datos = await respuesta.json();
 
-        const nuevaVal = inputNueva.value;
-        const confirmarVal = inputConfirmar.value;
+                if (!respuesta.ok) {
+                    mostrarError(errorVerificar, datos.mensaje || "El correo ingresado no es válido.");
+                    return;
+                }
 
-        if (nuevaVal !== confirmarVal) {
-            mostrarError(errorNueva, "Las contraseñas no coinciden.");
-            return;
-        }
+                alert(datos.mensaje || "Revisa tu bandeja de entrada para continuar con el restablecimiento.");
+                formVerificar.reset();
 
-        try {
-            const respuesta = await fetch(`${API_URL}/auth/reset-password`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token: resetToken, nuevaContrasena: nuevaVal })
-            });
+            } catch (err) {
+                mostrarError(errorVerificar, "Error de conexión con el servidor.");
+                console.error(err);
+            } finally {
+                if (btnSubmit) {
+                    btnSubmit.disabled = false;
+                    btnSubmit.textContent = textoOriginal;
+                }
+            }
+        });
+    }
 
-            const datos = await respuesta.json();
+    if (formNuevaPass) {
+        formNuevaPass.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btnSubmit = formNuevaPass.querySelector('button[type="submit"]') || formNuevaPass.querySelector('button');
+            const textoOriginal = btnSubmit ? btnSubmit.textContent : '';
 
-            if (!respuesta.ok) {
-                mostrarError(errorNueva, datos.mensaje || "No se pudo actualizar la contraseña.");
+            if (errorNueva) errorNueva.style.display = "none";
+
+            const nuevaVal = inputNueva ? inputNueva.value : '';
+            const confirmarVal = inputConfirmar ? inputConfirmar.value : '';
+
+            if (nuevaVal !== confirmarVal) {
+                mostrarError(errorNueva, "Las contraseñas no coinciden.");
                 return;
             }
 
-            alert("Tu contraseña ha sido restablecida con éxito. Ya puedes iniciar sesión.");
-            window.location.href = "index.html";
+            try {
+                if (btnSubmit) {
+                    btnSubmit.disabled = true;
+                    btnSubmit.textContent = 'Actualizando...';
+                }
 
-        } catch (err) {
-            mostrarError(errorNueva, "Error de red al intentar actualizar.");
-            console.error(err);
-        }
-    });
+                const respuesta = await fetch(`${API_URL}/auth/reset-password`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: resetToken, nuevaContrasena: nuevaVal })
+                });
+
+                const datos = await respuesta.json();
+
+                if (!respuesta.ok) {
+                    mostrarError(errorNueva, datos.mensaje || "No se pudo actualizar la contraseña.");
+                    return;
+                }
+
+                alert("Tu contraseña ha sido restablecida con éxito. Ya puedes iniciar sesión.");
+                window.location.href = "index.html";
+
+            } catch (err) {
+                mostrarError(errorNueva, "Error de red al intentar actualizar.");
+                console.error(err);
+            } finally {
+                if (btnSubmit) {
+                    btnSubmit.disabled = false;
+                    btnSubmit.textContent = textoOriginal;
+                }
+            }
+        });
+    }
 
     function mostrarError(elemento, mensaje) {
-        elemento.textContent = mensaje;
-        elemento.style.display = "block";
+        if (elemento) {
+            elemento.textContent = mensaje;
+            elemento.style.display = "block";
+        }
     }
 })();
