@@ -36,36 +36,42 @@
             });
         }
 
+        const abrirSubPanel = (seccionObjetivo) => {
+            if (trackContenedor) trackContenedor.classList.remove('vista-menu');
+            tarjetasMaster.forEach(m => m.classList.add('panel-oculto'));
+            tarjetasSub.forEach(sub => {
+                if (sub.getAttribute('data-seccion') === seccionObjetivo) {
+                    sub.classList.remove('panel-oculto');
+                } else {
+                    sub.classList.add('panel-oculto');
+                }
+            });
+
+            if (seccionObjetivo === 'control') {
+                tituloDashboard.textContent = "Sistema de Gestión - Control Operativo";
+            } else if (seccionObjetivo === 'finanzas') {
+                tituloDashboard.textContent = "Sistema de Gestión - Administración y Finanzas";
+            }
+
+            if (btnRegresarPanel) btnRegresarPanel.classList.remove('panel-oculto');
+            if (ventana) ventana.scrollLeft = 0;
+        };
+
         tarjetasMaster.forEach(master => {
             const botonAbrir = master.querySelector('.btn-tarjeta');
 
             if (botonAbrir) {
                 botonAbrir.addEventListener('click', () => {
                     const seccionObjetivo = master.getAttribute('data-target');
-                    
-                    if (trackContenedor) trackContenedor.classList.remove('vista-menu');
-                    tarjetasMaster.forEach(m => m.classList.add('panel-oculto'));
-                    tarjetasSub.forEach(sub => {
-                        if (sub.getAttribute('data-seccion') === seccionObjetivo) {
-                            sub.classList.remove('panel-oculto');
-                        } else {
-                            sub.classList.add('panel-oculto');
-                        }
-                    });
-
-                    if (seccionObjetivo === 'control') {
-                        tituloDashboard.textContent = "Sistema de Gestión - Control Operativo";
-                    } else {
-                        tituloDashboard.textContent = "Sistema de Gestión - Administración y Finanzas";
-                    }
-                    btnRegresarPanel.classList.remove('panel-oculto');
-                    if (ventana) ventana.scrollLeft = 0;
+                    abrirSubPanel(seccionObjetivo);
                 });
             }
         });
 
         if (btnRegresarPanel) {
-            btnRegresarPanel.addEventListener('click', () => {
+            btnRegresarPanel.addEventListener('click', (e) => {
+                e.preventDefault(); // Evita recarga si el elemento es un enlace <a>
+                
                 if (trackContenedor) trackContenedor.classList.add('vista-menu');
                 
                 tarjetasMaster.forEach(m => m.classList.remove('panel-oculto'));
@@ -73,7 +79,17 @@
                 tituloDashboard.textContent = "Sistema de Gestión MODISA";
                 btnRegresarPanel.classList.add('panel-oculto');
                 if (ventana) ventana.scrollLeft = 0;
+
+                if (window.history.replaceState) {
+                    window.history.replaceState(null, '', window.location.pathname);
+                }
             });
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const panelParam = urlParams.get('panel');
+        if (panelParam === 'control' || panelParam === 'finanzas') {
+            abrirSubPanel(panelParam);
         }
     });
 
