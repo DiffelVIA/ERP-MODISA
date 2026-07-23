@@ -140,6 +140,10 @@
     function añadirMaterialALista(e) {
         if (e) e.preventDefault();
 
+        const selectProyecto = document.getElementById('proyecto');
+        const idProyecto = selectProyecto.value;
+        const nombreProyecto = selectProyecto.options[selectProyecto.selectedIndex]?.text || '';
+
         const descripcion = document.getElementById('descripcion').value.trim();
         const unidad = document.getElementById('unidad').value;
         const cantidad = parseFloat(document.getElementById('cantidad').value);
@@ -149,8 +153,8 @@
         const categoria = document.getElementById('categoria').value;
         const subcategoria = document.getElementById('subcategoria').value;
 
-        if (!descripcion || isNaN(cantidad) || cantidad <= 0 || !grupo || !categoria || !subcategoria) {
-            alert('⚠️ Error: Selecciona Grupo, Categoría, Subcategoría, Descripción y Cantidad.');
+        if (!idProyecto || !descripcion || isNaN(cantidad) || cantidad <= 0 || !grupo || !categoria || !subcategoria) {
+            alert('⚠️ Error: Selecciona Proyecto, Grupo, Categoría, Subcategoría, Descripción y Cantidad.');
             return false;
         }
 
@@ -159,6 +163,8 @@
         );
 
         const nuevoMaterial = {
+            id_project: parseInt(idProyecto),
+            nombre_proyecto: nombreProyecto,
             id_project_category: registroMatch ? registroMatch.id_project_category : null,
             material_description: descripcion,
             unit: unidad,
@@ -168,7 +174,7 @@
 
         listaMateriales.push(nuevoMaterial);
         renderizarMiniTabla();
-        alert(`✅ "${descripcion}" añadido al lote.`);
+        alert(`✅ "${descripcion}" (${nombreProyecto}) añadido al lote.`);
 
         document.getElementById('descripcion').value = '';
         document.getElementById('cantidad').value = '';
@@ -188,10 +194,8 @@
         const semanaNumero = parseInt(semanaTexto.replace(/[^0-9]/g, '')); 
 
         const idEmpleadoLogueado = document.getElementById('solicitante').getAttribute('data-id');
-        const idSelectProyecto = document.getElementById('proyecto').value;
 
         const payloadOrden = {
-            id_project: idSelectProyecto ? parseInt(idSelectProyecto) : null,
             id_employee: idEmpleadoLogueado ? parseInt(idEmpleadoLogueado) : null,
             order_date: document.getElementById('fecha').value,
             fiscal_week: semanaNumero,
@@ -218,6 +222,7 @@
             document.getElementById('form-requisicion').reset();
             establecerSolicitanteLogueado();
             inicializarCamposFechas();
+            renderizarMiniTabla();
         })
         .catch((error) => {
             alert(`❌ Error al guardar: ${error.message}`);
@@ -244,7 +249,7 @@
             const tr = document.createElement('tr');
 
             tr.innerHTML = `
-                <td class="desc-celda">${mat.material_description}</td>
+                <td class="desc-celda"><strong>[${mat.nombre_proyecto}]</strong> ${mat.material_description}</td>
                 <td class="txt-centro cant-celda">${mat.quantity}</td>
                 <td class="txt-centro unidad-celda">${mat.unit}</td>
                 <td class="comentario-celda" title="${mat.commentary || ''}">${mat.commentary || '-'}</td>
