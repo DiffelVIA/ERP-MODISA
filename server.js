@@ -1323,14 +1323,16 @@ app.post('/api/pagos', upload.single('ticketFile'), async (req, res) => {
 
     const queryDetails = `
       INSERT INTO payment_order_details 
-        (id_payment_order, id_project_category, provider, concept_description, amount, commentary) 
-      VALUES (?, ?, ?, ?, ?, ?)
+        (id_payment_order, id_project_category, payment_type, payment_method, provider, concept_description, amount, commentary) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     for (const item of listaConceptos) {
       await connection.query(queryDetails, [
         id_payment_order, 
         item.id_project_category || null, 
+        item.payment_type || payment_type,
+        item.payment_method || payment_method,
         item.provider_name, 
         item.concept_description, 
         item.amount, 
@@ -1360,8 +1362,8 @@ app.get('/api/pagos', async (req, res) => {
                 p.project_name,
                 po.request_date,
                 po.fiscal_week,
-                po.payment_type,
-                po.payment_method,
+                IFNULL(pod.payment_type, po.payment_type) AS payment_type,
+                IFNULL(pod.payment_method, po.payment_method) AS payment_method,
                 po.ticket_url,
                 po.compras_comment AS compras_comment,
                 pc.grupo AS grupo,
