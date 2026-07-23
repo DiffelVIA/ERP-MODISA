@@ -9,6 +9,8 @@
     const mapaTiposPago = {
     'contratista': '👷 Contratista',
     'maquinariaEquipo': '🚜 M. y Equipo',
+    'cajaChica': '💵 Caja Chica',
+    'caja chica': '💵 Caja Chica',
     'maquinaria y equipo': '🚜 Maquinaria y Equipo',
     'manoObra': '👷 Mano de Obra',
     'mano de obra': '👷 Mano de Obra',
