@@ -7,9 +7,13 @@
     const ROL_USUARIO = ROL_RAW ? ROL_RAW.trim().toLowerCase() : 'residente';
 
     const mapaTiposPago = {
-        'contratista': '👷 Contratista',
-        'especifico': '🎯 Específico',
-        'cajaChica': '💵 Caja Chica'
+    'contratista': '👷 Contratista',
+    'maquinariaEquipo': '🚜 Maquinaria y Equipo',
+    'maquinaria y equipo': '🚜 Maquinaria y Equipo',
+    'manoObra': '👷 Mano de Obra',
+    'mano de obra': '👷 Mano de Obra',
+    'material': '📦 Materiales',
+    'materiales': '📦 Materiales',
     };
 
     let todosLosPagos = []; 
@@ -58,9 +62,6 @@
         }
     }
 
-    /* ==========================================================================
-       FILTROS MULTISELECCIÓN
-       ========================================================================== */
     function poblarFiltrosEfectivos(lista) {
         const extraerUnicos = (keyExtractor) => Array.from(new Set(lista.map(keyExtractor).filter(Boolean))).sort();
 
@@ -149,9 +150,6 @@
         renderizarTablaPagos(filtrados);
     }
 
-    /* ==========================================================================
-       MODIFICADO: LÓGICA DE SEMÁFORO EN PORCENTAJE PAGADO
-       ========================================================================== */
     function calcularSemaforoPresupuesto(montoPagado, presupuestoAutorizado) {
         if (presupuestoAutorizado <= 0) {
             return { color: '#1e293b', textoAlerta: '' };
@@ -159,27 +157,35 @@
 
         const diferencia = presupuestoAutorizado - montoPagado;
 
-        // ROJO: Si pasa de lo autorizado
         if (montoPagado > presupuestoAutorizado) {
             return {
                 color: '#dc2626',
                 textoAlerta: `<br><span style="font-size: 10px; color: #dc2626; font-weight: bold;">⚠️ ($${presupuestoAutorizado.toLocaleString('es-MX', {minimumFractionDigits: 2})})</span>`
             };
         }
-        // AMARILLO: Si está a menos de 1000
         else if (diferencia <= 1000) {
             return {
                 color: '#d97706',
                 textoAlerta: ''
             };
         }
-        // VERDE: Si está lejos más de 1000
         else {
             return {
                 color: '#16a34a',
                 textoAlerta: ''
             };
         }
+    }
+    
+    function formatearFechaLocal(fechaCadena) {
+        if (!fechaCadena) return '---';
+        const fechaLimpia = String(fechaCadena).split('T')[0];
+        const partes = fechaLimpia.split('-');
+        if (partes.length === 3) {
+            const [anio, mes, dia] = partes;
+            return `${parseInt(dia, 10)}/${parseInt(mes, 10)}/${anio}`;
+        }
+        return new Date(fechaCadena).toLocaleDateString('es-MX');
     }
 
     function renderizarTablaPagos(listaPagos) {
@@ -239,40 +245,45 @@
                     celdaMontoPagadoHTML = `
                         <td style="text-align: center;" title="Bloqueado: El contrato de este proveedor tiene ${diasTranscurridos} días sin firmar.">
                             <input type="number" 
-                                   class="input-monto-pagado" 
-                                   value="${montoPagado}" 
-                                   disabled 
-                                   style="width: 110px; padding: 5px; border-radius:4px; border:1px solid #fca5a5; background-color: #fef2f2; color: #991b1b; text-align: right; font-weight: bold; cursor: not-allowed;">
+                                class="input-monto-pagado" 
+                                value="${montoPagado}" 
+                                disabled 
+                                style="width: 110px; padding: 5px; border-radius:4px; border:1px solid #fca5a5; background-color: #fef2f2; color: #991b1b; text-align: right; font-weight: bold; cursor: not-allowed;">
                         </td>`;
                 } else {
                     celdaMontoPagadoHTML = `
                         <td style="text-align: center;">
                             <input type="number" 
-                                   class="input-monto-pagado" 
-                                   data-id="${pod.id_payment_order}"
-                                   data-presupuesto="${presupuestoAutorizado}"
-                                   value="${montoPagado}" 
-                                   step="0.01" 
-                                   min="0"
-                                   style="width: 110px; padding: 5px; border-radius:4px; border:1px solid #cbd5e1; text-align: right; font-weight: 500;">
+                                class="input-monto-pagado" 
+                                data-id="${pod.id_payment_order}"
+                                data-presupuesto="${presupuestoAutorizado}"
+                                value="${montoPagado}" 
+                                step="0.01" 
+                                min="0"
+                                style="width: 110px; padding: 5px; border-radius:4px; border:1px solid #cbd5e1; text-align: right; font-weight: 500;">
                         </td>`;
                 }
             } else {
                 celdaMontoPagadoHTML = `<td style="text-align: right; color: #16a34a; font-weight: 500;">$${montoPagado.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>`;
             }
 
-            const fechaFormateada = pod.request_date ? new Date(pod.request_date).toLocaleDateString('es-MX') : '---';
-            const tipoTextoPlano = mapaTiposPago[pod.payment_type?.trim()] || `❓ ${pod.payment_type || 'No definido'}`;
-            let tipoPagoVisual = `<strong>${tipoTextoPlano}</strong>`;
+            const fechaFormateada = formatearFechaLocal(pod.request_date);
 
-            if (pod.payment_type?.trim() === 'cajaChica' && pod.ticket_url) {
+            const claveTipo = (pod.payment_type || '').trim();
+            const tipoTextoPlano = mapaTiposPago[claveTipo] 
+                || mapaTiposPago[claveTipo.toLowerCase()] 
+                || `💳 ${claveTipo || 'No definido'}`;
+
+            let tipoPagoVisual = `<span style="white-space: nowrap; font-weight: bold;">${tipoTextoPlano}</span>`;
+
+            if ((claveTipo === 'cajaChica' || claveTipo.toLowerCase() === 'caja chica') && pod.ticket_url) {
                 tipoPagoVisual = `
                     <a href="${pod.ticket_url}" 
-                       target="_blank" 
-                       rel="noopener noreferrer" 
-                       class="enlace-ticket-drive" 
-                       style="color: #2563eb; text-decoration: underline; font-weight: bold; cursor: pointer;">
-                       ${tipoTextoPlano}
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    class="enlace-ticket-drive" 
+                    style="color: #2563eb; text-decoration: underline; font-weight: bold; cursor: pointer; white-space: nowrap;">
+                    ${tipoTextoPlano}
                     </a>`;
             }
 
@@ -284,11 +295,11 @@
                 celdaComentarioComprasHTML = `
                     <td style="text-align: center;">
                         <input type="text" 
-                               class="input-compras-comment" 
-                               data-id="${pod.id_payment_order}"
-                               value="${comentarioComprasVal}" 
-                               placeholder="Comentario compras..."
-                               style="width: 140px; padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 12px; color: #334155;">
+                            class="input-compras-comment" 
+                            data-id="${pod.id_payment_order}"
+                            value="${comentarioComprasVal}" 
+                            placeholder="Comentario compras..."
+                            style="width: 140px; padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 12px; color: #334155;">
                     </td>`;
             } else {
                 celdaComentarioComprasHTML = `
