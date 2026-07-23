@@ -45,7 +45,9 @@ const { client_id, client_secret, redirect_uris } = credentials.web;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || client_id;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || client_secret;
 
-const redirectUri = process.env.NODE_ENV === 'production' ? 'https://erp-modisa.onrender.com' : redirect_uris[0];
+const redirectUri = process.env.NODE_ENV === 'production' 
+  ? 'https://erp-modisa.onrender.com/api/auth/google/callback' 
+  : 'http://localhost:3000/api/auth/google/callback';
 
 const oauth2Client = new google.auth.OAuth2(
   GOOGLE_CLIENT_ID,
