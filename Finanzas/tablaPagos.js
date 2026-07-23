@@ -152,32 +152,33 @@
         renderizarTablaPagos(filtrados);
     }
 
-    function calcularSemaforoPresupuesto(montoPagado, presupuestoAutorizado) {
-        if (presupuestoAutorizado <= 0) {
-            return { color: '#1e293b', textoAlerta: '' };
+    function calcularSemaforoPresupuesto(montoPagadoAcumulado, presupuestoAutorizado) {
+        if (!presupuestoAutorizado || presupuestoAutorizado <= 0) {
+            return { color: '#1e293b', textoAlerta: '', porcentaje: 0 };
         }
 
-        const diferencia = presupuestoAutorizado - montoPagado;
+        const porcentajeConsumido = (montoPagadoAcumulado / presupuestoAutorizado) * 100;
+        const porcentajeRedondeado = Math.round(porcentajeConsumido);
 
-        if (montoPagado > presupuestoAutorizado) {
-            return {
-                color: '#dc2626',
-                textoAlerta: `<br><span style="font-size: 10px; color: #dc2626; font-weight: bold;">⚠️ ($${presupuestoAutorizado.toLocaleString('es-MX', {minimumFractionDigits: 2})})</span>`
-            };
+        let colorSemaforo = '#16a34a';
+        let textoAlerta = '';
+
+        if (porcentajeConsumido > 90) {
+            colorSemaforo = '#dc2626';
+            if (montoPagadoAcumulado > presupuestoAutorizado) {
+                textoAlerta = `<br><span style="font-size: 10px; color: #dc2626; font-weight: bold;">⚠️ Excedido ($${presupuestoAutorizado.toLocaleString('es-MX', {minimumFractionDigits: 2})})</span>`;
+            }
+        } else if (porcentajeConsumido > 75) {
+            colorSemaforo = '#d97706';
         }
-        else if (diferencia <= 1000) {
-            return {
-                color: '#d97706',
-                textoAlerta: ''
-            };
-        }
-        else {
-            return {
-                color: '#16a34a',
-                textoAlerta: ''
-            };
-        }
+
+        return {
+            color: colorSemaforo,
+            textoAlerta: textoAlerta,
+            porcentaje: porcentajeRedondeado
+        };
     }
+
     
     function formatearFechaLocal(fechaCadena) {
         if (!fechaCadena) return '---';
@@ -208,6 +209,15 @@
 
         const puedeModificarRol = ['compras', 'gerente_administrativo', 'gerente administración'].includes(ROL_USUARIO);
 
+        const acumuladosPorSubcategoria = {};
+
+        listaPagos.forEach(pod => {
+            const claveAgrupacion = `${pod.project_name || ''}_${pod.grupo || ''}_${pod.categoria || ''}_${pod.subcategoria || ''}_${pod.payment_type || ''}`;
+            const montoPagado = parseFloat(pod.monto_pagado || 0);
+            
+            acumuladosPorSubcategoria[claveAgrupacion] = (acumuladosPorSubcategoria[claveAgrupacion] || 0) + montoPagado;
+        });
+
         listaPagos.forEach(pod => {
             const tr = document.createElement("tr");
 
@@ -215,11 +225,10 @@
             const montoPagado = parseFloat(pod.monto_pagado || 0);
             const presupuestoAutorizado = parseFloat(pod.presupuesto_autorizado || 0);
             const estadoActual = pod.status || 'Pendiente';
-
+            const claveAgrupacion = `${pod.project_name || ''}_${pod.grupo || ''}_${pod.categoria || ''}_${pod.subcategoria || ''}_${pod.payment_type || ''}`;
+            const montoPagadoAcumulado = acumuladosPorSubcategoria[claveAgrupacion] || montoPagado;
+            const semaforo = calcularSemaforoPresupuesto(montoPagadoAcumulado, presupuestoAutorizado);
             const porcentajeCalculado = montoConcepto > 0 ? Math.round((montoPagado / montoConcepto) * 100) : 0;
-
-            const semaforo = calcularSemaforoPresupuesto(montoPagado, presupuestoAutorizado);
-
             const firmaContrato = pod.contrato_firma ? pod.contrato_firma.trim().toLowerCase() : 'pendiente';
             const estaFirmado = (firmaContrato === 'firmado' || firmaContrato === 'sí' || firmaContrato === 'si');
             
@@ -331,6 +340,7 @@
                 </td>
                 ${celdaMontoPagadoHTML}
                 <td style="text-align: center;">
+                    <!-- El color de la fuente responde al semáforo presupuestal acumulado (<=75% Verde, 75-90% Amarillo, >90% Rojo) -->
                     <strong class="porcentaje-celda" style="color: ${semaforo.color}">${porcentajeCalculado}%</strong>
                     ${semaforo.textoAlerta}
                 </td>
