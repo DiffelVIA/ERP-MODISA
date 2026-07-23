@@ -1316,7 +1316,6 @@ app.get('/api/pagos', async (req, res) => {
                 po.payment_type,
                 po.payment_method,
                 po.ticket_url,
-                po.commentary AS resident_comment,
                 po.compras_comment AS compras_comment,
                 pc.grupo AS grupo,
                 pc.categoria AS categoria,
