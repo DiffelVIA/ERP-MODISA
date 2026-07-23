@@ -1237,9 +1237,17 @@ app.get('/api/contratos', async (req, res) => {
 
 app.put('/api/contratos/:id/actualizar-control', async (req, res) => {
     const { id } = req.params;
-    const { status, estado_costos, status_direccion, firma } = req.body;
+    let { status, estado_costos, status_direccion, firma } = req.body;
 
     try {
+        if (status_direccion !== 'Rechazado' && status === 'Rechazado') {
+            status = 'Pendiente';
+        }
+
+        if (status_direccion !== 'Rechazado' && estado_costos === 'Rechazado') {
+            estado_costos = 'Pendiente';
+        }
+
         const estadoPagoValido = status ? (status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()) : 'Pendiente';
         const estadoCostosValido = estado_costos || 'Pendiente';
         const statusDireccionValido = status_direccion || 'Pendiente';

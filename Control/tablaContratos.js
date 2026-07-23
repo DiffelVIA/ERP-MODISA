@@ -247,16 +247,20 @@
             if (selectCostos) selectCostos.value = "Rechazado";
             cellStatusPago.innerHTML = `<span>❌ Rechazado</span>`;
             cellStatusPago.setAttribute('data-valor-real', "Rechazado");
-            if (!selectCostos) cellEstadoCostos.innerHTML = `<span>❌ Rechazado</span>`;
+            if (!selectCostos && cellEstadoCostos) cellEstadoCostos.innerHTML = `<span>❌ Rechazado</span>`;
         }
-        else if (statusDireccion === "Pendiente" && statusGeneral === "Rechazado") {
-            statusGeneral = "Pendiente";
-            estadoCostos = "Pendiente";
+        else if (statusDireccion === "Pendiente" || statusDireccion === "Autorizado") {
+            if (statusGeneral === "Rechazado") {
+                statusGeneral = "Pendiente";
+                cellStatusPago.innerHTML = `<span>⏳ Pendiente</span>`;
+                cellStatusPago.setAttribute('data-valor-real', "Pendiente");
+            }
 
-            if (selectCostos) selectCostos.value = "Pendiente";
-            cellStatusPago.innerHTML = `<span>⏳ Pendiente</span>`;
-            cellStatusPago.setAttribute('data-valor-real', "Pendiente");
-            if (!selectCostos) cellEstadoCostos.innerHTML = `<span>⏳ Pendiente</span>`;
+            if (estadoCostos === "Rechazado") {
+                estadoCostos = "Pendiente";
+                if (selectCostos) selectCostos.value = "Pendiente";
+                if (!selectCostos && cellEstadoCostos) cellEstadoCostos.innerHTML = `<span>⏳ Pendiente</span>`;
+            }
         }
         
         let firmaVal = "Pendiente";
@@ -285,6 +289,7 @@
                 if (nuevoPorcentaje >= 100 && statusGeneral !== "Rechazado") {
                     cellStatusPago.innerHTML = `<span>💰 Pagado</span>`;
                     cellStatusPago.setAttribute('data-valor-real', "Pagado");
+                    statusGeneral = "Pagado";
                 }
 
                 const nuevoSaldoDinero = totalFilaNum - montoPagado;
@@ -295,7 +300,7 @@
 
                 const contratoEnCache = todosLosContratos.find(c => c.id_contract === id);
                 if (contratoEnCache) {
-                    contratoEnCache.status = (nuevoPorcentaje >= 100 && statusGeneral !== "Rechazado") ? "Pagado" : statusGeneral;
+                    contratoEnCache.status = statusGeneral;
                     contratoEnCache.estado_costos = estadoCostos;
                     contratoEnCache.status_direccion = statusDireccion;
                     contratoEnCache.firma = firmaVal;
@@ -309,6 +314,6 @@
         } catch (error) {
             console.error("❌ Error al guardar cambios de control en fila:", error);
         }
-    }
+    };
 
 })();
