@@ -89,8 +89,12 @@ header nav ul li a{
   transition: background-color 0.2s ease; 
 }
 
-header nav ul li a:hover{ /* Selección para el estado hover (cuando el cursor está sobre el enlace) */
-  background-color: var(--accent-color); /* Cambia el fondo del enlace al pasar el cursor */
+header nav ul li a.panel-oculto {
+  display: none !important;
+}
+
+header nav ul li a:hover{
+  background-color: var(--accent-color);
 }
 
 .form_main{
