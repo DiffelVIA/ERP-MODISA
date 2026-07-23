@@ -234,7 +234,6 @@
         }
 
         const autorizado = parseFloat(datosItem.presupuesto_autorizado);
-        const gastadoOtros = parseFloat(datosItem.monto_gastado_otros);
         
         if (isNaN(autorizado) || autorizado <= 0) {
             console.warn(
@@ -244,12 +243,11 @@
             return 'monto-pendiente';
         }
 
-        const disponible = autorizado - (isNaN(gastadoOtros) ? 0 : gastadoOtros);
-        const diferencia = disponible - totalFila;
+        const porcentajeConsumido = (totalFila / autorizado) * 100;
 
-        if (diferencia < 0) {
+        if (porcentajeConsumido > 90) {
             return 'monto-rojo';
-        } else if (diferencia < 1000) {
+        } else if (porcentajeConsumido >= 75) {
             return 'monto-amarillo';
         } else {
             return 'monto-verde';
