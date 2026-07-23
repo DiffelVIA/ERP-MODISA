@@ -300,10 +300,20 @@ async function subirArchivoADrive(fileObject, idCarpetaDrive) {
     };
 
     const response = await drive.files.create({
-      resource: fileMetadata,
+      requestBody: fileMetadata,
       media: media,
       fields: 'id, webViewLink',
     });
+
+    if (response.data && response.data.id) {
+      await drive.permissions.create({
+        fileId: response.data.id,
+        requestBody: {
+          role: 'reader',
+          type: 'anyone',
+        },
+      });
+    }
 
     if (fs.existsSync(fileObject.path)) {
       fs.unlinkSync(fileObject.path);
@@ -312,6 +322,9 @@ async function subirArchivoADrive(fileObject, idCarpetaDrive) {
     return response.data.webViewLink;
   } catch (error) {
     console.error("❌ Error interno en la subida a Google Drive API:", error);
+    if (fileObject && fileObject.path && fs.existsSync(fileObject.path)) {
+      fs.unlinkSync(fileObject.path);
+    }
     throw error;
   }
 }

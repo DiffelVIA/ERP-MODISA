@@ -174,7 +174,6 @@
             const cantidadInput = document.getElementById('cantidad');
             const precioInput = document.getElementById('precioUnitario');
             const montoInput = document.getElementById('monto');
-            
             const cantidad = cantidadInput ? parseFloat(cantidadInput.value) || 0 : 0;
             const precio = precioInput ? parseFloat(precioInput.value) || 0 : 0;
             
@@ -257,20 +256,16 @@
         const inputConcepto = document.getElementById('conceptoPago');
         const inputMonto = document.getElementById('monto');
         const inputComentario = document.getElementById('comentario');
-        
         const inputGrupo = document.getElementById('grupo');
         const inputCategoria = document.getElementById('categoria');
         const inputSubcategoria = document.getElementById('subcategoria');
         const inputProveedor = document.getElementById('proveedor');
         const selectTipo = document.getElementById('tipo');
-
         const selectFormaPago = document.getElementById('formaPago');
         const inputTicketFile = document.getElementById('ticketFile');
-
         const concepto = inputConcepto ? inputConcepto.value.trim() : '';
         const monto = inputMonto ? parseFloat(inputMonto.value) : 0;
         const comentario = inputComentario ? inputComentario.value.trim() : '';
-        
         const grupo = inputGrupo ? inputGrupo.value : '';
         const categoria = inputCategoria ? inputCategoria.value : '';
         const subcategoria = inputSubcategoria ? inputSubcategoria.value : '';
@@ -340,11 +335,6 @@
         restaurarControlesCascada(true);
     }
 
-    /* 
-       MODIFICADO: Ajustada la preparación del FormData para incluir los campos de cabecera 
-       obligatorios por MySQL (payment_type, payment_method y ticketFile) y manejo seguro
-       de respuestas para evitar excepciones de parseo HTML/JSON.
-    */
     async function enviarSolicitudFinal(e) {
         if (e) e.preventDefault(); 
 
@@ -354,12 +344,10 @@
         }
 
         const idProyecto = document.getElementById('proyecto').value;
-        
         const inputSolicitanteElem = document.getElementById('solicitante');
         const idSolicitante = inputSolicitanteElem 
             ? (inputSolicitanteElem.getAttribute('data-id') || inputSolicitanteElem.value)
             : null;
-
         const fecha = document.getElementById('fecha').value;
         const semanaTexto = document.getElementById('semana-fiscal').value;
 
@@ -369,30 +357,21 @@
         }
 
         const semanaNumero = parseInt(semanaTexto.replace(/[^0-9]/g, '')) || 0;
-
-        // MODIFICADO: Extraer los datos de pago del primer concepto para alimentar la cabecera en payment_orders
         const primerConcepto = listaConceptosPagos[0];
         const paymentTypeHeader = primerConcepto.payment_type || '';
         const paymentMethodHeader = primerConcepto.payment_method || '';
-
-        // MODIFICADO: Buscar si existe algún archivo adjunto en la lista de conceptos
         const conceptoConTicket = listaConceptosPagos.find(c => c.ticketFile);
-
-        // Limpieza de la propiedad de archivo antes de serializar JSON
         const conceptosSinArchivo = listaConceptosPagos.map(({ ticketFile, ...resto }) => resto);
-
         const formData = new FormData();
         formData.append('id_project', parseInt(idProyecto));
         formData.append('id_employee', parseInt(idSolicitante));
         formData.append('request_date', fecha);
         formData.append('fiscal_week', semanaNumero);
         
-        // MODIFICADO: Se envían a la raíz para cumplir con las restricciones NOT NULL de payment_orders
         formData.append('payment_type', paymentTypeHeader);
         formData.append('payment_method', paymentMethodHeader);
         formData.append('conceptos', JSON.stringify(conceptosSinArchivo));
 
-        // MODIFICADO: Adjuntar archivo con la clave 'ticketFile' requerida por upload.single('ticketFile')
         if (conceptoConTicket && conceptoConTicket.ticketFile) {
             formData.append('ticketFile', conceptoConTicket.ticketFile);
         }
@@ -403,7 +382,6 @@
                 body: formData
             });
 
-            // MODIFICADO: Verificación previa del tipo de contenido de la respuesta (Previene el error <!DOCTYPE)
             const contentType = res.headers.get('content-type') || '';
             let datos = {};
 
