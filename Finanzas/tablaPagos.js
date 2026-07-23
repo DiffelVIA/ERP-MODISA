@@ -290,7 +290,6 @@
                 <td style="text-align: center;">${tipoPagoVisual}</td>
                 <td><span class="badge-metodo" style="text-transform: capitalize;">${pod.payment_method || '---'}</span></td>
                 
-                <!-- NUEVA COLUMNA DE COMENTARIO DE SOLICITUD (DESPUÉS DE FORMA DE PAGO Y ANTES DE GRUPO) -->
                 <td style="color: #64748b; font-style: italic; font-size: 12px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${comentarioResidente}">
                     ${comentarioResidente}
                 </td>
