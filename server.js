@@ -53,8 +53,15 @@ const oauth2Client = new google.auth.OAuth2(
   redirectUri
 );
 
+const SCOPES = [
+  'https://www.googleapis.com/auth/drive.file',
+  'https://www.googleapis.com/auth/drive',
+  'https://www.googleapis.com/auth/gmail.send'
+];
+
 oauth2Client.setCredentials({
-  refresh_token: process.env.GOOGLE_TOKEN
+  refresh_token: process.env.GOOGLE_TOKEN,
+  scope: SCOPES.join(' ')
 });
 
 const drive = google.drive({ version: 'v3', auth: oauth2Client });
