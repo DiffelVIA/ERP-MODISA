@@ -124,9 +124,9 @@ header nav ul li a:hover{ /* Selección para el estado hover (cuando el cursor e
 }
 
 .contenedor-formulario input:focus, .contenedor-formulario select:focus, .contenedor-formulario textarea:focus{
-  outline: none; /* Elimina el contorno predeterminado al enfocar los campos */
-  border-color: var(--border-color); /* Cambia el color del borde al enfocar los campos */
-  background-color: var(--bg-light); /* Cambia el fondo de los campos al enfocar para mejorar la visibilidad */ 
+  outline: none;
+  border-color: var(--border-color);
+  background-color: var(--bg-light);
 }
 
 .contenedor-botones{
@@ -138,7 +138,7 @@ header nav ul li a:hover{ /* Selección para el estado hover (cuando el cursor e
 
 /* UNIFICACIÓN DE BOTONES */
 .btn{
-  padding: 5px 30px; /* Agrega un relleno interno de 10px arriba y abajo, 20px a los lados para el botón */
+  padding: 5px 30px;
   border: none;
   border-radius: 6px;
   font-weight: 600;
@@ -359,35 +359,32 @@ header nav ul li a:hover{ /* Selección para el estado hover (cuando el cursor e
 }
 
 /*---------------------------------------------------------------------------------------------------------------*/
-/* 🛡️ MODIFICACIÓN: Distribución horizontal del footer con el botón a la extrema derecha */
 footer {
  background-color: var(--primary-color);
  color: var(--bg-light);
  padding: 15px 30px;
  margin-top: auto;
  display: flex;
- flex-direction: row; /* Cambiado de column a row para alinear horizontalmente */
+ flex-direction: row;
  align-items: center;
- justify-content: space-between; /* Distribuye el espacio entre los extremos */
+ justify-content: space-between;
  gap: 15px;
  font-size: 11px;
  position: relative;
 }
 
-/* Espaciador invisible para mantener el texto de copyright exactamente centrado */
 footer::before {
  content: '';
- width: 100px; /* Ancho equivalente para balancear el botón */
+ width: 100px;
  display: block;
 }
 
 footer p {
  margin: 0;
  text-align: center;
- flex-grow: 1; /* Permite que el texto ocupe el centro */
+ flex-grow: 1;
 }
 
-/* 🛡️ MODIFICACIÓN: Estilos para el botón de cerrar sesión en el footer */
 footer #btn-logout {
  color: var(--bg-light, #ffffff);
  text-decoration: none;
@@ -652,9 +649,6 @@ footer #btn-logout:hover {
 @media (max-width: 767px) {
   .carrusel-ventana{
     overflow-x: auto;
-  }
-  .btn-flecha{
-    display: 15px;
   }
   .contenedor-tarjetas{
     gap: 15px;
