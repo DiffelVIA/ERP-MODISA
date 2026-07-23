@@ -365,16 +365,40 @@ footer{
  padding: 20px 20px;
  margin-top: auto;
  display: flex;
- flex-direction: column;
+ flex-direction: row;
  align-items: center;
- justify-content: center;
+ justify-content: space-between;
  text-align: center;
- gap: 5px;
- font-size: 10px;
+ gap: 15px;
+ font-size: 11px;
+ position: relative;
+}
+
+footer::before{
+  content: '';
+  width: 100px;
+ display: block;
 }
 
 footer p{
  margin: 0;
+ text-align: center;
+ flex-grow: 1;
+}
+
+footer #btn-logout {
+ color: var(--bg-light, --blanco);
+ text-decoration: none;
+ padding: 6px 12px;
+ border-radius: 4px;
+ font-weight: 500;
+ transition: background-color 0.2s ease, opacity 0.2s ease;
+ white-space: nowrap;
+}
+
+footer #btn-logout:hover {
+ background-color: rgba(255, 255, 255, 0.1);
+ text-decoration: underline;
 }
 
 @media (max-width: 767px) {
