@@ -9,15 +9,11 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- 🛡️ MODIFICACIÓN: Se elimina el <nav> del header para evitar confusiones de navegación -->
     <header id="header">
         <div>
             <img src="/img/logo.png" alt="logo" id="logo">
         </div>
-        <nav>
-            <ul>
-                <li><a href="#" id="btn-logout">Cerrar sesión</a></li>
-            </ul>
-        </nav>
     </header>
 
     <main class="principal-main">
@@ -146,8 +142,10 @@
         </div>
     </main>
 
+    <!-- 🛡️ MODIFICACIÓN: Se reubica el botón de cerrar sesión en el footer a la extrema derecha -->
     <footer id="footer">
         <p>Software especializado MODISA ® 2026</p>
+        <a href="#" id="btn-logout" class="btn-logout-footer">Cerrar sesión</a>
     </footer>
 
     <script src="principal.js"></script>
