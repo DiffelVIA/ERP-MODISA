@@ -1356,71 +1356,88 @@ app.get('/api/pagos', async (req, res) => {
 app.put('/api/pagos/:id/monto-pagado', async (req, res) => {
     try {
         const idOrden = req.params.id;
-        const { monto_pagado } = req.body;
-        const nuevoMonto = parseFloat(monto_pagado) || 0;
+        const { monto_pagado, compras_comment } = req.body;
 
         if (!idOrden || idOrden === 'undefined') {
             return res.status(400).json({ error: "El ID de la orden no es válido." });
         }
 
-        const [contratoInfo] = await pool.query(
-            `SELECT c.firma, c.start_date 
-             FROM payment_order_details pod
-             INNER JOIN contracts c ON LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider))
-             WHERE pod.id_payment_order = ? LIMIT 1`,
-            [idOrden]
-        );
+        if (monto_pagado !== undefined) {
+            const nuevoMonto = parseFloat(monto_pagado) || 0;
 
-        if (contratoInfo.length > 0 && contratoInfo[0].start_date) {
-            const firma = contratoInfo[0].firma ? contratoInfo[0].firma.trim().toLowerCase() : 'pendiente';
-            const esFirmado = (firma === 'firmado' || firma === 'sí' || firma === 'si');
-            
-            if (!esFirmado) {
-                const fechaContrato = new Date(contratoInfo[0].start_date);
-                const fechaActual = new Date();
+            const [contratoInfo] = await pool.query(
+                `SELECT c.firma, c.start_date 
+                 FROM payment_order_details pod
+                 INNER JOIN contracts c ON LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider))
+                 WHERE pod.id_payment_order = ? LIMIT 1`,
+                [idOrden]
+            );
+
+            if (contratoInfo.length > 0 && contratoInfo[0].start_date) {
+                const firma = contratoInfo[0].firma ? contratoInfo[0].firma.trim().toLowerCase() : 'pendiente';
+                const esFirmado = (firma === 'firmado' || firma === 'sí' || firma === 'si');
                 
-                fechaContrato.setHours(0, 0, 0, 0);
-                fechaActual.setHours(0, 0, 0, 0);
-                
-                const diferenciaDias = Math.floor((fechaActual - fechaContrato) / (1000 * 60 * 60 * 24));
-                
-                if (diferenciaDias >= 7) {
-                    return res.status(403).json({ 
-                        error: `Bloqueo Financiero: El contrato asociado tiene ${diferenciaDias} días sin firmar (alcanzó o superó el límite de 7 días). Captura deshabilitada.` 
-                    });
+                if (!esFirmado) {
+                    const fechaContrato = new Date(contratoInfo[0].start_date);
+                    const fechaActual = new Date();
+                    
+                    fechaContrato.setHours(0, 0, 0, 0);
+                    fechaActual.setHours(0, 0, 0, 0);
+                    
+                    const diferenciaDias = Math.floor((fechaActual - fechaContrato) / (1000 * 60 * 60 * 24));
+                    
+                    if (diferenciaDias >= 7) {
+                        return res.status(403).json({ 
+                            error: `Bloqueo Financiero: El contrato asociado tiene ${diferenciaDias} días sin firmar (alcanzó o superó el límite de 7 días). Captura deshabilitada.` 
+                        });
+                    }
                 }
             }
+
+            const [sumaDetalle] = await pool.query(
+                `SELECT SUM(amount) AS monto_total FROM payment_order_details WHERE id_payment_order = ?`,
+                [idOrden]
+            );
+
+            const montoTotalOrden = parseFloat(sumaDetalle[0]?.monto_total) || 0;
+
+            let nuevoStatus = 'Pendiente';
+            if (montoTotalOrden > 0 && nuevoMonto >= (montoTotalOrden - 0.01)) {
+                nuevoStatus = 'Pagado';
+            }
+
+            const updateQuery = `
+                UPDATE payment_orders 
+                SET monto_pagado = ?, status = ?
+                WHERE id_payment_order = ?
+            `;
+            await pool.query(updateQuery, [nuevoMonto, nuevoStatus, idOrden]);
+
+            return res.json({ 
+                success: true, 
+                message: `Monto y estado (${nuevoStatus}) actualizados correctamente.`,
+                status: nuevoStatus
+            });
         }
 
-        const [sumaDetalle] = await pool.query(
-            `SELECT SUM(amount) AS monto_total FROM payment_order_details WHERE id_payment_order = ?`,
-            [idOrden]
-        );
+        if (compras_comment !== undefined) {
+            const updateCommentQuery = `
+                UPDATE payment_orders 
+                SET compras_comment = ?
+                WHERE id_payment_order = ?
+            `;
+            await pool.query(updateCommentQuery, [compras_comment.trim(), idOrden]);
 
-        const montoTotalOrden = parseFloat(sumaDetalle[0]?.monto_total) || 0;
-
-        /* MODIFICADO: Tolerancia de centavos para cambio automático de estatus */
-        let nuevoStatus = 'Pendiente';
-        if (montoTotalOrden > 0 && nuevoMonto >= (montoTotalOrden - 0.01)) {
-            nuevoStatus = 'Pagado';
+            return res.json({ 
+                success: true, 
+                message: `Comentario de compras actualizado correctamente.`
+            });
         }
 
-        const updateQuery = `
-            UPDATE payment_orders 
-            SET monto_pagado = ?, status = ?
-            WHERE id_payment_order = ?
-        `;
-
-        await pool.query(updateQuery, [nuevoMonto, nuevoStatus, idOrden]);
-
-        res.json({ 
-            success: true, 
-            message: `Monto y estado (${nuevoStatus}) actualizados correctamente en la base de datos.`,
-            status: nuevoStatus
-        });
+        return res.status(400).json({ error: "No se proporcionaron campos para actualizar." });
 
     } catch (err) {
-        console.error("❌ Error crítico en el servidor al actualizar pago y estatus:", err);
+        console.error("❌ Error crítico en el servidor al actualizar orden de pago:", err);
         res.status(500).json({ error: `Error interno del servidor: ${err.message}` });
     }
 });

@@ -182,9 +182,6 @@
         }
     }
 
-    /* ==========================================================================
-       RENDERIZADO DE TABLA
-       ========================================================================== */
     function renderizarTablaPagos(listaPagos) {
         const tbody = document.querySelector(".cuerpoTabla");
         if (!tbody) return;
@@ -194,7 +191,7 @@
         if (!listaPagos || listaPagos.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="14" style="text-align:center; font-weight:bold; color:#64748b; padding: 30px;">
+                    <td colspan="16" style="text-align:center; font-weight:bold; color:#64748b; padding: 30px;">
                         🚫 No se encontraron solicitudes de pago registradas en el sistema.
                     </td>
                 </tr>`;
@@ -211,10 +208,8 @@
             const presupuestoAutorizado = parseFloat(pod.presupuesto_autorizado || 0);
             const estadoActual = pod.status || 'Pendiente';
 
-            /* MODIFICADO: Cálculo dinámico de porcentaje persistente */
             const porcentajeCalculado = montoConcepto > 0 ? Math.round((montoPagado / montoConcepto) * 100) : 0;
 
-            /* MODIFICADO: Aplicación del semáforo al Porcentaje Pagado */
             const semaforo = calcularSemaforoPresupuesto(montoPagado, presupuestoAutorizado);
 
             const firmaContrato = pod.contrato_firma ? pod.contrato_firma.trim().toLowerCase() : 'pendiente';
@@ -282,6 +277,25 @@
             }
 
             const comentarioResidente = pod.resident_comment || pod.commentary || pod.comentario || '-';
+            const comentarioComprasVal = pod.compras_comment || '';
+            let celdaComentarioComprasHTML = '';
+
+            if (puedeModificarRol) {
+                celdaComentarioComprasHTML = `
+                    <td style="text-align: center;">
+                        <input type="text" 
+                               class="input-compras-comment" 
+                               data-id="${pod.id_payment_order}"
+                               value="${comentarioComprasVal}" 
+                               placeholder="Comentario compras..."
+                               style="width: 140px; padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 12px; color: #334155;">
+                    </td>`;
+            } else {
+                celdaComentarioComprasHTML = `
+                    <td style="color: #475569; font-style: italic; font-size: 12px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${comentarioComprasVal || '-'}">
+                        ${comentarioComprasVal || '-'}
+                    </td>`;
+            }
 
             tr.innerHTML = `
                 <td>${pod.project_name || '---'}</td>
@@ -312,6 +326,7 @@
                         ${estadoActual}
                     </span>
                 </td>
+                ${celdaComentarioComprasHTML}
             `;
 
             tbody.appendChild(tr);
@@ -323,41 +338,47 @@
         if (!tbody) return;
 
         tbody.addEventListener('change', async (e) => {
-            if (!e.target.classList.contains('input-monto-pagado')) return;
+            if (e.target.classList.contains('input-monto-pagado')) {
+                const inputElement = e.target;
+                const trFila = inputElement.closest('tr');
+                if (!trFila) return;
 
-            const inputElement = e.target;
-            const trFila = inputElement.closest('tr');
-            if (!trFila) return;
+                const idOrden = inputElement.getAttribute('data-id');
+                const presupuestoAutorizado = parseFloat(inputElement.getAttribute('data-presupuesto') || 0);
+                const nuevoMontoPagado = parseFloat(inputElement.value) || 0;
 
-            const idOrden = inputElement.getAttribute('data-id');
-            const presupuestoAutorizado = parseFloat(inputElement.getAttribute('data-presupuesto') || 0);
-            const nuevoMontoPagado = parseFloat(inputElement.value) || 0;
+                const cellTotal = trFila.querySelector('.monto-total-celda');
+                const montoTotal = cellTotal ? parseFloat(cellTotal.getAttribute('data-total') || 0) : 0;
 
-            const cellTotal = trFila.querySelector('.monto-total-celda');
-            const montoTotal = cellTotal ? parseFloat(cellTotal.getAttribute('data-total') || 0) : 0;
+                const porcentajeActualizado = montoTotal > 0 ? Math.round((nuevoMontoPagado / montoTotal) * 100) : 0;
+                const semaforo = calcularSemaforoPresupuesto(nuevoMontoPagado, presupuestoAutorizado);
 
-            /* MODIFICADO: Recálculo en tiempo real de porcentaje y semáforo */
-            const porcentajeActualizado = montoTotal > 0 ? Math.round((nuevoMontoPagado / montoTotal) * 100) : 0;
-            const semaforo = calcularSemaforoPresupuesto(nuevoMontoPagado, presupuestoAutorizado);
+                const tdPorcentaje = trFila.querySelector('.porcentaje-celda')?.closest('td');
+                if (tdPorcentaje) {
+                    tdPorcentaje.innerHTML = `
+                        <strong class="porcentaje-celda" style="color: ${semaforo.color}">${porcentajeActualizado}%</strong>
+                        ${semaforo.textoAlerta}
+                    `;
+                }
 
-            const tdPorcentaje = trFila.querySelector('.porcentaje-celda')?.closest('td');
-            if (tdPorcentaje) {
-                tdPorcentaje.innerHTML = `
-                    <strong class="porcentaje-celda" style="color: ${semaforo.color}">${porcentajeActualizado}%</strong>
-                    ${semaforo.textoAlerta}
-                `;
+                const esPagado = montoTotal > 0 && nuevoMontoPagado >= (montoTotal - 0.01);
+                const badgeEstado = trFila.querySelector('.badge-status-pago');
+                if (badgeEstado) {
+                    badgeEstado.textContent = esPagado ? 'Pagado' : 'Pendiente';
+                    badgeEstado.style.backgroundColor = esPagado ? '#16a34a' : '#eab308';
+                }
+
+                await guardarMontoPagadoEnBD(idOrden, nuevoMontoPagado, trFila);
             }
 
-            /* MODIFICADO: Actualización visual inmediata de estado en la fila */
-            const esPagado = montoTotal > 0 && nuevoMontoPagado >= (montoTotal - 0.01);
-            const badgeEstado = trFila.querySelector('.badge-status-pago');
-            if (badgeEstado) {
-                badgeEstado.textContent = esPagado ? 'Pagado' : 'Pendiente';
-                badgeEstado.style.backgroundColor = esPagado ? '#16a34a' : '#eab308';
-            }
+            if (e.target.classList.contains('input-compras-comment')) {
+                const inputElement = e.target;
+                const trFila = inputElement.closest('tr');
+                const idOrden = inputElement.getAttribute('data-id');
+                const comentarioTexto = inputElement.value;
 
-            // Persistencia en Backend
-            await guardarMontoPagadoEnBD(idOrden, nuevoMontoPagado, trFila);
+                await guardarComentarioComprasEnBD(idOrden, comentarioTexto, trFila);
+            }
         });
     }
 
@@ -372,7 +393,6 @@
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Error al actualizar el registro.');
             
-            // Actualizar arreglo local en memoria para mantener sincronizado con los filtros
             const registroLocal = todosLosPagos.find(p => String(p.id_payment_order) === String(idOrden));
             if (registroLocal) {
                 registroLocal.monto_pagado = monto;
@@ -391,6 +411,30 @@
             console.error("❌ Error en persistencia transaccional:", error);
             alert(`Error al guardar: ${error.message}`);
             cargarPagosSolicitados(); 
+        }
+    }
+
+    async function guardarComentarioComprasEnBD(idOrden, comentarioTexto, trElemento) {
+        try {
+            const response = await fetch(`${API_BASE}/pagos/${idOrden}/monto-pagado`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ compras_comment: comentarioTexto })
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Error al guardar el comentario.');
+
+            const registroLocal = todosLosPagos.find(p => String(p.id_payment_order) === String(idOrden));
+            if (registroLocal) {
+                registroLocal.compras_comment = comentarioTexto;
+            }
+
+            trElemento.style.backgroundColor = "#eaffea";
+            setTimeout(() => trElemento.style.backgroundColor = "", 600);
+        } catch (error) {
+            console.error("❌ Error al guardar comentario de compras:", error);
+            alert(`Error al guardar comentario: ${error.message}`);
         }
     }
 })();
