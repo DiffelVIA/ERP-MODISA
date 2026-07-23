@@ -286,7 +286,6 @@ app.put('/api/auth/reset-password', async (req, res) => {
   }
 });
 
-//Envio de ticket a carpeta de Drive
 async function subirArchivoADrive(fileObject, idCarpetaDrive) {
   try {
     const fileMetadata = {
@@ -302,26 +301,19 @@ async function subirArchivoADrive(fileObject, idCarpetaDrive) {
     const response = await drive.files.create({
       requestBody: fileMetadata,
       media: media,
+      supportsAllDrives: true,
+      supportsTeamDrives: true,
       fields: 'id, webViewLink',
     });
 
-    if (response.data && response.data.id) {
-      await drive.permissions.create({
-        fileId: response.data.id,
-        requestBody: {
-          role: 'reader',
-          type: 'anyone',
-        },
-      });
-    }
-
-    if (fs.existsSync(fileObject.path)) {
+    if (fileObject && fileObject.path && fs.existsSync(fileObject.path)) {
       fs.unlinkSync(fileObject.path);
     }
 
     return response.data.webViewLink;
   } catch (error) {
     console.error("❌ Error interno en la subida a Google Drive API:", error);
+    
     if (fileObject && fileObject.path && fs.existsSync(fileObject.path)) {
       fs.unlinkSync(fileObject.path);
     }
@@ -1263,7 +1255,7 @@ app.post('/api/pagos', upload.single('ticketFile'), async (req, res) => {
   let urlDestinoFinal = null;
   if (req.file) {
     try {
-      const ID_CARPETA_DRIVE_TARGET = '1EDUH7xLfrpDus1CygJNBI0to32St9HXR'; 
+      const ID_CARPETA_DRIVE_TARGET = '1T_WFb1LnEgzUk-eyNjv-qKW3XR5jAR1K'; 
       
       console.log("📤 Subiendo ticket de caja chica hacia Google Drive...");
       urlDestinoFinal = await subirArchivoADrive(req.file, ID_CARPETA_DRIVE_TARGET);
