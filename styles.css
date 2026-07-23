@@ -359,35 +359,37 @@ header nav ul li a:hover{ /* Selección para el estado hover (cuando el cursor e
 }
 
 /*---------------------------------------------------------------------------------------------------------------*/
-footer{
+/* 🛡️ MODIFICACIÓN: Distribución horizontal del footer con el botón a la extrema derecha */
+footer {
  background-color: var(--primary-color);
  color: var(--bg-light);
- padding: 20px 20px;
+ padding: 15px 30px;
  margin-top: auto;
  display: flex;
- flex-direction: row;
+ flex-direction: row; /* Cambiado de column a row para alinear horizontalmente */
  align-items: center;
- justify-content: space-between;
- text-align: center;
+ justify-content: space-between; /* Distribuye el espacio entre los extremos */
  gap: 15px;
  font-size: 11px;
  position: relative;
 }
 
-footer::before{
-  content: '';
-  width: 100px;
+/* Espaciador invisible para mantener el texto de copyright exactamente centrado */
+footer::before {
+ content: '';
+ width: 100px; /* Ancho equivalente para balancear el botón */
  display: block;
 }
 
-footer p{
+footer p {
  margin: 0;
  text-align: center;
- flex-grow: 1;
+ flex-grow: 1; /* Permite que el texto ocupe el centro */
 }
 
+/* 🛡️ MODIFICACIÓN: Estilos para el botón de cerrar sesión en el footer */
 footer #btn-logout {
- color: var(--bg-light, --blanco);
+ color: var(--bg-light, #ffffff);
  text-decoration: none;
  padding: 6px 12px;
  border-radius: 4px;
