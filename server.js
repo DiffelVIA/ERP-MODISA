@@ -769,13 +769,11 @@ app.get('/api/materiales', async (req, res) => {
 });
 
 app.post('/api/materiales', async (req, res) => {
-  const { id_project, id_employee, order_date, fiscal_week, materiales } = req.body;
+  // 🛡️ MODIFICACIÓN: Ya no se desestructura id_project de la raíz, pues cada material trae su propio id_project
+  const { id_employee, order_date, fiscal_week, materiales } = req.body;
   
   console.log("📥 Datos recibidos en el Backend:", req.body);
 
-  if (id_project === undefined || id_project === null || isNaN(id_project)) {
-    return res.status(400).json({ error: 'El campo id_project es inválido o está vacío.' });
-  }
   if (id_employee === undefined || id_employee === null || isNaN(id_employee)) {
     return res.status(400).json({ error: 'El campo id_employee es inválido o está vacío.' });
   }
@@ -793,30 +791,49 @@ app.post('/api/materiales', async (req, res) => {
   try {
     await connection.beginTransaction();
 
-    const [resOrder] = await connection.query(
-      `INSERT INTO material_orders (id_project, id_employee, order_date, fiscal_week) VALUES (?, ?, ?, ?)`,
-      [id_project, id_employee, order_date, fiscal_week]
-    );
-    const id_order = resOrder.insertId;
+    // 🛡️ MODIFICACIÓN: Agrupar los materiales por su id_project correspondiente
+    const materialesPorProyecto = materiales.reduce((acc, mat) => {
+      const idProj = mat.id_project;
+      if (!idProj || isNaN(idProj)) {
+        throw new Error(`El material "${mat.material_description}" no tiene un id_project válido.`);
+      }
+      if (!acc[idProj]) {
+        acc[idProj] = [];
+      }
+      acc[idProj].push(mat);
+      return acc;
+    }, {});
 
+    const queryOrder = `INSERT INTO material_orders (id_project, id_employee, order_date, fiscal_week) VALUES (?, ?, ?, ?)`;
     const queryDetails = `
       INSERT INTO order_details 
         (id_order, id_project_category, material_description, unit, quantity, commentary, status, unit_price) 
       VALUES (?, ?, ?, ?, ?, ?, 'Pendiente', 0.00)
     `;
 
-    for (const mat of materiales) {
-      if (!mat.id_project_category) {
-        throw new Error(`El material "${mat.material_description}" no tiene una categoría válida.`);
-      }
-      await connection.query(queryDetails, [
-        id_order, 
-        mat.id_project_category, 
-        mat.material_description, 
-        mat.unit, 
-        mat.quantity, 
-        mat.commentary
+    // 🛡️ MODIFICACIÓN: Iterar por cada obra/proyecto y generar su orden con sus respectivos detalles
+    for (const [id_project, listaMats] of Object.entries(materialesPorProyecto)) {
+      const [resOrder] = await connection.query(queryOrder, [
+        id_project, 
+        id_employee, 
+        order_date, 
+        fiscal_week
       ]);
+      const id_order = resOrder.insertId;
+
+      for (const mat of listaMats) {
+        if (!mat.id_project_category) {
+          throw new Error(`El material "${mat.material_description}" no tiene una categoría válida.`);
+        }
+        await connection.query(queryDetails, [
+          id_order, 
+          mat.id_project_category, 
+          mat.material_description, 
+          mat.unit, 
+          mat.quantity, 
+          mat.commentary
+        ]);
+      }
     }
 
     await connection.commit();

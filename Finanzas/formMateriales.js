@@ -174,7 +174,7 @@
 
         listaMateriales.push(nuevoMaterial);
         renderizarMiniTabla();
-        alert(`✅ "${descripcion}" (${nombreProyecto}) añadido al lote.`);
+        alert(`✅ "${descripcion}" (${nombreProyecto}) añadido a la lista.`);
 
         document.getElementById('descripcion').value = '';
         document.getElementById('cantidad').value = '';
