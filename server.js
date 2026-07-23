@@ -1316,12 +1316,8 @@ app.get('/api/pagos', async (req, res) => {
                 po.payment_type,
                 po.payment_method,
                 po.ticket_url,
-                /* ==========================================================================
-                   MODIFICACIÓN: SE INCLUYEN LOS COMENTARIOS EN EL SELECT
-                   ========================================================================== */
                 po.commentary AS resident_comment,
                 po.compras_comment AS compras_comment,
-                /* ========================================================================== */
                 pc.grupo AS grupo,
                 pc.categoria AS categoria,
                 pc.subcategoria AS subcategoria,
@@ -1355,7 +1351,7 @@ app.get('/api/pagos', async (req, res) => {
 
     } catch (err) {
         console.error("❌ Error en la consulta SQL detallada de pagos:", err);
-        res.status(500).json({ error: "Error interno del servidor al consultar pagos" });
+        res.status(500).json({ error: "Error interno del servidor al consultar pagos", detalle: err.message });
     }
 });
 
