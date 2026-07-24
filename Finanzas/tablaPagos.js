@@ -64,9 +64,6 @@
         }
     }
 
-    /* ==========================================================================
-       MODIFICACIÓN: FILTRO DE FECHA DEPENDIENTE DE LA SEMANA SELECCIONADA
-       ========================================================================== */
     function poblarFiltrosEfectivos(lista) {
         const extraerUnicos = (keyExtractor) => Array.from(new Set(lista.map(keyExtractor).filter(Boolean))).sort();
 
@@ -79,8 +76,6 @@
         llenarDropdownHTML('filtroForma', formas, 'forma');
         llenarDropdownHTML('filtroEstado', estados, 'estado');
         llenarDropdownHTML('filtroSemana', semanas, 'semana');
-
-        // Inicializar el filtro de fechas en función de las semanas elegidas
         poblarFiltroFecha(lista);
     }
 
@@ -88,17 +83,14 @@
         const contenedorFecha = document.getElementById('filtroFecha');
         if (!contenedorFecha) return;
 
-        // Obtener semanas marcadas actualmente en el DOM
         const semanasSeleccionadas = Array.from(
             document.querySelectorAll('.filtro-chk[data-group="semana"]:checked')
         ).map(c => c.value);
 
-        // Guardar qué fechas estaban ya marcadas para no perder la selección activa
         const fechasPreviamenteSeleccionadas = Array.from(
             document.querySelectorAll('.filtro-chk[data-group="fecha"]:checked')
         ).map(c => c.value);
 
-        // REGLA DE NEGOCIO: Si no se ha elegido semana, solicitar la selección primero
         if (semanasSeleccionadas.length === 0) {
             contenedorFecha.innerHTML = `
                 <div style="padding: 10px; color: #64748b; font-size: 11px; font-style: italic; text-align: center;">
@@ -108,13 +100,11 @@
             return;
         }
 
-        // Filtrar pagos que pertenezcan a las semanas seleccionadas
         const pagosFiltradosPorSemana = lista.filter(item => {
             const semanaTxt = item.fiscal_week ? `Semana ${item.fiscal_week}` : '';
             return semanasSeleccionadas.includes(semanaTxt);
         });
 
-        // Extraer solo las fechas únicas de esas semanas
         const fechasUnicas = Array.from(
             new Set(
                 pagosFiltradosPorSemana
@@ -147,7 +137,6 @@
     }
 
     function aplicarFiltrosMultiples() {
-        // Al interactuar con los filtros, re-evaluamos la lista de fechas disponibles por semana
         poblarFiltroFecha(todosLosPagos);
 
         const obtenerSeleccionados = (group) => 
@@ -175,7 +164,6 @@
 
         renderizarTablaPagos(filtrados);
     }
-    /* ========================================================================== */
 
     function inicializarEventosFiltros() {
         document.querySelectorAll('.contenedorFiltros .filtros').forEach(grupo => {
@@ -360,7 +348,7 @@
                     <td style="text-align: center;">
                         <input type="text" 
                             class="input-compras-comment" 
-                            data-id="${pod.id_payment_order}"
+                            data-id="${pod.id_payment_detail}" 
                             value="${comentarioComprasVal}" 
                             placeholder="Comentario compras..."
                             style="width: 140px; padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 12px; color: #334155;">
@@ -490,9 +478,9 @@
         }
     }
 
-    async function guardarComentarioComprasEnBD(idOrden, comentarioTexto, trElemento) {
+    async function guardarComentarioComprasEnBD(idDetalle, comentarioTexto, trElemento) {
         try {
-            const response = await fetch(`${API_BASE}/pagos/${idOrden}/monto-pagado`, {
+            const response = await fetch(`${API_BASE}/pagos/${idDetalle}/monto-pagado`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ compras_comment: comentarioTexto })
@@ -501,7 +489,7 @@
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Error al guardar el comentario.');
 
-            const registroLocal = todosLosPagos.find(p => String(p.id_payment_order) === String(idOrden));
+            const registroLocal = todosLosPagos.find(p => String(p.id_payment_detail) === String(idDetalle));
             if (registroLocal) {
                 registroLocal.compras_comment = comentarioTexto;
             }

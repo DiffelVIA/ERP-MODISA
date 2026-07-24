@@ -1480,15 +1480,15 @@ app.put('/api/pagos/:id/monto-pagado', async (req, res) => {
 
         if (compras_comment !== undefined) {
             const updateCommentQuery = `
-                UPDATE payment_orders 
+                UPDATE payment_order_details 
                 SET compras_comment = ?
-                WHERE id_payment_order = ?
+                WHERE id_payment_detail = ?
             `;
             await pool.query(updateCommentQuery, [compras_comment.trim(), idOrden]);
 
             return res.json({ 
                 success: true, 
-                message: `Comentario de compras actualizado correctamente.`
+                message: `Comentario de compras actualizado correctamente para la fila.`
             });
         }
 
