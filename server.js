@@ -1348,96 +1348,115 @@ app.post('/api/pagos', upload.fields([
 
     console.log(`📝 Insertando Cabecera de Pagos ID: #${id_payment_order}. Total conceptos a procesar: ${listaConceptos.length}`);
 
-  const queryDetails = `
-    INSERT INTO payment_order_details 
-      (id_payment_order, id_project, id_project_category, payment_type, payment_method, provider, concept_description, amount, commentary) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `;
+    const queryDetails = `
+      INSERT INTO payment_order_details 
+        (id_payment_order, id_project, id_project_category, payment_type, payment_method, provider, concept_description, amount, commentary) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
 
-  for (const item of listaConceptos) {
-    const comentarioLimpiado = item.commentary || item.comment || item.comentario || null;
+    for (const item of listaConceptos) {
+      const comentarioLimpiado = item.commentary || item.comment || item.comentario || null;
 
-    await connection.query(queryDetails, [
-      id_payment_order, 
-      item.id_project || id_project,
-      item.id_project_category || null, 
-      item.payment_type || payment_type,
-      item.payment_method || payment_method,
-      item.provider_name || item.provider || null, 
-      item.concept_description || item.concept || null, 
-      item.amount, 
-      comentarioLimpiado
-    ]);
-  }
-
-  await connection.commit();
-  console.log(`💾 ¡Éxito! Guardada solicitud de pago ID #${id_payment_order} en la nube.`);
-  (async () => {
-    try {
-      console.log("✉️ Enviando correo a través de la API oficial de Gmail (Googleapis)...");
-
-      const montoTotal = listaConceptos.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
-      const correoDestino = process.env.RESPONSABLE_PAGOS_EMAIL || process.env.GMAIL_USER;
-
-      const MailComposer = require('nodemailer/lib/mail-composer');
-      
-      const adjuntos = [];
-      if (excelFile) {
-        const bufferExcel = excelFile.buffer || (excelFile.path && fs.existsSync(excelFile.path) ? fs.readFileSync(excelFile.path) : null);
-        if (bufferExcel) {
-          adjuntos.push({
-            filename: excelFile.originalname || `Desglose_ManoDeObra_Folio_${id_payment_order}.xlsx`,
-            content: bufferExcel
-          });
-        }
-      }
-
-      const mail = new MailComposer({
-        from: `ERP MODISA <${process.env.GMAIL_USER}>`,
-        to: correoDestino,
-        subject: `📌 Nueva Solicitud de Pago - Sem. ${fiscal_week}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-            <h2 style="color: #1e3a8a;">Solicitud de Pago</h2>
-            
-            <table style="width: 100%; border-collapse: collapse; margin: 15px 0; border: 1px solid #e2e8f0;">
-              <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Semana Fiscal:</td><td style="padding: 8px;">Semana ${fiscal_week}</td></tr>
-              <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Fecha:</td><td style="padding: 8px;">${request_date}</td></tr>
-              <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Monto Total:</td><td style="padding: 8px; color: #16a34a; font-weight: bold;">$${montoTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td></tr>
-            </table>
-
-            ${urlDestinoFinal ? `<p>🔗 <a href="${urlDestinoFinal}" target="_blank">Ver Ticket en Google Drive</a></p>` : ''}
-            
-            <hr style="border: none; border-top: 1px solid #e2e8f0; margin-top: 20px;">
-            <p style="font-size: 11px; color: #64748b;">Notificación automática del sistema ERP MODISA.</p>
-          </div>
-        `,
-        attachments: adjuntos
-      });
-
-      const messageBuffer = await mail.compile().build();
-      const encodedMessage = messageBuffer
-        .toString('base64')
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
-
-      const responseGmail = await gmail.users.messages.send({
-        userId: 'me',
-        requestBody: {
-          raw: encodedMessage
-        }
-      });
-
-      console.log(`📧 ¡Correo enviado con éxito mediante Gmail API! ID de mensaje: ${responseGmail.data.id}`);
-    } catch (errEmail) {
-      console.error("❌ Error al enviar el correo mediante Gmail API:", errEmail);
-    } finally {
-      limpiarArchivosTemporales();
+      await connection.query(queryDetails, [
+        id_payment_order, 
+        item.id_project || id_project,
+        item.id_project_category || null, 
+        item.payment_type || payment_type,
+        item.payment_method || payment_method,
+        item.provider_name || item.provider || null, 
+        item.concept_description || item.concept || null, 
+        item.amount, 
+        comentarioLimpiado
+      ]);
     }
-  })();
 
-  res.json({ status: 'success', mensaje: 'Solicitud de pago guardada con éxito en la base de datos.' });
+    await connection.commit();
+    console.log(`💾 ¡Éxito! Guardada solicitud de pago ID #${id_payment_order} en la nube.`);
+
+    let datosSolicitante = { name: 'Solicitante ERP', email: process.env.GMAIL_USER };
+    try {
+      const [empRows] = await pool.query(
+        'SELECT name, email FROM employees WHERE id_employee = ?',
+        [id_employee]
+      );
+      if (empRows.length > 0) {
+        datosSolicitante = empRows[0];
+      }
+    } catch (errEmp) {
+      console.error("⚠️ No se pudo obtener el detalle del empleado solicitante:", errEmp.message);
+    }
+
+    (async () => {
+      try {
+        console.log("✉️ Enviando correo a través de la API oficial de Gmail (Googleapis)...");
+
+        const montoTotal = listaConceptos.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
+        const correoDestino = process.env.RESPONSABLE_PAGOS_EMAIL || process.env.GMAIL_USER;
+
+        const MailComposer = require('nodemailer/lib/mail-composer');
+        
+        const adjuntos = [];
+        if (excelFile) {
+          const bufferExcel = excelFile.buffer || (excelFile.path && fs.existsSync(excelFile.path) ? fs.readFileSync(excelFile.path) : null);
+          if (bufferExcel) {
+            adjuntos.push({
+              filename: excelFile.originalname || `Desglose_ManoDeObra_Folio_${id_payment_order}.xlsx`,
+              content: bufferExcel
+            });
+          }
+        }
+
+        const mail = new MailComposer({
+          from: `"${datosSolicitante.name} (ERP MODISA)" <${process.env.GMAIL_USER}>`,
+          replyTo: `"${datosSolicitante.name}" <${datosSolicitante.email}>`,
+          to: correoDestino,
+          subject: `📌 Nueva Solicitud de Pago #${id_payment_order} - Sem. ${fiscal_week}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+              <h2 style="color: #1e3a8a;">📝 Nueva Solicitud de Pago</h2>
+              
+              <table style="width: 100%; border-collapse: collapse; margin: 15px 0; border: 1px solid #e2e8f0;">
+                <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Folio:</td><td style="padding: 8px;">#${id_payment_order}</td></tr>
+                <!-- MODIFICACIÓN: Se agrega el Solicitante con su correo al cuerpo del correo -->
+                <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Solicitante:</td><td style="padding: 8px;">${datosSolicitante.name} (&lt;${datosSolicitante.email}&gt;)</td></tr>
+                <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Tipo de Pago:</td><td style="padding: 8px;">${payment_type}</td></tr>
+                <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Semana Fiscal:</td><td style="padding: 8px;">Semana ${fiscal_week}</td></tr>
+                <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Fecha:</td><td style="padding: 8px;">${request_date}</td></tr>
+                <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Monto Total:</td><td style="padding: 8px; color: #16a34a; font-weight: bold;">$${montoTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td></tr>
+              </table>
+
+              ${urlDestinoFinal ? `<p>🔗 <a href="${urlDestinoFinal}" target="_blank">Ver Ticket en Google Drive</a></p>` : ''}
+              
+              <hr style="border: none; border-top: 1px solid #e2e8f0; margin-top: 20px;">
+              <p style="font-size: 11px; color: #64748b;">Notificación automática del sistema ERP MODISA.</p>
+            </div>
+          `,
+          attachments: adjuntos
+        });
+
+        const messageBuffer = await mail.compile().build();
+        const encodedMessage = messageBuffer
+          .toString('base64')
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+
+        const responseGmail = await gmail.users.messages.send({
+          userId: 'me',
+          requestBody: {
+            raw: encodedMessage
+          }
+        });
+
+        console.log(`📧 ¡Correo enviado con éxito mediante Gmail API! ID de mensaje: ${responseGmail.data.id}`);
+      } catch (errEmail) {
+        console.error("❌ Error al enviar el correo mediante Gmail API:", errEmail);
+      } finally {
+        limpiarArchivosTemporales();
+      }
+    })();
+
+    res.json({ status: 'success', mensaje: 'Solicitud de pago guardada con éxito en la base de datos.' });
 
   } catch (error) {
     await connection.rollback();
