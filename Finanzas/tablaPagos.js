@@ -193,29 +193,26 @@
         }
     }
 
-    function calcularSemaforoPresupuesto(montoPagadoAcumulado, presupuestoAutorizado) {
-        if (!presupuestoAutorizado || presupuestoAutorizado <= 0) {
-            return { color: '#1e293b', textoAlerta: '', porcentaje: 0 };
+    function calcularSemaforoPresupuesto(montoPagado, montoConcepto) {
+        if (!montoConcepto || montoConcepto <= 0) {
+            return { color: '#1e293b', porcentaje: 0 };
         }
 
-        const porcentajeConsumido = (montoPagadoAcumulado / presupuestoAutorizado) * 100;
+        const porcentajeConsumido = (montoPagado / montoConcepto) * 100;
         const porcentajeRedondeado = Math.round(porcentajeConsumido);
 
         let colorSemaforo = '#16a34a';
-        let textoAlerta = '';
 
-        if (porcentajeConsumido > 90) {
+        if (porcentajeConsumido > 100) {
             colorSemaforo = '#dc2626';
-            if (montoPagadoAcumulado > presupuestoAutorizado) {
-                textoAlerta = `<br><span style="font-size: 10px; color: #dc2626; font-weight: bold;">⚠️ Excedido ($${presupuestoAutorizado.toLocaleString('es-MX', {minimumFractionDigits: 2})})</span>`;
-            }
         } else if (porcentajeConsumido > 75) {
             colorSemaforo = '#d97706';
+        } else if (porcentajeConsumido === 0) {
+            colorSemaforo = '#64748b';
         }
 
         return {
             color: colorSemaforo,
-            textoAlerta: textoAlerta,
             porcentaje: porcentajeRedondeado
         };
     }
@@ -266,10 +263,7 @@
             const montoPagado = parseFloat(pod.monto_pagado || 0);
             const presupuestoAutorizado = parseFloat(pod.presupuesto_autorizado || 0);
             const estadoActual = pod.status || 'Pendiente';
-            const claveAgrupacion = `${pod.project_name || ''}_${pod.grupo || ''}_${pod.categoria || ''}_${pod.subcategoria || ''}_${pod.payment_type || ''}`;
-            const montoPagadoAcumulado = acumuladosPorSubcategoria[claveAgrupacion] || montoPagado;
-            const semaforo = calcularSemaforoPresupuesto(montoPagadoAcumulado, presupuestoAutorizado);
-            const porcentajeCalculado = montoConcepto > 0 ? Math.round((montoPagado / montoConcepto) * 100) : 0;
+            const semaforo = calcularSemaforoPresupuesto(montoPagado, montoConcepto);
             const firmaContrato = pod.contrato_firma ? pod.contrato_firma.trim().toLowerCase() : 'pendiente';
             const estaFirmado = (firmaContrato === 'firmado' || firmaContrato === 'sí' || firmaContrato === 'si');
             
@@ -380,11 +374,12 @@
                     $${montoConcepto.toLocaleString('es-MX', {minimumFractionDigits: 2})}
                 </td>
                 ${celdaMontoPagadoHTML}
+                
+                <!-- MODIFICACIÓN: Muestra únicamente el número con el color correspondiente sin etiquetas de texto -->
                 <td style="text-align: center;">
-                    <!-- El color de la fuente responde al semáforo presupuestal acumulado (<=75% Verde, 75-90% Amarillo, >90% Rojo) -->
-                    <strong class="porcentaje-celda" style="color: ${semaforo.color}">${porcentajeCalculado}%</strong>
-                    ${semaforo.textoAlerta}
+                    <strong class="porcentaje-celda" style="color: ${semaforo.color}">${semaforo.porcentaje}%</strong>
                 </td>
+                
                 <td style="text-align: center;">
                     <span class="badge-status-pago" style="padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #fff; background-color: ${estadoActual === 'Pagado' ? '#16a34a' : '#eab308'}">
                         ${estadoActual}
@@ -415,13 +410,12 @@
                 const montoTotal = cellTotal ? parseFloat(cellTotal.getAttribute('data-total') || 0) : 0;
 
                 const porcentajeActualizado = montoTotal > 0 ? Math.round((nuevoMontoPagado / montoTotal) * 100) : 0;
-                const semaforo = calcularSemaforoPresupuesto(nuevoMontoPagado, presupuestoAutorizado);
+                const semaforo = calcularSemaforoPresupuesto(nuevoMontoPagado, montoTotal);
 
                 const tdPorcentaje = trFila.querySelector('.porcentaje-celda')?.closest('td');
                 if (tdPorcentaje) {
                     tdPorcentaje.innerHTML = `
-                        <strong class="porcentaje-celda" style="color: ${semaforo.color}">${porcentajeActualizado}%</strong>
-                        ${semaforo.textoAlerta}
+                        <strong class="porcentaje-celda" style="color: ${semaforo.color}">${semaforo.porcentaje}%</strong>
                     `;
                 }
 
