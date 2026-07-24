@@ -474,7 +474,6 @@
                     <strong>[${concept.nombre_proyecto || 'Proyecto'}]</strong> ${concept.concept_description}<br>
                     <small style="color: #666;">
                         Prov: ${concept.provider_name} | ${concept.payment_type} (${concept.payment_method})
-                        /* MODIFICACIÓN: Renderizar emoji según el tipo de archivo adjuntado */
                         ${concept.ticketFile ? ' 📸' : ''}
                         ${concept.excelFile ? ' 📊' : ''}
                     </small>
