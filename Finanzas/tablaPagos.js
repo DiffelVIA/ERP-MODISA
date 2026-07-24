@@ -333,7 +333,7 @@
                     </a>`;
             }
 
-            const comentarioResidente = pod.resident_comment || pod.commentary || pod.comentario || '-';
+            const comentarioResidente = pod.commentary || pod.resident_comment || pod.comentario || '-';
             const comentarioComprasVal = pod.compras_comment || '';
             let celdaComentarioComprasHTML = '';
 
