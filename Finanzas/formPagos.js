@@ -365,33 +365,96 @@
             return;
         }
 
+        const idProyecto = document.getElementById('proyecto').value;
+        const inputSolicitanteElem = document.getElementById('solicitante');
+        const idSolicitante = inputSolicitanteElem 
+            ? (inputSolicitanteElem.getAttribute('data-id') || inputSolicitanteElem.value)
+            : null;
+        const fecha = document.getElementById('fecha').value;
+        const semanaTexto = document.getElementById('semana-fiscal').value;
+
+        if (!idProyecto || !idSolicitante || !fecha || !semanaTexto) {
+            alert('⚠️ Campos de orden incompletos: Valida que Proyecto, Solicitante y Fecha estén seleccionados.');
+            return;
+        }
+
         const btnEnviar = document.querySelector('[data-action="enviar"]');
         const textoOriginalBtn = btnEnviar ? btnEnviar.innerHTML : '🚀 Enviar Solicitud';
 
-        /* MODIFICACIÓN: Deshabilitar el botón y mostrar estado de carga */
         if (btnEnviar) {
             btnEnviar.disabled = true;
             btnEnviar.innerHTML = '⏳ Guardando Solicitud...';
         }
 
-        try {
-            // ... (resto de la lectura de campos y armado de FormData) ...
+        const semanaNumero = parseInt(semanaTexto.replace(/[^0-9]/g, '')) || 0;
+        const primerConcepto = listaConceptosPagos[0];
+        const paymentTypeHeader = primerConcepto.payment_type || '';
+        const paymentMethodHeader = primerConcepto.payment_method || '';
+        const conceptoConTicket = listaConceptosPagos.find(c => c.ticketFile);
+        const conceptoConExcel = listaConceptosPagos.find(c => c.excelFile);
+        const conceptosSinArchivo = listaConceptosPagos.map(({ ticketFile, excelFile, ...resto }) => resto);
 
+        const formData = new FormData();
+        formData.append('id_project', parseInt(idProyecto));
+        formData.append('id_employee', parseInt(idSolicitante));
+        formData.append('request_date', fecha);
+        formData.append('fiscal_week', semanaNumero);
+        formData.append('payment_type', paymentTypeHeader);
+        formData.append('payment_method', paymentMethodHeader);
+        formData.append('conceptos', JSON.stringify(conceptosSinArchivo));
+
+        if (conceptoConTicket && conceptoConTicket.ticketFile) {
+            formData.append('ticketFile', conceptoConTicket.ticketFile);
+        }
+        if (conceptoConExcel && conceptoConExcel.excelFile) {
+            formData.append('excelFile', conceptoConExcel.excelFile);
+        }
+
+        try {
             const res = await fetch(`${API_URL}/pagos`, {
                 method: 'POST',
                 body: formData
             });
 
-            // ... (procesamiento de la respuesta) ...
+            const contentType = res.headers.get('content-type') || '';
+            let datos = {};
+
+            if (contentType.includes('application/json')) {
+                datos = await res.json();
+            } else {
+                const textoError = await res.text();
+                throw new Error(`El servidor respondió con un error no estructurado (${res.status}). Detalle: ${textoError.substring(0, 150)}...`);
+            }
+
+            if (!res.ok) throw new Error(datos.error || 'Error en el servidor.');
 
             alert(`🚀 ¡Solicitud de pago guardada con éxito!`);
             
-            // ... (limpieza y resets del formulario) ...
+            listaConceptosPagos = [];
+            document.getElementById('form-requisicion').reset();
+            
+            establecerSolicitanteLogueado();
+            restaurarControlesCascada(true);
+            
+            const bloqueTicket = document.getElementById('bloque-ticket');
+            const bloqueClave = document.getElementById('bloque-clave-contrato');
+            if (bloqueTicket) bloqueTicket.style.display = 'none';
+            if (bloqueClave) bloqueClave.style.display = 'none';
 
+            const inputProveedor = document.getElementById('proveedor');
+            if (inputProveedor) {
+                inputProveedor.value = '';
+                inputProveedor.readOnly = false;
+                inputProveedor.style.backgroundColor = '';
+                inputProveedor.style.cursor = '';
+                inputProveedor.placeholder = "Nombre del proveedor o comercio";
+            }
+            
+            inicializarCamposFechas();
+            renderizarMiniTabla();
         } catch (error) {
             alert(`❌ Error al guardar la solicitud: ${error.message}`);
         } finally {
-            /* MODIFICACIÓN: Restaurar el estado original del botón */
             if (btnEnviar) {
                 btnEnviar.disabled = false;
                 btnEnviar.innerHTML = textoOriginalBtn;
