@@ -253,6 +253,12 @@
     function añadirConceptoALista(e) {
         if (e) e.preventDefault();
 
+        const selectProyecto = document.getElementById('proyecto');
+        const idProyectoSel = selectProyecto ? selectProyecto.value : '';
+        const nombreProyectoSel = (selectProyecto && selectProyecto.selectedIndex >= 0) 
+            ? selectProyecto.options[selectProyecto.selectedIndex].text 
+            : '';
+
         const inputConcepto = document.getElementById('conceptoPago');
         const inputMonto = document.getElementById('monto');
         const inputComentario = document.getElementById('comentario');
@@ -273,8 +279,8 @@
         const tipo = selectTipo ? selectTipo.value : '';
         const formaPago = selectFormaPago ? selectFormaPago.value : '';
 
-        if (!tipo || !formaPago || !concepto || isNaN(monto) || monto <= 0 || !grupo || !categoria || !subcategoria || !proveedor) {
-            alert('⚠️ Error: Completa todos los campos obligatorios (Tipo, Forma de Pago, Grupo, Categoría, Subcategoría, Proveedor, Concepto y Monto).');
+        if (!idProyectoSel || !tipo || !formaPago || !concepto || isNaN(monto) || monto <= 0 || !grupo || !categoria || !subcategoria || !proveedor) {
+            alert('⚠️ Error: Completa todos los campos obligatorios (Proyecto, Tipo, Forma de Pago, Grupo, Categoría, Subcategoría, Proveedor, Concepto y Monto).');
             return;
         }
 
@@ -296,6 +302,8 @@
         }
 
         const nuevoConcepto = {
+            id_project: parseInt(idProyectoSel),
+            nombre_proyecto: nombreProyectoSel,
             id_project_category: idCategoryFinal, 
             payment_type: tipo,
             payment_method: formaPago,
@@ -446,7 +454,7 @@
             
             tr.innerHTML = `
                 <td>
-                    <strong>${concept.concept_description}</strong><br>
+                    <strong>[${concept.nombre_proyecto || 'Proyecto'}]</strong> ${concept.concept_description}<br>
                     <small style="color: #666;">
                         Prov: ${concept.provider_name} | ${concept.payment_type} (${concept.payment_method})
                         ${concept.ticketFile ? ' 📸' : ''}

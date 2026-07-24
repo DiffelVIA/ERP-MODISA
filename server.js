@@ -1331,13 +1331,14 @@ app.post('/api/pagos', upload.single('ticketFile'), async (req, res) => {
 
     const queryDetails = `
       INSERT INTO payment_order_details 
-        (id_payment_order, id_project_category, payment_type, payment_method, provider, concept_description, amount, commentary) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (id_payment_order, id_project, id_project_category, payment_type, payment_method, provider, concept_description, amount, commentary) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     for (const item of listaConceptos) {
       await connection.query(queryDetails, [
         id_payment_order, 
+        item.id_project || id_project,
         item.id_project_category || null, 
         item.payment_type || payment_type,
         item.payment_method || payment_method,
@@ -1367,7 +1368,7 @@ app.get('/api/pagos', async (req, res) => {
             SELECT 
                 po.id_payment_order AS id_payment_order,
                 pod.id_payment_detail AS id_payment_detail,
-                p.project_name,
+                COALESCE(p_det.project_name, p.project_name, '---') AS project_name,
                 po.request_date,
                 po.fiscal_week,
                 IFNULL(pod.payment_type, po.payment_type) AS payment_type,
@@ -1398,6 +1399,7 @@ app.get('/api/pagos', async (req, res) => {
             FROM payment_orders po
             INNER JOIN payment_order_details pod ON po.id_payment_order = pod.id_payment_order
             LEFT JOIN projects p ON po.id_project = p.id_project
+            LEFT JOIN projects p_det ON pod.id_project = p_det.id_project
             LEFT JOIN project_categories pc ON pod.id_project_category = pc.id_project_category
             ORDER BY po.id_payment_order DESC;
         `;
