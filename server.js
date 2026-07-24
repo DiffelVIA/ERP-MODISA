@@ -335,10 +335,8 @@ async function subirArchivoADrive(fileObject, idCarpetaDrive) {
       parents: [idCarpetaDrive],
     };
 
-    /* MODIFICACIÓN: Soporte seguro para memoria (buffer) utilizando require('stream') en línea sin modificar dependencias globales */
     let bodyStream;
     if (fileObject.buffer) {
-      // Se utiliza el módulo nativo 'stream' directamente sin requerir importación previa arriba
       const { Readable } = require('stream');
       bodyStream = Readable.from(fileObject.buffer);
     } else if (fileObject.path && fs.existsSync(fileObject.path)) {
@@ -1374,56 +1372,62 @@ app.post('/api/pagos', upload.fields([
     console.log(`💾 ¡Éxito! Guardada solicitud de pago ID #${id_payment_order} en la nube.`);
 
     if (excelFile) {
-      try {
-        console.log("✉️ Preparando correo con desglose de Mano de Obra...");
-        
-        const transporter = await createTransporter();
-        const montoTotal = listaConceptos.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
-        
-        const bufferExcel = excelFile.buffer 
-          ? excelFile.buffer 
-          : (excelFile.path && fs.existsSync(excelFile.path) ? fs.readFileSync(excelFile.path) : null);
+      (async () => {
+        try {
+          console.log("✉️ Preparando correo en segundo plano con desglose de Mano de Obra...");
+          
+          const transporter = await createTransporter();
+          const montoTotal = listaConceptos.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
+          
+          const bufferExcel = excelFile.buffer 
+            ? excelFile.buffer 
+            : (excelFile.path && fs.existsSync(excelFile.path) ? fs.readFileSync(excelFile.path) : null);
 
-        if (!bufferExcel) {
-          throw new Error("No se pudo obtener el buffer del archivo Excel.");
+          if (!bufferExcel) {
+            console.error("❌ No se pudo obtener el buffer del archivo Excel para el correo.");
+            return;
+          }
+
+          const mailOptions = {
+            from: `ERP MODISA <${process.env.GMAIL_USER}>`,
+            to: process.env.RESPONSABLE_PAGOS_EMAIL || 'dvillalva@modisa.com.mx',
+            subject: `📌 Desglose Mano de Obra - Solicitud #${id_payment_order} - ${fiscal_week}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+                <h2 style="color: #1e3a8a;">📝 Solicitud de Pago: Mano de Obra</h2>
+                <p>Se ha generado una nueva solicitud de pago de <strong>Mano de Obra</strong> que requiere tu revisión:</p>
+                
+                <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+                  <tr><td style="padding: 6px; font-weight: bold;">Folio Solicitud:</td><td style="padding: 6px;">#${id_payment_order}</td></tr>
+                  <tr><td style="padding: 6px; font-weight: bold;">Semana Fiscal:</td><td style="padding: 6px;">${fiscal_week}</td></tr>
+                  <tr><td style="padding: 6px; font-weight: bold;">Fecha:</td><td style="padding: 6px;">${request_date}</td></tr>
+                  <tr><td style="padding: 6px; font-weight: bold;">Monto Total:</td><td style="padding: 6px; color: #16a34a; font-weight: bold;">$${montoTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td></tr>
+                </table>
+
+                <p>📎 <strong>En el archivo adjunto a este correo encontrarás el desglose en Excel subido por el solicitante.</strong></p>
+                <hr style="border: none; border-top: 1px solid #e2e8f0; margin-top: 20px;">
+                <p style="font-size: 11px; color: #64748b;">Notificación automática del sistema ERP MODISA.</p>
+              </div>
+            `,
+            attachments: [
+              {
+                filename: excelFile.originalname || `Desglose_ManoDeObra_Folio_${id_payment_order}.xlsx`,
+                content: bufferExcel
+              }
+            ]
+          };
+
+          await transporter.sendMail(mailOptions);
+          console.log(`📧 Correo de Mano de Obra para Solicitud #${id_payment_order} enviado exitosamente.`);
+        } catch (errEmail) {
+          console.error("⚠️ Error en segundo plano al enviar el correo de Mano de Obra:", errEmail.message);
+        } finally {
+          limpiarArchivosTemporales();
         }
-        const mailOptions = {
-          from: `ERP MODISA <${process.env.GMAIL_USER}>`,
-          to: process.env.RESPONSABLE_PAGOS_EMAIL || 'dvillalva@modisa.com.mx',
-          subject: `📌 Desglose Mano de Obra - Solicitud #${id_payment_order} - ${fiscal_week}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-              <h2 style="color: #1e3a8a;">📝 Solicitud de Pago: Mano de Obra</h2>
-              <p>Se ha generado una nueva solicitud de pago de <strong>Mano de Obra</strong> que requiere tu revisión:</p>
-              
-              <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
-                <tr><td style="padding: 6px; font-weight: bold;">Folio Solicitud:</td><td style="padding: 6px;">#${id_payment_order}</td></tr>
-                <tr><td style="padding: 6px; font-weight: bold;">Semana Fiscal:</td><td style="padding: 6px;">${fiscal_week}</td></tr>
-                <tr><td style="padding: 6px; font-weight: bold;">Fecha:</td><td style="padding: 6px;">${request_date}</td></tr>
-                <tr><td style="padding: 6px; font-weight: bold;">Monto Total:</td><td style="padding: 6px; color: #16a34a; font-weight: bold;">$${montoTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td></tr>
-              </table>
-
-              <p>📎 <strong>En el archivo adjunto a este correo encontrarás el desglose en Excel subido por el solicitante.</strong></p>
-              <hr style="border: none; border-top: 1px solid #e2e8f0; margin-top: 20px;">
-              <p style="font-size: 11px; color: #64748b;">Notificación automática del sistema ERP MODISA.</p>
-            </div>
-          `,
-          attachments: [
-            {
-              filename: excelFile.originalname || `Desglose_ManoDeObra_Folio_${id_payment_order}.xlsx`,
-              content: bufferExcel
-            }
-          ]
-        };
-
-        await transporter.sendMail(mailOptions);
-        console.log(`📧 Correo de Mano de Obra para Solicitud #${id_payment_order} enviado exitosamente.`);
-      } catch (errEmail) {
-        console.error("⚠️ La solicitud se guardó pero falló el envío del correo de Mano de Obra:", errEmail.message);
-      }
+      })();
+    } else {
+      limpiarArchivosTemporales();
     }
-
-    limpiarArchivosTemporales();
 
     res.json({ status: 'success', mensaje: 'Solicitud de pago guardada con éxito en la base de datos.' });
 
