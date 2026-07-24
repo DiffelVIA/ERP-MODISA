@@ -98,7 +98,9 @@
                 const tipoSeleccionado = e.target.value;
                 const bloqueClave = document.getElementById('bloque-clave-contrato');
                 const bloqueTicket = document.getElementById('bloque-ticket');
+                const bloqueExcel = document.getElementById('bloque-excel');
                 const inputTicket = document.getElementById('ticketFile');
+                const inputExcel = document.getElementById('excelFile');
                 const inputProveedor = document.getElementById('proveedor');
                 
                 restaurarControlesCascada(true);
@@ -112,6 +114,14 @@
                         inputTicket.required = false;
                         inputTicket.value = '';
                     }
+                }
+
+                if (tipoSeleccionado === 'manoObra') {
+                    if (bloqueExcel) bloqueExcel.style.display = 'block';
+                    if (inputExcel) inputExcel.required = true;
+                } else {
+                    if (bloqueExcel) bloqueExcel.style.display = 'none';
+                    if (inputExcel) { inputExcel.required = false; inputExcel.value = ''; }
                 }
 
                 if (tipoSeleccionado === 'contratista') {
@@ -266,6 +276,7 @@
         const selectTipo = document.getElementById('tipo');
         const selectFormaPago = document.getElementById('formaPago');
         const inputTicketFile = document.getElementById('ticketFile');
+        const inputExcelFile = document.getElementById('excelFile');
         const concepto = inputConcepto ? inputConcepto.value.trim() : '';
         const monto = inputMonto ? parseFloat(inputMonto.value) : 0;
         const comentario = inputComentario ? inputComentario.value.trim() : '';
@@ -283,6 +294,11 @@
 
         if (tipo === 'cajaChica' && (!inputTicketFile.files || inputTicketFile.files.length === 0)) {
             alert('❌ Error: Es obligatorio cargar la fotografía del ticket para conceptos de Caja Chica.');
+            return;
+        }
+
+        if (tipo === 'manoObra' && (!inputExcelFile.files || inputExcelFile.files.length === 0)) {
+            alert('❌ Error: Es obligatorio cargar el Excel de desglose para Mano de Obra.');
             return;
         }
 
@@ -308,7 +324,8 @@
             concept_description: concepto,
             amount: monto,
             commentary: comentario || null,
-            ticketFile: (tipo === 'cajaChica' && inputTicketFile.files[0]) ? inputTicketFile.files[0] : null
+            ticketFile: (tipo === 'cajaChica' && inputTicketFile.files[0]) ? inputTicketFile.files[0] : null,
+            excelFile: (tipo === 'manoObra' && inputExcelFile.files[0]) ? inputExcelFile.files[0] : null
         };
 
         listaConceptosPagos.push(nuevoConcepto);
@@ -366,19 +383,22 @@
         const paymentTypeHeader = primerConcepto.payment_type || '';
         const paymentMethodHeader = primerConcepto.payment_method || '';
         const conceptoConTicket = listaConceptosPagos.find(c => c.ticketFile);
-        const conceptosSinArchivo = listaConceptosPagos.map(({ ticketFile, ...resto }) => resto);
+        const conceptoConExcel = listaConceptosPagos.find(c => c.excelFile);
+        const conceptosSinArchivo = listaConceptosPagos.map(({ ticketFile, excelFile, ...resto }) => resto);
         const formData = new FormData();
         formData.append('id_project', parseInt(idProyecto));
         formData.append('id_employee', parseInt(idSolicitante));
         formData.append('request_date', fecha);
         formData.append('fiscal_week', semanaNumero);
-        
         formData.append('payment_type', paymentTypeHeader);
         formData.append('payment_method', paymentMethodHeader);
         formData.append('conceptos', JSON.stringify(conceptosSinArchivo));
 
         if (conceptoConTicket && conceptoConTicket.ticketFile) {
             formData.append('ticketFile', conceptoConTicket.ticketFile);
+        }
+        if (conceptoConExcel && conceptoConExcel.excelFile) {
+            formData.append('excelFile', conceptoConExcel.excelFile);
         }
 
         try {

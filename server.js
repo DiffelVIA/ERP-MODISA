@@ -527,7 +527,7 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + path.extname(file.originalname));
   }
 });
-const upload = multer({ storage: storage });
+const upload = multer({ storage: multer.memoryStorage() });
 
 // PROYECTOS //
 app.get('/api/proyectos/:id/contracts', async (req, res) => {
@@ -1279,18 +1279,28 @@ app.put('/api/contratos/:id/actualizar-control', async (req, res) => {
 });
 
 // PAGOS //
-
-app.post('/api/pagos', upload.single('ticketFile'), async (req, res) => {
+app.post('/api/pagos', upload.fields([
+  { name: 'ticketFile', maxCount: 1 },
+  { name: 'excelFile', maxCount: 1 }
+]), async (req, res) => {
   console.log("================= API PAGOS INVOCADA =================");
   console.log("Datos recibidos en body:", req.body);
   const { id_project, id_employee, request_date, fiscal_week, payment_type, payment_method, conceptos } = req.body;
 
+  const ticketFile = req.files && req.files['ticketFile'] ? req.files['ticketFile'][0] : null;
+  const excelFile = req.files && req.files['excelFile'] ? req.files['excelFile'][0] : null;
+
+  const limpiarArchivosTemporales = () => {
+    if (ticketFile && fs.existsSync(ticketFile.path)) fs.unlinkSync(ticketFile.path);
+    if (excelFile && fs.existsSync(excelFile.path)) fs.unlinkSync(excelFile.path);
+  };
+
   if (!id_project || !id_employee || !request_date || !fiscal_week || !payment_type || !payment_method) {
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    limpiarArchivosTemporales();
     return res.status(400).json({ error: 'Faltan campos obligatorios en la cabecera de la solicitud.' });
   }
   if (!conceptos) {
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    limpiarArchivosTemporales();
     return res.status(400).json({ error: 'No se envió ningún concepto financiero en la lista.' });
   }
 
@@ -1298,20 +1308,19 @@ app.post('/api/pagos', upload.single('ticketFile'), async (req, res) => {
   try {
     listaConceptos = JSON.parse(conceptos);
   } catch (e) {
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    limpiarArchivosTemporales();
     return res.status(400).json({ error: 'El formato de los conceptos es inválido.' });
   }
 
   let urlDestinoFinal = null;
-  if (req.file) {
+  if (ticketFile) {
     try {
       const ID_CARPETA_DRIVE_TARGET = '1T_WFb1LnEgzUk-eyNjv-qKW3XR5jAR1K'; 
-      
       console.log("📤 Subiendo ticket de caja chica hacia Google Drive...");
-      urlDestinoFinal = await subirArchivoADrive(req.file, ID_CARPETA_DRIVE_TARGET);
+      urlDestinoFinal = await subirArchivoADrive(ticketFile, ID_CARPETA_DRIVE_TARGET);
       console.log("🔗 Enlace generado exitosamente por Google Drive:", urlDestinoFinal);
     } catch (errDrive) {
-      if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      limpiarArchivosTemporales();
       return res.status(500).json({ error: 'Fallo al almacenar el ticket en Google Drive.', detalle: errDrive.message });
     }
   }
@@ -1351,10 +1360,61 @@ app.post('/api/pagos', upload.single('ticketFile'), async (req, res) => {
 
     await connection.commit();
     console.log(`💾 ¡Éxito! Guardada solicitud de pago ID #${id_payment_order} en la nube.`);
+
+    if (excelFile) {
+      try {
+        console.log("✉️ Preparando correo con desglose de Mano de Obra...");
+        
+        const transporter = await createTransporter();
+        const montoTotal = listaConceptos.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
+        
+        const bufferExcel = fs.existsSync(excelFile.path) 
+          ? fs.readFileSync(excelFile.path) 
+          : excelFile.buffer;
+
+        const mailOptions = {
+          from: `ERP MODISA <${process.env.GMAIL_USER}>`,
+          to: process.env.RESPONSABLE_PAGOS_EMAIL || 'dvillalva@modisa.com.mx',
+          subject: `📌 Desglose Mano de Obra - Solicitud #${id_payment_order} - ${fiscal_week}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+              <h2 style="color: #1e3a8a;">📝 Solicitud de Pago: Mano de Obra</h2>
+              <p>Se ha generado una nueva solicitud de pago de <strong>Mano de Obra</strong> que requiere tu revisión:</p>
+              
+              <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
+                <tr><td style="padding: 6px; font-weight: bold;">Folio Solicitud:</td><td style="padding: 6px;">#${id_payment_order}</td></tr>
+                <tr><td style="padding: 6px; font-weight: bold;">Semana Fiscal:</td><td style="padding: 6px;">${fiscal_week}</td></tr>
+                <tr><td style="padding: 6px; font-weight: bold;">Fecha:</td><td style="padding: 6px;">${request_date}</td></tr>
+                <tr><td style="padding: 6px; font-weight: bold;">Monto Total:</td><td style="padding: 6px; color: #16a34a; font-weight: bold;">$${montoTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td></tr>
+              </table>
+
+              <p>📎 <strong>En el archivo adjunto a este correo encontrarás el desglose en Excel subido por el solicitante.</strong></p>
+              <hr style="border: none; border-top: 1px solid #e2e8f0; margin-top: 20px;">
+              <p style="font-size: 11px; color: #64748b;">Notificación automática del sistema ERP MODISA.</p>
+            </div>
+          `,
+          attachments: [
+            {
+              filename: excelFile.originalname || `Desglose_ManoDeObra_Folio_${id_payment_order}.xlsx`,
+              content: bufferExcel
+            }
+          ]
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log(`📧 Correo de Mano de Obra para Solicitud #${id_payment_order} enviado exitosamente.`);
+      } catch (errEmail) {
+        console.error("⚠️ La solicitud se guardó pero falló el envío del correo de Mano de Obra:", errEmail.message);
+      }
+    }
+
+    limpiarArchivosTemporales();
+
     res.json({ status: 'success', mensaje: 'Solicitud de pago guardada con éxito en la base de datos.' });
 
   } catch (error) {
     await connection.rollback();
+    limpiarArchivosTemporales();
     console.error("❌ Error en la transacción de pagos:", error.message);
     res.status(500).json({ error: 'Error interno en el servidor de base de datos', detalle: error.message });
   } finally {
