@@ -1369,38 +1369,30 @@ app.get('/api/pagos', async (req, res) => {
                 po.id_payment_order AS id_payment_order,
                 pod.id_payment_detail AS id_payment_detail,
                 COALESCE(p_det.project_name, p.project_name, '---') AS project_name,
-                po.request_date,
+                DATE_FORMAT(po.request_date, '%Y-%m-%d') AS request_date,
                 po.fiscal_week,
                 IFNULL(pod.payment_type, po.payment_type) AS payment_type,
                 IFNULL(pod.payment_method, po.payment_method) AS payment_method,
                 po.ticket_url,
                 pod.compras_comment AS compras_comment,
-                pc.grupo AS grupo,
-                pc.categoria AS categoria,
-                pc.subcategoria AS subcategoria,
+                COALESCE(pc.grupo, c_pc.grupo, '---') AS grupo,
+                COALESCE(pc.categoria, c_pc.categoria, '---') AS categoria,
+                COALESCE(pc.subcategoria, c_pc.subcategoria, '---') AS subcategoria,
                 IFNULL(pc.total, 0) AS presupuesto_autorizado,
                 pod.provider AS provider,
                 pod.concept_description AS concept_description,
                 pod.amount AS amount,
                 po.status,
                 IFNULL(po.monto_pagado, 0) AS monto_pagado,
-                (
-                    SELECT c.firma 
-                    FROM contracts c 
-                    WHERE LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider)) 
-                    LIMIT 1
-                ) AS contrato_firma,
-                (
-                    SELECT c.start_date 
-                    FROM contracts c 
-                    WHERE LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider)) 
-                    LIMIT 1
-                ) AS contrato_fecha_registro
+                c.firma AS contrato_firma,
+                c.start_date AS contrato_fecha_registro
             FROM payment_orders po
             INNER JOIN payment_order_details pod ON po.id_payment_order = pod.id_payment_order
             LEFT JOIN projects p ON po.id_project = p.id_project
             LEFT JOIN projects p_det ON pod.id_project = p_det.id_project
             LEFT JOIN project_categories pc ON pod.id_project_category = pc.id_project_category
+            LEFT JOIN contracts c ON LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider))
+            LEFT JOIN project_categories c_pc ON c.id_project_category = c_pc.id_project_category
             ORDER BY po.id_payment_order DESC;
         `;
 

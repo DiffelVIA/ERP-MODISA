@@ -20,13 +20,10 @@
         if (!inputFecha || !inputSemana) return;
 
         const hoy = new Date();
-        const año = hoy.getFullYear();
-        const mes = String(hoy.getMonth() + 1).padStart(2, '0');
-        const dia = String(hoy.getDate()).padStart(2, '0');
-        
-        inputFecha.value = `${año}-${mes}-${dia}`;
+        const fechaLocal = hoy.toLocaleDateString('sv-SE');
+        inputFecha.value = fechaLocal;
 
-        const inicioAño = new Date(año, 0, 1);
+        const inicioAño = new Date(hoy.getFullYear(), 0, 1);
         const diasPasados = Math.floor((hoy - inicioAño) / (24 * 60 * 60 * 1000));
         const numeroSemana = Math.ceil((diasPasados + inicioAño.getDay() + 1) / 7);
         
