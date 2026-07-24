@@ -1348,88 +1348,88 @@ app.post('/api/pagos', upload.fields([
 
     console.log(`📝 Insertando Cabecera de Pagos ID: #${id_payment_order}. Total conceptos a procesar: ${listaConceptos.length}`);
 
-    const queryDetails = `
-      INSERT INTO payment_order_details 
-        (id_payment_order, id_project, id_project_category, payment_type, payment_method, provider, concept_description, amount, commentary) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+  const queryDetails = `
+    INSERT INTO payment_order_details 
+      (id_payment_order, id_project, id_project_category, payment_type, payment_method, provider, concept_description, amount, commentary) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
 
-    for (const item of listaConceptos) {
-      await connection.query(queryDetails, [
-        id_payment_order, 
-        item.id_project || id_project,
-        item.id_project_category || null, 
-        item.payment_type || payment_type,
-        item.payment_method || payment_method,
-        item.provider_name, 
-        item.concept_description, 
-        item.amount, 
-        item.commentary
-      ]);
-    }
+  for (const item of listaConceptos) {
+    const comentarioLimpiado = item.commentary || item.comment || item.comentario || null;
 
-    await connection.commit();
-    console.log(`💾 ¡Éxito! Guardada solicitud de pago ID #${id_payment_order} en la nube.`);
+    await connection.query(queryDetails, [
+      id_payment_order, 
+      item.id_project || id_project,
+      item.id_project_category || null, 
+      item.payment_type || payment_type,
+      item.payment_method || payment_method,
+      item.provider_name || item.provider || null, 
+      item.concept_description || item.concept || null, 
+      item.amount, 
+      comentarioLimpiado
+    ]);
+  }
 
-    if (excelFile) {
-      (async () => {
-        try {
-          console.log("✉️ Preparando correo en segundo plano con desglose de Mano de Obra...");
-          
-          const transporter = await createTransporter();
-          const montoTotal = listaConceptos.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
-          
-          const bufferExcel = excelFile.buffer 
-            ? excelFile.buffer 
-            : (excelFile.path && fs.existsSync(excelFile.path) ? fs.readFileSync(excelFile.path) : null);
+  await connection.commit();
+  console.log(`💾 ¡Éxito! Guardada solicitud de pago ID #${id_payment_order} en la nube.`);
 
-          if (!bufferExcel) {
-            console.error("❌ No se pudo obtener el buffer del archivo Excel para el correo.");
-            return;
-          }
-
-          const mailOptions = {
-            from: `ERP MODISA <${process.env.GMAIL_USER}>`,
-            to: process.env.RESPONSABLE_PAGOS_EMAIL || 'dvillalva@modisa.com.mx',
-            subject: `📌 Desglose Mano de Obra - Solicitud #${id_payment_order} - ${fiscal_week}`,
-            html: `
-              <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-                <h2 style="color: #1e3a8a;">📝 Solicitud de Pago: Mano de Obra</h2>
-                <p>Se ha generado una nueva solicitud de pago de <strong>Mano de Obra</strong> que requiere tu revisión:</p>
-                
-                <table style="width: 100%; border-collapse: collapse; margin: 15px 0;">
-                  <tr><td style="padding: 6px; font-weight: bold;">Folio Solicitud:</td><td style="padding: 6px;">#${id_payment_order}</td></tr>
-                  <tr><td style="padding: 6px; font-weight: bold;">Semana Fiscal:</td><td style="padding: 6px;">${fiscal_week}</td></tr>
-                  <tr><td style="padding: 6px; font-weight: bold;">Fecha:</td><td style="padding: 6px;">${request_date}</td></tr>
-                  <tr><td style="padding: 6px; font-weight: bold;">Monto Total:</td><td style="padding: 6px; color: #16a34a; font-weight: bold;">$${montoTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td></tr>
-                </table>
-
-                <p>📎 <strong>En el archivo adjunto a este correo encontrarás el desglose en Excel subido por el solicitante.</strong></p>
-                <hr style="border: none; border-top: 1px solid #e2e8f0; margin-top: 20px;">
-                <p style="font-size: 11px; color: #64748b;">Notificación automática del sistema ERP MODISA.</p>
-              </div>
-            `,
-            attachments: [
-              {
-                filename: excelFile.originalname || `Desglose_ManoDeObra_Folio_${id_payment_order}.xlsx`,
-                content: bufferExcel
-              }
-            ]
-          };
-
-          await transporter.sendMail(mailOptions);
-          console.log(`📧 Correo de Mano de Obra para Solicitud #${id_payment_order} enviado exitosamente.`);
-        } catch (errEmail) {
-          console.error("⚠️ Error en segundo plano al enviar el correo de Mano de Obra:", errEmail.message);
-        } finally {
-          limpiarArchivosTemporales();
+  (async () => {
+    try {
+      console.log("✉️ Preparando correo en segundo plano...");
+      
+      const transporter = await createTransporter();
+      const montoTotal = listaConceptos.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
+      
+      const adjuntos = [];
+      
+      if (excelFile) {
+        const bufferExcel = excelFile.buffer || (excelFile.path && fs.existsSync(excelFile.path) ? fs.readFileSync(excelFile.path) : null);
+        if (bufferExcel) {
+          adjuntos.push({
+            filename: excelFile.originalname || `Desglose_ManoDeObra_Folio_${id_payment_order}.xlsx`,
+            content: bufferExcel
+          });
         }
-      })();
-    } else {
+      }
+
+      const correoDestino = process.env.RESPONSABLE_PAGOS_EMAIL || process.env.GMAIL_USER;
+
+      const mailOptions = {
+        from: `ERP MODISA <${process.env.GMAIL_USER}>`,
+        to: correoDestino,
+        subject: `📌 Nueva Solicitud de Pago #${id_payment_order} - Sem. ${fiscal_week}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+            <h2 style="color: #1e3a8a;">📝 Nueva Solicitud de Pago</h2>
+            <p>Se ha registrado la solicitud de pago <strong>#${id_payment_order}</strong>:</p>
+            
+            <table style="width: 100%; border-collapse: collapse; margin: 15px 0; border: 1px solid #e2e8f0;">
+              <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Folio:</td><td style="padding: 8px;">#${id_payment_order}</td></tr>
+              <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Tipo de Pago:</td><td style="padding: 8px;">${payment_type}</td></tr>
+              <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Semana Fiscal:</td><td style="padding: 8px;">Semana ${fiscal_week}</td></tr>
+              <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Fecha:</td><td style="padding: 8px;">${request_date}</td></tr>
+              <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Monto Total:</td><td style="padding: 8px; color: #16a34a; font-weight: bold;">$${montoTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td></tr>
+            </table>
+
+            ${urlDestinoFinal ? `<p>🔗 <a href="${urlDestinoFinal}" target="_blank">Ver Ticket en Google Drive</a></p>` : ''}
+            
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin-top: 20px;">
+            <p style="font-size: 11px; color: #64748b;">Notificación automática del sistema ERP MODISA.</p>
+          </div>
+        `,
+        attachments: adjuntos
+      };
+
+      const info = await transporter.sendMail(mailOptions);
+      console.log(`📧 Correo de Solicitud #${id_payment_order} enviado exitosamente. ID Mensaje: ${info.messageId}`);
+    } catch (errEmail) {
+      console.error("⚠️ Error en segundo plano al enviar el correo:", errEmail.message);
+    } finally {
       limpiarArchivosTemporales();
     }
+  })();
 
-    res.json({ status: 'success', mensaje: 'Solicitud de pago guardada con éxito en la base de datos.' });
+  res.json({ status: 'success', mensaje: 'Solicitud de pago guardada con éxito en la base de datos.' });
 
   } catch (error) {
     await connection.rollback();
@@ -1453,6 +1453,8 @@ app.get('/api/pagos', async (req, res) => {
                 IFNULL(pod.payment_type, po.payment_type) AS payment_type,
                 IFNULL(pod.payment_method, po.payment_method) AS payment_method,
                 po.ticket_url,
+                pod.commentary AS commentary,
+                pod.commentary AS resident_comment,
                 pod.compras_comment AS compras_comment,
                 COALESCE(pc.grupo, c_pc.grupo, '---') AS grupo,
                 COALESCE(pc.categoria, c_pc.categoria, '---') AS categoria,
