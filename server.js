@@ -1410,14 +1410,11 @@ app.post('/api/pagos', upload.fields([
           from: `"${datosSolicitante.name} (ERP MODISA)" <${process.env.GMAIL_USER}>`,
           replyTo: `"${datosSolicitante.name}" <${datosSolicitante.email}>`,
           to: correoDestino,
-          subject: `📌 Nueva Solicitud de Pago #${id_payment_order} - Sem. ${fiscal_week}`,
+          subject: `Solicitud de Pago - Sem. ${fiscal_week}`,
           html: `
             <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-              <h2 style="color: #1e3a8a;">📝 Nueva Solicitud de Pago</h2>
               
               <table style="width: 100%; border-collapse: collapse; margin: 15px 0; border: 1px solid #e2e8f0;">
-                <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Folio:</td><td style="padding: 8px;">#${id_payment_order}</td></tr>
-                <!-- MODIFICACIÓN: Se agrega el Solicitante con su correo al cuerpo del correo -->
                 <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Solicitante:</td><td style="padding: 8px;">${datosSolicitante.name} (&lt;${datosSolicitante.email}&gt;)</td></tr>
                 <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Tipo de Pago:</td><td style="padding: 8px;">${payment_type}</td></tr>
                 <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Semana Fiscal:</td><td style="padding: 8px;">Semana ${fiscal_week}</td></tr>
