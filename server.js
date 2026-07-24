@@ -1366,14 +1366,14 @@ app.get('/api/pagos', async (req, res) => {
         const query = `
             SELECT 
                 po.id_payment_order AS id_payment_order,
-                CONCAT(po.id_payment_order, '-', ROW_NUMBER() OVER (PARTITION BY po.id_payment_order ORDER BY po.id_payment_order)) AS id_payment_order_detail,
+                pod.id_payment_detail AS id_payment_detail,
                 p.project_name,
                 po.request_date,
                 po.fiscal_week,
                 IFNULL(pod.payment_type, po.payment_type) AS payment_type,
                 IFNULL(pod.payment_method, po.payment_method) AS payment_method,
                 po.ticket_url,
-                po.compras_comment AS compras_comment,
+                pod.compras_comment AS compras_comment,
                 pc.grupo AS grupo,
                 pc.categoria AS categoria,
                 pc.subcategoria AS subcategoria,
@@ -1488,7 +1488,7 @@ app.put('/api/pagos/:id/monto-pagado', async (req, res) => {
 
             return res.json({ 
                 success: true, 
-                message: `Comentario de compras actualizado correctamente para la fila.`
+                message: `Comentario de compras actualizado correctamente para el detalle.`
             });
         }
 
