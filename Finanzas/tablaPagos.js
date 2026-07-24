@@ -64,23 +64,69 @@
         }
     }
 
+    /* ==========================================================================
+       MODIFICACIÓN: FILTRO DE FECHA DEPENDIENTE DE LA SEMANA SELECCIONADA
+       ========================================================================== */
     function poblarFiltrosEfectivos(lista) {
         const extraerUnicos = (keyExtractor) => Array.from(new Set(lista.map(keyExtractor).filter(Boolean))).sort();
 
         const obras = extraerUnicos(i => i.project_name);
         const formas = extraerUnicos(i => i.payment_method);
         const estados = extraerUnicos(i => i.status || 'Pendiente');
-        const fechas = extraerUnicos(i => i.request_date ? new Date(i.request_date).toLocaleDateString('es-MX') : null);
         const semanas = extraerUnicos(i => i.fiscal_week ? `Semana ${i.fiscal_week}` : null);
 
         llenarDropdownHTML('filtroObra', obras, 'obra');
         llenarDropdownHTML('filtroForma', formas, 'forma');
         llenarDropdownHTML('filtroEstado', estados, 'estado');
-        llenarDropdownHTML('filtroFecha', fechas, 'fecha');
         llenarDropdownHTML('filtroSemana', semanas, 'semana');
+
+        // Inicializar el filtro de fechas en función de las semanas elegidas
+        poblarFiltroFecha(lista);
     }
 
-    function llenarDropdownHTML(containerId, listaOpciones, dataGroup) {
+    function poblarFiltroFecha(lista) {
+        const contenedorFecha = document.getElementById('filtroFecha');
+        if (!contenedorFecha) return;
+
+        // Obtener semanas marcadas actualmente en el DOM
+        const semanasSeleccionadas = Array.from(
+            document.querySelectorAll('.filtro-chk[data-group="semana"]:checked')
+        ).map(c => c.value);
+
+        // Guardar qué fechas estaban ya marcadas para no perder la selección activa
+        const fechasPreviamenteSeleccionadas = Array.from(
+            document.querySelectorAll('.filtro-chk[data-group="fecha"]:checked')
+        ).map(c => c.value);
+
+        // REGLA DE NEGOCIO: Si no se ha elegido semana, solicitar la selección primero
+        if (semanasSeleccionadas.length === 0) {
+            contenedorFecha.innerHTML = `
+                <div style="padding: 10px; color: #64748b; font-size: 11px; font-style: italic; text-align: center;">
+                    ⚠️ Selecciona una semana primero
+                </div>
+            `;
+            return;
+        }
+
+        // Filtrar pagos que pertenezcan a las semanas seleccionadas
+        const pagosFiltradosPorSemana = lista.filter(item => {
+            const semanaTxt = item.fiscal_week ? `Semana ${item.fiscal_week}` : '';
+            return semanasSeleccionadas.includes(semanaTxt);
+        });
+
+        // Extraer solo las fechas únicas de esas semanas
+        const fechasUnicas = Array.from(
+            new Set(
+                pagosFiltradosPorSemana
+                    .map(i => i.request_date ? new Date(i.request_date).toLocaleDateString('es-MX') : null)
+                    .filter(Boolean)
+            )
+        ).sort();
+
+        llenarDropdownHTML('filtroFecha', fechasUnicas, 'fecha', fechasPreviamenteSeleccionadas);
+    }
+
+    function llenarDropdownHTML(containerId, listaOpciones, dataGroup, seleccionadosPrevios = []) {
         const container = document.getElementById(containerId);
         if (!container) return;
 
@@ -89,13 +135,47 @@
             return;
         }
 
-        container.innerHTML = listaOpciones.map(opcion => `
-            <label style="display: block; padding: 6px 12px; cursor: pointer; font-size: 13px; color: #334155;">
-                <input type="checkbox" class="filtro-chk" data-group="${dataGroup}" value="${opcion}" style="margin-right: 8px;">
-                ${opcion}
-            </label>
-        `).join('');
+        container.innerHTML = listaOpciones.map(opcion => {
+            const estaMarcado = seleccionadosPrevios.includes(opcion) ? 'checked' : '';
+            return `
+                <label style="display: block; padding: 6px 12px; cursor: pointer; font-size: 13px; color: #334155;">
+                    <input type="checkbox" class="filtro-chk" data-group="${dataGroup}" value="${opcion}" ${estaMarcado} style="margin-right: 8px;">
+                    ${opcion}
+                </label>
+            `;
+        }).join('');
     }
+
+    function aplicarFiltrosMultiples() {
+        // Al interactuar con los filtros, re-evaluamos la lista de fechas disponibles por semana
+        poblarFiltroFecha(todosLosPagos);
+
+        const obtenerSeleccionados = (group) => 
+            Array.from(document.querySelectorAll(`.filtro-chk[data-group="${group}"]:checked`)).map(c => c.value);
+
+        const selObras = obtenerSeleccionados('obra');
+        const selFormas = obtenerSeleccionados('forma');
+        const selEstados = obtenerSeleccionados('estado');
+        const selFechas = obtenerSeleccionados('fecha');
+        const selSemanas = obtenerSeleccionados('semana');
+
+        const filtrados = todosLosPagos.filter(item => {
+            const fechaTxt = item.request_date ? new Date(item.request_date).toLocaleDateString('es-MX') : '';
+            const semanaTxt = item.fiscal_week ? `Semana ${item.fiscal_week}` : '';
+            const estadoTxt = item.status || 'Pendiente';
+
+            const matchObra = selObras.length === 0 || selObras.includes(item.project_name);
+            const matchForma = selFormas.length === 0 || selFormas.includes(item.payment_method);
+            const matchEstado = selEstados.length === 0 || selEstados.includes(estadoTxt);
+            const matchFecha = selFechas.length === 0 || selFechas.includes(fechaTxt);
+            const matchSemana = selSemanas.length === 0 || selSemanas.includes(semanaTxt);
+
+            return matchObra && matchForma && matchEstado && matchFecha && matchSemana;
+        });
+
+        renderizarTablaPagos(filtrados);
+    }
+    /* ========================================================================== */
 
     function inicializarEventosFiltros() {
         document.querySelectorAll('.contenedorFiltros .filtros').forEach(grupo => {
@@ -123,33 +203,6 @@
                 }
             });
         }
-    }
-
-    function aplicarFiltrosMultiples() {
-        const obtenerSeleccionados = (group) => 
-            Array.from(document.querySelectorAll(`.filtro-chk[data-group="${group}"]:checked`)).map(c => c.value);
-
-        const selObras = obtenerSeleccionados('obra');
-        const selFormas = obtenerSeleccionados('forma');
-        const selEstados = obtenerSeleccionados('estado');
-        const selFechas = obtenerSeleccionados('fecha');
-        const selSemanas = obtenerSeleccionados('semana');
-
-        const filtrados = todosLosPagos.filter(item => {
-            const fechaTxt = item.request_date ? new Date(item.request_date).toLocaleDateString('es-MX') : '';
-            const semanaTxt = item.fiscal_week ? `Semana ${item.fiscal_week}` : '';
-            const estadoTxt = item.status || 'Pendiente';
-
-            const matchObra = selObras.length === 0 || selObras.includes(item.project_name);
-            const matchForma = selFormas.length === 0 || selFormas.includes(item.payment_method);
-            const matchEstado = selEstados.length === 0 || selEstados.includes(estadoTxt);
-            const matchFecha = selFechas.length === 0 || selFechas.includes(fechaTxt);
-            const matchSemana = selSemanas.length === 0 || selSemanas.includes(semanaTxt);
-
-            return matchObra && matchForma && matchEstado && matchFecha && matchSemana;
-        });
-
-        renderizarTablaPagos(filtrados);
     }
 
     function calcularSemaforoPresupuesto(montoPagadoAcumulado, presupuestoAutorizado) {
