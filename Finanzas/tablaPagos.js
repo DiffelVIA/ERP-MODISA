@@ -108,7 +108,7 @@
         const fechasUnicas = Array.from(
             new Set(
                 pagosFiltradosPorSemana
-                    .map(i => i.request_date ? new Date(i.request_date).toLocaleDateString('es-MX') : null)
+                    .map(i => i.request_date ? formatearFechaLocal(i.request_date) : null)
                     .filter(Boolean)
             )
         ).sort();
@@ -149,7 +149,7 @@
         const selSemanas = obtenerSeleccionados('semana');
 
         const filtrados = todosLosPagos.filter(item => {
-            const fechaTxt = item.request_date ? new Date(item.request_date).toLocaleDateString('es-MX') : '';
+            const fechaTxt = item.request_date ? formatearFechaLocal(item.request_date) : '';
             const semanaTxt = item.fiscal_week ? `Semana ${item.fiscal_week}` : '';
             const estadoTxt = item.status || 'Pendiente';
 
