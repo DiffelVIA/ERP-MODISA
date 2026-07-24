@@ -335,9 +335,21 @@ async function subirArchivoADrive(fileObject, idCarpetaDrive) {
       parents: [idCarpetaDrive],
     };
 
+    /* MODIFICACIÓN: Soporte seguro para memoria (buffer) utilizando require('stream') en línea sin modificar dependencias globales */
+    let bodyStream;
+    if (fileObject.buffer) {
+      // Se utiliza el módulo nativo 'stream' directamente sin requerir importación previa arriba
+      const { Readable } = require('stream');
+      bodyStream = Readable.from(fileObject.buffer);
+    } else if (fileObject.path && fs.existsSync(fileObject.path)) {
+      bodyStream = fs.createReadStream(fileObject.path);
+    } else {
+      throw new Error("El archivo recibido no contiene un buffer válido ni una ruta en disco.");
+    }
+
     const media = {
       mimeType: fileObject.mimetype,
-      body: fs.createReadStream(fileObject.path),
+      body: bodyStream,
     };
 
     const response = await drive.files.create({
