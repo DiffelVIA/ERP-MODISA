@@ -1372,16 +1372,16 @@ app.post('/api/pagos', upload.fields([
 
   await connection.commit();
   console.log(`💾 ¡Éxito! Guardada solicitud de pago ID #${id_payment_order} en la nube.`);
-
   (async () => {
     try {
-      console.log("✉️ Preparando correo en segundo plano...");
-      
-      const transporter = await createTransporter();
+      console.log("✉️ Enviando correo a través de la API oficial de Gmail (Googleapis)...");
+
       const montoTotal = listaConceptos.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
+      const correoDestino = process.env.RESPONSABLE_PAGOS_EMAIL || process.env.GMAIL_USER;
+
+      const MailComposer = require('nodemailer/lib/mail-composer');
       
       const adjuntos = [];
-      
       if (excelFile) {
         const bufferExcel = excelFile.buffer || (excelFile.path && fs.existsSync(excelFile.path) ? fs.readFileSync(excelFile.path) : null);
         if (bufferExcel) {
@@ -1392,9 +1392,7 @@ app.post('/api/pagos', upload.fields([
         }
       }
 
-      const correoDestino = process.env.RESPONSABLE_PAGOS_EMAIL || process.env.GMAIL_USER;
-
-      const mailOptions = {
+      const mail = new MailComposer({
         from: `ERP MODISA <${process.env.GMAIL_USER}>`,
         to: correoDestino,
         subject: `📌 Nueva Solicitud de Pago #${id_payment_order} - Sem. ${fiscal_week}`,
@@ -1418,12 +1416,25 @@ app.post('/api/pagos', upload.fields([
           </div>
         `,
         attachments: adjuntos
-      };
+      });
 
-      const info = await transporter.sendMail(mailOptions);
-      console.log(`📧 Correo de Solicitud #${id_payment_order} enviado exitosamente. ID Mensaje: ${info.messageId}`);
+      const messageBuffer = await mail.compile().build();
+      const encodedMessage = messageBuffer
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+
+      const responseGmail = await gmail.users.messages.send({
+        userId: 'me',
+        requestBody: {
+          raw: encodedMessage
+        }
+      });
+
+      console.log(`📧 ¡Correo enviado con éxito mediante Gmail API! ID de mensaje: ${responseGmail.data.id}`);
     } catch (errEmail) {
-      console.error("⚠️ Error en segundo plano al enviar el correo:", errEmail.message);
+      console.error("❌ Error al enviar el correo mediante Gmail API:", errEmail);
     } finally {
       limpiarArchivosTemporales();
     }
