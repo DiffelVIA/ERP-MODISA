@@ -1291,8 +1291,8 @@ app.post('/api/pagos', upload.fields([
   const excelFile = req.files && req.files['excelFile'] ? req.files['excelFile'][0] : null;
 
   const limpiarArchivosTemporales = () => {
-    if (ticketFile && fs.existsSync(ticketFile.path)) fs.unlinkSync(ticketFile.path);
-    if (excelFile && fs.existsSync(excelFile.path)) fs.unlinkSync(excelFile.path);
+    if (ticketFile && ticketFile.path && fs.existsSync(ticketFile.path)) fs.unlinkSync(ticketFile.path);
+    if (excelFile && excelFile.path && fs.existsSync(excelFile.path)) fs.unlinkSync(excelFile.path);
   };
 
   if (!id_project || !id_employee || !request_date || !fiscal_week || !payment_type || !payment_method) {
@@ -1368,10 +1368,13 @@ app.post('/api/pagos', upload.fields([
         const transporter = await createTransporter();
         const montoTotal = listaConceptos.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
         
-        const bufferExcel = fs.existsSync(excelFile.path) 
-          ? fs.readFileSync(excelFile.path) 
-          : excelFile.buffer;
+        const bufferExcel = excelFile.buffer 
+          ? excelFile.buffer 
+          : (excelFile.path && fs.existsSync(excelFile.path) ? fs.readFileSync(excelFile.path) : null);
 
+        if (!bufferExcel) {
+          throw new Error("No se pudo obtener el buffer del archivo Excel.");
+        }
         const mailOptions = {
           from: `ERP MODISA <${process.env.GMAIL_USER}>`,
           to: process.env.RESPONSABLE_PAGOS_EMAIL || 'dvillalva@modisa.com.mx',
