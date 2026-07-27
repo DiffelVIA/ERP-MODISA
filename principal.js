@@ -141,7 +141,6 @@
     async function cargarNotificacionesMinutas() {
         try {
             const rawSesion = sessionStorage.getItem('usuarioMODISA');
-            const userRol = localStorage.getItem('userRol') || '';
             let nombreUsuario = '';
 
             if (rawSesion && rawSesion.trim().startsWith('{')) {
@@ -153,8 +152,7 @@
 
             const res = await fetch(`${API_URL}/notificaciones/minutas-resumen`, {
                 headers: {
-                    'x-usuario-nombre': nombreUsuario,
-                    'x-user-rol': userRol
+                    'x-usuario-nombre': nombreUsuario
                 }
             });
 
