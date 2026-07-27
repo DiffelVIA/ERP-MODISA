@@ -1122,21 +1122,37 @@ app.put('/api/creditos/:id', async (req, res) => {
   }
 });
 
-// CONTRATOS //
 
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
 
-app.post('/api/contratos', async (req, res) => {
+// CONTRATOS //
+app.post('/api/contratos', upload.single('pdfFile'), async (req, res) => {
     const userRol = req.headers['x-user-rol'];
     const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
 
+    const pdfFile = req.file;
+
+    const limpiarArchivoTemporal = () => {
+        if (pdfFile && pdfFile.path && fs.existsSync(pdfFile.path)) {
+            fs.unlinkSync(pdfFile.path);
+        }
+    };
+
     if (!rolNormalizado || rolNormalizado !== 'residente de obra') {
+        limpiarArchivoTemporal();
         return res.status(403).json({ 
             success: false, 
             error: "⛔ Acceso denegado: Solo usuarios con rol de 'Residente de Obra' pueden registrar contratos." 
+        });
+    }
+
+    if (!pdfFile) {
+        return res.status(400).json({
+            success: false,
+            error: "⚠️ Debe adjuntar el archivo PDF del contrato."
         });
     }
 
@@ -1149,9 +1165,27 @@ app.post('/api/contratos', async (req, res) => {
         id_employee,
         start_date,
         end_date,
-        total_amount,
-        contract_file_url
+        total_amount
     } = req.body;
+
+    let urlDriveContrato = null;
+
+    try {
+        const ID_CARPETA_CONTRATOS_DRIVE = '1fh2e0QGmXYrwx5GoHJHmi058FP30B_q1';
+        console.log("📤 Subiendo PDF de contrato a Google Drive...");
+
+        urlDriveContrato = await subirArchivoADrive(pdfFile, ID_CARPETA_CONTRATOS_DRIVE);
+        console.log("🔗 Enlace de Contrato generado exitosamente:", urlDriveContrato);
+
+    } catch (errDrive) {
+        limpiarArchivoTemporal();
+        console.error("❌ Error al subir PDF del contrato a Google Drive:", errDrive.message);
+        return res.status(500).json({
+            success: false,
+            error: "Fallo al almacenar el PDF del contrato en Google Drive.",
+            details: errDrive.message
+        });
+    }
 
     try {
         const sql = `
@@ -1170,7 +1204,7 @@ app.post('/api/contratos', async (req, res) => {
             start_date || null,
             end_date || null,
             total_amount || 0,
-            contract_file_url || null
+            urlDriveContrato,
         ]);
 
         res.status(201).json({ 
@@ -1186,6 +1220,8 @@ app.post('/api/contratos', async (req, res) => {
             error: "No se pudo guardar el registro en la base de datos.",
             details: error.message 
         });
+    } finally {
+        limpiarArchivoTemporal();
     }
 });
 

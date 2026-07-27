@@ -165,34 +165,42 @@
             const inputFecha = document.getElementById("fecha");
             const fechaSeleccionada = inputFecha ? inputFecha.value : null;
 
-            const inputLinkDrive = document.getElementById("link-drive");
-            const linkDriveVal = inputLinkDrive ? inputLinkDrive.value.trim() : null;
+            const inputPdf = document.getElementById("pdf-file");
+            const pdfFile = inputPdf && inputPdf.files ? inputPdf.files[0] : null;
 
-            const payload = {
-                id_project: document.getElementById("proyecto").value,
-                id_project_category: document.getElementById("subcategoria").value || null,
-                contract_key: document.getElementById("clave").value,
-                Concept: document.getElementById("concepto").value, 
-                supplier: document.getElementById("proveedor").value,
-                id_employee: sesionUsuario ? sesionUsuario.id : null, 
-                start_date: fechaSeleccionada,
-                end_date: fechaSeleccionada,
-                total_amount: document.getElementById("monto").value,
-                contract_file_url: linkDriveVal || null
-            };
+            if (!pdfFile) {
+                alert("⚠️ Por favor selecciona un archivo PDF para el contrato.");
+                return;
+            }
+
+            if (pdfFile.type !== "application/pdf") {
+                alert("⚠️ Solo se permiten archivos en formato PDF.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("pdfFile", pdfFile);
+            formData.append("id_project", document.getElementById("proyecto").value);
+            formData.append("id_project_category", document.getElementById("subcategoria").value || "");
+            formData.append("contract_key", document.getElementById("clave").value);
+            formData.append("Concept", document.getElementById("concepto").value);
+            formData.append("supplier", document.getElementById("proveedor").value);
+            formData.append("id_employee", sesionUsuario ? (sesionUsuario.id || "") : "");
+            formData.append("start_date", fechaSeleccionada || "");
+            formData.append("end_date", fechaSeleccionada || "");
+            formData.append("total_amount", document.getElementById("monto").value);
 
             try {
                 const response = await fetch(`${API_BASE}/contratos`, {
                     method: "POST",
                     headers: { 
-                        "Content-Type": "application/json",
                         "x-user-rol": sesionUsuario ? sesionUsuario.rol : ""
                     },
-                    body: JSON.stringify(payload)
+                    body: formData
                 });
 
                 if (response.ok) {
-                    alert("🎉 ¡Contrato registrado con éxito en MODISA!");
+                    alert("🎉 ¡Contrato y PDF registrados con éxito en MODISA!");
                     e.target.reset();
                     resetSelect(document.getElementById("grupo"), "-- Selecciona Proyecto Primero --", true);
                     resetSelect(document.getElementById("categoria"), "-- Selecciona Grupo Primero --", true);
