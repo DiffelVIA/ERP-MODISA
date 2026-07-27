@@ -719,17 +719,36 @@ app.get('/api/notificaciones/minutas-resumen', async (req, res) => {
       WHERE fecha < ? AND estado NOT IN ('completada', 'atrasada', 'aplazada')
     `, [hoyFormateado]);
 
-    const querySQL = `
-      SELECT 
-        COUNT(CASE WHEN estado = 'atrasada' THEN 1 END) AS atrasadas,
-        COUNT(CASE WHEN estado = 'pendiente' THEN 1 END) AS pendientes,
-        COUNT(CASE WHEN estado = 'aplazada' THEN 1 END) AS aplazadas,
-        COUNT(*) AS total
-      FROM minutas
-      WHERE estado != 'completada';
-    `;
+    const responsableReq = req.headers['x-usuario-nombre'] ? req.headers['x-usuario-nombre'].trim() : '';
+    const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim().toLowerCase() : '';
 
-    const [filas] = await pool.query(querySQL);
+    let querySQL = '';
+    let parametrosSQL = [];
+
+    if (rolUsuario === 'director operativo' || rolUsuario === 'director_operativo' || !responsableReq) {
+      querySQL = `
+        SELECT 
+          COUNT(CASE WHEN estado = 'atrasada' THEN 1 END) AS atrasadas,
+          COUNT(CASE WHEN estado = 'pendiente' THEN 1 END) AS pendientes,
+          COUNT(CASE WHEN estado = 'aplazada' THEN 1 END) AS aplazadas,
+          COUNT(*) AS total
+        FROM minutas
+        WHERE estado != 'completada';
+      `;
+    } else {
+      querySQL = `
+        SELECT 
+          COUNT(CASE WHEN estado = 'atrasada' THEN 1 END) AS atrasadas,
+          COUNT(CASE WHEN estado = 'pendiente' THEN 1 END) AS pendientes,
+          COUNT(CASE WHEN estado = 'aplazada' THEN 1 END) AS aplazadas,
+          COUNT(*) AS total
+        FROM minutas
+        WHERE estado != 'completada' AND LOWER(responsable) LIKE LOWER(?);
+      `;
+      parametrosSQL = [`%${responsableReq}%`];
+    }
+
+    const [filas] = await pool.query(querySQL, parametrosSQL);
     const resumen = filas[0] || { atrasadas: 0, pendientes: 0, aplazadas: 0, total: 0 };
 
     res.json(resumen);

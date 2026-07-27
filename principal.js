@@ -118,8 +118,14 @@
             const rawSesion = sessionStorage.getItem('usuarioMODISA');
             if (!rawSesion) return;
 
-            const usuario = JSON.parse(rawSesion);
-            const nombreMostrar = usuario.nombre || usuario.name || 'Usuario';
+            let nombreMostrar = 'Usuario';
+
+            if (rawSesion.trim().startsWith('{')) {
+                const usuario = JSON.parse(rawSesion);
+                nombreMostrar = usuario.nombre || usuario.nombre_empleado || usuario.name || usuario.usuario || 'Usuario';
+            } else {
+                nombreMostrar = rawSesion;
+            }
             
             const hora = new Date().getHours();
             let saludoTiempo = '¡Buenos días';
@@ -134,7 +140,24 @@
 
     async function cargarNotificacionesMinutas() {
         try {
-            const res = await fetch(`${API_URL}/notificaciones/minutas-resumen`);
+            const rawSesion = sessionStorage.getItem('usuarioMODISA');
+            const userRol = localStorage.getItem('userRol') || '';
+            let nombreUsuario = '';
+
+            if (rawSesion && rawSesion.trim().startsWith('{')) {
+                const parsed = JSON.parse(rawSesion);
+                nombreUsuario = parsed.nombre || parsed.nombre_empleado || parsed.usuario || parsed.name || '';
+            } else if (rawSesion) {
+                nombreUsuario = rawSesion;
+            }
+
+            const res = await fetch(`${API_URL}/notificaciones/minutas-resumen`, {
+                headers: {
+                    'x-usuario-nombre': nombreUsuario,
+                    'x-user-rol': userRol
+                }
+            });
+
             if (!res.ok) throw new Error("Error en respuesta del servidor al consultar notificaciones");
 
             const datos = await res.json();
