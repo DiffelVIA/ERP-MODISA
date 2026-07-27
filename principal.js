@@ -224,4 +224,38 @@
             window.location.replace("/"); 
         });
     }
+
+    function procesarFiltrosUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const estadoParam = urlParams.get('estado');
+    const responsableParam = urlParams.get('responsable');
+
+    let hayFiltrosUrl = false;
+
+    if (estadoParam) {
+      const estadoLimpio = decodeURIComponent(estadoParam).toLowerCase().trim();
+      const checkboxesEstado = document.querySelectorAll('.chk-estado');
+      checkboxesEstado.forEach(chk => {
+        if (chk.value.toLowerCase().trim() === estadoLimpio) {
+          chk.checked = true;
+          hayFiltrosUrl = true;
+        }
+      });
+    }
+
+    if (responsableParam) {
+      const respLimpio = decodeURIComponent(responsableParam).toLowerCase().trim();
+      const checkboxesResp = document.querySelectorAll('.chk-responsable');
+      checkboxesResp.forEach(chk => {
+        if (chk.value.toLowerCase().trim() === respLimpio) {
+          chk.checked = true;
+          hayFiltrosUrl = true;
+        }
+      });
+    }
+
+    if (hayFiltrosUrl) {
+      aplicarFiltros();
+    }
+  }
 })();
