@@ -704,6 +704,42 @@ app.post('/api/tabla_minutas', async (req, res) => {
   }
 });
 
+// NOTIFICACIONES DE MINUTAS //
+app.get('/api/notificaciones/minutas-resumen', async (req, res) => {
+  try {
+    const fechaActual = new Date();
+    const anio = fechaActual.getFullYear();
+    const mes = String(fechaActual.getMonth() + 1).padStart(2, '0');
+    const dia = String(fechaActual.getDate()).padStart(2, '0');
+    const hoyFormateado = `${anio}-${mes}-${dia}`;
+
+    await pool.query(`
+      UPDATE minutas 
+      SET estado = 'atrasada' 
+      WHERE fecha < ? AND estado NOT IN ('completada', 'atrasada', 'aplazada')
+    `, [hoyFormateado]);
+
+    const querySQL = `
+      SELECT 
+        COUNT(CASE WHEN estado = 'atrasada' THEN 1 END) AS atrasadas,
+        COUNT(CASE WHEN estado = 'pendiente' THEN 1 END) AS pendientes,
+        COUNT(CASE WHEN estado = 'aplazada' THEN 1 END) AS aplazadas,
+        COUNT(*) AS total
+      FROM minutas
+      WHERE estado != 'completada';
+    `;
+
+    const [filas] = await pool.query(querySQL);
+    const resumen = filas[0] || { atrasadas: 0, pendientes: 0, aplazadas: 0, total: 0 };
+
+    res.json(resumen);
+
+  } catch (error) {
+    console.error('Error al obtener resumen de notificaciones:', error);
+    res.status(500).json({ error: 'Error al consultar notificaciones de minutas' });
+  }
+});
+
 // EMPLEADOS //
 app.get('/api/empleados/gestion', async (req, res) => {
     const userRol = req.headers['x-user-rol'];

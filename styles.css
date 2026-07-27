@@ -98,33 +98,33 @@ header nav ul li a:hover{
 }
 
 .form_main{
-  max-width: 600px; /* Limita el ancho máximo del contenido principal a 600px */
+  max-width: 600px;
   margin: 40px auto;
-  padding: 0 20px; /* Agrega un relleno horizontal de 20px para evitar que el texto toque los bordes del contenedor */
+  padding: 0 20px;
 }
 
-.form_main h1{ /* Selecciona los encabezados de nivel 1 dentro del main */
-  font-size: 24px; /* Define un tamaño de fuente grande para los encabezados */
-  margin-bottom: 20px; /* Agrega un margen inferior para separar el encabezado del contenido siguiente */
+.form_main h1{
+  font-size: 24px;
+  margin-bottom: 20px;
 }
 
 .form_main form{
-  display: flex; /* Activa el modelo de diseño flexible para el formulario */
-  flex-direction: column; /* Coloca los elementos del formulario en columna, uno debajo de otro */
-  gap: 10px; /* Espacio de 10px entre los elementos del formulario */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .contenedor-formulario{
-  font-size: 14px; /* Define un tamaño de fuente mediano para los grupos de formulario */
+  font-size: 14px;
 }
 
 .contenedor-formulario input, .contenedor-formulario select, .contenedor-formulario textarea{
-  width: 100%; /* Hace que los campos de entrada ocupen todo el ancho del contenedor */
-  padding: 8px; /* Agrega un relleno interno de 8px para mejorar la apariencia de los campos */
-  border: 1px solid  var(--border-color); /* Agrega un borde gris claro a los campos de entrada */
-  border-radius: 4px; /* Redondea ligeramente las esquinas de los campos de entrada */
-  box-sizing: border-box; /* Asegura que el padding y el borde se incluyan en el ancho total del elemento */
-  transition: border-color 0.2s ease; /* Suaviza el cambio de color del borde al interactuar con los campos */
+  width: 100%;
+  padding: 8px;
+  border: 1px solid  var(--border-color);
+  border-radius: 4px;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease;
 }
 
 .contenedor-formulario input:focus, .contenedor-formulario select:focus, .contenedor-formulario textarea:focus{
@@ -164,7 +164,7 @@ header nav ul li a:hover{
 }
 
 #descargar {
-  margin-bottom: 20px; /* Esto empuja la tabla hacia abajo y le da aire al diseño */
+  margin-bottom: 20px;
 }
 
 #guardar{
@@ -815,4 +815,131 @@ footer #btn-logout:hover {
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+/* --- Notificaciones --- */
+
+.contenedor-saludo {
+  text-align: center;
+  margin: 15px auto 25px auto;
+}
+
+.contenedor-saludo h2 {
+  font-size: 20px;
+  color: var(--text-dark, #1e293b);
+  margin-bottom: 12px;
+}
+
+.kpi-minutas-grid {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.kpi-card {
+  background: var(--blanco);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 18px;
+  display: flex;
+
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--black--);
+}
+
+.kpi-num {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.kpi-lbl {
+  font-size: 13px;
+  color: var(--text-dark);
+}
+
+.kpi-atrasadas .kpi-num { color: var(--red--); }
+.kpi-pendientes .kpi-num { color: var(--amarillo--); }
+.kpi-aplazadas .kpi-num { color: var(--accent-color); }
+
+.contenedor-notificaciones {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.btn-campana {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  position: relative;
+  padding: 6px;
+}
+
+.badge-notif {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  background-color: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  border-radius: 50%;
+  padding: 2px 5px;
+  line-height: 1;
+}
+
+.dropdown-notif {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  background-color: var(--blanco);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  width: 240px;
+  box-shadow: 0 10px 25px var(--black--);
+  z-index: 1000;
+  padding: 12px;
+}
+
+.dropdown-notif h3 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: var(--dark-text);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 6px;
+}
+
+.dropdown-notif ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 10px 0;
+}
+
+.item-notif {
+  font-size: 12px;
+  padding: 6px 0;
+  color: var(--text-dark);
+}
+
+.link-ver-todas {
+  display: block;
+  font-size: 11px;
+  color: var(--accent-color) !important;
+  background: transparent !important;
+  text-align: center;
+  padding: 4px 0 !important;
+}
+
+.link-ver-todas:hover {
+  text-decoration: underline;
+  background: transparent !important;
 }
