@@ -705,18 +705,111 @@ app.post('/api/tabla_minutas', async (req, res) => {
 });
 
 // EMPLEADOS //
-app.get('/api/empleados', async (req, res) => {
-  try {
-    const [rows] = await pool.query('SELECT id_employee, name, last_name FROM employees ORDER BY name ASC;');
-    res.json(rows);
-  } catch (error) {
-    console.error('Error al obtener empleados de Aiven:', error);
-    res.status(500).json({ error: error.message });
-  }
+app.get('/api/empleados/gestion', async (req, res) => {
+    const userRol = req.headers['x-user-rol'];
+    const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
+
+    if (rolNormalizado !== 'director operativo' && rolNormalizado !== 'director_operativo') {
+        return res.status(403).json({ error: "⛔ Acceso denegado: Solo el Director Operativo puede consultar esta sección." });
+    }
+
+    try {
+        const sql = `
+            SELECT id_employee, name, last_name, email, phone, job_title, department, first_entry 
+            FROM employees 
+            ORDER BY name ASC
+        `;
+        const [rows] = await pool.query(sql);
+        res.json(rows);
+    } catch (error) {
+        console.error('❌ Error al obtener empleados:', error);
+        res.status(500).json({ error: "Error al consultar los empleados de la base de datos." });
+    }
+});
+
+app.post('/api/empleados', async (req, res) => {
+    const userRol = req.headers['x-user-rol'];
+    const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
+
+    if (rolNormalizado !== 'director operativo' && rolNormalizado !== 'director_operativo') {
+        return res.status(403).json({ error: "⛔ Acceso denegado." });
+    }
+
+    const { name, last_name, email, phone, job_title, department, password } = req.body;
+
+    if (!name || !last_name || !email || !password || !job_title) {
+        return res.status(400).json({ error: "⚠️ Todos los campos obligatorios deben ser completados." });
+    }
+
+    try {
+        const sql = `
+            INSERT INTO employees (name, last_name, email, phone, job_title, department, password, first_entry)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+        `;
+        const [result] = await pool.query(sql, [name, last_name, email, phone || null, job_title, department || null, password]);
+        
+        res.status(201).json({ success: true, message: "Empleado creado con éxito.", insertId: result.insertId });
+    } catch (error) {
+        console.error('❌ Error al crear empleado:', error);
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ error: "⚠️ El correo electrónico ingresado ya se encuentra registrado." });
+        }
+        res.status(500).json({ error: "Error al guardar el empleado en la base de datos." });
+    }
+});
+
+app.put('/api/empleados/:id', async (req, res) => {
+    const userRol = req.headers['x-user-rol'];
+    const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
+    const { id } = req.params;
+
+    if (rolNormalizado !== 'director operativo' && rolNormalizado !== 'director_operativo') {
+        return res.status(403).json({ error: "⛔ Acceso denegado." });
+    }
+
+    const { name, last_name, email, phone, job_title, department } = req.body;
+
+    try {
+        const sql = `
+            UPDATE employees 
+            SET name = ?, last_name = ?, email = ?, phone = ?, job_title = ?, department = ?
+            WHERE id_employee = ?
+        `;
+        const [result] = await pool.query(sql, [name, last_name, email, phone || null, job_title, department || null, id]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "No se encontró el empleado especificado." });
+        }
+
+        res.json({ success: true, message: "Empleado actualizado correctamente." });
+    } catch (error) {
+        console.error('❌ Error al actualizar empleado:', error);
+        res.status(500).json({ error: "Error al actualizar los datos del empleado." });
+    }
+});
+
+app.delete('/api/empleados/:id', async (req, res) => {
+    const userRol = req.headers['x-user-rol'];
+    const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
+    const { id } = req.params;
+
+    if (rolNormalizado !== 'director operativo' && rolNormalizado !== 'director_operativo') {
+        return res.status(403).json({ error: "⛔ Acceso denegado." });
+    }
+
+    try {
+        const [result] = await pool.query("DELETE FROM employees WHERE id_employee = ?", [id]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "El empleado no existe o ya fue eliminado." });
+        }
+        res.json({ success: true, message: "Empleado eliminado del sistema." });
+    } catch (error) {
+        console.error('❌ Error al eliminar empleado:', error);
+        res.status(500).json({ error: "No se puede eliminar el empleado porque tiene registros/historial vinculados." });
+    }
 });
 
 // PROYECTOS //
-
 app.get('/api/proyectos', async (req, res) => {
   try {
     const querySQL = `

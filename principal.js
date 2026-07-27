@@ -21,6 +21,15 @@
         const btnRegresarPanel = document.getElementById('btn-regresar-panel');
         const tarjetasMaster = document.querySelectorAll('.tarjeta-master');
         const tarjetasSub = document.querySelectorAll('.tarjeta-sub');
+        const tarjetaEmpleados = document.getElementById('tarjeta-empleados');
+        if (tarjetaEmpleados) {
+            const rolLimpio = rolUsuario ? rolUsuario.trim().toLowerCase() : '';
+            if (rolLimpio === 'director operativo' || rolLimpio === 'director_operativo') {
+                tarjetaEmpleados.style.display = 'block';
+            } else {
+                tarjetaEmpleados.style.display = 'none';
+            }
+        }
 
         if (btnRegistroMinuta) {
             btnRegistroMinuta.addEventListener('click', (e) =>{

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Empleados - MODISA</title>
+    <script src="/timeout.js"></script>
+    <link rel="icon" type="image/x-icon" href="../img/MODISA-favicon.ico">
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <header id="header">
+        <div><img src="../img/logo.png" alt="logo" id="logo"></div>
+        <nav>
+            <ul>
+                <li><a href="../principal.html?panel=control">Volver a Panel Principal</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="contenedor-tabla">
+        <h1>👥 Control y Gestión de Empleados</h1>
+        
+        <div style="margin-bottom: 20px;">
+            <button id="btn-nuevo-empleado" class="btn">➕ Nuevo Empleado</button>
+        </div>
+
+        <table class="tabla-minutas">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Correo (Usuario)</th>
+                    <th>Teléfono</th>
+                    <th>Rol (Puesto)</th>
+                    <th>Departamento</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="cuerpoTablaEmpleados">
+                <!-- Se llena dinámicamente -->
+            </tbody>
+        </table>
+
+        <!-- Modal Crear/Editar -->
+        <div id="modalEmpleado" class="modal">
+            <div class="modal-contenido">
+                <h2 id="modalTitulo">Agregar Empleado</h2>
+                <form id="formEmpleado">
+                    <input type="hidden" id="emp-id">
+                    
+                    <div class="contenedor-formulario">
+                        <label>Nombre(s):</label>
+                        <input type="text" id="emp-nombre" required>
+                    </div>
+                    <div class="contenedor-formulario">
+                        <label>Apellidos:</label>
+                        <input type="text" id="emp-apellido" required>
+                    </div>
+                    <div class="contenedor-formulario">
+                        <label>Correo Electrónico:</label>
+                        <input type="email" id="emp-email" required>
+                    </div>
+                    <div class="contenedor-formulario">
+                        <label>Teléfono:</label>
+                        <input type="text" id="emp-telefono">
+                    </div>
+                    <div class="contenedor-formulario">
+                        <label>Rol / Puesto:</label>
+                        <input type="text" id="emp-puesto" placeholder="Ej: Residente de Obra" required>
+                    </div>
+                    <div class="contenedor-formulario">
+                        <label>Departamento:</label>
+                        <input type="text" id="emp-depto">
+                    </div>
+                    <div class="contenedor-formulario" id="grupo-pass">
+                        <label>Contraseña Inicial:</label>
+                        <input type="password" id="emp-pass">
+                    </div>
+
+                    <div style="margin-top: 15px; text-align: right;">
+                        <button type="button" class="btn" id="btnCerrarModal" style="background:#64748b; color:#fff;">Cancelar</button>
+                        <button type="submit" class="btn" id="guardar">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script src="tablaEmpleados.js"></script>
+</body>
+</html>
