@@ -18,13 +18,15 @@
     'materiales': '📦 Materiales',
     };
 
-    let todosLosPagos = []; 
+    let todosLosPagos = [];
+    let pagosFiltradosActuales = [];
 
     document.addEventListener('DOMContentLoaded', () => {
         verificarPermisosDeAcceso();
         cargarPagosSolicitados();
         configurarDelegacionEventos();
         inicializarEventosFiltros();
+        inicializarEventoExportarExcel();
     });
 
     function verificarPermisosDeAcceso() {
@@ -152,7 +154,6 @@
             const fechaTxt = item.request_date ? formatearFechaLocal(item.request_date) : '';
             const semanaTxt = item.fiscal_week ? `Semana ${item.fiscal_week}` : '';
             const estadoTxt = item.status || 'Pendiente';
-
             const matchObra = selObras.length === 0 || selObras.includes(item.project_name);
             const matchForma = selFormas.length === 0 || selFormas.includes(item.payment_method);
             const matchEstado = selEstados.length === 0 || selEstados.includes(estadoTxt);
@@ -162,7 +163,54 @@
             return matchObra && matchForma && matchEstado && matchFecha && matchSemana;
         });
 
+        pagosFiltradosActuales = filtrados;
         renderizarTablaPagos(filtrados);
+    }
+
+    function inicializarEventoExportarExcel() {
+        const btnDescargar = document.getElementById('descargar');
+        if (!btnDescargar) return;
+
+        btnDescargar.addEventListener('click', () => {
+            const datosAExportar = pagosFiltradosActuales.length > 0 ? pagosFiltradosActuales : todosLosPagos;
+
+            if (!datosAExportar || datosAExportar.length === 0) {
+                alert('⚠️ No hay información de pagos disponible para exportar.');
+                return;
+            }
+
+            const filasExcel = datosAExportar.map(item => {
+                const montoConcepto = parseFloat(item.amount || 0);
+                const montoPagado = parseFloat(item.monto_pagado || 0);
+                const porcentaje = montoConcepto > 0 ? Math.round((montoPagado / montoConcepto) * 100) : 0;
+
+                return {
+                    "Obra": item.project_name || '---',
+                    "Fecha": formatearFechaLocal(item.request_date),
+                    "Semana": item.fiscal_week ? `Semana ${item.fiscal_week}` : '---',
+                    "Tipo de Pago": item.payment_type || '---',
+                    "Forma de Pago": item.payment_method || '---',
+                    "Comentario Solicitante": item.commentary || item.resident_comment || item.comentario || '---',
+                    "Grupo": item.grupo || '---',
+                    "Categoría": item.categoria || '---',
+                    "Subcategoría": item.subcategoria || '---',
+                    "Proveedor": item.provider || '---',
+                    "Concepto": item.concept_description || '---',
+                    "Monto Total": montoConcepto,
+                    "Monto Pagado": montoPagado,
+                    "% Pagado": `${porcentaje}%`,
+                    "Estado": item.status || 'Pendiente',
+                    "Comentario Compras": item.compras_comment || '---'
+                };
+            });
+
+            const worksheet = XLSX.utils.json_to_sheet(filasExcel);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Reporte_Pagos");
+
+            const fechaHoy = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(workbook, `Reporte_Pagos_MODISA_${fechaHoy}.xlsx`);
+        });
     }
 
     function inicializarEventosFiltros() {
