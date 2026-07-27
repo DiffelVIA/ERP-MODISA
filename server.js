@@ -732,29 +732,40 @@ app.post('/api/empleados', async (req, res) => {
     const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
 
     if (rolNormalizado !== 'director operativo' && rolNormalizado !== 'director_operativo') {
-        return res.status(403).json({ error: "⛔ Acceso denegado." });
+        return res.status(403).json({ error: "⛔ Acceso denegado: Solo el Director Operativo puede modificar empleados." });
     }
 
     const { name, last_name, email, phone, job_title, department, password } = req.body;
 
     if (!name || !last_name || !email || !password || !job_title) {
-        return res.status(400).json({ error: "⚠️ Todos los campos obligatorios deben ser completados." });
+        return res.status(400).json({ error: "⚠️ Por favor completa todos los campos obligatorios." });
     }
 
     try {
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(password.trim(), saltRounds);
+
         const sql = `
             INSERT INTO employees (name, last_name, email, phone, job_title, department, password, first_entry)
             VALUES (?, ?, ?, ?, ?, ?, ?, 1)
         `;
-        const [result] = await pool.query(sql, [name, last_name, email, phone || null, job_title, department || null, password]);
-        
-        res.status(201).json({ success: true, message: "Empleado creado con éxito.", insertId: result.insertId });
+        const [result] = await pool.query(sql, [
+            name.trim(), 
+            last_name.trim(), 
+            email.trim().toLowerCase(), 
+            phone ? phone.trim() : null, 
+            job_title.trim(), 
+            department ? department.trim() : null, 
+            hashedPassword
+        ]);
+
+        res.status(201).json({ success: true, message: "🎉 Empleado registrado con éxito.", insertId: result.insertId });
     } catch (error) {
         console.error('❌ Error al crear empleado:', error);
         if (error.code === 'ER_DUP_ENTRY') {
-            return res.status(400).json({ error: "⚠️ El correo electrónico ingresado ya se encuentra registrado." });
+            return res.status(400).json({ error: "⚠️ El correo electrónico ingresado ya pertenece a otro usuario." });
         }
-        res.status(500).json({ error: "Error al guardar el empleado en la base de datos." });
+        res.status(500).json({ error: "Error en la base de datos al guardar el empleado." });
     }
 });
 
