@@ -35,14 +35,21 @@
         if (!inputSolicitante) return;
 
         try {
-            const usuarioSesion = JSON.parse(sessionStorage.getItem('usuarioMODISA'));
+            const rawSesion = sessionStorage.getItem('usuarioMODISA');
+            if (!rawSesion) {
+                console.error("❌ No se encontró 'usuarioMODISA' en sessionStorage.");
+                inputSolicitante.value = "Usuario Desconocido";
+                return;
+            }
+
+            const usuarioSesion = JSON.parse(rawSesion);
             
-            if (usuarioSesion && usuarioSesion.id_employee) {
+            if (usuarioSesion && usuarioSesion.id_employee !== undefined && usuarioSesion.id_employee !== null) {
                 inputSolicitante.setAttribute('data-id', usuarioSesion.id_employee);
-                inputSolicitante.value = usuarioSesion.nombre;
+                inputSolicitante.value = usuarioSesion.nombre || usuarioSesion.name || "Usuario Activo";
             } else {
                 inputSolicitante.value = "Usuario Desconocido";
-                console.error("❌ No se encontró el id_employee en sessionStorage.");
+                console.error("❌ El objeto usuarioMODISA no contiene id_employee válido.");
             }
         } catch (e) {
             console.error("❌ Error al parsear sessionStorage.usuarioMODISA:", e);

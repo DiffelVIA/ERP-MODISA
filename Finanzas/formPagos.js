@@ -35,31 +35,41 @@
         if (!inputSolicitante) return;
 
         try {
-            const usuarioSesion = JSON.parse(sessionStorage.getItem('usuarioMODISA'));
+            const rawSesion = sessionStorage.getItem('usuarioMODISA');
+            if (!rawSesion) {
+                console.error("❌ No se encontró 'usuarioMODISA' en sessionStorage.");
+                asignarEstadoSolicitante(inputSolicitante, "", "Usuario Desconocido");
+                return;
+            }
+
+            const usuarioSesion = JSON.parse(rawSesion);
             
-            if (usuarioSesion && usuarioSesion.id_employee) {
-                inputSolicitante.setAttribute('data-id', usuarioSesion.id_employee);
+            if (usuarioSesion && usuarioSesion.id_employee !== undefined && usuarioSesion.id_employee !== null) {
+                const idEmp = usuarioSesion.id_employee;
+                const nombreEmp = usuarioSesion.nombre || usuarioSesion.name || "Usuario Activo";
+
+                inputSolicitante.setAttribute('data-id', idEmp);
 
                 if (inputSolicitante.tagName === 'SELECT') {
-                    inputSolicitante.innerHTML = `<option value="${usuarioSesion.id_employee}" selected>${usuarioSesion.nombre}</option>`;
+                    inputSolicitante.innerHTML = `<option value="${idEmp}" selected>${nombreEmp}</option>`;
                 } else {
-                    inputSolicitante.value = usuarioSesion.nombre;
+                    inputSolicitante.value = nombreEmp;
                 }
             } else {
-                if (inputSolicitante.tagName === 'SELECT') {
-                    inputSolicitante.innerHTML = `<option value="">Usuario Desconocido</option>`;
-                } else {
-                    inputSolicitante.value = "Usuario Desconocido";
-                }
-                console.error("❌ No se encontró el id_employee en sessionStorage.");
+                asignarEstadoSolicitante(inputSolicitante, "", "Usuario Desconocido");
+                console.error("❌ El objeto usuarioMODISA no contiene id_employee válido.");
             }
         } catch (e) {
             console.error("❌ Error al parsear sessionStorage.usuarioMODISA:", e);
-            if (inputSolicitante.tagName === 'SELECT') {
-                inputSolicitante.innerHTML = `<option value="">Error al recuperar sesión</option>`;
-            } else {
-                inputSolicitante.value = "Error al recuperar sesión";
-            }
+            asignarEstadoSolicitante(inputSolicitante, "", "Error al recuperar sesión");
+        }
+    }
+
+    function asignarEstadoSolicitante(elemento, valorId, textoMostrar) {
+        if (elemento.tagName === 'SELECT') {
+            elemento.innerHTML = `<option value="${valorId}">${textoMostrar}</option>`;
+        } else {
+            elemento.value = textoMostrar;
         }
     }
 

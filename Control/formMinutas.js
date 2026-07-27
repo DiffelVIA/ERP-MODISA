@@ -39,7 +39,11 @@
     if (!selectResponsable) return;
 
     try {
-      const respuesta = await fetch(`${API_URL}/empleados`);
+      const respuesta = await fetch(`${API_URL}/empleados/gestion`, {
+        headers: {
+          'x-user-rol': localStorage.getItem('userRol') || ''
+        }
+      });
       if (!respuesta.ok) throw new Error('Error al traer empleados');
 
       const empleados = await respuesta.json();
