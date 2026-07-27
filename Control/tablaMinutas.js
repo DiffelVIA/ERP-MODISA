@@ -88,6 +88,7 @@
       
       ordenarDatos(actividadesFiltradas);
       filtroOpciones(concentradoMinutas);
+      procesarFiltros();
       renderizarTabla(actividadesFiltradas);
 
     } catch (error) {
@@ -555,5 +556,33 @@
 
       aplicarFiltros();
     });
+  }
+
+  function procesarFiltrosUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const estadoParam = urlParams.get('estado');
+    const responsableParam = urlParams.get('responsable');
+
+    let hayFiltrosUrl = false;
+
+    if (estadoParam) {
+      const chkEstado = document.querySelector(`.chk-estado[value="${estadoParam}"]`);
+      if (chkEstado) {
+        chkEstado.checked = true;
+        hayFiltrosUrl = true;
+      }
+    }
+
+    if (responsableParam) {
+      const chkResp = document.querySelector(`.chk-responsable[value="${responsableParam}"]`);
+      if (chkResp) {
+        chkResp.checked = true;
+        hayFiltrosUrl = true;
+      }
+    }
+
+    if (hayFiltrosUrl) {
+      aplicarFiltros();
+    }
   }
 })();

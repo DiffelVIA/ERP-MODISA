@@ -16,7 +16,7 @@
     document.addEventListener("DOMContentLoaded", () => {
         renderizarSaludoUsuario();
         cargarNotificacionesMinutas();
-        configurarMenuNotificaciones();
+        configurarEventosTarjetasKPI();
 
         const rolUsuario = localStorage.getItem('userRol');
         const ventana = document.querySelector('.carrusel-ventana');
@@ -171,47 +171,46 @@
             if (kpiPendientes) kpiPendientes.textContent = pendientes;
             if (kpiAplazadas) kpiAplazadas.textContent = aplazadas;
 
-            const badge = document.getElementById('badge-notificaciones');
-            if (badge) {
-                const totalAtencion = atrasadas + pendientes;
-                if (totalAtencion > 0) {
-                    badge.textContent = totalAtencion;
-                    badge.classList.remove('panel-oculto');
-                } else {
-                    badge.classList.add('panel-oculto');
-                }
-            }
-
-            const listaNotif = document.getElementById('lista-resumen-notif');
-            if (listaNotif) {
-                listaNotif.innerHTML = `
-                    <li class="item-notif item-atrasada">🔴 <strong>${atrasadas}</strong> minutas atrasadas</li>
-                    <li class="item-notif item-pendiente">🟡 <strong>${pendientes}</strong> minutas pendientes</li>
-                    <li class="item-notif item-aplazada">🔵 <strong>${aplazadas}</strong> minutas aplazadas</li>
-                `;
-            }
-
         } catch (error) {
             console.error("❌ Error al cargar notificaciones de minutas:", error);
         }
     }
 
-    function configurarMenuNotificaciones() {
-        const btnCampana = document.getElementById('btn-notificaciones');
-        const dropdown = document.getElementById('dropdown-notificaciones');
-
-        if (!btnCampana || !dropdown) return;
-
-        btnCampana.addEventListener('click', (e) => {
-            e.stopPropagation();
-            dropdown.classList.toggle('panel-oculto');
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!dropdown.contains(e.target) && e.target !== btnCampana) {
-                dropdown.classList.add('panel-oculto');
+    function configurarEventosTarjetasKPI() {
+        const obtenerNombreUsuarioActual = () => {
+            try {
+                const rawSesion = sessionStorage.getItem('usuarioMODISA');
+                if (!rawSesion) return '';
+                if (rawSesion.trim().startsWith('{')) {
+                    const usuario = JSON.parse(rawSesion);
+                    return usuario.nombre || usuario.nombre_empleado || usuario.name || usuario.usuario || '';
+                }
+                return rawSesion;
+            } catch (e) {
+                return '';
             }
-        });
+        };
+
+        const nombreUsuario = encodeURIComponent(obtenerNombreUsuarioActual());
+        const cardAtrasadas = document.querySelector('.kpi-atrasadas');
+        const cardPendientes = document.querySelector('.kpi-pendientes');
+        const cardAplazadas = document.querySelector('.kpi-aplazadas');
+
+        if (cardAtrasadas) {
+            cardAtrasadas.onclick = () => {
+                window.location.href = `Control/tabla_minutas.html?estado=atrasada&responsable=${nombreUsuario}`;
+            };
+        }
+        if (cardPendientes) {
+            cardPendientes.onclick = () => {
+                window.location.href = `Control/tabla_minutas.html?estado=pendiente&responsable=${nombreUsuario}`;
+            };
+        }
+        if (cardAplazadas) {
+            cardAplazadas.onclick = () => {
+                window.location.href = `Control/tabla_minutas.html?estado=aplazada&responsable=${nombreUsuario}`;
+            };
+        }
     }
 
     const btnLogout = document.getElementById('btn-logout');
