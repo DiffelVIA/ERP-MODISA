@@ -88,7 +88,7 @@
       
       ordenarDatos(actividadesFiltradas);
       filtroOpciones(concentradoMinutas);
-      procesarFiltros();
+      procesarFiltrosUrl();
       renderizarTabla(actividadesFiltradas);
 
     } catch (error) {
