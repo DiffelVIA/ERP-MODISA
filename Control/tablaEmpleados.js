@@ -23,12 +23,12 @@
             const res = await fetch(`${API_BASE}/empleados/gestion`, {
                 headers: { 'x-user-rol': localStorage.getItem('userRol') }
             });
-            if (!res.ok) throw new Error('Error al obtener datos del servidor.');
+            if (!res.ok) throw new Error('Error al obtener datos.');
 
             listaEmpleados = await res.json();
             renderizarTabla();
         } catch (err) {
-            console.error("❌ Error al cargar empleados:", err);
+            console.error('❌ Error al cargar la lista:', err);
         }
     }
 
@@ -37,7 +37,7 @@
         tbody.innerHTML = '';
 
         if (listaEmpleados.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 20px; color: #64748b;">No hay empleados registrados.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="tabla-vacia">No hay empleados registrados.</td></tr>`;
             return;
         }
 
@@ -47,11 +47,11 @@
                 <td><strong>${emp.name} ${emp.last_name}</strong></td>
                 <td>${emp.email}</td>
                 <td>${emp.phone || '---'}</td>
-                <td><span class="badge-rol">${emp.job_title || '---'}</span></td>
+                <td><strong>${emp.job_title || '---'}</strong></td>
                 <td>${emp.department || '---'}</td>
                 <td style="text-align: center; white-space: nowrap;">
-                    <button class="btn-accion btn-editar-emp" data-id="${emp.id_employee}">✏️ Editar</button>
-                    <button class="btn-accion btn-eliminar-emp" data-id="${emp.id_employee}">🗑️ Eliminar</button>
+                    <button class="btn btn-editar" data-id="${emp.id_employee}" style="padding: 3px 8px; font-size: 11px;">✏️ Editar</button>
+                    <button class="btn btn-eliminar" data-id="${emp.id_employee}" style="padding: 3px 8px; font-size: 11px; background-color: var(--red--); color: #fff;">🗑️ Eliminar</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -64,92 +64,99 @@
         const btnCerrar = document.getElementById('btnCerrarModal');
         const form = document.getElementById('formEmpleado');
 
-        btnNuevo.addEventListener('click', () => {
-            form.reset();
-            document.getElementById('emp-id').value = '';
-            document.getElementById('modalTitulo').textContent = '➕ Agregar Nuevo Empleado';
-            document.getElementById('grupo-pass').style.display = 'flex';
-            document.getElementById('emp-pass').setAttribute('required', 'true');
-            modal.style.display = 'flex';
-        });
+        if (btnNuevo && modal) {
+            btnNuevo.addEventListener('click', () => {
+                form.reset();
+                document.getElementById('emp-id').value = '';
+                document.getElementById('modalTitulo').textContent = '➕ Agregar Empleado';
+                document.getElementById('grupo-pass').style.display = 'block';
+                document.getElementById('emp-pass').setAttribute('required', 'true');
+                modal.classList.add('mostrar');
+            });
+        }
 
-        btnCerrar.addEventListener('click', () => modal.style.display = 'none');
+        if (btnCerrar && modal) {
+            btnCerrar.addEventListener('click', () => modal.classList.remove('mostrar'));
+        }
 
-        // Escuchador corregido con delegación exacta de eventos
-        document.getElementById('cuerpoTablaEmpleados').addEventListener('click', (e) => {
-            const btnEdit = e.target.closest('.btn-editar-emp');
-            const btnDel = e.target.closest('.btn-eliminar-emp');
+        const cuerpoTabla = document.getElementById('cuerpoTablaEmpleados');
+        if (cuerpoTabla) {
+            cuerpoTabla.addEventListener('click', (e) => {
+                const btnEdit = e.target.closest('.btn-editar');
+                const btnDel = e.target.closest('.btn-eliminar');
 
-            if (btnEdit) {
-                const id = btnEdit.getAttribute('data-id');
-                const emp = listaEmpleados.find(item => String(item.id_employee) === String(id));
-                if (emp) {
-                    document.getElementById('emp-id').value = emp.id_employee;
-                    document.getElementById('emp-nombre').value = emp.name;
-                    document.getElementById('emp-apellido').value = emp.last_name;
-                    document.getElementById('emp-email').value = emp.email;
-                    document.getElementById('emp-telefono').value = emp.phone || '';
-                    document.getElementById('emp-puesto').value = emp.job_title || '';
-                    document.getElementById('emp-depto').value = emp.department || '';
-                    
-                    // Al editar no exigimos contraseña
-                    document.getElementById('grupo-pass').style.display = 'none';
-                    document.getElementById('emp-pass').removeAttribute('required');
-                    
-                    document.getElementById('modalTitulo').textContent = '✏️ Editar Empleado';
-                    modal.style.display = 'flex';
+                if (btnEdit) {
+                    const id = btnEdit.getAttribute('data-id');
+                    const emp = listaEmpleados.find(i => String(i.id_employee) === String(id));
+                    if (emp) {
+                        document.getElementById('emp-id').value = emp.id_employee;
+                        document.getElementById('emp-nombre').value = emp.name;
+                        document.getElementById('emp-apellido').value = emp.last_name;
+                        document.getElementById('emp-email').value = emp.email;
+                        document.getElementById('emp-telefono').value = emp.phone || '';
+                        document.getElementById('emp-puesto').value = emp.job_title || '';
+                        document.getElementById('emp-depto').value = emp.department || '';
+                        
+                        document.getElementById('grupo-pass').style.display = 'none';
+                        document.getElementById('emp-pass').removeAttribute('required');
+                        
+                        document.getElementById('modalTitulo').textContent = '✏️ Editar Empleado';
+                        modal.classList.add('mostrar');
+                    }
                 }
-            }
 
-            if (btnDel) {
-                const id = btnDel.getAttribute('data-id');
-                if (confirm('¿Estás seguro de que deseas eliminar a este empleado de la plataforma?')) {
-                    eliminarEmpleado(id);
+                if (btnDel) {
+                    const id = btnDel.getAttribute('data-id');
+                    if (confirm('¿Estás seguro de que deseas eliminar este empleado?')) {
+                        eliminarEmpleado(id);
+                    }
                 }
-            }
-        });
+            });
+        }
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const id = document.getElementById('emp-id').value;
-            const esEdicion = Boolean(id);
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('emp-id').value;
+                const esEdicion = Boolean(id);
 
-            const payload = {
-                name: document.getElementById('emp-nombre').value.trim(),
-                last_name: document.getElementById('emp-apellido').value.trim(),
-                email: document.getElementById('emp-email').value.trim(),
-                phone: document.getElementById('emp-telefono').value.trim(),
-                job_title: document.getElementById('emp-puesto').value.trim(),
-                department: document.getElementById('emp-depto').value.trim(),
-            };
+                const payload = {
+                    name: document.getElementById('emp-nombre').value.trim(),
+                    last_name: document.getElementById('emp-apellido').value.trim(),
+                    email: document.getElementById('emp-email').value.trim(),
+                    phone: document.getElementById('emp-telefono').value.trim(),
+                    job_title: document.getElementById('emp-puesto').value.trim(),
+                    department: document.getElementById('emp-depto').value.trim(),
+                };
 
-            if (!esEdicion) {
-                payload.password = document.getElementById('emp-pass').value;
-            }
+                if (!esEdicion) {
+                    payload.password = document.getElementById('emp-pass').value;
+                }
 
-            const url = esEdicion ? `${API_BASE}/empleados/${id}` : `${API_BASE}/empleados`;
-            const method = esEdicion ? 'PUT' : 'POST';
+                const url = esEdicion ? `${API_BASE}/empleados/${id}` : `${API_BASE}/empleados`;
+                const method = esEdicion ? 'PUT' : 'POST';
 
-            try {
-                const res = await fetch(url, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-user-rol': localStorage.getItem('userRol')
-                    },
-                    body: JSON.stringify(payload)
-                });
+                try {
+                    const res = await fetch(url, {
+                        method: method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-user-rol': localStorage.getItem('userRol')
+                        },
+                        body: JSON.stringify(payload)
+                    });
 
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Error al guardar los datos.');
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Error al procesar.');
 
-                alert(data.message);
-                modal.style.display = 'none';
-                cargarEmpleados();
-            } catch (err) {
-                alert(`❌ ${err.message}`);
-            }
-        });
+                    alert(data.message);
+                    modal.classList.remove('mostrar');
+                    cargarEmpleados();
+                } catch (err) {
+                    alert(`❌ ${err.message}`);
+                }
+            });
+        }
     }
 
     async function eliminarEmpleado(id) {
@@ -160,7 +167,7 @@
             });
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'No se pudo eliminar el registro.');
+            if (!res.ok) throw new Error(data.error || 'Error al eliminar.');
 
             alert(data.message);
             cargarEmpleados();

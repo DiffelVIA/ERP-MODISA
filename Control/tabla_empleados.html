@@ -18,67 +18,68 @@
         </nav>
     </header>
 
-    <main class="contenedor-tabla">
-        <h1>👥 Control y Gestión de Empleados</h1>
+    <main class="main-tabla">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1>👥 Control y Gestión de Empleados</h1>
+            <button id="btn-nuevo-empleado" class="btn" style="background-color: var(--primary-color); color: var(--blanco);">➕ Agregar Empleado</button>
+        </div>
 
-        <table class="tabla-minutas">
-            <thead>
-                <tr>
-                    <th>Nombre</th>
-                    <th>Correo (Usuario)</th>
-                    <th>Teléfono</th>
-                    <th>Rol (Puesto)</th>
-                    <th>Departamento</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody id="cuerpoTablaEmpleados">
-                <!-- Se llena dinámicamente -->
-            </tbody>
-        </table>
+        <div class="tabla">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 20%;">Nombre</th>
+                        <th style="width: 25%;">Correo (Usuario)</th>
+                        <th style="width: 15%;">Teléfono</th>
+                        <th style="width: 15%;">Rol (Puesto)</th>
+                        <th style="width: 15%;">Departamento</th>
+                        <th style="width: 10%; text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="cuerpoTablaEmpleados">
+                </tbody>
+            </table>
+        </div>
 
-        <!-- Modal Crear/Editar -->
-        <div id="modalEmpleado" class="modal">
-            <div class="modal-contenido">
-                <h2 id="modalTitulo">Agregar Empleado</h2>
-                <form id="formEmpleado">
-                    <input type="hidden" id="emp-id">
-                    
-                    <div class="contenedor-formulario">
-                        <label>Nombre(s):</label>
-                        <input type="text" id="emp-nombre" required>
-                    </div>
-                    <div class="contenedor-formulario">
-                        <label>Apellidos:</label>
-                        <input type="text" id="emp-apellido" required>
-                    </div>
-                    <div class="contenedor-formulario">
-                        <label>Correo:</label>
-                        <input type="email" id="emp-email" required>
-                    </div>
-                    <div class="contenedor-formulario">
-                        <label>Teléfono:</label>
-                        <input type="text" id="emp-telefono">
-                    </div>
-                    <div class="contenedor-formulario">
-                        <label>Puesto:</label>
-                        <input type="text" id="emp-puesto" placeholder="Ej: Residente de Obra" required>
-                    </div>
-                    <div class="contenedor-formulario">
-                        <label>Departamento:</label>
-                        <input type="text" id="emp-depto">
-                    </div>
-                    <div class="contenedor-formulario" id="grupo-pass">
-                        <label>Contraseña Inicial:</label>
-                        <input type="password" id="emp-pass">
-                    </div>
+        <div id="modalEmpleado" class="contenido-dropdown" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); min-width: 320px; max-width: 480px; max-height: 90vh; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border-radius: 8px;">
+            <h2 id="modalTitulo" style="font-size: 18px; color: var(--primary-color); margin-top: 0;">Agregar Empleado</h2>
+            <form id="formEmpleado" style="display: flex; flex-direction: column; gap: 12px;">
+                <input type="hidden" id="emp-id">
+                
+                <div class="contenedor-formulario">
+                    <label style="font-weight: 600; font-size: 12px;">Nombre(s):</label>
+                    <input type="text" id="emp-nombre" required>
+                </div>
+                <div class="contenedor-formulario">
+                    <label style="font-weight: 600; font-size: 12px;">Apellidos:</label>
+                    <input type="text" id="emp-apellido" required>
+                </div>
+                <div class="contenedor-formulario">
+                    <label style="font-weight: 600; font-size: 12px;">Correo (Usuario):</label>
+                    <input type="email" id="emp-email" required>
+                </div>
+                <div class="contenedor-formulario">
+                    <label style="font-weight: 600; font-size: 12px;">Teléfono:</label>
+                    <input type="text" id="emp-telefono">
+                </div>
+                <div class="contenedor-formulario">
+                    <label style="font-weight: 600; font-size: 12px;">Puesto / Rol:</label>
+                    <input type="text" id="emp-puesto" placeholder="Ej: Residente de Obra" required>
+                </div>
+                <div class="contenedor-formulario">
+                    <label style="font-weight: 600; font-size: 12px;">Departamento:</label>
+                    <input type="text" id="emp-depto">
+                </div>
+                <div class="contenedor-formulario" id="grupo-pass">
+                    <label style="font-weight: 600; font-size: 12px;">Contraseña Inicial:</label>
+                    <input type="password" id="emp-pass">
+                </div>
 
-                    <div style="margin-top: 15px; text-align: right;">
-                        <button type="button" class="btn" id="btnCerrarModal" style="background:#64748b; color:#fff;">Cancelar</button>
-                        <button type="submit" class="btn" id="guardar">Guardar</button>
-                    </div>
-                </form>
-            </div>
+                <div class="contenedor-botones" style="justify-content: flex-end; margin-top: 10px;">
+                    <button type="button" class="btn" id="btnCerrarModal" style="background-color: var(--text-muted); color: var(--blanco);">Cancelar</button>
+                    <button type="submit" class="btn" id="guardar">Guardar</button>
+                </div>
+            </form>
         </div>
     </main>
 

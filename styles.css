@@ -663,9 +663,7 @@ footer #btn-logout:hover {
   }
 }
 
-/* ==========================================================================
-   MÓDULO DE TRANSICIÓN DE SUB-PANELES (MÁSTER Y REGRESAR)
-   ========================================================================== */
+/* Panel oculto*/
 
 .panel-oculto {
   display: none !important;
