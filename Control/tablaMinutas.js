@@ -565,19 +565,43 @@
 
     let hayFiltrosUrl = false;
 
+    const normalizarTexto = (texto) => {
+      if (!texto) return '';
+      return decodeURIComponent(texto)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+    };
+
     if (estadoParam) {
-      const chkEstado = document.querySelector(`.chk-estado[value="${estadoParam}"]`);
-      if (chkEstado) {
-        chkEstado.checked = true;
-        hayFiltrosUrl = true;
-      }
+      const estadoLimpio = normalizarTexto(estadoParam);
+      const checkboxesEstado = document.querySelectorAll('.chk-estado');
+      checkboxesEstado.forEach(chk => {
+        if (normalizarTexto(chk.value) === estadoLimpio) {
+          chk.checked = true;
+          hayFiltrosUrl = true;
+        }
+      });
     }
 
     if (responsableParam) {
-      const chkResp = document.querySelector(`.chk-responsable[value="${responsableParam}"]`);
-      if (chkResp) {
-        chkResp.checked = true;
-        hayFiltrosUrl = true;
+      const respLimpio = normalizarTexto(responsableParam);
+      const checkboxesResp = document.querySelectorAll('.chk-responsable');
+
+      if (respLimpio !== '') {
+        checkboxesResp.forEach(chk => {
+          const valorChkLimpio = normalizarTexto(chk.value);
+          
+          if (
+            valorChkLimpio === respLimpio ||
+            valorChkLimpio.includes(respLimpio) ||
+            respLimpio.includes(valorChkLimpio)
+          ) {
+            chk.checked = true;
+            hayFiltrosUrl = true;
+          }
+        });
       }
     }
 
