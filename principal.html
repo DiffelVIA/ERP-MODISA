@@ -36,6 +36,23 @@
 
     <main class="principal-main">
         <h1 id="titulo-dashboard">Sistema de Gestión MODISA</h1>
+        <section id="seccion-saludo-usuario" class="contenedor-saludo">
+            <h2 id="saludo-texto">¡Bienvenido! 👋</h2>
+            <div id="kpis-minutas-resumen" class="kpi-minutas-grid">
+                <div class="kpi-card kpi-atrasadas" onclick="window.location.href='Control/tabla_minutas.html'">
+                    <span class="kpi-num" id="kpi-atrasadas-val">0</span>
+                    <span class="kpi-lbl">Atrasadas</span>
+                </div>
+                <div class="kpi-card kpi-pendientes" onclick="window.location.href='Control/tabla_minutas.html'">
+                    <span class="kpi-num" id="kpi-pendientes-val">0</span>
+                    <span class="kpi-lbl">Pendientes</span>
+                </div>
+                <div class="kpi-card kpi-aplazadas" onclick="window.location.href='Control/tabla_minutas.html'">
+                    <span class="kpi-num" id="kpi-aplazadas-val">0</span>
+                    <span class="kpi-lbl">Aplazadas</span>
+                </div>
+            </div>
+        </section>
         <div class="carrusel">
             <div class="carrusel-ventana">
                 <div class="contenedor-tarjetas vista-menu" id="carrusel-track">
