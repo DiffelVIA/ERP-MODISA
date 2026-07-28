@@ -49,7 +49,8 @@
                 sessionStorage.setItem("usuarioMODISA", JSON.stringify({
                     id_employee: datos.id_employee,
                     nombre: datos.nombre,
-                    rol: datos.rol
+                    rol: datos.rol,
+                    loginTime: Date.now()
                 }));
                 window.location.href = "principal.html";
             }
@@ -98,7 +99,8 @@
             sessionStorage.setItem("usuarioMODISA", JSON.stringify({
                 id_employee: datos.id_employee,
                 nombre: datos.nombre,
-                rol: datos.rol || "Director Operativo"
+                rol: datos.rol || "Director Operativo",
+                loginTime: Date.now()
             }));
 
             alert("Contraseña actualizada con éxito");
