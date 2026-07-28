@@ -537,7 +537,31 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + path.extname(file.originalname));
   }
 });
-const upload = multer({ storage: multer.memoryStorage() });
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024 // Límite recomendado de 10 MB por archivo
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.fieldname === 'ticketFile') {
+      const extension = path.extname(file.originalname).toLowerCase();
+      const mimeType = file.mimetype;
+
+      const esImagenOPdf = mimeType.startsWith('image/') || 
+                           mimeType === 'application/pdf' || 
+                           extension === '.pdf';
+
+      if (esImagenOPdf) {
+        cb(null, true);
+      } else {
+        cb(new Error('Formato no permitido para el comprobante. Solo se admiten imágenes o archivos PDF.'));
+      }
+    } else {
+      cb(null, true); // Permitir otros campos (como el Excel de mano de obra)
+    }
+  }
+});
 
 // PROYECTOS //
 app.get('/api/proyectos/:id/contracts', async (req, res) => {

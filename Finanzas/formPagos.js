@@ -330,9 +330,20 @@
 
         const requiereTicket = (tipo === 'cajaChica' || tipo === 'maquinariaEquipo' || tipo === 'maquinaria');
 
-        if (requiereTicket && (!inputTicketFile.files || inputTicketFile.files.length === 0)) {
-            alert('❌ Error: Es obligatorio cargar la fotografía del ticket o comprobante.');
-            return;
+        if (requiereTicket) {
+            if (!inputTicketFile.files || inputTicketFile.files.length === 0) {
+                alert('❌ Error: Es obligatorio cargar la fotografía o PDF del ticket.');
+                return;
+            }
+
+            const archivoTicket = inputTicketFile.files[0];
+            const tiposPermitidos = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+            const esPdfPorExt = archivoTicket.name.toLowerCase().endsWith('.pdf');
+
+            if (!tiposPermitidos.includes(archivoTicket.type) && !esPdfPorExt) {
+                alert('❌ Error: El comprobante debe ser una imagen (JPG, PNG) o un archivo PDF.');
+                return;
+            }
         }
 
         let idCategoryFinal = null;
