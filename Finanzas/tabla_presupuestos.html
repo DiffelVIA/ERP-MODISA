@@ -35,17 +35,17 @@
     <div class="tabla">
       <table>
         <thead>
-          <tr>
+          <tr class="fila-cabecera-principal">
             <th rowspan="2">Grupo</th>
             <th rowspan="2">Categoría</th>
             <th rowspan="2">Subcategoría</th>
-            <th colspan="3">Mano de Obra</th>
-            <th colspan="3">Materiales</th>
-            <th colspan="3">Maquinaria y Equipo</th>
-            <th colspan="3">Contratos</th>
-            <th colspan="3">Total General</th>
+            <th colspan="3" class="grupo-mano-obra">Mano de Obra</th>
+            <th colspan="3" class="grupo-materiales">Materiales</th>
+            <th colspan="3" class="grupo-maquinaria">Maquinaria y Equipo</th>
+            <th colspan="3" class="grupo-contratos">Contratos</th>
+            <th colspan="3" class="grupo-total">Total General</th>
           </tr>
-          <tr>
+          <tr class="fila-cabecera-sub">
             <th>Autorizado</th><th>Ejecutado</th><th>%</th>
             <th>Autorizado</th><th>Ejecutado</th><th>%</th>
             <th>Autorizado</th><th>Ejecutado</th><th>%</th>
@@ -53,13 +53,14 @@
             <th>Autorizado</th><th>Ejecutado</th><th>%</th>
           </tr>
         </thead>
-        <tbody class="cuerpoTabla">
+        <tbody id="cuerpoTablaPresupuestos" class="cuerpoTabla">
           <tr>
-            <td colspan="7" style="text-align: center; padding: 30px; color: #64748b;">
+            <td colspan="18" style="text-align: center; padding: 30px; color: #64748b;">
               👈 Por favor, elige un proyecto primero
+            </td>
           </tr>
         </tbody>
-        <tfoot id="pieTablaPresupuestos" style="background-color: #f1f5f9; font-weight: bold; border-top: 2px solid #cbd5e1;">
+        <tfoot id="pieTablaPresupuestos" style="background-color: #f8fafc; font-weight: bold; border-top: 2px solid #cbd5e1;">
         </tfoot>
       </table>
     </div>
