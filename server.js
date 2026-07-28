@@ -878,21 +878,32 @@ app.delete('/api/empleados/:id', async (req, res) => {
 // PROYECTOS //
 app.get('/api/proyectos', async (req, res) => {
   try {
-    const querySQL = `
+    const employeeIdHeader = req.headers['x-employee-id'];
+
+    let querySQL = `
       SELECT 
         p.id_project, 
         p.project_name, 
+        p.id_user,
         p.location AS direccion, 
         e.phone AS telefono,
         CONCAT(e.name, ' ', e.last_name) AS residente
       FROM projects AS p
       LEFT JOIN employees AS e ON p.id_user = e.id_employee
       WHERE p.project_name IS NOT NULL 
-      ORDER BY p.project_name ASC;
     `;
 
-    console.log("📡 Cargando proyectos con sus datos de contacto y ubicación...");
-    const [rows] = await pool.query(querySQL);
+    const queryParams = [];
+
+    if (employeeIdHeader) {
+      querySQL += ` AND p.id_user = ?`;
+      queryParams.push(employeeIdHeader);
+    }
+
+    querySQL += ` ORDER BY p.project_name ASC;`;
+
+    console.log("📡 Cargando proyectos filtrados para id_user:", employeeIdHeader || 'Todos');
+    const [rows] = await pool.query(querySQL, queryParams);
     res.json(rows);
   } catch (error) {
     console.error('Error al obtener proyectos de Aiven:', error);
