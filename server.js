@@ -1884,12 +1884,14 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
                 pc.categoria,
                 pc.subcategoria,
                 
+                -- Presupuestos Autorizados
                 COALESCE(pc.mano_obra, 0) AS mano_obra_aut,
                 COALESCE(pc.materiales, 0) AS materiales_aut,
                 COALESCE(pc.maquinaria_equipo, 0) AS maquinaria_aut,
                 COALESCE(pc.contratos, 0) AS contratos_aut,
                 COALESCE(pc.total, 0) AS total_aut,
 
+                -- Acumulados Ejecutados
                 COALESCE(mat.total_mat, 0) AS materiales_ejecutado,
                 COALESCE(pag.pagado_mano_obra, 0) AS mano_obra_ejecutado,
                 COALESCE(pag.pagado_maquinaria, 0) AS maquinaria_ejecutado,
@@ -1898,6 +1900,7 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
 
             FROM project_categories pc
 
+            -- Subconsulta 1: Consolidado de Materiales (order_details)
             LEFT JOIN (
                 SELECT 
                     id_project_category,
@@ -1907,16 +1910,18 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
                 GROUP BY id_project_category
             ) mat ON pc.id_project_category = mat.id_project_category
 
+            -- Subconsulta 2: Consolidado de Órdenes de Pago (payment_orders)
+            -- MODIFICACIÓN: Corrección de po.amount por po.monto_pagado según esquema real
             LEFT JOIN (
                 SELECT 
                     pod.id_project_category,
-                    SUM(CASE WHEN LOWER(COALESCE(po.payment_type, '')) LIKE '%mano%' THEN COALESCE(po.monto_pagado, po.amount, 0) ELSE 0 END) AS pagado_mano_obra,
-                    SUM(CASE WHEN LOWER(COALESCE(po.payment_type, '')) LIKE '%maquinaria%' THEN COALESCE(po.monto_pagado, po.amount, 0) ELSE 0 END) AS pagado_maquinaria,
-                    SUM(CASE WHEN LOWER(COALESCE(po.payment_type, '')) LIKE '%contrat%' THEN COALESCE(po.monto_pagado, po.amount, 0) ELSE 0 END) AS pagado_contratos,
-                    SUM(CASE WHEN LOWER(COALESCE(po.payment_type, '')) LIKE '%material%' THEN COALESCE(po.monto_pagado, po.amount, 0) ELSE 0 END) AS pagado_materiales_extra
+                    SUM(CASE WHEN LOWER(COALESCE(po.payment_type, '')) LIKE '%mano%' THEN COALESCE(po.monto_pagado, 0) ELSE 0 END) AS pagado_mano_obra,
+                    SUM(CASE WHEN LOWER(COALESCE(po.payment_type, '')) LIKE '%maquinaria%' THEN COALESCE(po.monto_pagado, 0) ELSE 0 END) AS pagado_maquinaria,
+                    SUM(CASE WHEN LOWER(COALESCE(po.payment_type, '')) LIKE '%contrat%' THEN COALESCE(po.monto_pagado, 0) ELSE 0 END) AS pagado_contratos,
+                    SUM(CASE WHEN LOWER(COALESCE(po.payment_type, '')) LIKE '%material%' THEN COALESCE(po.monto_pagado, 0) ELSE 0 END) AS pagado_materiales_extra
                 FROM payment_order_details pod
                 INNER JOIN payment_orders po ON pod.id_payment_order = po.id_payment_order
-                WHERE LOWER(COALESCE(po.status, po.estado, '')) IN ('pagado', 'aprobado', 'completed')
+                WHERE LOWER(COALESCE(po.status, '')) IN ('pagado', 'aprobado', 'completed')
                 GROUP BY pod.id_project_category
             ) pag ON pc.id_project_category = pag.id_project_category
 
