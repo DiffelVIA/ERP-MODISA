@@ -1876,7 +1876,6 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
 
     try {
         connection = await pool.getConnection();
-
         const query = `
             SELECT 
                 pc.id_project_category,
@@ -1910,23 +1909,22 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
                 GROUP BY id_project_category
             ) mat ON pc.id_project_category = mat.id_project_category
 
-            -- Subconsulta 2: Consolidado General de Órdenes de Pago (payment_orders + payment_order_details)
-            -- MODIFICACIÓN: Integración completa de Mano de Obra, Maquinaria, Contratistas/Contratos, Materiales y Caja Chica
+            -- Subconsulta 2: Acumulado de Órdenes de Pago por Rubro Financiero
             LEFT JOIN (
                 SELECT 
                     pod.id_project_category,
                     
-                    -- Acumulado Mano de Obra
+                    -- Acumulado Mano de Obra (Incluye pagos parciales y estados Pagado/Pendiente con monto > 0)
                     SUM(CASE 
-                        WHEN LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%mano%'
-                          OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%manoobra%'
+                        WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%mano%'
+                           OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%manoobra%')
                         THEN COALESCE(po.monto_pagado, pod.amount, 0) ELSE 0 
                     END) AS pagado_mano_obra,
                     
                     -- Acumulado Maquinaria y Equipo
                     SUM(CASE 
-                        WHEN LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%maquinaria%'
-                          OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%maquinariaequipo%'
+                        WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%maquinaria%'
+                           OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%equipo%')
                         THEN COALESCE(po.monto_pagado, pod.amount, 0) ELSE 0 
                     END) AS pagado_maquinaria,
                     
@@ -1938,14 +1936,15 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
                     
                     -- Acumulado Materiales y Caja Chica
                     SUM(CASE 
-                        WHEN LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%material%' 
-                          OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%caja%'
+                        WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%material%' 
+                           OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%caja%')
                         THEN COALESCE(po.monto_pagado, pod.amount, 0) ELSE 0 
                     END) AS pagado_materiales_extra
 
                 FROM payment_order_details pod
                 INNER JOIN payment_orders po ON pod.id_payment_order = po.id_payment_order
-                WHERE LOWER(COALESCE(po.status, '')) IN ('pagado', 'aprobado', 'completed')
+                WHERE COALESCE(po.monto_pagado, pod.amount, 0) > 0
+                  AND pod.id_project_category IS NOT NULL
                 GROUP BY pod.id_project_category
             ) pag ON pc.id_project_category = pag.id_project_category
 
