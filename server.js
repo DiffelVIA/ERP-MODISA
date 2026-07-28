@@ -1901,9 +1901,9 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
             LEFT JOIN (
                 SELECT 
                     id_project_category,
-                    SUM(COALESCE(quantity, 0) * COALESCE(precio_unitario, 0)) AS total_mat
+                    SUM(COALESCE(quoted_amount, (quantity * unit_price), 0)) AS total_mat
                 FROM order_details
-                WHERE LOWER(COALESCE(estado, '')) IN ('cotizado', 'comprado')
+                WHERE LOWER(COALESCE(status, '')) IN ('cotizado', 'comprado', 'aprobado', 'pendiente')
                 GROUP BY id_project_category
             ) mat ON pc.id_project_category = mat.id_project_category
 
@@ -1928,12 +1928,10 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
         res.json(rows);
 
     } catch (error) {
-        console.error("❌ ERROR CRÍTICO EN BASE DE DATOS:", error);
-        
+        console.error("❌ ERROR EN BASE DE DATOS:", error);
         res.status(500).json({ 
             error: "Error en respuesta de base de datos", 
-            message: error.sqlMessage || error.message,
-            code: error.code || "UNKNOWN_SQL_ERROR"
+            message: error.sqlMessage || error.message 
         });
     } finally {
         if (connection) connection.release();
