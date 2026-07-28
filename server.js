@@ -1872,9 +1872,11 @@ app.get('/api/proyectos/:id/categorias', async (req, res) => {
 
 app.get('/api/project-categories/:id_project', async (req, res) => {
     const idProject = req.params.id_project;
-    const connection = await pool.getConnection();
-    
+    let connection;
+
     try {
+        connection = await pool.getConnection();
+
         const query = `
             SELECT 
                 pc.id_project_category,
@@ -1888,46 +1890,51 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
                 COALESCE(pc.contratos, 0) AS contratos_aut,
                 COALESCE(pc.total, 0) AS total_aut,
 
-                COALESCE(mat.total_materiales_comprados, 0) AS materiales_ejecutado,
+                COALESCE((
+                    SELECT SUM(od.quantity * od.precio_unitario)
+                    FROM order_details od
+                    WHERE od.id_project_category = pc.id_project_category
+                      AND LOWER(COALESCE(od.estado, '')) IN ('cotizado', 'comprado')
+                ), 0) AS materiales_ejecutado,
 
-                COALESCE(pag.pagado_mano_obra, 0) AS mano_obra_ejecutado,
-                COALESCE(pag.pagado_maquinaria, 0) AS maquinaria_ejecutado,
-                COALESCE(pag.pagado_contratos, 0) AS contratos_ejecutado,
-                COALESCE(pag.pagado_materiales_extra, 0) AS materiales_pagos_extra,
+                COALESCE((
+                    SELECT SUM(po.amount)
+                    FROM payment_orders po
+                    INNER JOIN payment_order_details pod ON po.id_payment_order = pod.id_payment_order
+                    WHERE pod.id_project_category = pc.id_project_category
+                      AND LOWER(COALESCE(po.payment_type, '')) LIKE '%mano%'
+                      AND LOWER(COALESCE(po.status, '')) = 'pagado'
+                ), 0) AS mano_obra_ejecutado,
 
-                (
-                    COALESCE(mat.total_materiales_comprados, 0) + 
-                    COALESCE(pag.pagado_mano_obra, 0) + 
-                    COALESCE(pag.pagado_maquinaria, 0) + 
-                    COALESCE(pag.pagado_contratos, 0) +
-                    COALESCE(pag.pagado_materiales_extra, 0)
-                ) AS total_ejecutado
+                COALESCE((
+                    SELECT SUM(po.amount)
+                    FROM payment_orders po
+                    INNER JOIN payment_order_details pod ON po.id_payment_order = pod.id_payment_order
+                    WHERE pod.id_project_category = pc.id_project_category
+                      AND LOWER(COALESCE(po.payment_type, '')) LIKE '%maquinaria%'
+                      AND LOWER(COALESCE(po.status, '')) = 'pagado'
+                ), 0) AS maquinaria_ejecutado,
+
+                COALESCE((
+                    SELECT SUM(po.amount)
+                    FROM payment_orders po
+                    INNER JOIN payment_order_details pod ON po.id_payment_order = pod.id_payment_order
+                    WHERE pod.id_project_category = pc.id_project_category
+                      AND LOWER(COALESCE(po.payment_type, '')) LIKE '%contrat%'
+                      AND LOWER(COALESCE(po.status, '')) = 'pagado'
+                ), 0) AS contratos_ejecutado,
+
+                COALESCE((
+                    SELECT SUM(po.amount)
+                    FROM payment_orders po
+                    INNER JOIN payment_order_details pod ON po.id_payment_order = pod.id_payment_order
+                    WHERE pod.id_project_category = pc.id_project_category
+                      AND LOWER(COALESCE(po.payment_type, '')) LIKE '%material%'
+                      AND LOWER(COALESCE(po.status, '')) = 'pagado'
+                ), 0) AS materiales_pagos_extra
 
             FROM project_categories pc
-
-            LEFT JOIN (
-                SELECT 
-                    id_project_category,
-                    SUM(COALESCE(quantity, 0) * COALESCE(precio_unitario, 0)) AS total_materiales_comprados
-                FROM order_details
-                WHERE estado IN ('cotizado', 'comprado')
-                GROUP BY id_project_category
-            ) mat ON pc.id_project_category = mat.id_project_category
-
-            LEFT JOIN (
-                SELECT 
-                    pod.id_project_category,
-                    SUM(CASE WHEN LOWER(po.payment_type) IN ('manoobra', 'mano de obra') THEN COALESCE(po.monto_pagado, po.amount, 0) ELSE 0 END) AS pagado_mano_obra,
-                    SUM(CASE WHEN LOWER(po.payment_type) IN ('maquinariaequipo', 'maquinaria y equipo') THEN COALESCE(po.monto_pagado, po.amount, 0) ELSE 0 END) AS pagado_maquinaria,
-                    SUM(CASE WHEN LOWER(po.payment_type) IN ('contratista', 'contratos') THEN COALESCE(po.monto_pagado, po.amount, 0) ELSE 0 END) AS pagado_contratos,
-                    SUM(CASE WHEN LOWER(po.payment_type) IN ('material', 'materiales') THEN COALESCE(po.monto_pagado, po.amount, 0) ELSE 0 END) AS pagado_materiales_extra
-                FROM payment_order_details pod
-                INNER JOIN payment_orders po ON pod.id_payment_order = po.id_payment_order
-                WHERE LOWER(po.status) = 'pagado'
-                GROUP BY pod.id_project_category
-            ) pag ON pc.id_project_category = pag.id_project_category
-
-            WHERE pc.id_project = ? 
+            WHERE pc.id_project = ?
             ORDER BY pc.grupo ASC, pc.categoria ASC, pc.subcategoria ASC;
         `;
 
@@ -1935,10 +1942,13 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
         res.json(rows);
 
     } catch (error) {
-        console.error("❌ Error al consultar presupuesto agregando pagos y materiales:", error);
-        res.status(500).json({ error: "Error interno al obtener los presupuestos agregados." });
+        console.error("❌ ERROR EXACTO EN MYSQL:", error.sqlMessage || error.message);
+        res.status(500).json({ 
+            error: "Error en respuesta de base de datos", 
+            detalle: error.sqlMessage || error.message 
+        });
     } finally {
-        connection.release();
+        if (connection) connection.release();
     }
 });
 
