@@ -103,8 +103,8 @@
 
     const fechaHoy = new Date();
     const semanaFiscalCalculada = obtenerNumeroSemana(fechaHoy);
-    const comentario = document.getElementById('comentarioDirector');
-
+    const comentarioInput = document.getElementById('comentarioDirector');
+    const comentario = comentarioInput ? comentarioInput.value.trim() : '';
 
     const actividadNueva = {
       id: 'id_' + Math.random().toString(36).substr(2, 9),
@@ -140,7 +140,8 @@
         const fechaHoy = new Date();
         const semanaFiscal = obtenerNumeroSemana(fechaHoy);
         const inputAvance = document.getElementById('avance');
-        const comentario = document.getElementById('comentarioDirector');
+        const comentarioInput = document.getElementById('comentarioDirector');
+        const comentario = comentarioInput ? comentarioInput.value.trim() : '';
 
         const ultimaActividad = {
           id:'id_' + Math.random().toString(36).substr(2,9),
@@ -244,8 +245,9 @@
 
       coordenadaY +=6;
       let textoCompleto = `Descripción: ${item.descripcion}`;
-      if (item.comentarioDirector && item.comentarioDirector.trim() !== "") {
-        textoCompleto += `\nComentario: ${item.comentarioDirector}`;
+      const comentarioTexto = item.comentarioDirector ? String(item.comentarioDirector).trim() : '';
+      if (comentarioTexto !== "") {
+        textoCompleto += `\nComentario: ${comentarioTexto}`;
       }
 
       const textoAjustado = doc.splitTextToSize(textoCompleto ,175); 
@@ -259,11 +261,10 @@
 
   async function procesarEnvioNube(listaDeActividades) {
     try {
-      // Sanitizar datos antes de enviarlos (Mejor Práctica)
       const datosSanitizados = listaDeActividades.map(act => ({
         ...act,
         avance: Number(act.avance) || 0,
-        comentarioDirector: act.comentarioDirector ? act.comentarioDirector.trim() : ''
+        comentarioDirector: act.comentarioDirector ? String(act.comentarioDirector).trim() : ''
       }));
 
       const respuesta = await fetch(`${API_URL}/tabla_minutas`, {
