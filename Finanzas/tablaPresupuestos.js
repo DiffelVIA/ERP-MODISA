@@ -70,23 +70,31 @@
     `).join('');
   }
 
-  async function cargarPresupuestoProyecto(idProject) {
-    if (!cuerpoTabla) return;
-
+  async function cargarPresupuestoProyecto(idProyecto) {
     try {
-      cuerpoTabla.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 30px; color: #64748b;">⏳ Consultando base de datos presupuestal...</td></tr>`;
+        const response = await fetch(`https://erp-modisa.onrender.com/api/project-categories/${idProyecto}`);
+        
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.message || `Error del servidor (${response.status})`);
+        }
 
-      const respuesta = await fetch(`${API_URL}/project-categories/${idProject}`);
-      if (!respuesta.ok) throw new Error('Error en respuesta de base de datos');
-
-      const rubros = await respuesta.json();
-      renderizarTablaPresupuestos(rubros);
+        const datos = await response.json();
+        renderizarTablaPresupuestos(datos);
 
     } catch (error) {
-      console.error("❌ Error al cargar presupuestos:", error);
-      cuerpoTabla.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px; color:red; font-weight:bold;">No se pudo procesar la consulta financiera de este proyecto.</td></tr>`;
+        console.error("Error al cargar presupuestos:", error);
+        const tbody = document.getElementById("cuerpoTablaPresupuestos");
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="18" style="text-align: center; color: #ef4444; font-weight: bold; padding: 20px;">
+                        ⚠️ ${error.message}
+                    </td>
+                </tr>`;
+        }
     }
-  }
+}
 
   function renderizarTablaPresupuestos(datos) {
     if (!cuerpoTabla) return;
