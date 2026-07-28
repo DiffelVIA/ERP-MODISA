@@ -59,8 +59,23 @@
 
     async function cargarSelectoresIniciales() {
         try {
+            let idEmp = null;
+            try {
+                const rawSesion = sessionStorage.getItem('usuarioMODISA');
+                if (rawSesion) {
+                    const usuarioSesion = JSON.parse(rawSesion);
+                    idEmp = usuarioSesion ? usuarioSesion.id_employee : null;
+                }
+            } catch (e) {
+                console.error("Error al leer sesión para materiales:", e);
+            }
 
-            const resProyectos = await fetch(`${API_URL}/proyectos`);
+            const headers = {};
+            if (idEmp) {
+                headers['x-employee-id'] = idEmp;
+            }
+
+            const resProyectos = await fetch(`${API_URL}/proyectos`, { headers });
             if (resProyectos.ok) {
                 const proyectos = await resProyectos.json();
                 const lista = proyectos.map(p => ({ 
@@ -240,17 +255,31 @@
         const contenedorVacio = document.getElementById('tabla-materiales-vacia');
         const tablaElemento = document.getElementById('tabla-mini-materiales');
         const cuerpoTabla = document.getElementById('cuerpo-mini-tabla');
+        const selectProyecto = document.getElementById('proyecto');
 
+        if (!cuerpoTabla) return;
         cuerpoTabla.innerHTML = '';
 
         if (listaMateriales.length === 0) {
-            contenedorVacio.style.display = 'block';
-            tablaElemento.style.display = 'none';
+            if (contenedorVacio) contenedorVacio.style.display = 'block';
+            if (tablaElemento) tablaElemento.style.display = 'none';
+
+            if (selectProyecto) {
+                selectProyecto.disabled = false;
+                selectProyecto.style.backgroundColor = '';
+                selectProyecto.style.cursor = '';
+            }
             return;
         }
 
-        contenedorVacio.style.display = 'none';
-        tablaElemento.style.display = 'table';
+        if (selectProyecto) {
+            selectProyecto.disabled = true;
+            selectProyecto.style.backgroundColor = '#f1f5f9';
+            selectProyecto.style.cursor = 'not-allowed';
+        }
+
+        if (contenedorVacio) contenedorVacio.style.display = 'none';
+        if (tablaElemento) tablaElemento.style.display = 'table';
 
         listaMateriales.forEach((mat, index) => {
             const tr = document.createElement('tr');

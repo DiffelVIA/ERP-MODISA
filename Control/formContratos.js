@@ -65,7 +65,13 @@
 
     async function cargarSelectoresIniciales() {
         try {
-            const response = await fetch(`${API_BASE}/proyectos`);
+            const empId = sesionUsuario ? sesionUsuario.id : null;
+            const headers = {};
+            if (empId) {
+                headers['x-employee-id'] = empId;
+            }
+
+            const response = await fetch(`${API_BASE}/proyectos`, { headers });
             const selectProy = document.getElementById("proyecto");
 
             if (response.ok) {
