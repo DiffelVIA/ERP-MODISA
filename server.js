@@ -1873,18 +1873,70 @@ app.get('/api/proyectos/:id/categorias', async (req, res) => {
 app.get('/api/project-categories/:id_project', async (req, res) => {
     const idProject = req.params.id_project;
     const connection = await pool.getConnection();
+    
     try {
-        const [rows] = await connection.query(
-            `SELECT id_project_category, grupo, categoria, subcategoria, mano_obra, materiales, maquinaria_equipo, contratos, total
-             FROM project_categories 
-             WHERE id_project = ? 
-             ORDER BY grupo ASC, categoria ASC, subcategoria ASC`,
-            [idProject]
-        );
+        const query = `
+            SELECT 
+                pc.id_project_category,
+                pc.grupo,
+                pc.categoria,
+                pc.subcategoria,
+                
+                COALESCE(pc.mano_obra, 0) AS mano_obra_aut,
+                COALESCE(pc.materiales, 0) AS materiales_aut,
+                COALESCE(pc.maquinaria_equipo, 0) AS maquinaria_aut,
+                COALESCE(pc.contratos, 0) AS contratos_aut,
+                COALESCE(pc.total, 0) AS total_aut,
+
+                COALESCE(mat.total_materiales_comprados, 0) AS materiales_ejecutado,
+
+                COALESCE(pag.pagado_mano_obra, 0) AS mano_obra_ejecutado,
+                COALESCE(pag.pagado_maquinaria, 0) AS maquinaria_ejecutado,
+                COALESCE(pag.pagado_contratos, 0) AS contratos_ejecutado,
+                COALESCE(pag.pagado_materiales_extra, 0) AS materiales_pagos_extra,
+
+                (
+                    COALESCE(mat.total_materiales_comprados, 0) + 
+                    COALESCE(pag.pagado_mano_obra, 0) + 
+                    COALESCE(pag.pagado_maquinaria, 0) + 
+                    COALESCE(pag.pagado_contratos, 0) +
+                    COALESCE(pag.pagado_materiales_extra, 0)
+                ) AS total_ejecutado
+
+            FROM project_categories pc
+
+            LEFT JOIN (
+                SELECT 
+                    id_project_category,
+                    SUM(COALESCE(quantity, 0) * COALESCE(precio_unitario, 0)) AS total_materiales_comprados
+                FROM order_details
+                WHERE estado IN ('cotizado', 'comprado')
+                GROUP BY id_project_category
+            ) mat ON pc.id_project_category = mat.id_project_category
+
+            LEFT JOIN (
+                SELECT 
+                    pod.id_project_category,
+                    SUM(CASE WHEN LOWER(po.payment_type) IN ('manoobra', 'mano de obra') THEN COALESCE(po.monto_pagado, po.amount, 0) ELSE 0 END) AS pagado_mano_obra,
+                    SUM(CASE WHEN LOWER(po.payment_type) IN ('maquinariaequipo', 'maquinaria y equipo') THEN COALESCE(po.monto_pagado, po.amount, 0) ELSE 0 END) AS pagado_maquinaria,
+                    SUM(CASE WHEN LOWER(po.payment_type) IN ('contratista', 'contratos') THEN COALESCE(po.monto_pagado, po.amount, 0) ELSE 0 END) AS pagado_contratos,
+                    SUM(CASE WHEN LOWER(po.payment_type) IN ('material', 'materiales') THEN COALESCE(po.monto_pagado, po.amount, 0) ELSE 0 END) AS pagado_materiales_extra
+                FROM payment_order_details pod
+                INNER JOIN payment_orders po ON pod.id_payment_order = po.id_payment_order
+                WHERE LOWER(po.status) = 'pagado'
+                GROUP BY pod.id_project_category
+            ) pag ON pc.id_project_category = pag.id_project_category
+
+            WHERE pc.id_project = ? 
+            ORDER BY pc.grupo ASC, pc.categoria ASC, pc.subcategoria ASC;
+        `;
+
+        const [rows] = await connection.query(query, [idProject]);
         res.json(rows);
+
     } catch (error) {
-        console.error("❌ Error al obtener categorías del proyecto:", error);
-        res.status(500).json({ error: "Error interno al consultar las categorías." });
+        console.error("❌ Error al consultar presupuesto agregando pagos y materiales:", error);
+        res.status(500).json({ error: "Error interno al obtener los presupuestos agregados." });
     } finally {
         connection.release();
     }

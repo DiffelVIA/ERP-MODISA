@@ -111,7 +111,7 @@
                 const proyectos = await resProyectos.json();
                 
                 const proyectosFiltrados = proyectos.filter(p => {
-                    if (esRolGlobal || !idEmp) return true; // Si es rol de dirección o gerencia, ve todos los proyectos
+                    if (esRolGlobal || !idEmp) return true;
                     if (p.id_employee !== undefined) return String(p.id_employee) === String(idEmp);
                     if (p.id_user !== undefined) return String(p.id_user) === String(idEmp);
                     if (Array.isArray(p.empleados)) return p.empleados.includes(Number(idEmp));

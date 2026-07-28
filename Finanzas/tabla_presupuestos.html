@@ -25,27 +25,32 @@
     <h1>Presupuestos Autorizados</h1>
     
     <div class="contenedorFiltros">
-      <!-- Filtro tipo Dropdown idéntico al de Minutas para seleccionar el Proyecto Activo -->
       <div class="filtros" id="dropdownProyecto">
         <button type="button" class="btn-dropdown">Seleccionar Proyecto ▾</button>
         <div class="contenido-dropdown" id="filtroProyecto">
-          <!-- Se cargará dinámicamente con los proyectos activos de la BD -->
         </div>
       </div>
     </div>
 
-    <!-- Contenedor de la tabla con los mismos estilos unificados -->
     <div class="tabla">
       <table>
         <thead>
           <tr>
-            <th>Grupo / Categoría</th>
-            <th>Subcategoría</th>
-            <th style="text-align: right;">Mano de Obra</th>
-            <th style="text-align: right;">Materiales</th>
-            <th style="text-align: right;">Maquinaria y Equipo</th>
-            <th style="text-align: right;">Contratos</th>
-            <th style="text-align: right;">Total General</th>
+            <th rowspan="2">Grupo</th>
+            <th rowspan="2">Categoría</th>
+            <th rowspan="2">Subcategoría</th>
+            <th colspan="3">Mano de Obra</th>
+            <th colspan="3">Materiales</th>
+            <th colspan="3">Maquinaria y Equipo</th>
+            <th colspan="3">Contratos</th>
+            <th colspan="3">Total General</th>
+          </tr>
+          <tr>
+            <th>Autorizado</th><th>Ejecutado</th><th>%</th>
+            <th>Autorizado</th><th>Ejecutado</th><th>%</th>
+            <th>Autorizado</th><th>Ejecutado</th><th>%</th>
+            <th>Autorizado</th><th>Ejecutado</th><th>%</th>
+            <th>Autorizado</th><th>Ejecutado</th><th>%</th>
           </tr>
         </thead>
         <tbody class="cuerpoTabla">
@@ -55,6 +60,8 @@
             </td>
           </tr>
         </tbody>
+        <tfoot id="pieTablaPresupuestos" style="background-color: #f1f5f9; font-weight: bold; border-top: 2px solid #cbd5e1;">
+        </tfoot>
       </table>
     </div>
   </main>
