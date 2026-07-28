@@ -136,7 +136,7 @@
                 
                 restaurarControlesCascada(true);
 
-                if (tipoSeleccionado === 'cajaChica') {
+                if (tipoSeleccionado === 'cajaChica' || tipoSeleccionado === 'maquinariaEquipo' || tipoSeleccionado === 'maquinaria') {
                     if (bloqueTicket) bloqueTicket.style.display = 'block';
                     if (inputTicket) inputTicket.required = true;
                 } else {
@@ -323,13 +323,15 @@
             return;
         }
 
-        if (tipo === 'cajaChica' && (!inputTicketFile.files || inputTicketFile.files.length === 0)) {
-            alert('❌ Error: Es obligatorio cargar la fotografía del ticket para conceptos de Caja Chica.');
+        if (tipo === 'manoObra' && (!inputExcelFile.files || inputExcelFile.files.length === 0)) {
+            alert('❌ Error: Es obligatorio cargar el Excel de desglose para Mano de Obra.');
             return;
         }
 
-        if (tipo === 'manoObra' && (!inputExcelFile.files || inputExcelFile.files.length === 0)) {
-            alert('❌ Error: Es obligatorio cargar el Excel de desglose para Mano de Obra.');
+        const requiereTicket = (tipo === 'cajaChica' || tipo === 'maquinariaEquipo' || tipo === 'maquinaria');
+
+        if (requiereTicket && (!inputTicketFile.files || inputTicketFile.files.length === 0)) {
+            alert('❌ Error: Es obligatorio cargar la fotografía del ticket o comprobante.');
             return;
         }
 
@@ -355,7 +357,7 @@
             concept_description: concepto,
             amount: monto,
             commentary: comentario || null,
-            ticketFile: (tipo === 'cajaChica' && inputTicketFile.files[0]) ? inputTicketFile.files[0] : null,
+            ticketFile: (requiereTicket && inputTicketFile.files[0]) ? inputTicketFile.files[0] : null,
             excelFile: (tipo === 'manoObra' && inputExcelFile.files[0]) ? inputExcelFile.files[0] : null
         };
 

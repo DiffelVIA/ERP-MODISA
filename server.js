@@ -1532,7 +1532,7 @@ app.post('/api/pagos', upload.fields([
   if (ticketFile) {
     try {
       const ID_CARPETA_DRIVE_TARGET = '1T_WFb1LnEgzUk-eyNjv-qKW3XR5jAR1K'; 
-      console.log("📤 Subiendo ticket de caja chica hacia Google Drive...");
+      console.log(`📤 Subiendo ticket/comprobante (${payment_type}) hacia Google Drive...`);
       urlDestinoFinal = await subirArchivoADrive(ticketFile, ID_CARPETA_DRIVE_TARGET);
       console.log("🔗 Enlace generado exitosamente por Google Drive:", urlDestinoFinal);
     } catch (errDrive) {
@@ -1611,7 +1611,7 @@ app.post('/api/pagos', upload.fields([
             });
           }
         }
-///
+
         const mail = new MailComposer({
           from: `"${datosSolicitante.name} (ERP MODISA)" <${process.env.GMAIL_USER}>`,
           replyTo: `"${datosSolicitante.name}" <${datosSolicitante.email}>`,
