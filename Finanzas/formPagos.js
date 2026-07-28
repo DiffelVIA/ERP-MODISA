@@ -75,11 +75,32 @@
 
     async function cargarSelectoresIniciales() {
         try {
+            let idEmp = null;
+            try {
+                const rawSesion = sessionStorage.getItem('usuarioMODISA');
+                if (rawSesion) {
+                    const usuarioSesion = JSON.parse(rawSesion);
+                    idEmp = usuarioSesion ? usuarioSesion.id_employee : null;
+                }
+            } catch (e) {
+                console.error(" Error al leer la sesión para filtrado de proyectos:", e);
+            }
 
-            const resProyectos = await fetch(`${API_URL}/proyectos`);
+            const resProyectos = await fetch(`${API_URL}/proyectos`, {
+                headers: idEmp ? { 'x-employee-id': idEmp } : {}
+            });
+
             if (resProyectos.ok) {
                 const proyectos = await resProyectos.json();
-                const lista = proyectos.map(p => ({ 
+                
+                const proyectosFiltrados = proyectos.filter(p => {
+                    if (!idEmp) return true;
+                    if (p.id_employee !== undefined) return String(p.id_employee) === String(idEmp);
+                    if (Array.isArray(p.empleados)) return p.empleados.includes(Number(idEmp));
+                    return true; 
+                });
+
+                const lista = proyectosFiltrados.map(p => ({ 
                     id: p.id_project,
                     nombre: p.project_name
                 }));
@@ -91,7 +112,7 @@
                 contratosCargados = await resContratos.json();
             }
         } catch (error) {
-            console.error("❌ Error inicial:", error);
+            console.error(" Error inicial:", error);
         }
     }
 
@@ -476,6 +497,7 @@
         const contenedorVacio = document.getElementById('tabla-conceptos-vacia');
         const tablaElemento = document.getElementById('tabla-mini-conceptos');
         const cuerpoTabla = document.getElementById('cuerpo-mini-tabla');
+        const selectProyecto = document.getElementById('proyecto');
 
         if (!cuerpoTabla) return;
         cuerpoTabla.innerHTML = '';
@@ -483,7 +505,19 @@
         if (listaConceptosPagos.length === 0) {
             if (contenedorVacio) contenedorVacio.style.display = 'block';
             if (tablaElemento) tablaElemento.style.display = 'none';
+
+            if (selectProyecto) {
+                selectProyecto.disabled = false;
+                selectProyecto.style.backgroundColor = '';
+                selectProyecto.style.cursor = '';
+            }
             return;
+        }
+
+        if (selectProyecto) {
+            selectProyecto.disabled = true;
+            selectProyecto.style.backgroundColor = '#f1f5f9';
+            selectProyecto.style.cursor = 'not-allowed';
         }
 
         if (contenedorVacio) contenedorVacio.style.display = 'none';
