@@ -903,6 +903,18 @@ app.delete('/api/empleados/:id', async (req, res) => {
 app.get('/api/proyectos', async (req, res) => {
   try {
     const employeeIdHeader = req.headers['x-employee-id'];
+    const userRolHeader = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim().toLowerCase() : '';
+    const rolesAdministrativos = [
+      'director operativo',
+      'director_operativo',
+      'subdirector de obra',
+      'subdirector_de_obra',
+      'gerente administración y compras',
+      'gerente administracion y compras',
+      'gerente_administracion_y_compras'
+    ];
+
+    const esRolGlobal = rolesAdministrativos.includes(userRolHeader);
 
     let querySQL = `
       SELECT 
@@ -919,14 +931,14 @@ app.get('/api/proyectos', async (req, res) => {
 
     const queryParams = [];
 
-    if (employeeIdHeader) {
+    if (employeeIdHeader && !esRolGlobal) {
       querySQL += ` AND p.id_user = ?`;
       queryParams.push(employeeIdHeader);
     }
 
     querySQL += ` ORDER BY p.project_name ASC;`;
 
-    console.log("📡 Cargando proyectos filtrados para id_user:", employeeIdHeader || 'Todos');
+    console.log("📡 Cargando proyectos. Rol:", userRolHeader || 'Sin Rol', "| IdUser:", esRolGlobal ? 'TODOS (Acceso Global)' : (employeeIdHeader || 'Todos'));
     const [rows] = await pool.query(querySQL, queryParams);
     res.json(rows);
   } catch (error) {

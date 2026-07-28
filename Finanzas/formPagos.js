@@ -76,26 +76,44 @@
     async function cargarSelectoresIniciales() {
         try {
             let idEmp = null;
+            let userRol = null;
+
             try {
                 const rawSesion = sessionStorage.getItem('usuarioMODISA');
                 if (rawSesion) {
                     const usuarioSesion = JSON.parse(rawSesion);
                     idEmp = usuarioSesion ? usuarioSesion.id_employee : null;
+                    userRol = usuarioSesion ? usuarioSesion.rol : null;
                 }
             } catch (e) {
                 console.error(" Error al leer la sesión para filtrado de proyectos:", e);
             }
 
+            const rolesAdministrativos = [
+                'director operativo',
+                'subdirector de obra',
+                'gerente administración',
+                'compras'
+            ];
+
+            const rolLimpio = userRol ? userRol.trim().toLowerCase() : '';
+            const esRolGlobal = rolesAdministrativos.includes(rolLimpio);
+
+            const headersPeticion = {};
+            if (idEmp) headersPeticion['x-employee-id'] = idEmp;
+            if (userRol) headersPeticion['x-user-rol'] = userRol;
+
             const resProyectos = await fetch(`${API_URL}/proyectos`, {
-                headers: idEmp ? { 'x-employee-id': idEmp } : {}
+                headers: headersPeticion
             });
 
             if (resProyectos.ok) {
                 const proyectos = await resProyectos.json();
                 
                 const proyectosFiltrados = proyectos.filter(p => {
-                    if (!idEmp) return true;
+                    if (esRolGlobal || !idEmp) return true; // Si es rol de dirección o gerencia, ve todos los proyectos
                     if (p.id_employee !== undefined) return String(p.id_employee) === String(idEmp);
+                    if (p.id_user !== undefined) return String(p.id_user) === String(idEmp);
                     if (Array.isArray(p.empleados)) return p.empleados.includes(Number(idEmp));
                     return true; 
                 });
