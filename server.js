@@ -1910,26 +1910,33 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
                 GROUP BY id_project_category
             ) mat ON pc.id_project_category = mat.id_project_category
 
-            -- Subconsulta 2: Consolidado de Órdenes de Pago (payment_orders + payment_order_details)
-            -- MODIFICACIÓN: Evaluacion amplia de tipo de pago en pod.payment_type y po.payment_type incluyendo Caja Chica
+            -- Subconsulta 2: Consolidado General de Órdenes de Pago (payment_orders + payment_order_details)
+            -- MODIFICACIÓN: Integración completa de Mano de Obra, Maquinaria, Contratistas/Contratos, Materiales y Caja Chica
             LEFT JOIN (
                 SELECT 
                     pod.id_project_category,
+                    
+                    -- Acumulado Mano de Obra
                     SUM(CASE 
-                        WHEN LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%mano%' 
+                        WHEN LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%mano%'
+                          OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%manoobra%'
                         THEN COALESCE(po.monto_pagado, pod.amount, 0) ELSE 0 
                     END) AS pagado_mano_obra,
                     
+                    -- Acumulado Maquinaria y Equipo
                     SUM(CASE 
-                        WHEN LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%maquinaria%' 
+                        WHEN LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%maquinaria%'
+                          OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%maquinariaequipo%'
                         THEN COALESCE(po.monto_pagado, pod.amount, 0) ELSE 0 
                     END) AS pagado_maquinaria,
                     
+                    -- Acumulado Contratos y Contratistas
                     SUM(CASE 
-                        WHEN LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%contrat%' 
+                        WHEN LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%contrat%'
                         THEN COALESCE(po.monto_pagado, pod.amount, 0) ELSE 0 
                     END) AS pagado_contratos,
                     
+                    -- Acumulado Materiales y Caja Chica
                     SUM(CASE 
                         WHEN LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%material%' 
                           OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%caja%'
