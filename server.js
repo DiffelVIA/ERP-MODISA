@@ -1636,15 +1636,25 @@ app.post('/api/pagos', upload.fields([
         const correoDestino = process.env.RESPONSABLE_PAGOS_EMAIL || process.env.GMAIL_USER;
 
         const MailComposer = require('nodemailer/lib/mail-composer');
-        
+
         const adjuntos = [];
         if (excelFile) {
-          const bufferExcel = excelFile.buffer || (excelFile.path && fs.existsSync(excelFile.path) ? fs.readFileSync(excelFile.path) : null);
+          let bufferExcel = null;
+
+          if (excelFile.buffer) {
+            bufferExcel = excelFile.buffer;
+          } else if (excelFile.path && fs.existsSync(excelFile.path)) {
+            bufferExcel = fs.readFileSync(excelFile.path);
+          }
+
           if (bufferExcel) {
             adjuntos.push({
               filename: excelFile.originalname || `Desglose_ManoDeObra_Folio_${id_payment_order}.xlsx`,
               content: bufferExcel
             });
+            console.log(`📎 Archivo Excel (${excelFile.originalname}) adjuntado correctamente al correo.`);
+          } else {
+            console.warn("⚠️ Se recibió referencia de excelFile pero no se pudo obtener su contenido binario.");
           }
         }
 

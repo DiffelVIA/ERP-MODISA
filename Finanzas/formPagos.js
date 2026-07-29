@@ -452,8 +452,7 @@
         const primerConcepto = listaConceptosPagos[0];
         const paymentTypeHeader = primerConcepto.payment_type || '';
         const paymentMethodHeader = primerConcepto.payment_method || '';
-        const conceptoConTicket = listaConceptosPagos.find(c => c.ticketFile);
-        const conceptoConExcel = listaConceptosPagos.find(c => c.excelFile);
+
         const conceptosSinArchivo = listaConceptosPagos.map(({ ticketFile, excelFile, ...resto }) => resto);
 
         const formData = new FormData();
@@ -465,11 +464,15 @@
         formData.append('payment_method', paymentMethodHeader);
         formData.append('conceptos', JSON.stringify(conceptosSinArchivo));
 
-        if (conceptoConTicket && conceptoConTicket.ticketFile) {
-            formData.append('ticketFile', conceptoConTicket.ticketFile);
+        const conceptoExcel = listaConceptosPagos.find(item => item.excelFile && item.excelFile instanceof File);
+        const conceptoTicket = listaConceptosPagos.find(item => item.ticketFile && item.ticketFile instanceof File);
+
+        if (conceptoExcel && conceptoExcel.excelFile) {
+            formData.append('excelFile', conceptoExcel.excelFile, conceptoExcel.excelFile.name);
         }
-        if (conceptoConExcel && conceptoConExcel.excelFile) {
-            formData.append('excelFile', conceptoConExcel.excelFile);
+
+        if (conceptoTicket && conceptoTicket.ticketFile) {
+            formData.append('ticketFile', conceptoTicket.ticketFile, conceptoTicket.ticketFile.name);
         }
 
         try {
