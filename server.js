@@ -1909,10 +1909,11 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
                 GROUP BY id_project_category
             ) mat ON pc.id_project_category = mat.id_project_category
 
-            -- Subconsulta 2: Acumulado de Órdenes de Pago distribuidas proporcionalmente por monto_pagado
+            -- Subconsulta 2: Acumulado de Órdenes de Pago vinculadas por id_project_category o por Contract Supplier
             LEFT JOIN (
                 SELECT 
-                    pod.id_project_category,
+                    /* MODIFICACIÓN: Se obtiene id_project_category de pod, y si es nulo, se obtiene desde el contrato correspondiente */
+                    COALESCE(pod.id_project_category, c.id_project_category) AS id_category,
                     
                     -- Acumulado Mano de Obra
                     SUM(CASE 
@@ -1928,7 +1929,7 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
                         THEN (pod.amount * (po.monto_pagado / po_tot.total_solicitado)) ELSE 0 
                     END) AS pagado_maquinaria,
                     
-                    -- MODIFICACIÓN: Cálculo exacto de pago para Contratos y Subcontratos
+                    /* MODIFICACIÓN: Inclusión flexible para identificar contratistas (soporta emojis '👨‍🔧 Contratista') */
                     SUM(CASE 
                         WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%contrat%'
                            OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%subcontrat%'
@@ -1946,7 +1947,8 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
 
                 FROM payment_order_details pod
                 INNER JOIN payment_orders po ON pod.id_payment_order = po.id_payment_order
-                -- Subconsulta interna para calcular la suma del monto solicitado por orden
+                /* MODIFICACIÓN: Vincular la tabla de contratos para obtener el id_project_category indirecto */
+                LEFT JOIN contracts c ON LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider))
                 INNER JOIN (
                     SELECT id_payment_order, SUM(amount) AS total_solicitado
                     FROM payment_order_details
@@ -1955,9 +1957,9 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
 
                 WHERE po.monto_pagado > 0
                   AND po_tot.total_solicitado > 0
-                  AND pod.id_project_category IS NOT NULL
-                GROUP BY pod.id_project_category
-            ) pag ON pc.id_project_category = pag.id_project_category
+                  AND COALESCE(pod.id_project_category, c.id_project_category) IS NOT NULL
+                GROUP BY COALESCE(pod.id_project_category, c.id_project_category)
+            ) pag ON pc.id_project_category = pag.id_category
 
             WHERE pc.id_project = ?
             ORDER BY pc.grupo ASC, pc.categoria ASC, pc.subcategoria ASC;
