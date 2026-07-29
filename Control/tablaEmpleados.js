@@ -37,11 +37,17 @@
         tbody.innerHTML = '';
 
         if (listaEmpleados.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" class="tabla-vacia">No hay empleados registrados.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="tabla-vacia">No hay empleados registrados.</td></tr>`;
             return;
         }
 
         listaEmpleados.forEach(emp => {
+            let fechaIngresoFormatted = '---';
+            if (emp.hire_date) {
+                const f = new Date(emp.hire_date);
+                fechaIngresoFormatted = f.toLocaleDateString('es-MX', { timeZone: 'UTC' });
+            }
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><strong>${emp.name} ${emp.last_name}</strong></td>
@@ -49,6 +55,8 @@
                 <td>${emp.phone || '---'}</td>
                 <td><strong>${emp.job_title || '---'}</strong></td>
                 <td>${emp.department || '---'}</td>
+                <!-- MODIFICACIÓN: Se renderiza la Fecha de Ingreso -->
+                <td>${fechaIngresoFormatted}</td>
                 <td style="text-align: center; white-space: nowrap;">
                     <button class="btn btn-editar" data-id="${emp.id_employee}" style="padding: 3px 8px; font-size: 11px;">✏️ Editar</button>
                     <button class="btn btn-eliminar" data-id="${emp.id_employee}" style="padding: 3px 8px; font-size: 11px; background-color: var(--red--); color: #fff;">🗑️ Eliminar</button>
@@ -68,6 +76,9 @@
             btnNuevo.addEventListener('click', () => {
                 form.reset();
                 document.getElementById('emp-id').value = '';
+                const inputFecha = document.getElementById('emp-hire-date');
+                if (inputFecha) inputFecha.value = '';
+
                 document.getElementById('modalTitulo').textContent = '➕ Agregar Empleado';
                 document.getElementById('grupo-pass').style.display = 'block';
                 document.getElementById('emp-pass').setAttribute('required', 'true');
@@ -96,6 +107,11 @@
                         document.getElementById('emp-telefono').value = emp.phone || '';
                         document.getElementById('emp-puesto').value = emp.job_title || '';
                         document.getElementById('emp-depto').value = emp.department || '';
+
+                        const inputFecha = document.getElementById('emp-hire-date');
+                        if (inputFecha) {
+                            inputFecha.value = emp.hire_date ? emp.hire_date.substring(0, 10) : '';
+                        }
                         
                         document.getElementById('grupo-pass').style.display = 'none';
                         document.getElementById('emp-pass').removeAttribute('required');
@@ -127,6 +143,7 @@
                     phone: document.getElementById('emp-telefono').value.trim(),
                     job_title: document.getElementById('emp-puesto').value.trim(),
                     department: document.getElementById('emp-depto').value.trim(),
+                    hire_date: document.getElementById('emp-hire-date').value || null
                 };
 
                 if (!esEdicion) {

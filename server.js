@@ -794,7 +794,7 @@ app.get('/api/empleados/gestion', async (req, res) => {
 
     try {
         const sql = `
-            SELECT id_employee, name, last_name, email, phone, job_title, department, first_entry 
+            SELECT id_employee, name, last_name, email, phone, job_title, department, hire_date, first_entry 
             FROM employees 
             ORDER BY name ASC
         `;
@@ -814,7 +814,7 @@ app.post('/api/empleados', async (req, res) => {
         return res.status(403).json({ error: "⛔ Acceso denegado: Solo el Director Operativo puede modificar empleados." });
     }
 
-    const { name, last_name, email, phone, job_title, department, password } = req.body;
+    const { name, last_name, email, phone, job_title, department, password, hire_date } = req.body;
 
     if (!name || !last_name || !email || !password || !job_title) {
         return res.status(400).json({ error: "⚠️ Por favor completa todos los campos obligatorios." });
@@ -825,8 +825,8 @@ app.post('/api/empleados', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password.trim(), saltRounds);
 
         const sql = `
-            INSERT INTO employees (name, last_name, email, phone, job_title, department, password, first_entry)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+            INSERT INTO employees (name, last_name, email, phone, job_title, department, hire_date, password, first_entry)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
         `;
         const [result] = await pool.query(sql, [
             name.trim(), 
@@ -835,6 +835,7 @@ app.post('/api/empleados', async (req, res) => {
             phone ? phone.trim() : null, 
             job_title.trim(), 
             department ? department.trim() : null, 
+            hire_date || null,
             hashedPassword
         ]);
 
@@ -857,15 +858,24 @@ app.put('/api/empleados/:id', async (req, res) => {
         return res.status(403).json({ error: "⛔ Acceso denegado." });
     }
 
-    const { name, last_name, email, phone, job_title, department } = req.body;
+    const { name, last_name, email, phone, job_title, department, hire_date } = req.body;
 
     try {
         const sql = `
             UPDATE employees 
-            SET name = ?, last_name = ?, email = ?, phone = ?, job_title = ?, department = ?
+            SET name = ?, last_name = ?, email = ?, phone = ?, job_title = ?, department = ?, hire_date = ?
             WHERE id_employee = ?
         `;
-        const [result] = await pool.query(sql, [name, last_name, email, phone || null, job_title, department || null, id]);
+        const [result] = await pool.query(sql, [
+            name, 
+            last_name, 
+            email, 
+            phone || null, 
+            job_title, 
+            department || null, 
+            hire_date || null, 
+            id
+        ]);
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ error: "No se encontró el empleado especificado." });
