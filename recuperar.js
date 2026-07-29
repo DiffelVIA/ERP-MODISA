@@ -1,5 +1,4 @@
 (() => {
-    // MODIFICACIÓN: Se fija la URL del backend de Render para entornos de producción (Vercel)
     const HOST_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
         ? 'http://localhost:3000' 
         : 'https://erp-modisa.onrender.com';
@@ -20,7 +19,6 @@
     const urlParams = new URLSearchParams(window.location.search);
     let resetToken = urlParams.get('token') || "";
 
-    // MODIFICACIÓN: Validación temprana y asíncrona del token al cargar la vista
     document.addEventListener('DOMContentLoaded', async () => {
         if (resetToken) {
             try {
@@ -30,7 +28,6 @@
                     body: JSON.stringify({ token: resetToken })
                 });
 
-                // MODIFICACIÓN: Control seguro por si el servidor devuelve HTML o error 404/500
                 const contentType = res.headers.get("content-type");
                 let data = {};
                 if (contentType && contentType.includes("application/json")) {
@@ -138,7 +135,10 @@
                     return;
                 }
 
-                alert("Tu contraseña ha sido restablecida con éxito. Ya puedes iniciar sesión.");
+                localStorage.clear();
+                sessionStorage.clear();
+
+                alert("Tu contraseña ha sido restablecida con éxito. Serás redirigido para iniciar sesión.");
                 window.location.href = "index.html";
 
             } catch (err) {
