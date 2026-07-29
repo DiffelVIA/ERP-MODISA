@@ -1,6 +1,8 @@
 (() => {
   let proyectosActivos = [];
   let proyectoSeleccionadoId = null;
+  let proyectoSeleccionadoNombre = '';
+  let datosPresupuestoActual = [];
   let cuerpoTabla;
   let filtroProyecto;
 
@@ -12,8 +14,8 @@
 
     cargarProyectosActivos();
     configurarDropdowns();
+    inicializarEventoExportarExcel();
 
-    // Listener delegado para checkboxes de proyecto
     document.addEventListener('change', (e) => {
       if (e.target.classList.contains('chk-proyecto')) {
         if (e.target.checked) {
@@ -22,17 +24,16 @@
           });
 
           proyectoSeleccionadoId = e.target.value;
-          const nombreProyecto = e.target.dataset.name;
+          proyectoSeleccionadoNombre = e.target.dataset.name;
           
           const btnDropdown = document.querySelector('#dropdownProyecto .btn-dropdown');
           if (btnDropdown) {
-            btnDropdown.textContent = `${nombreProyecto} ▾`;
+            btnDropdown.textContent = `${proyectoSeleccionadoNombre} ▾`;
           }
 
           const contenidoDropdown = document.getElementById("filtroProyecto");
           if (contenidoDropdown) contenidoDropdown.classList.remove('mostrar');
 
-          // Carga los datos del proyecto seleccionado
           cargarPresupuestoProyecto(proyectoSeleccionadoId);
         }
       }
@@ -70,7 +71,6 @@
     `).join('');
   }
 
-  // MODIFICADO: Carga unificada y renderizado directo sobre las 18 columnas
   async function cargarPresupuestoProyecto(idProyecto) {
     const tbody = document.getElementById("cuerpoTablaPresupuestos");
     const tfoot = document.getElementById("pieTablaPresupuestos");
@@ -89,10 +89,12 @@
         }
 
         const datos = await response.json();
+        datosPresupuestoActual = datos;
         renderizarTablaPresupuestos(datos);
 
     } catch (error) {
         console.error("❌ Error al cargar presupuestos:", error);
+        datosPresupuestoActual = [];
         if (tbody) {
             tbody.innerHTML = `
                 <tr>
@@ -135,7 +137,6 @@
     });
   }
 
-  // MODIFICADO: Render de 18 columnas con acumulados y cálculo de totales
   function renderizarTablaPresupuestos(lista) {
     const tbody = document.getElementById("cuerpoTablaPresupuestos");
     const tfoot = document.getElementById("pieTablaPresupuestos");
@@ -238,6 +239,102 @@
     `;
   }
 
+  function inicializarEventoExportarExcel() {
+    const btnDescargar = document.getElementById('descargar');
+    if (!btnDescargar) return;
+
+    btnDescargar.addEventListener('click', () => {
+      if (!datosPresupuestoActual || datosPresupuestoActual.length === 0) {
+        alert('⚠️ Selecciona un proyecto con datos autorizados para exportar.');
+        return;
+      }
+
+      let totMaoAut = 0, totMaoEjec = 0;
+      let totMatAut = 0, totMatEjec = 0;
+      let totMaqAut = 0, totMaqEjec = 0;
+      let totConAut = 0, totConEjec = 0;
+      let totGenAut = 0, totGenEjec = 0;
+
+      const filasExcel = datosPresupuestoActual.map(cat => {
+        const maoAut = parseFloat(cat.mano_obra_aut || 0);
+        const maoEjec = parseFloat(cat.mano_obra_ejecutado || 0);
+
+        const matAut = parseFloat(cat.materiales_aut || 0);
+        const matEjec = parseFloat(cat.materiales_ejecutado || 0) + parseFloat(cat.materiales_pagos_extra || 0);
+
+        const maqAut = parseFloat(cat.maquinaria_aut || 0);
+        const maqEjec = parseFloat(cat.maquinaria_ejecutado || 0);
+
+        const conAut = parseFloat(cat.contratos_aut || 0);
+        const conEjec = parseFloat(cat.contratos_ejecutado || 0);
+
+        const genAut = maoAut + matAut + maqAut + conAut;
+        const genEjec = maoEjec + matEjec + maqEjec + conEjec;
+
+        totMaoAut += maoAut; totMaoEjec += maoEjec;
+        totMatAut += matAut; totMatEjec += matEjec;
+        totMaqAut += maqAut; totMaqEjec += maqEjec;
+        totConAut += conAut; totConEjec += conEjec;
+        totGenAut += genAut; totGenEjec += genEjec;
+
+        return {
+          "Grupo": cat.grupo || '---',
+          "Categoría": cat.categoria || '---',
+          "Subcategoría": cat.subcategoria || '---',
+          
+          "M.O. Autorizado": maoAut,
+          "M.O. Ejecutado": maoEjec,
+          "% M.O.": maoAut > 0 ? `${Math.round((maoEjec / maoAut) * 100)}%` : '0%',
+
+          "Materiales Autorizado": matAut,
+          "Materiales Ejecutado": matEjec,
+          "% Materiales": matAut > 0 ? `${Math.round((matEjec / matAut) * 100)}%` : '0%',
+
+          "Maquinaria Autorizado": maqAut,
+          "Maquinaria Ejecutado": maqEjec,
+          "% Maquinaria": maqAut > 0 ? `${Math.round((maqEjec / maqAut) * 100)}%` : '0%',
+
+          "Contratos Autorizado": conAut,
+          "Contratos Ejecutado": conEjec,
+          "% Contratos": conAut > 0 ? `${Math.round((conEjec / conAut) * 100)}%` : '0%',
+
+          "Total Autorizado": genAut,
+          "Total Ejecutado": genEjec,
+          "% Total General": genAut > 0 ? `${Math.round((genEjec / genAut) * 100)}%` : '0%'
+        };
+      });
+
+      filasExcel.push({
+        "Grupo": "TOTALES GENERALES",
+        "Categoría": "---",
+        "Subcategoría": "---",
+        "M.O. Autorizado": totMaoAut,
+        "M.O. Ejecutado": totMaoEjec,
+        "% M.O.": totMaoAut > 0 ? `${Math.round((totMaoEjec / totMaoAut) * 100)}%` : '0%',
+        "Materiales Autorizado": totMatAut,
+        "Materiales Ejecutado": totMatEjec,
+        "% Materiales": totMatAut > 0 ? `${Math.round((totMatEjec / totMatAut) * 100)}%` : '0%',
+        "Maquinaria Autorizado": totMaqAut,
+        "Maquinaria Ejecutado": totMaqEjec,
+        "% Maquinaria": totMaqAut > 0 ? `${Math.round((totMaqEjec / totMaqAut) * 100)}%` : '0%',
+        "Contratos Autorizado": totConAut,
+        "Contratos Ejecutado": totConEjec,
+        "% Contratos": totConAut > 0 ? `${Math.round((totConEjec / totConAut) * 100)}%` : '0%',
+        "Total Autorizado": totGenAut,
+        "Total Ejecutado": totGenEjec,
+        "% Total General": totGenAut > 0 ? `${Math.round((totGenEjec / totGenAut) * 100)}%` : '0%'
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(filasExcel);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Presupuestos");
+
+      const nombreLimpio = (proyectoSeleccionadoNombre || 'Proyecto').replace(/[^a-zA-Z0-9]/g, '_');
+      const fechaHoy = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(workbook, `Presupuesto_Autorizado_${nombreLimpio}_${fechaHoy}.xlsx`);
+    });
+  }
+
   function fmt(val) {
       return val.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
@@ -246,12 +343,12 @@
       if (!autorizado || autorizado <= 0) return `<span style="color: #94a3b8;">0%</span>`;
       
       const pct = Math.round((ejecutado / autorizado) * 100);
-      let color = '#16a34a'; // Verde
+      let color = '#16a34a';
 
       if (pct > 100) {
-          color = '#dc2626'; // Rojo
+          color = '#dc2626';
       } else if (pct >= 80) {
-          color = '#d97706'; // Naranja
+          color = '#d97706';
       }
 
       return `<strong style="color: ${color};">${pct}%</strong>`;

@@ -176,6 +176,11 @@ header nav ul li a:hover{
   background-color: var(--accent-color);
 }
 
+.tabla table thead th {
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
 
 /* FILTROS */
 .contenedorFiltros{
