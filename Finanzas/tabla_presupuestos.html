@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Presupuestos Autorizados</title>
   <script src="/timeout.js"> </script>
-  <!-- LIBRERÍA EXCEL SHEETJS -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <link rel="icon" type="image/x-icon" href="../img/MODISA-favicon.ico">
   <link rel="stylesheet" href="../styles.css">
@@ -25,10 +24,32 @@
   <main class="main-tabla">
     <h1>Presupuestos Autorizados</h1>
     
-    <div class="contenedorFiltros" style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px;">
+    <div class="contenedorFiltros" style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px; flex-wrap: wrap;">
+      
       <div class="filtros" id="dropdownProyecto">
         <button type="button" class="btn-dropdown">Seleccionar Proyecto ▾</button>
         <div class="contenido-dropdown" id="filtroProyecto">
+        </div>
+      </div>
+
+      <div class="filtros" id="dropdownGrupo">
+        <button type="button" class="btn-dropdown">Filtrar Grupo ▾</button>
+        <div class="contenido-dropdown" id="filtroGrupo">
+          <label class="opcion-filtro">Sin opciones</label>
+        </div>
+      </div>
+
+      <div class="filtros" id="dropdownCategoria">
+        <button type="button" class="btn-dropdown">Filtrar Categoría ▾</button>
+        <div class="contenido-dropdown" id="filtroCategoria">
+          <label class="opcion-filtro">Sin opciones</label>
+        </div>
+      </div>
+
+      <div class="filtros" id="dropdownSubcategoria">
+        <button type="button" class="btn-dropdown">Filtrar Subcategoría ▾</button>
+        <div class="contenido-dropdown" id="filtroSubcategoria">
+          <label class="opcion-filtro">Sin opciones</label>
         </div>
       </div>
 

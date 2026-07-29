@@ -1904,14 +1904,12 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
                 pc.categoria,
                 pc.subcategoria,
                 
-                -- Presupuestos Autorizados
                 COALESCE(pc.mano_obra, 0) AS mano_obra_aut,
                 COALESCE(pc.materiales, 0) AS materiales_aut,
                 COALESCE(pc.maquinaria_equipo, 0) AS maquinaria_aut,
                 COALESCE(pc.contratos, 0) AS contratos_aut,
                 COALESCE(pc.total, 0) AS total_aut,
 
-                -- Acumulados Ejecutados
                 COALESCE(mat.total_mat, 0) AS materiales_ejecutado,
                 COALESCE(pag.pagado_mano_obra, 0) AS mano_obra_ejecutado,
                 COALESCE(pag.pagado_maquinaria, 0) AS maquinaria_ejecutado,
@@ -1920,7 +1918,6 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
 
             FROM project_categories pc
 
-            -- Subconsulta 1: Consolidado de Materiales (order_details)
             LEFT JOIN (
                 SELECT 
                     id_project_category,
@@ -1930,30 +1927,22 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
                 GROUP BY id_project_category
             ) mat ON pc.id_project_category = mat.id_project_category
 
-            /* =========================================================================
-             * MODIFICACIÓN / MEJORA:
-             * Se pasa a sumar directamente 'pod.monto_pagado' de 'payment_order_details'
-             * en lugar de calcular proporciones con 'po.monto_pagado' de la cabecera.
-             * ========================================================================= */
             LEFT JOIN (
                 SELECT 
                     COALESCE(pod.id_project_category, c.id_project_category) AS id_category,
                     
-                    -- Acumulado Mano de Obra
                     SUM(CASE 
                         WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%mano%'
                            OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%manoobra%')
                         THEN IFNULL(pod.monto_pagado, 0) ELSE 0 
                     END) AS pagado_mano_obra,
                     
-                    -- Acumulado Maquinaria y Equipo
                     SUM(CASE 
                         WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%maquinaria%'
                            OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%equipo%')
                         THEN IFNULL(pod.monto_pagado, 0) ELSE 0 
                     END) AS pagado_maquinaria,
                     
-                    -- Acumulado Contratistas
                     SUM(CASE 
                         WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%contrat%'
                            OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%subcontrat%'
@@ -1962,7 +1951,6 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
                         THEN IFNULL(pod.monto_pagado, 0) ELSE 0 
                     END) AS pagado_contratos,
                     
-                    -- Acumulado Materiales y Caja Chica
                     SUM(CASE 
                         WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%material%' 
                            OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%caja%')
