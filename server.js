@@ -8,8 +8,10 @@ const bcrypt = require('bcrypt');
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
+// Recuperar contraseña
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
 app.get('/recuperar.html', (req, res) => {
   const filePath = fs.existsSync(path.join(__dirname, 'recuperar.html'))
     ? path.join(__dirname, 'recuperar.html')
