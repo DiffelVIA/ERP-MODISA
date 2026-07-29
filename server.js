@@ -1912,9 +1912,10 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
             -- Subconsulta 2: Acumulado de Órdenes de Pago por Rubro Financiero
             LEFT JOIN (
                 SELECT 
-                    pod.id_project_category,
+                    -- MODIFICACIÓN: Coalesce para soportar vincular categoria a nivel detalle u orden principal
+                    COALESCE(pod.id_project_category, po.id_project_category) AS id_category,
                     
-                    -- Acumulado Mano de Obra (Incluye pagos parciales y estados Pagado/Pendiente con monto > 0)
+                    -- Acumulado Mano de Obra
                     SUM(CASE 
                         WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%mano%'
                            OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%manoobra%')
@@ -1928,9 +1929,11 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
                         THEN COALESCE(po.monto_pagado, pod.amount, 0) ELSE 0 
                     END) AS pagado_maquinaria,
                     
-                    -- Acumulado Contratos y Contratistas
+                    -- MODIFICACIÓN: Flexibilización para contratos, contratistas y subcontratos
                     SUM(CASE 
-                        WHEN LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%contrat%'
+                        WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%contrat%'
+                           OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%subcontrat%'
+                           OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%destajo%')
                         THEN COALESCE(po.monto_pagado, pod.amount, 0) ELSE 0 
                     END) AS pagado_contratos,
                     
@@ -1941,12 +1944,12 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
                         THEN COALESCE(po.monto_pagado, pod.amount, 0) ELSE 0 
                     END) AS pagado_materiales_extra
 
-                FROM payment_order_details pod
-                INNER JOIN payment_orders po ON pod.id_payment_order = po.id_payment_order
+                FROM payment_orders po
+                LEFT JOIN payment_order_details pod ON pod.id_payment_order = po.id_payment_order
                 WHERE COALESCE(po.monto_pagado, pod.amount, 0) > 0
-                  AND pod.id_project_category IS NOT NULL
-                GROUP BY pod.id_project_category
-            ) pag ON pc.id_project_category = pag.id_project_category
+                  AND COALESCE(pod.id_project_category, po.id_project_category) IS NOT NULL
+                GROUP BY COALESCE(pod.id_project_category, po.id_project_category)
+            ) pag ON pc.id_project_category = pag.id_category
 
             WHERE pc.id_project = ?
             ORDER BY pc.grupo ASC, pc.categoria ASC, pc.subcategoria ASC;
