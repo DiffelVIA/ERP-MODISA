@@ -1909,47 +1909,55 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
                 GROUP BY id_project_category
             ) mat ON pc.id_project_category = mat.id_project_category
 
-            -- Subconsulta 2: Acumulado de Órdenes de Pago por Rubro Financiero
+            -- Subconsulta 2: Acumulado de Órdenes de Pago distribuidas proporcionalmente por monto_pagado
             LEFT JOIN (
                 SELECT 
-                    -- MODIFICACIÓN: Coalesce para soportar vincular categoria a nivel detalle u orden principal
-                    COALESCE(pod.id_project_category, po.id_project_category) AS id_category,
+                    pod.id_project_category,
                     
                     -- Acumulado Mano de Obra
                     SUM(CASE 
                         WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%mano%'
                            OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%manoobra%')
-                        THEN COALESCE(po.monto_pagado, pod.amount, 0) ELSE 0 
+                        THEN (pod.amount * (po.monto_pagado / po_tot.total_solicitado)) ELSE 0 
                     END) AS pagado_mano_obra,
                     
                     -- Acumulado Maquinaria y Equipo
                     SUM(CASE 
                         WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%maquinaria%'
                            OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%equipo%')
-                        THEN COALESCE(po.monto_pagado, pod.amount, 0) ELSE 0 
+                        THEN (pod.amount * (po.monto_pagado / po_tot.total_solicitado)) ELSE 0 
                     END) AS pagado_maquinaria,
                     
-                    -- MODIFICACIÓN: Flexibilización para contratos, contratistas y subcontratos
+                    -- MODIFICACIÓN: Cálculo exacto de pago para Contratos y Subcontratos
                     SUM(CASE 
                         WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%contrat%'
                            OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%subcontrat%'
-                           OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%destajo%')
-                        THEN COALESCE(po.monto_pagado, pod.amount, 0) ELSE 0 
+                           OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%destajo%'
+                           OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%servicio%')
+                        THEN (pod.amount * (po.monto_pagado / po_tot.total_solicitado)) ELSE 0 
                     END) AS pagado_contratos,
                     
                     -- Acumulado Materiales y Caja Chica
                     SUM(CASE 
                         WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%material%' 
                            OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%caja%')
-                        THEN COALESCE(po.monto_pagado, pod.amount, 0) ELSE 0 
+                        THEN (pod.amount * (po.monto_pagado / po_tot.total_solicitado)) ELSE 0 
                     END) AS pagado_materiales_extra
 
-                FROM payment_orders po
-                LEFT JOIN payment_order_details pod ON pod.id_payment_order = po.id_payment_order
-                WHERE COALESCE(po.monto_pagado, pod.amount, 0) > 0
-                  AND COALESCE(pod.id_project_category, po.id_project_category) IS NOT NULL
-                GROUP BY COALESCE(pod.id_project_category, po.id_project_category)
-            ) pag ON pc.id_project_category = pag.id_category
+                FROM payment_order_details pod
+                INNER JOIN payment_orders po ON pod.id_payment_order = po.id_payment_order
+                -- Subconsulta interna para calcular la suma del monto solicitado por orden
+                INNER JOIN (
+                    SELECT id_payment_order, SUM(amount) AS total_solicitado
+                    FROM payment_order_details
+                    GROUP BY id_payment_order
+                ) po_tot ON po.id_payment_order = po_tot.id_payment_order
+
+                WHERE po.monto_pagado > 0
+                  AND po_tot.total_solicitado > 0
+                  AND pod.id_project_category IS NOT NULL
+                GROUP BY pod.id_project_category
+            ) pag ON pc.id_project_category = pag.id_project_category
 
             WHERE pc.id_project = ?
             ORDER BY pc.grupo ASC, pc.categoria ASC, pc.subcategoria ASC;
