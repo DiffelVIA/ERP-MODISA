@@ -916,6 +916,7 @@ app.get('/api/proyectos', async (req, res) => {
   try {
     const employeeIdHeader = req.headers['x-employee-id'];
     const userRolHeader = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim().toLowerCase() : '';
+    
     const rolesAdministrativos = [
       'director operativo',
       'director_operativo',
@@ -923,7 +924,11 @@ app.get('/api/proyectos', async (req, res) => {
       'subdirector_de_obra',
       'gerente administración y compras',
       'gerente administracion y compras',
-      'gerente_administracion_y_compras'
+      'gerente_administracion_y_compras',
+      'gerente administración',
+      'gerente administracion',
+      'gerente_administracion',
+      'compras'
     ];
 
     const esRolGlobal = rolesAdministrativos.includes(userRolHeader);

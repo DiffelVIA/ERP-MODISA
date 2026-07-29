@@ -91,8 +91,15 @@
 
             const rolesAdministrativos = [
                 'director operativo',
+                'director_operativo',
                 'subdirector de obra',
+                'subdirector_de_obra',
+                'gerente administración y compras',
+                'gerente administracion y compras',
+                'gerente_administracion_y_compras',
                 'gerente administración',
+                'gerente administracion',
+                'gerente_administracion',
                 'compras'
             ];
 
