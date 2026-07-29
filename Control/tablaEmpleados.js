@@ -8,8 +8,16 @@
     let listaEmpleados = [];
 
     document.addEventListener('DOMContentLoaded', () => {
-        if (ROL_USUARIO !== 'director operativo' && ROL_USUARIO !== 'director_operativo') {
-            alert('🚫 Acceso denegado: Solo el Director Operativo puede ingresar a esta sección.');
+        const rolesPermitidos = [
+            'director operativo',
+            'director_operativo',
+            'gerente administración',
+            'gerente administracion',
+            'gerente_administracion'
+        ];
+
+        if (!rolesPermitidos.includes(ROL_USUARIO)) {
+            alert('🚫 Acceso denegado, no puedes ingresar a esta sección.');
             window.location.href = '../principal.html';
             return;
         }
