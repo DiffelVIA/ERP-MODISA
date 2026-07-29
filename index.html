@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inicio de Sesión</title>
-    <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
+    <link rel="icon" type="image/x-icon" href="./img/MODISA-favicon.ico">
     <link rel="stylesheet" href="/styles.css">
 </head>
 
 <body>
     <header id="header">
         <div>
-            <img src="/img/logo.png" alt="logo" id="logo">
+            <img src="./img/logo.png" alt="logo" id="logo">
         </div>
     </header>
 
@@ -37,7 +37,6 @@
             </form>
         </div>
 
-        <!-- Formulario de cambio de contraseña en primer ingreso -->
         <div id="login-primera" class="login-container" style="display: none;">
             <h1>Actualizar Contraseña</h1>
             <p>Al ser tu primer ingreso, por seguridad, debes cambiar tu contraseña para continuar</p>
@@ -51,7 +50,6 @@
                     <input type="password" id="confirmar-contrasena" placeholder="Repite tu Contraseña" minlength="6" autocomplete="new-password" required>
                 </div>
                 <div class="contenedor-botones">
-                    <!-- 🛡️ MODIFICADO: Se removió el ID duplicado "descargar" y se unificó con data-action -->
                     <button type="submit" data-action="update-password" class="btn">Ingresar</button>
                 </div>
                 <div id="error-change" class="error-msg" style="display: none;"></div>
