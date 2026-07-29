@@ -32,7 +32,16 @@
         const tarjetaEmpleados = document.getElementById('tarjeta-empleados');
         if (tarjetaEmpleados) {
             const rolLimpio = rolUsuario ? rolUsuario.trim().toLowerCase() : '';
-            if (rolLimpio === 'director operativo' || rolLimpio === 'director_operativo') {
+            
+            const rolesPermitidosEmpleados = [
+                'director operativo',
+                'director_operativo',
+                'gerente administración',
+                'gerente administracion',
+                'gerente_administracion'
+            ];
+
+            if (rolesPermitidosEmpleados.includes(rolLimpio)) {
                 tarjetaEmpleados.style.display = 'block';
             } else {
                 tarjetaEmpleados.style.display = 'none';
