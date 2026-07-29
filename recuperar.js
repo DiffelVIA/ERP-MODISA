@@ -1,7 +1,8 @@
 (() => {
+    // MODIFICACIÓN: Se fija la URL del backend de Render para entornos de producción (Vercel)
     const HOST_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
         ? 'http://localhost:3000' 
-        : window.location.origin;
+        : 'https://erp-modisa.onrender.com';
         
     const API_URL = `${HOST_BASE}/api`;
     
@@ -19,10 +20,7 @@
     const urlParams = new URLSearchParams(window.location.search);
     let resetToken = urlParams.get('token') || "";
 
-    /* =========================================================================
-     * MODIFICACIÓN:
-     * Validación temprana y asíncrona del token al cargar la vista con el endpoint /verify-token
-     * ========================================================================= */
+    // MODIFICACIÓN: Validación temprana y asíncrona del token al cargar la vista
     document.addEventListener('DOMContentLoaded', async () => {
         if (resetToken) {
             try {
@@ -32,7 +30,12 @@
                     body: JSON.stringify({ token: resetToken })
                 });
 
-                const data = await res.json();
+                // MODIFICACIÓN: Control seguro por si el servidor devuelve HTML o error 404/500
+                const contentType = res.headers.get("content-type");
+                let data = {};
+                if (contentType && contentType.includes("application/json")) {
+                    data = await res.json();
+                }
 
                 if (!res.ok) {
                     alert(data.mensaje || '⚠️ El token de recuperación expiró o no es válido. Por favor solicita uno nuevo.');
