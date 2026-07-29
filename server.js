@@ -1752,24 +1752,26 @@ app.get('/api/pagos', async (req, res) => {
     }
 });
 
+// MODIFICACIÓN: Actualización individual por id_payment_detail
 app.put('/api/pagos/:id/monto-pagado', async (req, res) => {
     try {
-        const idOrden = req.params.id;
+        const idPaymentDetail = req.params.id; // Ahora recibe el id_payment_detail
         const { monto_pagado, compras_comment } = req.body;
 
-        if (!idOrden || idOrden === 'undefined') {
-            return res.status(400).json({ error: "El ID de la orden no es válido." });
+        if (!idPaymentDetail || idPaymentDetail === 'undefined') {
+            return res.status(400).json({ error: "El ID del detalle de pago no es válido." });
         }
 
         if (monto_pagado !== undefined) {
             const nuevoMonto = parseFloat(monto_pagado) || 0;
 
+            // Validar bloqueo por contrato sin firma (> 6 días)
             const [contratoInfo] = await pool.query(
                 `SELECT c.firma, c.start_date 
                  FROM payment_order_details pod
                  INNER JOIN contracts c ON LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider))
-                 WHERE pod.id_payment_order = ? LIMIT 1`,
-                [idOrden]
+                 WHERE pod.id_payment_detail = ? LIMIT 1`,
+                [idPaymentDetail]
             );
 
             if (contratoInfo.length > 0 && contratoInfo[0].start_date) {
@@ -1779,7 +1781,6 @@ app.put('/api/pagos/:id/monto-pagado', async (req, res) => {
                 if (!esFirmado) {
                     const fechaContrato = new Date(contratoInfo[0].start_date);
                     const fechaActual = new Date();
-                    
                     fechaContrato.setHours(0, 0, 0, 0);
                     fechaActual.setHours(0, 0, 0, 0);
                     
@@ -1787,34 +1788,54 @@ app.put('/api/pagos/:id/monto-pagado', async (req, res) => {
                     
                     if (diferenciaDias >= 7) {
                         return res.status(403).json({ 
-                            error: `Bloqueo Financiero: El contrato asociado tiene ${diferenciaDias} días sin firmar (alcanzó o superó el límite de 7 días). Captura deshabilitada.` 
+                            error: `Bloqueo Financiero: El contrato asociado tiene ${diferenciaDias} días sin firmar. Captura deshabilitada.` 
                         });
                     }
                 }
             }
 
-            const [sumaDetalle] = await pool.query(
-                `SELECT SUM(amount) AS monto_total FROM payment_order_details WHERE id_payment_order = ?`,
-                [idOrden]
+            // Obtener el monto total del concepto individual
+            const [detalle] = await pool.query(
+                `SELECT amount, id_payment_order FROM payment_order_details WHERE id_payment_detail = ?`,
+                [idPaymentDetail]
             );
 
-            const montoTotalOrden = parseFloat(sumaDetalle[0]?.monto_total) || 0;
+            if (detalle.length === 0) {
+                return res.status(404).json({ error: "No se encontró el detalle de pago." });
+            }
 
+            const montoTotalConcepto = parseFloat(detalle[0].amount) || 0;
+            const idOrdenCabecera = detalle[0].id_payment_order;
+
+            // Determinar si este concepto individual ya está Pagado o Pendiente
             let nuevoStatus = 'Pendiente';
-            if (montoTotalOrden > 0 && nuevoMonto >= (montoTotalOrden - 0.01)) {
+            if (montoTotalConcepto > 0 && nuevoMonto >= (montoTotalConcepto - 0.01)) {
                 nuevoStatus = 'Pagado';
             }
 
-            const updateQuery = `
-                UPDATE payment_orders 
+            // MODIFICACIÓN: Actualizar únicamente el registro específico en payment_order_details
+            const updateDetailQuery = `
+                UPDATE payment_order_details 
                 SET monto_pagado = ?, status = ?
-                WHERE id_payment_order = ?
+                WHERE id_payment_detail = ?
             `;
-            await pool.query(updateQuery, [nuevoMonto, nuevoStatus, idOrden]);
+            await pool.query(updateDetailQuery, [nuevoMonto, nuevoStatus, idPaymentDetail]);
+
+            // Recalcular el status global de la cabecera (payment_orders) si todos los conceptos están pagados
+            const [pendientes] = await pool.query(
+                `SELECT COUNT(*) AS incompletos FROM payment_order_details WHERE id_payment_order = ? AND status != 'Pagado'`,
+                [idOrdenCabecera]
+            );
+
+            const statusCabecera = pendientes[0].incompletos === 0 ? 'Pagado' : 'Pendiente';
+            await pool.query(
+                `UPDATE payment_orders SET status = ? WHERE id_payment_order = ?`,
+                [statusCabecera, idOrdenCabecera]
+            );
 
             return res.json({ 
                 success: true, 
-                message: `Monto y estado (${nuevoStatus}) actualizados correctamente.`,
+                message: `Monto individual y estado (${nuevoStatus}) actualizados correctamente.`,
                 status: nuevoStatus
             });
         }
@@ -1825,7 +1846,7 @@ app.put('/api/pagos/:id/monto-pagado', async (req, res) => {
                 SET compras_comment = ?
                 WHERE id_payment_detail = ?
             `;
-            await pool.query(updateCommentQuery, [compras_comment.trim(), idOrden]);
+            await pool.query(updateCommentQuery, [compras_comment.trim(), idPaymentDetail]);
 
             return res.json({ 
                 success: true, 
@@ -1836,7 +1857,7 @@ app.put('/api/pagos/:id/monto-pagado', async (req, res) => {
         return res.status(400).json({ error: "No se proporcionaron campos para actualizar." });
 
     } catch (err) {
-        console.error("❌ Error crítico en el servidor al actualizar orden de pago:", err);
+        console.error("❌ Error crítico en el servidor al actualizar detalle de pago:", err);
         res.status(500).json({ error: `Error interno del servidor: ${err.message}` });
     }
 });

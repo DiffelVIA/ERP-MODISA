@@ -349,7 +349,7 @@
                         <td style="text-align: center;">
                             <input type="number" 
                                 class="input-monto-pagado" 
-                                data-id="${pod.id_payment_order}"
+                                data-id="${pod.id_payment_detail}" 
                                 data-presupuesto="${presupuestoAutorizado}"
                                 value="${montoPagado}" 
                                 step="0.01" 

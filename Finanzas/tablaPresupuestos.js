@@ -6,7 +6,14 @@
   let cuerpoTabla;
   let filtroProyecto;
 
-  const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
+  // Variables para controlar las selecciones múltiples en cascada
+  let gruposSeleccionados = [];
+  let categoriasSeleccionadas = [];
+  let subcategoriasSeleccionadas = [];
+
+  const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? 'http://localhost:3000/api' 
+    : 'https://erp-modisa.onrender.com/api';
 
   document.addEventListener('DOMContentLoaded', () => {
     cuerpoTabla = document.getElementById("cuerpoTablaPresupuestos");
@@ -15,7 +22,9 @@
     cargarProyectosActivos();
     configurarDropdowns();
     inicializarEventoExportarExcel();
+    inicializarEventosFiltrosCascada();
 
+    // Evento para cambiar de Proyecto en el selector
     document.addEventListener('change', (e) => {
       if (e.target.classList.contains('chk-proyecto')) {
         if (e.target.checked) {
@@ -34,6 +43,8 @@
           const contenidoDropdown = document.getElementById("filtroProyecto");
           if (contenidoDropdown) contenidoDropdown.classList.remove('mostrar');
 
+          // Resetear selecciones previas al cambiar de obra
+          resetearFiltrosCascada();
           cargarPresupuestoProyecto(proyectoSeleccionadoId);
         }
       }
@@ -90,6 +101,9 @@
 
         const datos = await response.json();
         datosPresupuestoActual = datos;
+        
+        // Cargar los filtros dinámicos encadenados y renderizar
+        poblarFiltrosCascada();
         renderizarTablaPresupuestos(datos);
 
     } catch (error) {
@@ -105,6 +119,112 @@
         }
     }
   }
+
+  /* ==========================================================================
+     LÓGICA DE FILTROS EN CASCADA (Grupo -> Categoría -> Subcategoría)
+     ========================================================================== */
+
+  function resetearFiltrosCascada() {
+    gruposSeleccionados = [];
+    categoriasSeleccionadas = [];
+    subcategoriasSeleccionadas = [];
+  }
+
+  function inicializarEventosFiltrosCascada() {
+    const contenedorGlobal = document.querySelector('.contenedorFiltros');
+    if (!contenedorGlobal) return;
+
+    contenedorGlobal.addEventListener('change', (e) => {
+      if (e.target.classList.contains('chk-cascada')) {
+        const grupoTipo = e.target.dataset.group;
+
+        if (grupoTipo === 'grupo') {
+          gruposSeleccionados = Array.from(document.querySelectorAll('.chk-cascada[data-group="grupo"]:checked')).map(c => c.value);
+          // Al cambiar Grupos, depurar categorías/subcategorías que ya no apliquen
+          categoriasSeleccionadas = [];
+          subcategoriasSeleccionadas = [];
+        } else if (grupoTipo === 'categoria') {
+          categoriasSeleccionadas = Array.from(document.querySelectorAll('.chk-cascada[data-group="categoria"]:checked')).map(c => c.value);
+          subcategoriasSeleccionadas = [];
+        } else if (grupoTipo === 'subcategoria') {
+          subcategoriasSeleccionadas = Array.from(document.querySelectorAll('.chk-cascada[data-group="subcategoria"]:checked')).map(c => c.value);
+        }
+
+        poblarFiltrosCascada();
+        aplicarFiltrosPresupuesto();
+      }
+    });
+  }
+
+  function poblarFiltrosCascada() {
+    const divGrupo = document.getElementById('filtroGrupo');
+    const divCategoria = document.getElementById('filtroCategoria');
+    const divSubcategoria = document.getElementById('filtroSubcategoria');
+
+    if (!datosPresupuestoActual || datosPresupuestoActual.length === 0) {
+      if (divGrupo) divGrupo.innerHTML = '<label class="opcion-filtro">Sin opciones</label>';
+      if (divCategoria) divCategoria.innerHTML = '<label class="opcion-filtro">Sin opciones</label>';
+      if (divSubcategoria) divSubcategoria.innerHTML = '<label class="opcion-filtro">Sin opciones</label>';
+      return;
+    }
+
+    // 1. Opciones para Grupos
+    const gruposUnicos = Array.from(new Set(datosPresupuestoActual.map(item => item.grupo).filter(Boolean))).sort();
+    if (divGrupo) renderOpcionesDropdown(divGrupo, gruposUnicos, 'grupo', gruposSeleccionados);
+
+    // 2. Opciones para Categorías (Dependen de los Grupos seleccionados)
+    const datosFiltradosPorGrupo = gruposSeleccionados.length > 0
+      ? datosPresupuestoActual.filter(item => gruposSeleccionados.includes(item.grupo))
+      : datosPresupuestoActual;
+
+    const categoriasUnicas = Array.from(new Set(datosFiltradosPorGrupo.map(item => item.categoria).filter(Boolean))).sort();
+    if (divCategoria) renderOpcionesDropdown(divCategoria, categoriasUnicas, 'categoria', categoriasSeleccionadas);
+
+    // 3. Opciones para Subcategorías (Dependen de las Categorías seleccionadas)
+    const datosFiltradosPorCategoria = categoriasSeleccionadas.length > 0
+      ? datosFiltradosPorGrupo.filter(item => categoriasSeleccionadas.includes(item.categoria))
+      : datosFiltradosPorGrupo;
+
+    const subcategoriasUnicas = Array.from(new Set(datosFiltradosPorCategoria.map(item => item.subcategoria).filter(Boolean))).sort();
+    if (divSubcategoria) renderOpcionesDropdown(divSubcategoria, subcategoriasUnicas, 'subcategoria', subcategoriasSeleccionadas);
+  }
+
+  function renderOpcionesDropdown(contenedorHTML, listaOpciones, dataGroup, marcados) {
+    if (listaOpciones.length === 0) {
+      contenedorHTML.innerHTML = '<p style="padding: 8px; color: #94a3b8; font-size: 12px; margin:0;">Sin opciones disponibles</p>';
+      return;
+    }
+
+    contenedorHTML.innerHTML = listaOpciones.map(opcion => {
+      const isChecked = marcados.includes(opcion) ? 'checked' : '';
+      return `
+        <label class="opcion-filtro">
+          <input type="checkbox" class="chk-cascada" data-group="${dataGroup}" value="${opcion}" ${isChecked}>
+          ${opcion}
+        </label>
+      `;
+    }).join('');
+  }
+
+  function aplicarFiltrosPresupuesto() {
+    let filtrados = datosPresupuestoActual;
+
+    if (gruposSeleccionados.length > 0) {
+      filtrados = filtrados.filter(i => gruposSeleccionados.includes(i.grupo));
+    }
+    if (categoriasSeleccionadas.length > 0) {
+      filtrados = filtrados.filter(i => categoriasSeleccionadas.includes(i.categoria));
+    }
+    if (subcategoriasSeleccionadas.length > 0) {
+      filtrados = filtrados.filter(i => subcategoriasSeleccionadas.includes(i.subcategoria));
+    }
+
+    renderizarTablaPresupuestos(filtrados);
+  }
+
+  /* ==========================================================================
+     FIN LÓGICA DE FILTROS EN CASCADA
+     ========================================================================== */
 
   function configurarDropdowns() {
     const dropdowns = document.querySelectorAll('.filtros');
@@ -146,7 +266,7 @@
     tfoot.innerHTML = "";
 
     if (!lista || lista.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="18" style="text-align:center; padding:30px; color:#64748b;">El proyecto seleccionado no cuenta con categorías autorizadas registradas en el sistema.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="18" style="text-align:center; padding:30px; color:#64748b;">El proyecto o filtro seleccionado no cuenta con registros coincidentes.</td></tr>`;
       return;
     }
 
