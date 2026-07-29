@@ -498,8 +498,8 @@
             
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Error al actualizar el registro.');
-            
-            const registroLocal = todosLosPagos.find(p => String(p.id_payment_order) === String(idOrden));
+
+            const registroLocal = todosLosPagos.find(p => String(p.id_payment_detail) === String(idOrden));
             if (registroLocal) {
                 registroLocal.monto_pagado = monto;
                 registroLocal.status = data.status;

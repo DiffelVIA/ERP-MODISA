@@ -1729,8 +1729,8 @@ app.get('/api/pagos', async (req, res) => {
                 pod.provider AS provider,
                 pod.concept_description AS concept_description,
                 pod.amount AS amount,
-                po.status,
-                IFNULL(po.monto_pagado, 0) AS monto_pagado,
+                pod.status AS status,
+                IFNULL(pod.monto_pagado, 0) AS monto_pagado,
                 c.firma AS contrato_firma,
                 c.start_date AS contrato_fecha_registro
             FROM payment_orders po
