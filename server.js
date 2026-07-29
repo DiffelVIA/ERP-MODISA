@@ -790,8 +790,17 @@ app.get('/api/empleados/gestion', async (req, res) => {
     const userRol = req.headers['x-user-rol'];
     const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
 
-    if (rolNormalizado !== 'director operativo' && rolNormalizado !== 'director_operativo') {
-        return res.status(403).json({ error: "⛔ Acceso denegado: Solo el Director Operativo puede consultar esta sección." });
+    // 🛡️ MODIFICACIÓN: Se agregan las variantes del rol Gerente de Administración para permitir la consulta
+    const rolesPermitidos = [
+        'director operativo',
+        'director_operativo',
+        'gerente administración',
+        'gerente administracion',
+        'gerente_administracion'
+    ];
+
+    if (!rolesPermitidos.includes(rolNormalizado)) {
+        return res.status(403).json({ error: "⛔ Acceso denegado: No tienes permisos para consultar esta sección." });
     }
 
     try {
