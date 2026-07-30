@@ -318,7 +318,7 @@ header nav ul li a:hover{
 }
 
 .tabla tbody tr:hover { 
-  background-color: rgba(0, 102, 204, 0.434); /* Tono azul/gris tenue de excelente visibilidad */
+  background-color: rgba(0, 102, 204, 0.217); /* Tono azul/gris tenue de excelente visibilidad */
   cursor: pointer;
 }
 
