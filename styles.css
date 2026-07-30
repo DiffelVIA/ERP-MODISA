@@ -309,12 +309,17 @@ header nav ul li a:hover{
   vertical-align: middle;
 }
 
+.tabla tbody tr {
+  transition: background-color 0.2s ease;
+}
+
 .tabla tbody tr:nth-child(even) {
   background-color: var(--bg-light);
 }
 
 .tabla tbody tr:hover { 
-  background-color: var(--bg-hover);
+  background-color: rgba(0, 102, 204, 0.08); /* Tono azul/gris tenue de excelente visibilidad */
+  cursor: pointer;
 }
 
 .selector-estatus {
