@@ -290,18 +290,33 @@
                         🚫 No se encontraron solicitudes de pago registradas en el sistema.
                     </td>
                 </tr>`;
+            actualizarPieTablaTotales([]);
             return;
         }
 
         const puedeModificarRol = ['compras', 'gerente_administrativo', 'gerente administración'].includes(ROL_USUARIO);
+        const pagosOrdenados = [...listaPagos].sort((a, b) => (a.id_payment_detail || 0) - (b.id_payment_detail || 0));
+        const acumuladosMontoTotal = {};
+        const mapaColoresMontoTotal = {};
 
-        const acumuladosPorSubcategoria = {};
+        pagosOrdenados.forEach(pod => {
+            const claveSubcat = `${pod.project_name || ''}_${pod.grupo || ''}_${pod.categoria || ''}_${pod.subcategoria || ''}`;
+            const monto = parseFloat(pod.amount || 0);
+            const autorizado = parseFloat(pod.presupuesto_autorizado || 0);
 
-        listaPagos.forEach(pod => {
-            const claveAgrupacion = `${pod.project_name || ''}_${pod.grupo || ''}_${pod.categoria || ''}_${pod.subcategoria || ''}_${pod.payment_type || ''}`;
-            const montoPagado = parseFloat(pod.monto_pagado || 0);
-            
-            acumuladosPorSubcategoria[claveAgrupacion] = (acumuladosPorSubcategoria[claveAgrupacion] || 0) + montoPagado;
+            acumuladosMontoTotal[claveSubcat] = (acumuladosMontoTotal[claveSubcat] || 0) + monto;
+            const acumuladoProgresivo = acumuladosMontoTotal[claveSubcat];
+
+            let colorMontoTotal = '#16a34a';
+            if (autorizado > 0) {
+                const porcentaje = (acumuladoProgresivo / autorizado) * 100;
+                if (porcentaje > 100) {
+                    colorMontoTotal = '#dc2626';
+                } else if (porcentaje > 75) {
+                    colorMontoTotal = '#d97706';
+                }
+            }
+            mapaColoresMontoTotal[pod.id_payment_detail] = colorMontoTotal;
         });
 
         listaPagos.forEach(pod => {
@@ -402,6 +417,8 @@
                     </td>`;
             }
 
+            const colorMontoTotalCalculado = mapaColoresMontoTotal[pod.id_payment_detail] || '#1e293b';
+
             tr.innerHTML = `
                 <td>${pod.project_name || '---'}</td>
                 <td>${fechaFormateada}</td>
@@ -418,12 +435,13 @@
                 <td>${pod.subcategoria || '---'}</td>
                 <td>${pod.provider || '---'}</td>
                 <td>${pod.concept_description || '---'}</td>
-                <td class="monto-total-celda" data-total="${montoConcepto}" style="font-weight: bold; color: #1e293b; text-align: right;">
+                
+                <td class="monto-total-celda" data-total="${montoConcepto}" style="font-weight: bold; color: ${colorMontoTotalCalculado}; text-align: right;">
                     $${montoConcepto.toLocaleString('es-MX', {minimumFractionDigits: 2})}
                 </td>
+                
                 ${celdaMontoPagadoHTML}
                 
-                <!-- MODIFICACIÓN: Muestra únicamente el número con el color correspondiente sin etiquetas de texto -->
                 <td style="text-align: center;">
                     <strong class="porcentaje-celda" style="color: ${semaforo.color}">${semaforo.porcentaje}%</strong>
                 </td>
@@ -438,6 +456,8 @@
 
             tbody.appendChild(tr);
         });
+
+        actualizarPieTablaTotales(listaPagos);
     }
 
     function configurarDelegacionEventos() {
@@ -542,5 +562,28 @@
             console.error("❌ Error al guardar comentario de compras:", error);
             alert(`Error al guardar comentario: ${error.message}`);
         }
+    }
+    
+    function actualizarPieTablaTotales(listaFiltrada) {
+        const tabla = document.querySelector(".main-tabla table") || document.querySelector("table");
+        if (!tabla) return;
+
+        let tfoot = tabla.querySelector("tfoot");
+        if (!tfoot) {
+            tfoot = document.createElement("tfoot");
+            tabla.appendChild(tfoot);
+        }
+
+        const sumaTotal = listaFiltrada.reduce((acc, item) => acc + (parseFloat(item.amount) || 0), 0);
+        const sumaPagado = listaFiltrada.reduce((acc, item) => acc + (parseFloat(item.monto_pagado) || 0), 0);
+
+        tfoot.innerHTML = `
+            <tr style="background-color: #0f172a; color: #ffffff; font-weight: bold; font-size: 13px;">
+                <td colspan="11" style="text-align: right; padding: 10px 15px;">TOTALES FILTRADOS:</td>
+                <td style="text-align: right; padding: 10px; color: #38bdf8;">$${sumaTotal.toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td style="text-align: right; padding: 10px; color: #4ade80;">$${sumaPagado.toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td colspan="3"></td>
+            </tr>
+        `;
     }
 })();
