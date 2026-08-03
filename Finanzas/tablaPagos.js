@@ -383,9 +383,6 @@
                 || mapaTiposPago[claveTipo.toLowerCase()] 
                 || `💳 ${claveTipo || 'No definido'}`;
 
-            // =========================================================================
-            // MODIFICACIÓN APLICADA: Enlace dinámico a Google Drive para cualquier comprobante existente
-            // =========================================================================
             let tipoPagoVisual = `<span style="white-space: nowrap; font-weight: bold;">${tipoTextoPlano}</span>`;
 
             if (pod.ticket_url) {
@@ -396,10 +393,9 @@
                        class="enlace-ticket-drive" 
                        title="Ver comprobante en Google Drive"
                        style="color: #2563eb; text-decoration: underline; font-weight: bold; cursor: pointer; white-space: nowrap;">
-                       ${tipoTextoPlano} 📸
+                       ${tipoTextoPlano}
                     </a>`;
             }
-            // =========================================================================
 
             const comentarioResidente = pod.commentary || pod.resident_comment || pod.comentario || '-';
             const comentarioComprasVal = pod.compras_comment || '';
