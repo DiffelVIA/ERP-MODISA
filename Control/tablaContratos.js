@@ -72,7 +72,7 @@
             const total = Number(c.total_amount || 0);
             const pagado = Number(c.monto_pagado || 0);
             const autorizado = Number(c.contratos_aut || 0);
-            const colorMonto = obtenerColorSemaforoContrato(total, autorizado);
+            const colorFuente = obtenerColorTextoContrato(total, autorizado);
             const porcentajePagado = total > 0 ? Math.round((pagado / total) * 100) : 0;
             const saldoPendienteDinero = total - pagado;
             const saldoPendientePorcentaje = 100 - porcentajePagado;
@@ -133,7 +133,7 @@
                 <td>${celdaClave}</td>
                 <td>${c.Concept || 'Sin descripción'}</td>
                 <td>${c.supplier}</td>
-                <td data-campo="total" data-total="${total}" style="background-color: ${colorMonto};">${total.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                <td data-campo="total" data-total="${total}" style="color: ${colorFuente};">${total.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
                 <td data-campo="monto-consultar" data-monto-consultar="${pagado}">${celdaMontoPagado}</td>
                 <td id="porcentaje-${c.id_contract}"><strong>${porcentajePagado}%</strong></td>
                 <td data-campo="saldo-dinero" style="color: #64748b; font-weight: 500;">$${saldoPendienteDinero.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
@@ -316,19 +316,19 @@
         }
     };
 
-    function obtenerColorSemaforoContrato(montoContrato, montoAutorizado) {
-        if (!montoAutorizado || montoAutorizado <= 0) {
-            return '#dc2626';
-        }
-        const porcentaje = (montoContrato / montoAutorizado) * 100;
-
-        if (porcentaje >= 90) {
-            return '#dc2626';
-        } else if (porcentaje >= 75) {
-            return '#ca8a04';
-        } else {
-            return '#16a34a';
-        }
+    function obtenerColorTextoContrato(montoContrato, montoAutorizado) {
+    if (!montoAutorizado || montoAutorizado <= 0) {
+        return '#dc2626'; // Rojo si supera o no tiene presupuesto asignado
     }
+    const porcentaje = (montoContrato / montoAutorizado) * 100;
+
+    if (porcentaje >= 90) {
+        return '#dc2626';
+    } else if (porcentaje >= 75) {
+        return '#ca8a04';
+    } else {
+        return '#16a34a';
+    }
+}
 
 })();
