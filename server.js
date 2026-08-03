@@ -1556,21 +1556,22 @@ app.put('/api/contratos/:id/actualizar-control', async (req, res) => {
 });
 
 // PAGOS //
-app.post('/api/pagos', upload.fields([
-  { name: 'ticketFile', maxCount: 1 },
-  { name: 'excelFile', maxCount: 1 }
-]), async (req, res) => {
+app.post('/api/pagos', upload.any(), async (req, res) => {
   console.log("================= API PAGOS INVOCADA =================");
   console.log("Datos recibidos en body:", req.body);
   const { id_project, id_employee, request_date, fiscal_week, payment_type, payment_method, conceptos } = req.body;
 
-  const ticketFile = req.files && req.files['ticketFile'] ? req.files['ticketFile'][0] : null;
-  const excelFile = req.files && req.files['excelFile'] ? req.files['excelFile'][0] : null;
-
   const limpiarArchivosTemporales = () => {
-    if (ticketFile && ticketFile.path && fs.existsSync(ticketFile.path)) fs.unlinkSync(ticketFile.path);
-    if (excelFile && excelFile.path && fs.existsSync(excelFile.path)) fs.unlinkSync(excelFile.path);
+    if (req.files && Array.isArray(req.files)) {
+      req.files.forEach(file => {
+        if (file.path && fs.existsSync(file.path)) {
+          try { fs.unlinkSync(file.path); } catch (e) { /* ignorar error de eliminación */ }
+        }
+      });
+    }
   };
+
+  const excelFile = req.files ? req.files.find(f => f.fieldname === 'excelFile') : null;
 
   if (!id_project || !id_employee || !request_date || !fiscal_week || !payment_type || !payment_method) {
     limpiarArchivosTemporales();
@@ -1589,27 +1590,16 @@ app.post('/api/pagos', upload.fields([
     return res.status(400).json({ error: 'El formato de los conceptos es inválido.' });
   }
 
-  let urlDestinoFinal = null;
-  if (ticketFile) {
-    try {
-      const ID_CARPETA_DRIVE_TARGET = '1T_WFb1LnEgzUk-eyNjv-qKW3XR5jAR1K'; 
-      console.log(`📤 Subiendo ticket/comprobante (${payment_type}) hacia Google Drive...`);
-      urlDestinoFinal = await subirArchivoADrive(ticketFile, ID_CARPETA_DRIVE_TARGET);
-      console.log("🔗 Enlace generado exitosamente por Google Drive:", urlDestinoFinal);
-    } catch (errDrive) {
-      limpiarArchivosTemporales();
-      return res.status(500).json({ error: 'Fallo al almacenar el ticket en Google Drive.', detalle: errDrive.message });
-    }
-  }
-
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
 
+    let primerTicketUrlHeader = null;
+
     const [resOrder] = await connection.query(
-      `INSERT INTO payment_orders (id_project, id_employee, request_date, fiscal_week, payment_type, payment_method, ticket_url) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id_project, id_employee, request_date, fiscal_week, payment_type, payment_method, urlDestinoFinal]
+      `INSERT INTO payment_orders (id_project, id_employee, request_date, fiscal_week, payment_type, payment_method) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id_project, id_employee, request_date, fiscal_week, payment_type, payment_method]
     );
     const id_payment_order = resOrder.insertId;
 
@@ -1617,12 +1607,31 @@ app.post('/api/pagos', upload.fields([
 
     const queryDetails = `
       INSERT INTO payment_order_details 
-        (id_payment_order, id_project, id_project_category, payment_type, payment_method, provider, concept_description, amount, commentary) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id_payment_order, id_project, id_project_category, payment_type, payment_method, provider, concept_description, amount, commentary, ticket_url) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    for (const item of listaConceptos) {
+    for (let i = 0; i < listaConceptos.length; i++) {
+      const item = listaConceptos[i];
       const comentarioLimpiado = item.commentary || item.comment || item.comentario || null;
+      let ticketUrlDetalle = null;
+
+      const archivoTicket = req.files ? req.files.find(f => f.fieldname === `ticketFile_${i}` || (i === 0 && f.fieldname === 'ticketFile')) : null;
+
+      if (archivoTicket) {
+        try {
+          const ID_CARPETA_DRIVE_TARGET = '1T_WFb1LnEgzUk-eyNjv-qKW3XR5jAR1K';
+          console.log(`📤 Subiendo ticket/comprobante de posición ${i} (${item.payment_type || payment_type}) hacia Google Drive...`);
+          ticketUrlDetalle = await subirArchivoADrive(archivoTicket, ID_CARPETA_DRIVE_TARGET);
+          console.log(`🔗 Enlace generado para ítem ${i}:`, ticketUrlDetalle);
+
+          if (!primerTicketUrlHeader) {
+            primerTicketUrlHeader = ticketUrlDetalle;
+          }
+        } catch (errDrive) {
+          console.error(`❌ Fallo al subir ticket de la posición ${i}:`, errDrive.message);
+        }
+      }
 
       await connection.query(queryDetails, [
         id_payment_order, 
@@ -1633,8 +1642,16 @@ app.post('/api/pagos', upload.fields([
         item.provider_name || item.provider || null, 
         item.concept_description || item.concept || null, 
         item.amount, 
-        comentarioLimpiado
+        comentarioLimpiado,
+        ticketUrlDetalle
       ]);
+    }
+
+    if (primerTicketUrlHeader) {
+      await connection.query(
+        `UPDATE payment_orders SET ticket_url = ? WHERE id_payment_order = ?`,
+        [primerTicketUrlHeader, id_payment_order]
+      );
     }
 
     await connection.commit();
@@ -1699,7 +1716,7 @@ app.post('/api/pagos', upload.fields([
                 <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Monto Total:</td><td style="padding: 8px; color: #16a34a; font-weight: bold;">$${montoTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td></tr>
               </table>
 
-              ${urlDestinoFinal ? `<p>🔗 <a href="${urlDestinoFinal}" target="_blank">Ver Ticket en Google Drive</a></p>` : ''}
+              ${primerTicketUrlHeader ? `<p>🔗 <a href="${primerTicketUrlHeader}" target="_blank">Ver Comprobante en Google Drive</a></p>` : ''}
               
               <hr style="border: none; border-top: 1px solid #e2e8f0; margin-top: 20px;">
               <p style="font-size: 11px; color: #64748b;">Notificación automática del sistema ERP MODISA.</p>
@@ -1753,7 +1770,7 @@ app.get('/api/pagos', async (req, res) => {
                 po.fiscal_week,
                 IFNULL(pod.payment_type, po.payment_type) AS payment_type,
                 IFNULL(pod.payment_method, po.payment_method) AS payment_method,
-                po.ticket_url,
+                COALESCE(pod.ticket_url, po.ticket_url) AS ticket_url,
                 pod.commentary AS commentary,
                 pod.commentary AS resident_comment,
                 pod.compras_comment AS compras_comment,

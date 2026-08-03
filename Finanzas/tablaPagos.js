@@ -383,18 +383,23 @@
                 || mapaTiposPago[claveTipo.toLowerCase()] 
                 || `💳 ${claveTipo || 'No definido'}`;
 
+            // =========================================================================
+            // MODIFICACIÓN APLICADA: Enlace dinámico a Google Drive para cualquier comprobante existente
+            // =========================================================================
             let tipoPagoVisual = `<span style="white-space: nowrap; font-weight: bold;">${tipoTextoPlano}</span>`;
 
-            if ((claveTipo === 'cajaChica' || claveTipo.toLowerCase() === 'caja chica') && pod.ticket_url) {
+            if (pod.ticket_url) {
                 tipoPagoVisual = `
                     <a href="${pod.ticket_url}" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    class="enlace-ticket-drive" 
-                    style="color: #2563eb; text-decoration: underline; font-weight: bold; cursor: pointer; white-space: nowrap;">
-                    ${tipoTextoPlano}
+                       target="_blank" 
+                       rel="noopener noreferrer" 
+                       class="enlace-ticket-drive" 
+                       title="Ver comprobante en Google Drive"
+                       style="color: #2563eb; text-decoration: underline; font-weight: bold; cursor: pointer; white-space: nowrap;">
+                       ${tipoTextoPlano} 📸
                     </a>`;
             }
+            // =========================================================================
 
             const comentarioResidente = pod.commentary || pod.resident_comment || pod.comentario || '-';
             const comentarioComprasVal = pod.compras_comment || '';

@@ -460,7 +460,11 @@
         const paymentTypeHeader = primerConcepto.payment_type || '';
         const paymentMethodHeader = primerConcepto.payment_method || '';
 
-        const conceptosSinArchivo = listaConceptosPagos.map(({ ticketFile, excelFile, ...resto }) => resto);
+        const conceptosMapeados = listaConceptosPagos.map(({ ticketFile, excelFile, ...resto }, index) => ({
+            ...resto,
+            hasTicket: !!(ticketFile && ticketFile instanceof File),
+            ticketKey: (ticketFile && ticketFile instanceof File) ? `ticketFile_${index}` : null
+        }));
 
         const formData = new FormData();
         formData.append('id_project', parseInt(idProyecto));
@@ -469,17 +473,17 @@
         formData.append('fiscal_week', semanaNumero);
         formData.append('payment_type', paymentTypeHeader);
         formData.append('payment_method', paymentMethodHeader);
-        formData.append('conceptos', JSON.stringify(conceptosSinArchivo));
+        formData.append('conceptos', JSON.stringify(conceptosMapeados));
+
+        listaConceptosPagos.forEach((item, index) => {
+            if (item.ticketFile && item.ticketFile instanceof File) {
+                formData.append(`ticketFile_${index}`, item.ticketFile, item.ticketFile.name);
+            }
+        });
 
         const conceptoExcel = listaConceptosPagos.find(item => item.excelFile && item.excelFile instanceof File);
-        const conceptoTicket = listaConceptosPagos.find(item => item.ticketFile && item.ticketFile instanceof File);
-
         if (conceptoExcel && conceptoExcel.excelFile) {
             formData.append('excelFile', conceptoExcel.excelFile, conceptoExcel.excelFile.name);
-        }
-
-        if (conceptoTicket && conceptoTicket.ticketFile) {
-            formData.append('ticketFile', conceptoTicket.ticketFile, conceptoTicket.ticketFile.name);
         }
 
         try {
@@ -533,6 +537,7 @@
             }
         }
     }
+
 
     function renderizarMiniTabla() {
         const contenedorVacio = document.getElementById('tabla-conceptos-vacia');
