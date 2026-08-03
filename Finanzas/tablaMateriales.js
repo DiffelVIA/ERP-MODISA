@@ -268,6 +268,22 @@
             `;
             return;
         }
+
+        const materialesOrdenados = [...materialesAVer].sort((a, b) => (a.id_detail || 0) - (b.id_detail || 0));
+
+        const acumuladosPorSubcategoria = {};
+        const mapaClasesSemaforo = {};
+
+        materialesOrdenados.forEach(item => {
+            const llaveSubcat = `${item.obra || 'S/O'}-${item.grupo || 'G'}-${item.categoria || 'C'}-${item.subcategoria || 'S'}`;
+            const precio = parseFloat(item.precio_unitario) || 0;
+            const totalFila = (parseFloat(item.quantity) || 0) * precio;
+
+            acumuladosPorSubcategoria[llaveSubcat] = (acumuladosPorSubcategoria[llaveSubcat] || 0) + totalFila;
+            const acumuladoHastaEstaSolicitud = acumuladosPorSubcategoria[llaveSubcat];
+
+            mapaClasesSemaforo[item.id_detail] = obtenerClaseSemaforo(item, acumuladoHastaEstaSolicitud);
+        });
         
         materialesAVer.forEach((item) => {
             const tr = document.createElement('tr');
@@ -304,8 +320,7 @@
                     </td>
                 `;
             } else {
-                const totalFilaInicial = parseFloat(montoCalculado) || 0;
-                const claseColorInicial = obtenerClaseSemaforo(item, totalFilaInicial);
+                const claseColorInicial = mapaClasesSemaforo[item.id_detail] || 'monto-pendiente';
 
                 tr.innerHTML = `
                     <td style="width: 6%; font-weight: bold;">${item.solicitante || 'Sin Nombre'}</td>
@@ -371,7 +386,6 @@
                         item.estado = estadoFinal;
 
                         celdaMonto.textContent = `$${nuevoMonto}`;
-                        celdaMonto.className = `monto-celda ${obtenerClaseSemaforo(item, totalFilaCalculado)}`;
 
                         const elementoGlobal = concentradoMateriales.find(m => m.id_detail === item.id_detail);
                         if (elementoGlobal) {
@@ -383,6 +397,8 @@
                             elementoGlobal.presupuesto_autorizado = item.presupuesto_autorizado;
                             elementoGlobal.monto_gastado_otros = item.monto_gastado_otros;
                         }
+
+                        renderizarTabla(materialesAVer);
 
                         const respuesta = await fetch(`${API_URL}/materiales/detalle/${item.id_detail}`, {
                             method: 'PUT',
@@ -421,9 +437,9 @@
                         estadoTemp = 'pendiente';
                     }
                     
-                    const itemTemporal = { ...item, estado: estadoTemp };
+                    item.precio_unitario = precioTemporal;
+                    item.estado = estadoTemp;
                     celdaMonto.textContent = `$${totalTemporal.toFixed(2)}`;
-                    celdaMonto.className = `monto-celda ${obtenerClaseSemaforo(itemTemporal, totalTemporal)}`;
                 });
 
                 inputProveedor.addEventListener('blur', actualizarFila);
