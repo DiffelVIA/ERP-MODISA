@@ -67,12 +67,29 @@
             return;
         }
 
+        const contratosOrdenadosCronologicamente = [...listaContratos].sort((a, b) => a.id_contract - b.id_contract);
+
+        const acumuladosPorCategoria = {};
+        const mapaColoresContratos = {};
+
+        contratosOrdenadosCronologicamente.forEach(c => {
+            const llaveCategoria = c.id_project_category || `${c.project_name}-${c.grupo}-${c.categoria}-${c.subcategoria}`;
+            const autorizado = Number(c.contratos_aut || 0);
+            const total = Number(c.total_amount || 0);
+
+            acumuladosPorCategoria[llaveCategoria] = (acumuladosPorCategoria[llaveCategoria] || 0) + total;
+            const acumuladoHastaHoy = acumuladosPorCategoria[llaveCategoria];
+
+            mapaColoresContratos[c.id_contract] = obtenerColorTextoContrato(acumuladoHastaHoy, autorizado);
+        });
+
         listaContratos.forEach(c => {
             const tr = document.createElement("tr");
+
             const total = Number(c.total_amount || 0);
             const pagado = Number(c.monto_pagado || 0);
-            const autorizado = Number(c.contratos_aut || 0);
-            const colorFuente = obtenerColorTextoContrato(total, autorizado);
+            const colorFuente = mapaColoresContratos[c.id_contract] || '#16a34a';
+            
             const porcentajePagado = total > 0 ? Math.round((pagado / total) * 100) : 0;
             const saldoPendienteDinero = total - pagado;
             const saldoPendientePorcentaje = 100 - porcentajePagado;
@@ -133,7 +150,7 @@
                 <td>${celdaClave}</td>
                 <td>${c.Concept || 'Sin descripción'}</td>
                 <td>${c.supplier}</td>
-                <td data-campo="total" data-total="${total}" style="color: ${colorFuente};">${total.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                <td data-campo="total" data-total="${total}" style="color: ${colorFuente}; font-weight: 700;">$${total.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
                 <td data-campo="monto-consultar" data-monto-consultar="${pagado}">${celdaMontoPagado}</td>
                 <td id="porcentaje-${c.id_contract}"><strong>${porcentajePagado}%</strong></td>
                 <td data-campo="saldo-dinero" style="color: #64748b; font-weight: 500;">$${saldoPendienteDinero.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
