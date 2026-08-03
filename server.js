@@ -1760,7 +1760,7 @@ app.get('/api/pagos', async (req, res) => {
                 COALESCE(pc.grupo, c_pc.grupo, '---') AS grupo,
                 COALESCE(pc.categoria, c_pc.categoria, '---') AS categoria,
                 COALESCE(pc.subcategoria, c_pc.subcategoria, '---') AS subcategoria,
-                COALESCE(pc.total, c_pc.total, 0) AS presupuesto_autorizado,
+                IFNULL(COALESCE(pc.total, c_pc.total), 0) AS presupuesto_autorizado,
                 pod.provider AS provider,
                 pod.concept_description AS concept_description,
                 pod.amount AS amount,
@@ -1772,10 +1772,7 @@ app.get('/api/pagos', async (req, res) => {
             INNER JOIN payment_order_details pod ON po.id_payment_order = pod.id_payment_order
             LEFT JOIN projects p ON po.id_project = p.id_project
             LEFT JOIN projects p_det ON pod.id_project = p_det.id_project
-            LEFT JOIN project_categories pc ON (
-                pod.id_project_category = pc.id_project_category 
-                OR (pc.id_project = COALESCE(pod.id_project, po.id_project) AND pc.subcategoria = pod.subcategoria)
-            )
+            LEFT JOIN project_categories pc ON pod.id_project_category = pc.id_project_category
             LEFT JOIN contracts c ON LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider))
             LEFT JOIN project_categories c_pc ON c.id_project_category = c_pc.id_project_category
             ORDER BY po.id_payment_order DESC;
