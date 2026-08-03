@@ -40,7 +40,14 @@
         if (!selectResponsable) return;
 
         try {
-            const response = await fetch(`${API_URL}/empleados`);
+            const response = await fetch(`${API_URL}/empleados/gestion`, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-user-rol": localStorage.getItem('userRol') || ''
+                }
+            });
+
             if (!response.ok) throw new Error(`Estado HTTP: ${response.status}`);
 
             const empleados = await response.json();
