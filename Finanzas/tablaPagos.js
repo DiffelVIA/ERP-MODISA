@@ -383,9 +383,21 @@
                 || mapaTiposPago[claveTipo.toLowerCase()] 
                 || `💳 ${claveTipo || 'No definido'}`;
 
+            // =========================================================================
+            // INICIO MODIFICACIÓN: Enlace únicamente para Materiales, Caja Chica y Maquinaria
+            // =========================================================================
+            const tiposConComprobanteClickeable = [
+                'cajaChica', 'caja chica', 
+                'material', 'materiales', 
+                'maquinariaEquipo', 'maquinaria y equipo', 'maquinaria'
+            ];
+
+            const esTipoConTicket = tiposConComprobanteClickeable.includes(claveTipo) || 
+                                    tiposConComprobanteClickeable.includes(claveTipo.toLowerCase());
+
             let tipoPagoVisual = `<span style="white-space: nowrap; font-weight: bold;">${tipoTextoPlano}</span>`;
 
-            if (pod.ticket_url) {
+            if (esTipoConTicket && pod.ticket_url) {
                 tipoPagoVisual = `
                     <a href="${pod.ticket_url}" 
                        target="_blank" 
@@ -396,6 +408,9 @@
                        ${tipoTextoPlano}
                     </a>`;
             }
+            // =========================================================================
+            // FIN MODIFICACIÓN
+            // =========================================================================
 
             const comentarioResidente = pod.commentary || pod.resident_comment || pod.comentario || '-';
             const comentarioComprasVal = pod.compras_comment || '';

@@ -1699,7 +1699,6 @@ app.post('/api/pagos', upload.any(), async (req, res) => {
             console.warn("⚠️ Se recibió referencia de excelFile pero no se pudo obtener su contenido binario.");
           }
         }
-        
 
         const mail = new MailComposer({
           from: `"${datosSolicitante.name} (ERP MODISA)" <${process.env.GMAIL_USER}>`,
@@ -1717,7 +1716,7 @@ app.post('/api/pagos', upload.any(), async (req, res) => {
                 <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Monto Total:</td><td style="padding: 8px; color: #16a34a; font-weight: bold;">$${montoTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td></tr>
               </table>
 
-              ${primerTicketUrlHeader ? `<p>🔗 <a href="${primerTicketUrlHeader}" target="_blank">Ver Comprobante en Google Drive</a></p>` : ''}
+              <!-- MODIFICACIÓN: Se eliminó el enlace a Google Drive (${primerTicketUrlHeader}) -->
               
               <hr style="border: none; border-top: 1px solid #e2e8f0; margin-top: 20px;">
               <p style="font-size: 11px; color: #64748b;">Notificación automática del sistema ERP MODISA.</p>
