@@ -563,7 +563,7 @@
             alert(`Error al guardar comentario: ${error.message}`);
         }
     }
-    
+
     function actualizarPieTablaTotales(listaFiltrada) {
         const tabla = document.querySelector(".main-tabla table") || document.querySelector("table");
         if (!tabla) return;
@@ -578,12 +578,13 @@
         const sumaPagado = listaFiltrada.reduce((acc, item) => acc + (parseFloat(item.monto_pagado) || 0), 0);
 
         tfoot.innerHTML = `
-            <tr style="background-color: #0f172a; color: #ffffff; font-weight: bold; font-size: 13px;">
-                <td colspan="11" style="text-align: right; padding: 10px 15px;">TOTALES FILTRADOS:</td>
-                <td style="text-align: right; padding: 10px; color: #38bdf8;">$${sumaTotal.toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                <td style="text-align: right; padding: 10px; color: #4ade80;">$${sumaPagado.toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <tr style="background-color: #f8fafc; color: #1e293b; font-weight: bold; font-size: 13px; border-top: 2px solid #cbd5e1; border-bottom: 1px solid #e2e8f0;">
+                <td colspan="11" style="text-align: right; padding: 12px 15px; color: #334155; font-size: 12px; letter-spacing: 0.5px;">TOTALES:</td>
+                <td style="text-align: right; padding: 12px 10px; color: #0284c7; font-weight: 800;">$${sumaTotal.toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td style="text-align: right; padding: 12px 10px; color: #16a34a; font-weight: 800;">$${sumaPagado.toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                 <td colspan="3"></td>
             </tr>
         `;
     }
+    // =========================================================================
 })();
