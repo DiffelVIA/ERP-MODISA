@@ -1760,7 +1760,21 @@ app.get('/api/pagos', async (req, res) => {
                 COALESCE(pc.grupo, c_pc.grupo, '---') AS grupo,
                 COALESCE(pc.categoria, c_pc.categoria, '---') AS categoria,
                 COALESCE(pc.subcategoria, c_pc.subcategoria, '---') AS subcategoria,
-                IFNULL(COALESCE(pc.total, c_pc.total), 0) AS presupuesto_autorizado,
+                
+                IFNULL(
+                    CASE 
+                        WHEN LOWER(TRIM(IFNULL(pod.payment_type, po.payment_type))) IN ('contratista') 
+                            THEN COALESCE(pc.contratos, c_pc.contratos, 0)
+                        WHEN LOWER(TRIM(IFNULL(pod.payment_type, po.payment_type))) IN ('manoobra', 'mano de obra') 
+                            THEN COALESCE(pc.mano_obra, c_pc.mano_obra, 0)
+                        WHEN LOWER(TRIM(IFNULL(pod.payment_type, po.payment_type))) IN ('material', 'materiales') 
+                            THEN COALESCE(pc.materiales, c_pc.materiales, 0)
+                        WHEN LOWER(TRIM(IFNULL(pod.payment_type, po.payment_type))) IN ('maquinariaequipo', 'maquinaria y equipo') 
+                            THEN COALESCE(pc.maquinaria_equipo, c_pc.maquinaria_equipo, 0)
+                        ELSE COALESCE(pc.total, c_pc.total, 0)
+                    END, 0
+                ) AS presupuesto_autorizado,
+
                 pod.provider AS provider,
                 pod.concept_description AS concept_description,
                 pod.amount AS amount,
