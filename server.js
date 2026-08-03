@@ -1760,7 +1760,7 @@ app.get('/api/pagos', async (req, res) => {
                 COALESCE(pc.grupo, c_pc.grupo, '---') AS grupo,
                 COALESCE(pc.categoria, c_pc.categoria, '---') AS categoria,
                 COALESCE(pc.subcategoria, c_pc.subcategoria, '---') AS subcategoria,
-                IFNULL(pc.total, 0) AS presupuesto_autorizado,
+                COALESCE(pc.total, c_pc.total, 0) AS presupuesto_autorizado,
                 pod.provider AS provider,
                 pod.concept_description AS concept_description,
                 pod.amount AS amount,
@@ -1772,7 +1772,10 @@ app.get('/api/pagos', async (req, res) => {
             INNER JOIN payment_order_details pod ON po.id_payment_order = pod.id_payment_order
             LEFT JOIN projects p ON po.id_project = p.id_project
             LEFT JOIN projects p_det ON pod.id_project = p_det.id_project
-            LEFT JOIN project_categories pc ON pod.id_project_category = pc.id_project_category
+            LEFT JOIN project_categories pc ON (
+                pod.id_project_category = pc.id_project_category 
+                OR (pc.id_project = COALESCE(pod.id_project, po.id_project) AND pc.subcategoria = pod.subcategoria)
+            )
             LEFT JOIN contracts c ON LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider))
             LEFT JOIN project_categories c_pc ON c.id_project_category = c_pc.id_project_category
             ORDER BY po.id_payment_order DESC;
@@ -1787,10 +1790,9 @@ app.get('/api/pagos', async (req, res) => {
     }
 });
 
-// MODIFICACIÓN: Actualización individual por id_payment_detail
 app.put('/api/pagos/:id/monto-pagado', async (req, res) => {
     try {
-        const idPaymentDetail = req.params.id; // Ahora recibe el id_payment_detail
+        const idPaymentDetail = req.params.id;
         const { monto_pagado, compras_comment } = req.body;
 
         if (!idPaymentDetail || idPaymentDetail === 'undefined') {
@@ -1800,7 +1802,6 @@ app.put('/api/pagos/:id/monto-pagado', async (req, res) => {
         if (monto_pagado !== undefined) {
             const nuevoMonto = parseFloat(monto_pagado) || 0;
 
-            // Validar bloqueo por contrato sin firma (> 6 días)
             const [contratoInfo] = await pool.query(
                 `SELECT c.firma, c.start_date 
                  FROM payment_order_details pod
@@ -1829,7 +1830,6 @@ app.put('/api/pagos/:id/monto-pagado', async (req, res) => {
                 }
             }
 
-            // Obtener el monto total del concepto individual
             const [detalle] = await pool.query(
                 `SELECT amount, id_payment_order FROM payment_order_details WHERE id_payment_detail = ?`,
                 [idPaymentDetail]
@@ -1842,13 +1842,11 @@ app.put('/api/pagos/:id/monto-pagado', async (req, res) => {
             const montoTotalConcepto = parseFloat(detalle[0].amount) || 0;
             const idOrdenCabecera = detalle[0].id_payment_order;
 
-            // Determinar si este concepto individual ya está Pagado o Pendiente
             let nuevoStatus = 'Pendiente';
             if (montoTotalConcepto > 0 && nuevoMonto >= (montoTotalConcepto - 0.01)) {
                 nuevoStatus = 'Pagado';
             }
 
-            // MODIFICACIÓN: Actualizar únicamente el registro específico en payment_order_details
             const updateDetailQuery = `
                 UPDATE payment_order_details 
                 SET monto_pagado = ?, status = ?
@@ -1856,7 +1854,6 @@ app.put('/api/pagos/:id/monto-pagado', async (req, res) => {
             `;
             await pool.query(updateDetailQuery, [nuevoMonto, nuevoStatus, idPaymentDetail]);
 
-            // Recalcular el status global de la cabecera (payment_orders) si todos los conceptos están pagados
             const [pendientes] = await pool.query(
                 `SELECT COUNT(*) AS incompletos FROM payment_order_details WHERE id_payment_order = ? AND status != 'Pagado'`,
                 [idOrdenCabecera]
