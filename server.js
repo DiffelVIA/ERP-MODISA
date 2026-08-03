@@ -1475,7 +1475,7 @@ app.get('/api/contratos', async (req, res) => {
                 COALESCE(pc.grupo, '---') AS grupo,
                 COALESCE(pc.categoria, '---') AS categoria,
                 COALESCE(pc.subcategoria, '---') AS subcategoria,
-                
+                COALESCE(pc.contratos, 0) AS contratos_aut,
                 CASE 
                     WHEN LOWER(TRIM(c.status)) = 'rechazado' OR LOWER(TRIM(c.status_direccion)) = 'rechazado' OR LOWER(TRIM(c.estado_costos)) = 'rechazado' THEN 'Rechazado'
                     

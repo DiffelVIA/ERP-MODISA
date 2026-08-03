@@ -898,8 +898,8 @@ footer #btn-logout:hover {
   position: absolute;
   top: 2px;
   right: 0;
-  background-color: #ef4444;
-  color: white;
+  background-color: var(--red--);
+  color: var(--blanco);
   font-size: 10px;
   font-weight: bold;
   border-radius: 50%;
