@@ -169,8 +169,17 @@ app.put('/api/auth/update-password', async (req, res) => {
       [hashContrasena, correo.trim()]
     );
     
-    const [usuarios] = await pool.query('SELECT job_title FROM employees WHERE email = ?', [correo.trim()]);
-    res.json({ mensaje: 'Contraseña actualizada', rol: usuarios[0].job_title });
+    const [usuarios] = await pool.query(
+      'SELECT id_employee, name, job_title FROM employees WHERE email = ?', 
+      [correo.trim()]
+    );
+
+    res.json({ 
+      mensaje: 'Contraseña actualizada', 
+      id_employee: usuarios[0].id_employee,
+      nombre: usuarios[0].name,
+      rol: usuarios[0].job_title 
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
