@@ -559,54 +559,70 @@
   }
 
   function procesarFiltrosUrl() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const estadoParam = urlParams.get('estado');
-    const responsableParam = urlParams.get('responsable');
+    setTimeout(() => {
+      const urlParams = new URLSearchParams(window.location.search);
+      let estadoParam = urlParams.get('estado');
+      let responsableParam = urlParams.get('responsable');
 
-    let hayFiltrosUrl = false;
-
-    const normalizarTexto = (texto) => {
-      if (!texto) return '';
-      return decodeURIComponent(texto)
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase()
-        .trim();
-    };
-
-    if (estadoParam) {
-      const estadoLimpio = normalizarTexto(estadoParam);
-      const checkboxesEstado = document.querySelectorAll('.chk-estado');
-      checkboxesEstado.forEach(chk => {
-        if (normalizarTexto(chk.value) === estadoLimpio) {
-          chk.checked = true;
-          hayFiltrosUrl = true;
+      if (!responsableParam) {
+        try {
+          const rawSesion = sessionStorage.getItem('usuarioMODISA');
+          if (rawSesion && rawSesion.trim().startsWith('{')) {
+            const parsed = JSON.parse(rawSesion);
+            responsableParam = parsed.nombre || parsed.nombre_empleado || parsed.usuario || '';
+          } else if (rawSesion) {
+            responsableParam = rawSesion;
+          }
+        } catch (e) {
+          console.error("Error al leer sesión:", e);
         }
-      });
-    }
+      }
 
-    if (responsableParam) {
-      const respLimpio = normalizarTexto(responsableParam);
-      const checkboxesResp = document.querySelectorAll('.chk-responsable');
+      let hayFiltrosUrl = false;
 
-      if (respLimpio !== '') {
-        checkboxesResp.forEach(chk => {
-          const valorChkLimpio = normalizarTexto(chk.value);
-          
-          if (
-            valorChkLimpio === respLimpio ||
-            valorChkLimpio.includes(respLimpio) ||
-            respLimpio.includes(valorChkLimpio)
-          ) {
+      const normalizarTexto = (texto) => {
+        if (!texto) return '';
+        return decodeURIComponent(texto)
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase()
+          .trim();
+      };
+
+      if (estadoParam) {
+        const estadoLimpio = normalizarTexto(estadoParam);
+        const checkboxesEstado = document.querySelectorAll('.chk-estado');
+        checkboxesEstado.forEach(chk => {
+          if (normalizarTexto(chk.value) === estadoLimpio) {
             chk.checked = true;
             hayFiltrosUrl = true;
           }
         });
       }
-    }
 
-    if (hayFiltrosUrl) {
-      aplicarFiltros();
-    }
+      if (responsableParam) {
+        const respLimpio = normalizarTexto(responsableParam);
+        const checkboxesResp = document.querySelectorAll('.chk-responsable');
+
+        if (respLimpio !== '') {
+          checkboxesResp.forEach(chk => {
+            const valorChkLimpio = normalizarTexto(chk.value);
+            
+            if (
+              valorChkLimpio === respLimpio ||
+              valorChkLimpio.includes(respLimpio) ||
+              respLimpio.includes(valorChkLimpio)
+            ) {
+              chk.checked = true;
+              hayFiltrosUrl = true;
+            }
+          });
+        }
+      }
+
+      if (hayFiltrosUrl) {
+        aplicarFiltros();
+      }
+    }, 50);
   }
 })();
