@@ -1,3 +1,2176 @@
+require('dotenv').config();
+const express = require('express');
+const mysql = require('mysql2/promise');
+const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
+const bcrypt = require('bcrypt');
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// Recuperar contraseña
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
+app.get('/recuperar.html', (req, res) => {
+  const filePath = fs.existsSync(path.join(__dirname, 'recuperar.html'))
+    ? path.join(__dirname, 'recuperar.html')
+    : path.join(__dirname, 'public', 'recuperar.html');
+
+  res.sendFile(filePath);
+});
+
+// CONEXIÓN A MYSQL
+
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT,
+  ssl: {
+    ca: fs.readFileSync(path.join(__dirname, 'ca.pem'))
+  },
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
+
+// DRIVE //
+const multer = require('multer');
+const { google } = require('googleapis');
+
+const credentialsPath = path.join(__dirname, 'credentials.json');
+const credentials = JSON.parse(fs.readFileSync(credentialsPath));
+const { client_id, client_secret, redirect_uris } = credentials.web;
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || client_id;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || client_secret;
+
+const redirectUri = process.env.NODE_ENV === 'production' 
+  ? 'https://erp-modisa.onrender.com/api/auth/google/callback' 
+  : 'http://localhost:3000/api/auth/google/callback';
+
+const oauth2Client = new google.auth.OAuth2(
+  GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET,
+  redirectUri
+);
+
+const SCOPES = [
+  'https://www.googleapis.com/auth/drive.file',
+  'https://www.googleapis.com/auth/drive',
+  'https://www.googleapis.com/auth/gmail.send'
+];
+
+oauth2Client.setCredentials({
+  refresh_token: process.env.GOOGLE_TOKEN,
+  scope: SCOPES.join(' ')
+});
+
+const drive = google.drive({ version: 'v3', auth: oauth2Client });
+const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+
+
+app.get('/api/auth/google/login', (req, res) => {
+  const authUrl = oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    prompt: 'consent',
+    scope: SCOPES
+  });
+  res.redirect(authUrl);
+});
+
+app.get('/api/auth/google/callback', async (req, res) => {
+  const code = req.query.code;
+  if (!code) {
+    return res.status(400).send('No se recibió el código de autorización desde Google.');
+  }
+
+  try {
+    const { tokens } = await oauth2Client.getToken(code);
+    
+    res.send(`
+      <div style="font-family: Arial, sans-serif; padding: 30px; line-height: 1.6;">
+        <h2 style="color: #28a745;">¡Autenticación con Google completada con éxito!</h2>
+        <p>Copia el siguiente <strong>refresh_token</strong> y actualízalo en la variable de entorno <code>GOOGLE_TOKEN</code> de tu panel de Render:</p>
+        <textarea style="width: 100%; height: 100px; font-family: monospace; padding: 10px;" readonly>${tokens.refresh_token || 'Atención: No se generó refresh_token. Reintenta entrando de nuevo a /api/auth/google/login'}</textarea>
+        <p style="color: #666; font-size: 0.9rem;">Una vez actualizado en Render y redeplegado el backend, la subida de tickets a Google Drive funcionará inmediatamente sin error 403/500.</p>
+      </div>
+    `);
+  } catch (err) {
+    console.error('❌ Error al canjear token de Google:', err);
+    res.status(500).send(`Error al autenticar con Google: ${err.message}`);
+  }
+});
+
+// INICIO DE SESIÓN Y RECUPERACIÓN DE CONTRASEÑA //
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+
+const createTransporter = async () => {
+  const accessTokenResponse = await oauth2Client.getAccessToken();
+  
+  return nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: {
+      type: 'OAuth2',
+      user: process.env.GMAIL_USER,
+      clientId: GOOGLE_CLIENT_ID,
+      clientSecret: GOOGLE_CLIENT_SECRET,
+      refreshToken: process.env.GOOGLE_TOKEN,
+      accessToken: accessTokenResponse.token,
+    },
+  });
+};
+
+app.post('/api/auth/login', async (req, res) => {
+  const { correo, contrasena } = req.body;
+
+  try {
+    const [usuarios] = await pool.query(
+      'SELECT id_employee, name, password, job_title, first_entry FROM employees WHERE email = ?',
+      [correo.trim()]
+    );
+
+    if (usuarios.length === 0) {
+      return res.status(404).json({ mensaje: 'El correo ingresado no existe o es incorrecto.' });
+    }
+
+    const usuarioBD = usuarios[0];
+
+    const coinciden = await bcrypt.compare(contrasena.trim(), usuarioBD.password.trim());
+
+    if (!coinciden) {
+      return res.status(401).json({ mensaje: 'Contraseña Incorrecta' });
+    }
+
+    res.json({
+      id_employee: usuarioBD.id_employee,
+      nombre: usuarioBD.name,
+      rol: usuarioBD.job_title,
+      primerIngreso: usuarioBD.first_entry === 1 
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error en el inicio de sesión' });
+  }
+});
+
+app.put('/api/auth/update-password', async (req, res) => {
+  const { correo, nuevaContrasena } = req.body;
+  try {
+    const hashContrasena = await bcrypt.hash(nuevaContrasena.trim(), 10);
+    await pool.query(
+      'UPDATE employees SET password = ?, first_entry = 0 WHERE email = ?',
+      [hashContrasena, correo.trim()]
+    );
+    
+    const [usuarios] = await pool.query(
+      'SELECT id_employee, name, job_title FROM employees WHERE email = ?', 
+      [correo.trim()]
+    );
+
+    res.json({ 
+      mensaje: 'Contraseña actualizada', 
+      id_employee: usuarios[0].id_employee,
+      nombre: usuarios[0].name,
+      rol: usuarios[0].job_title 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/auth/verify-identity', async (req, res) => {
+  const { name, email } = req.body;
+
+  try {
+    const [resultado] = await pool.query(
+      'SELECT id_employee FROM employees WHERE name = ? AND email = ?',
+      [name.trim(), email.trim()]
+    );
+
+    if (resultado.length === 0) {
+      return res.status(404).json({ mensaje: 'Los datos ingresados no coinciden con ningún empleado registrado.' });
+    }
+
+    res.json({ verificado: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al verificar identidad' });
+  }
+});
+
+const createRawMessage = ({ from, to, subject, html }) => {
+  const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
+  const messageParts = [
+    `From: MODISA ERP <${from}>`,
+    `To: ${to}`,
+    `Subject: ${utf8Subject}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=utf-8',
+    'Content-Transfer-Encoding: 7bit',
+    '',
+    html
+  ];
+
+  const message = messageParts.join('\r\n');
+
+  return Buffer.from(message, 'utf-8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+};
+
+app.post('/api/auth/request-reset', async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const [resultado] = await pool.query(
+      'SELECT id_employee, name FROM employees WHERE email = ?',
+      [email.trim()]
+    );
+
+    if (resultado.length === 0) {
+      return res.json({ 
+        mensaje: 'Si el correo ingresado se encuentra registrado, recibirás un enlace de recuperación.' 
+      });
+    }
+
+    const usuario = resultado[0];
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 5 * 60 * 1000);
+
+    await pool.query(
+      'UPDATE employees SET reset_token = ?, reset_expires = ? WHERE email = ?',
+      [token, expires, email.trim()]
+    );
+
+    const baseUrl = process.env.FRONTEND_URL || 'https://erp-modisa.onrender.com';
+    const resetUrl = `${baseUrl}/recuperar.html?token=${token}`;
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+        <h2>Hola, ${usuario.name}</h2>
+        <p>Has solicitado restablecer tu contraseña en el sistema <strong>MODISA ERP</strong>.</p>
+        <p>Haz clic en el siguiente botón para completar el proceso. Este enlace expirará en 5 minutos:</p>
+        <a href="${resetUrl}" style="background-color: #007bff; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 15px 0;">
+          Restablecer Contraseña
+        </a>
+        <p style="font-size: 0.85rem; color: #777;">Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
+      </div>
+    `;
+
+    const senderEmail = process.env.GMAIL_USER || 'dvillalva@modisa.com.mx';
+
+    const rawMessage = createRawMessage({
+      from: senderEmail,
+      to: email.trim(),
+      subject: 'Restablecer Contraseña - MODISA ERP',
+      html: htmlContent
+    });
+
+    await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: {
+        raw: rawMessage
+      }
+    });
+
+    res.json({ 
+      mensaje: 'Si el correo ingresado se encuentra registrado, recibirás un enlace de recuperación.' 
+    });
+
+  } catch (error) {
+    console.error('Error al solicitar la recuperación:', error);
+    res.status(500).json({ error: 'Error al procesar la solicitud de recuperación' });
+  }
+});
+
+app.post('/api/auth/verify-token', async (req, res) => {
+  const { token } = req.body;
+
+  try {
+    const [resultado] = await pool.query(
+      'SELECT id_employee FROM employees WHERE reset_token = ? AND reset_expires > NOW()',
+      [token.trim()]
+    );
+
+    if (resultado.length === 0) {
+      return res.status(400).json({ mensaje: 'El token de recuperación es inválido o ha expirado.' });
+    }
+
+    res.json({ verificado: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al verificar el token' });
+  }
+});
+
+app.put('/api/auth/reset-password', async (req, res) => {
+  const { token, nuevaContrasena } = req.body;
+
+  try {
+    const [resultado] = await pool.query(
+      'SELECT id_employee FROM employees WHERE reset_token = ? AND reset_expires > NOW()',
+      [token.trim()]
+    );
+
+    if (resultado.length === 0) {
+      return res.status(400).json({ mensaje: 'El token es inválido o ha expirado. Solicita un nuevo token.' });
+    }
+
+    const hashContrasena = await bcrypt.hash(nuevaContrasena.trim(), 10);
+
+    await pool.query(
+      'UPDATE employees SET password = ?, reset_token = NULL, reset_expires = NULL, first_entry = 0 WHERE reset_token = ?',
+      [hashContrasena, token.trim()]
+    );
+
+    res.json({ mensaje: 'Contraseña restablecida con éxito' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al restablecer la contraseña' });
+  }
+});
+
+async function subirArchivoADrive(fileObject, idCarpetaDrive) {
+  try {
+    const fileMetadata = {
+      name: Date.now() + path.extname(fileObject.originalname),
+      parents: [idCarpetaDrive],
+    };
+
+    let bodyStream;
+    if (fileObject.buffer) {
+      const { Readable } = require('stream');
+      bodyStream = Readable.from(fileObject.buffer);
+    } else if (fileObject.path && fs.existsSync(fileObject.path)) {
+      bodyStream = fs.createReadStream(fileObject.path);
+    } else {
+      throw new Error("El archivo recibido no contiene un buffer válido ni una ruta en disco.");
+    }
+
+    const media = {
+      mimeType: fileObject.mimetype,
+      body: bodyStream,
+    };
+
+    const response = await drive.files.create({
+      requestBody: fileMetadata,
+      media: media,
+      supportsAllDrives: true,
+      supportsTeamDrives: true,
+      fields: 'id, webViewLink',
+    });
+
+    if (fileObject && fileObject.path && fs.existsSync(fileObject.path)) {
+      fs.unlinkSync(fileObject.path);
+    }
+
+    return response.data.webViewLink;
+  } catch (error) {
+    console.error("❌ Error interno en la subida a Google Drive API:", error);
+    
+    if (fileObject && fileObject.path && fs.existsSync(fileObject.path)) {
+      fs.unlinkSync(fileObject.path);
+    }
+    throw error;
+  }
+}
+
+// REGISTRO DE NUEVOS PROYECTOS
+app.post('/api/projects', async (req, res) => {
+    const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim() : '';
+    const rolesPermitidos = ["Director Operativo", "Subdirector de Obra"];
+
+    if (!rolesPermitidos.includes(rolUsuario)) {
+        return res.status(403).json({ 
+            success: false, 
+            error: '⛔ Acceso denegado. No cuentas con los privilegios requeridos para esta acción.' 
+        });
+    }
+
+    const {
+        proyecto,
+        responsable,
+        fechaInicio,
+        fechaFin,
+        ubicacion
+    } = req.body;
+
+    if (!proyecto || !responsable || !fechaInicio || !fechaFin || !ubicacion) {
+        return res.status(400).json({
+            success: false,
+            error: "Todos los campos (Proyecto, Responsable, Fecha Inicio, Fecha Fin y Ubicación) son obligatorios."
+        });
+    }
+
+    try {
+        const sql = `
+            INSERT INTO projects 
+                (project_name, id_user, start_date, finish_date, location)
+            VALUES (?, ?, ?, ?, ?)
+        `;
+
+        const [resultado] = await pool.query(sql, [
+            proyecto.trim(),
+            parseInt(responsable),
+            fechaInicio,
+            fechaFin,
+            ubicacion.trim()
+        ]);
+
+        res.status(201).json({
+            success: true,
+            message: "🎉 Proyecto registrado en la base de datos de manera exitosa.",
+            id_project: resultado.insertId
+        });
+
+    } catch (error) {
+        console.error("❌ Error crítico en MySQL al insertar el proyecto:", error);
+        res.status(500).json({
+            success: false,
+            error: "Error interno del servidor al procesar el registro del proyecto.",
+            details: error.message
+        });
+    }
+});
+
+// TABLA DE PROYECTOS CON ROLES ASIGNADOS
+app.get('/api/projects-report', async (req, res) => {
+    try {
+        const sql = `
+            SELECT 
+                p.id_project,
+                p.project_name,
+                p.location,
+                p.start_date,
+                p.finish_date,
+                p.status, -- Leemos directamente el ENUM de la base de datos, sin maquillar
+                CONCAT(e.name, ' ', e.last_name) AS responsable_name
+            FROM projects p
+            LEFT JOIN employees e ON p.id_user = e.id_employee
+            ORDER BY p.id_project DESC
+        `;
+
+        const [rows] = await pool.query(sql);
+        res.json(rows);
+    } catch (error) {
+        console.error("❌ Error en reporte:", error);
+        res.status(500).json({ error: "Error interno del servidor." });
+    }
+});
+
+app.put('/api/projects/:id', async (req, res) => {
+    const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim() : '';
+
+    if (rolUsuario !== "Director Operativo") {
+        return res.status(403).json({ 
+            success: false, 
+            error: '⛔ Acceso denegado. Solo el Director Operativo puede realizar modificaciones en los proyectos.' 
+        });
+    }
+
+    const { id } = req.params;
+    let { status, finish_date } = req.body;
+
+    if (!finish_date) {
+        return res.status(400).json({ success: false, error: "La fecha de finalización es obligatoria." });
+    }
+
+    try {
+        const [proyectoActual] = await pool.query(
+            'SELECT status, finish_date FROM projects WHERE id_project = ?', 
+            [id]
+        );
+
+        if (proyectoActual.length === 0) {
+            return res.status(404).json({ error: "El proyecto no existe." });
+        }
+
+        const datosBD = proyectoActual[0];
+
+        const hoy = new Date();
+        const formatoHoyLocal = hoy.toLocaleDateString('fr-CA', { timeZone: 'America/Mexico_City' });
+        
+        const nuevaFechaFinClean = finish_date.split('T')[0];
+        const fechaFinViejaClean = datosBD.finish_date 
+            ? new Date(datosBD.finish_date).toLocaleDateString('fr-CA', { timeZone: 'America/Mexico_City' })
+            : '';
+
+        const cambioLaFecha = (nuevaFechaFinClean !== fechaFinViejaClean);
+
+        if (cambioLaFecha) {
+            if (nuevaFechaFinClean >= formatoHoyLocal) {
+                status = 'Active';
+            } else {
+                status = 'Completed';
+            }
+        } else {
+            status = req.body.status || datosBD.status;
+        }
+
+        const sqlUpdate = `
+            UPDATE projects 
+            SET status = ?, finish_date = ? 
+            WHERE id_project = ?
+        `;
+        
+        await pool.query(sqlUpdate, [status, nuevaFechaFinClean, id]);
+        
+        res.json({ 
+            success: true, 
+            message: "🔄 Proyecto e inteligencia de estados sincronizados con MySQL bajo firma autorizada." 
+        });
+        
+    } catch (error) {
+        console.error("❌ Error crítico en la actualización automática:", error);
+        res.status(500).json({ error: "No se pudo actualizar el registro debido a un error interno." });
+    }
+});
+
+// MULTER
+const storage = multer.diskStorage({
+  destination: (req, file, cb) =>{
+    const dir = './uploads';
+    if (!fs.existsSync(dir)){
+      fs.mkdirSync(dir);
+    }
+    cb(null,dir);
+  },
+  filename: (req, file, cb) =>{
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024 // Límite recomendado de 10 MB por archivo
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.fieldname === 'ticketFile') {
+      const extension = path.extname(file.originalname).toLowerCase();
+      const mimeType = file.mimetype;
+
+      const esImagenOPdf = mimeType.startsWith('image/') || 
+                           mimeType === 'application/pdf' || 
+                           extension === '.pdf';
+
+      if (esImagenOPdf) {
+        cb(null, true);
+      } else {
+        cb(new Error('Formato no permitido para el comprobante. Solo se admiten imágenes o archivos PDF.'));
+      }
+    } else {
+      cb(null, true); // Permitir otros campos (como el Excel de mano de obra)
+    }
+  }
+});
+
+// PROYECTOS //
+app.get('/api/proyectos/:id/contracts', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [rows] = await pool.query(
+      `SELECT id_contract, contractor_name 
+       FROM contracts 
+       WHERE id_project = ? AND status = 'Activo' 
+       ORDER BY contractor_name ASC`, 
+      [id]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Error al obtener contratistas de la obra:', error);
+    res.status(500).json({ error: 'Error interno al cargar la lista de contratistas' });
+  }
+});
+
+// MINUTAS //
+app.get('/api/tabla_minutas', async (req, res) => {
+  try {
+    const fechaActual = new Date();
+    const anio = fechaActual.getFullYear();
+    const mes = String(fechaActual.getMonth() + 1).padStart(2, '0');
+    const dia = String(fechaActual.getDate()).padStart(2, '0');
+    const hoyFormateado = `${anio}-${mes}-${dia}`;
+
+    console.log("Revisando actividades vencidas para la fecha local:", hoyFormateado);
+
+    await pool.query(`
+      UPDATE minutas 
+      SET estado = 'atrasada' 
+      WHERE fecha < ? AND estado != 'completada' AND estado != 'atrasada' AND estado != 'aplazada'
+    `, [hoyFormateado]);
+
+    console.log("Ejecutando limpieza periódica de minutas completadas antiguas...");
+    await pool.query(`
+      DELETE FROM minutas 
+      WHERE estado = 'completada' AND fecha < NOW() - INTERVAL 5 WEEK
+    `);
+
+    const querySQL = `
+      SELECT id, proyecto, avance, responsable, semana, fecha, descripcion, estado, comentarioDirector 
+      FROM minutas 
+      ORDER BY fecha ASC;
+    `;
+
+    console.log("!!! EJECUTANDO CONSULTA SEGURA DE MINUTAS !!!");
+
+    const [filas] = await pool.query(querySQL);
+    console.log(`Se encontraron ${filas.length} minutas.`);
+    
+    res.json(filas);
+
+  } catch (error) {
+    console.error('Error crítico dentro de GET /api/tabla_minutas:', error);
+    res.status(500).json({ error: 'Error interno del servidor al procesar minutas', detalle: error.message });
+  }
+});
+
+app.post('/api/tabla_minutas', async (req, res) => {
+  const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim() : '';
+  if (rolUsuario !== "Director Operativo") {
+    return res.status(403).json({ error: '⛔ Acceso denegado'});
+  }
+
+  const minutas = req.body;
+  const listaMinutas = Array.isArray(minutas) ? minutas : [minutas];
+
+  try {
+    for (const item of listaMinutas) {
+      
+      const [registroPrevio] = await pool.query(
+        'SELECT fecha, semana, estado, comentarioDirector FROM minutas WHERE id = ?', 
+        [item.id]
+      );
+      
+      let comentarioFinal = item.comentarioDirector || item.comentariodirector || '';
+      let fechaDestino = item.fecha ? item.fecha.split('T')[0] : new Date().toISOString().split('T')[0];
+      let semanaOriginal;
+
+      if (registroPrevio.length > 0) {
+        const datosOriginales = registroPrevio[0];
+
+        semanaOriginal = datosOriginales.semana;
+
+        if (item.estado !== 'aplazada') {
+          fechaDestino = datosOriginales.fecha ? new Date(datosOriginales.fecha).toISOString().split('T')[0] : fechaDestino;
+        }
+
+        if (item.estado === 'completada' && datosOriginales.estado !== 'completada') {
+          const fechaLimiteOriginal = new Date(datosOriginales.fecha);
+          const fechaCompletadoHoy = new Date();
+
+          fechaLimiteOriginal.setHours(0, 0, 0, 0);
+          fechaCompletadoHoy.setHours(0, 0, 0, 0);
+
+          if (fechaCompletadoHoy > fechaLimiteOriginal) {
+            const diferenciaMilisegundos = fechaCompletadoHoy.getTime() - fechaLimiteOriginal.getTime();
+            const diasRetrasados = Math.floor(diferenciaMilisegundos / (1000 * 60 * 60 * 24));
+            
+            const prefijoRetraso = `⚠️ Esta actividad se completó con ${diasRetrasados} días retrasados.`;
+
+            if (comentarioFinal) {
+              if (!comentarioFinal.includes(`con ${diasRetrasados} días retrasados`)) {
+                comentarioFinal = `${comentarioFinal} | ${prefijoRetraso}`;
+              }
+            } else {
+              comentarioFinal = prefijoRetraso;
+            }
+          }
+        }
+      } else {
+        if (item.semana !== undefined && item.semana !== null && !isNaN(Number(item.semana)) && Number(item.semana) !== 0) {
+          semanaOriginal = Number(item.semana);
+        } else {
+          const fechaHoy = new Date();
+          const primeraFechaAnio = new Date(fechaHoy.getFullYear(), 0, 1);
+          const diasPasados = Math.floor((fechaHoy - primeraFechaAnio) / (1000 * 60 * 60 * 24));
+          semanaOriginal = Math.ceil((diasPasados + primeraFechaAnio.getDay() + 1) / 7);
+        }
+      }
+
+      const querySQL = `
+        INSERT INTO minutas (id, proyecto, avance, responsable, semana, fecha, descripcion, estado, comentarioDirector)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          estado = ?,
+          comentarioDirector = ?,
+          proyecto = ?,
+          avance = ?,
+          responsable = ?,
+          fecha = ?, 
+          descripcion = ?;
+      `;
+
+      const valoresControlados = [
+        item.id, 
+        item.proyecto, 
+        item.avance !== undefined && item.avance !== null ? Number(item.avance) : 0, 
+        item.responsable, 
+        semanaOriginal, 
+        fechaDestino, 
+        item.descripcion, 
+        item.estado, 
+        comentarioFinal,
+        item.estado,
+        comentarioFinal,
+        item.proyecto,
+        item.avance !== undefined && item.avance !== null ? Number(item.avance) : 0,
+        item.responsable,
+        fechaDestino,
+        item.descripcion
+      ];
+
+      await pool.query(querySQL, valoresControlados);
+    }
+
+    res.json({ mensaje: 'Minutas sincronizadas con éxito en Aiven' });
+  } catch (error) {
+    console.error('Error crítico controlado en el guardado de minutas:', error);
+    res.status(500).json({ error: 'Error al persistir minutas en la base de datos', detalle: error.message });
+  }
+});
+
+// NOTIFICACIONES DE MINUTAS //
+app.get('/api/notificaciones/minutas-resumen', async (req, res) => {
+  try {
+    const fechaActual = new Date();
+    const anio = fechaActual.getFullYear();
+    const mes = String(fechaActual.getMonth() + 1).padStart(2, '0');
+    const dia = String(fechaActual.getDate()).padStart(2, '0');
+    const hoyFormateado = `${anio}-${mes}-${dia}`;
+
+    await pool.query(`
+      UPDATE minutas 
+      SET estado = 'atrasada' 
+      WHERE fecha < ? AND estado NOT IN ('completada', 'atrasada', 'aplazada')
+    `, [hoyFormateado]);
+
+    const responsableReq = req.headers['x-usuario-nombre'] ? req.headers['x-usuario-nombre'].trim() : '';
+    const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim().toLowerCase() : '';
+
+    let querySQL = '';
+    let parametrosSQL = [];
+
+    if (rolUsuario === 'director operativo' || rolUsuario === 'director_operativo' || !responsableReq) {
+      querySQL = `
+        SELECT 
+          COUNT(CASE WHEN estado = 'atrasada' THEN 1 END) AS atrasadas,
+          COUNT(CASE WHEN estado = 'pendiente' THEN 1 END) AS pendientes,
+          COUNT(CASE WHEN estado = 'aplazada' THEN 1 END) AS aplazadas,
+          COUNT(*) AS total
+        FROM minutas
+        WHERE estado != 'completada';
+      `;
+    } else {
+      querySQL = `
+        SELECT 
+          COUNT(CASE WHEN estado = 'atrasada' THEN 1 END) AS atrasadas,
+          COUNT(CASE WHEN estado = 'pendiente' THEN 1 END) AS pendientes,
+          COUNT(CASE WHEN estado = 'aplazada' THEN 1 END) AS aplazadas,
+          COUNT(*) AS total
+        FROM minutas
+        WHERE estado != 'completada' AND LOWER(responsable) LIKE LOWER(?);
+      `;
+      parametrosSQL = [`%${responsableReq}%`];
+    }
+
+    const [filas] = await pool.query(querySQL, parametrosSQL);
+    const resumen = filas[0] || { atrasadas: 0, pendientes: 0, aplazadas: 0, total: 0 };
+
+    res.json(resumen);
+
+  } catch (error) {
+    console.error('Error al obtener resumen de notificaciones:', error);
+    res.status(500).json({ error: 'Error al consultar notificaciones de minutas' });
+  }
+});
+
+// EMPLEADOS //
+const rolesPermitidos = [
+    'director operativo',
+    'director_operativo',
+    'gerente administración',
+    'gerente administracion',
+    'gerente_administracion'
+];
+
+app.get('/api/empleados/gestion', async (req, res) => {
+    const userRol = req.headers['x-user-rol'];
+    const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
+
+    if (!rolesPermitidos.includes(rolNormalizado)) {
+        return res.status(403).json({ error: "⛔ Acceso denegado: No tienes permisos para consultar esta sección." });
+    }
+
+    try {
+        const sql = `
+            SELECT id_employee, name, last_name, email, phone, job_title, department, hire_date, first_entry 
+            FROM employees 
+            ORDER BY name ASC
+        `;
+        const [rows] = await pool.query(sql);
+        res.json(rows);
+    } catch (error) {
+        console.error('❌ Error al obtener empleados:', error);
+        res.status(500).json({ error: "Error al consultar los empleados de la base de datos." });
+    }
+});
+
+app.post('/api/empleados', async (req, res) => {
+    const userRol = req.headers['x-user-rol'];
+    const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
+
+    if (!rolesPermitidos.includes(rolNormalizado)) {
+        return res.status(403).json({ error: "⛔ Acceso denegado: No tienes permisos para registrar empleados." });
+    }
+
+    const { name, last_name, email, phone, job_title, department, password, hire_date } = req.body;
+
+    if (!name || !last_name || !email || !password || !job_title) {
+        return res.status(400).json({ error: "⚠️ Por favor completa todos los campos obligatorios." });
+    }
+
+    try {
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(password.trim(), saltRounds);
+
+        const sql = `
+            INSERT INTO employees (name, last_name, email, phone, job_title, department, hire_date, password, first_entry)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+        `;
+        const [result] = await pool.query(sql, [
+            name.trim(), 
+            last_name.trim(), 
+            email.trim().toLowerCase(), 
+            phone ? phone.trim() : null, 
+            job_title.trim(), 
+            department ? department.trim() : null, 
+            hire_date || null,
+            hashedPassword
+        ]);
+
+        res.status(201).json({ success: true, message: "🎉 Empleado registrado con éxito.", insertId: result.insertId });
+    } catch (error) {
+        console.error('❌ Error al crear empleado:', error);
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ error: "⚠️ El correo electrónico ingresado ya pertenece a otro usuario." });
+        }
+        res.status(500).json({ error: "Error en la base de datos al guardar el empleado." });
+    }
+});
+
+app.put('/api/empleados/:id', async (req, res) => {
+    const userRol = req.headers['x-user-rol'];
+    const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
+    const { id } = req.params;
+
+    if (!rolesPermitidos.includes(rolNormalizado)) {
+        return res.status(403).json({ error: "⛔ Acceso denegado: No tienes permisos para actualizar datos de empleados." });
+    }
+
+    const { name, last_name, email, phone, job_title, department, hire_date } = req.body;
+
+    try {
+        const sql = `
+            UPDATE employees 
+            SET name = ?, last_name = ?, email = ?, phone = ?, job_title = ?, department = ?, hire_date = ?
+            WHERE id_employee = ?
+        `;
+        const [result] = await pool.query(sql, [
+            name, 
+            last_name, 
+            email, 
+            phone || null, 
+            job_title, 
+            department || null, 
+            hire_date || null, 
+            id
+        ]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "No se encontró el empleado especificado." });
+        }
+
+        res.json({ success: true, message: "Empleado actualizado correctamente." });
+    } catch (error) {
+        console.error('❌ Error al actualizar empleado:', error);
+        res.status(500).json({ error: "Error al actualizar los datos del empleado." });
+    }
+});
+
+app.delete('/api/empleados/:id', async (req, res) => {
+    const userRol = req.headers['x-user-rol'];
+    const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
+    const { id } = req.params;
+
+    if (!rolesPermitidos.includes(rolNormalizado)) {
+        return res.status(403).json({ error: "⛔ Acceso denegado: No tienes permisos para eliminar empleados." });
+    }
+
+    try {
+        const [result] = await pool.query("DELETE FROM employees WHERE id_employee = ?", [id]);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "El empleado no existe o ya fue eliminado." });
+        }
+        res.json({ success: true, message: "Empleado eliminado del sistema." });
+    } catch (error) {
+        console.error('❌ Error al eliminar empleado:', error);
+        res.status(500).json({ error: "No se puede eliminar el empleado porque tiene registros/historial vinculados." });
+    }
+});
+
+// PROYECTOS //
+app.get('/api/proyectos', async (req, res) => {
+  try {
+    const employeeIdHeader = req.headers['x-employee-id'];
+    const userRolHeader = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim().toLowerCase() : '';
+    
+    const rolesAdministrativos = [
+      'director operativo',
+      'director_operativo',
+      'subdirector de obra',
+      'subdirector_de_obra',
+      'gerente administración y compras',
+      'gerente administracion y compras',
+      'gerente_administracion_y_compras',
+      'gerente administración',
+      'gerente administracion',
+      'gerente_administracion',
+      'compras'
+    ];
+
+    const esRolGlobal = rolesAdministrativos.includes(userRolHeader);
+
+    let querySQL = `
+      SELECT 
+        p.id_project, 
+        p.project_name, 
+        p.id_user,
+        p.location AS direccion, 
+        e.phone AS telefono,
+        CONCAT(e.name, ' ', e.last_name) AS residente
+      FROM projects AS p
+      LEFT JOIN employees AS e ON p.id_user = e.id_employee
+      WHERE p.project_name IS NOT NULL 
+    `;
+
+    const queryParams = [];
+
+    if (employeeIdHeader && !esRolGlobal) {
+      querySQL += ` AND p.id_user = ?`;
+      queryParams.push(employeeIdHeader);
+    }
+
+    querySQL += ` ORDER BY p.project_name ASC;`;
+
+    console.log("📡 Cargando proyectos. Rol:", userRolHeader || 'Sin Rol', "| IdUser:", esRolGlobal ? 'TODOS (Acceso Global)' : (employeeIdHeader || 'Todos'));
+    const [rows] = await pool.query(querySQL, queryParams);
+    res.json(rows);
+  } catch (error) {
+    console.error('Error al obtener proyectos de Aiven:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// MATERIALES //
+
+app.get('/api/materiales', async (req, res) => {
+  try {
+    const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim().toLowerCase() : '';
+    const querySQL = `
+      SELECT 
+        od.id_detail,
+        CONCAT(e.name, ' ', e.last_name) AS solicitante,
+        e.phone AS telefono,
+        p.project_name AS obra,
+        mo.id_project,
+        od.id_project_category,
+        mo.order_date,
+        mo.fiscal_week,
+        pc.grupo,
+        pc.categoria,
+        pc.subcategoria,
+        od.material_description,
+        od.unit,
+        od.quantity,
+        od.commentary,
+        od.provider AS proveedor,
+        od.reference AS referencia,
+        od.unit_price AS precio_unitario,
+        LOWER(od.status) AS estado,
+        
+        -- Presupuesto asignado a la subcategoría (columna 'materiales')
+        COALESCE(pc.materiales, 0.00) AS presupuesto_autorizado,
+        
+        -- Suma de todo lo cotizado/comprado de esta subcategoría en este proyecto (excluyendo el detalle actual)
+        COALESCE((
+          SELECT SUM(sub_od.quantity * sub_od.unit_price)
+          FROM order_details AS sub_od
+          INNER JOIN material_orders AS sub_mo ON sub_od.id_order = sub_mo.id_order
+          WHERE sub_mo.id_project = mo.id_project
+            AND sub_od.id_project_category = od.id_project_category
+            AND sub_od.id_detail <> od.id_detail
+            AND LOWER(sub_od.status) IN ('cotizado', 'comprado')
+        ), 0.00) AS monto_gastado_otros
+        
+      FROM order_details AS od
+      INNER JOIN material_orders AS mo ON od.id_order = mo.id_order
+      LEFT JOIN projects AS p ON mo.id_project = p.id_project
+      LEFT JOIN employees AS e ON mo.id_employee = e.id_employee
+      LEFT JOIN project_categories AS pc ON od.id_project_category = pc.id_project_category;
+    `;
+
+    const [rows] = await pool.query(querySQL);
+    
+    const rolesAdministrativos = [
+      "gerente administración", 
+      "compras", 
+      "director general", 
+      "director operativo", 
+      "gerente de costs",
+      "gerente de costos", 
+      "auxiliar costos"
+    ];
+
+    if (!rolesAdministrativos.includes(rolUsuario)) {
+      console.log(`🔒 Filtro de seguridad activado. Rol detectado: "${rolUsuario}". Costos ocultados.`);
+      
+      const datosSeguros = rows.map(item => ({
+        ...item,
+        proveedor: null,
+        precio_unitario: "0.00",
+        monto: null,
+        presupuesto_autorizado: 0,
+        monto_gastado_otros: 0
+      }));
+      
+      return res.json(datosSeguros);
+    }
+    
+    console.log(`🔓 Acceso completo concedido a rol administrativo: "${rolUsuario}"`);
+    res.json(rows);
+
+  } catch (error) {
+    console.error('Error al obtener materiales de MODISA:', error);
+    res.status(500).json({ error: 'Error interno al cargar materiales', detalle: error.message });
+  }
+});
+
+app.post('/api/materiales', async (req, res) => {
+  // 🛡️ MODIFICACIÓN: Ya no se desestructura id_project de la raíz, pues cada material trae su propio id_project
+  const { id_employee, order_date, fiscal_week, materiales } = req.body;
+  
+  console.log("📥 Datos recibidos en el Backend:", req.body);
+
+  if (id_employee === undefined || id_employee === null || isNaN(id_employee)) {
+    return res.status(400).json({ error: 'El campo id_employee es inválido o está vacío.' });
+  }
+  if (!order_date) {
+    return res.status(400).json({ error: 'El campo order_date está vacío.' });
+  }
+  if (fiscal_week === undefined || fiscal_week === null || isNaN(fiscal_week)) {
+    return res.status(400).json({ error: 'El campo fiscal_week es inválido o está vacío.' });
+  }
+  if (!materiales || !Array.isArray(materiales) || materiales.length === 0) {
+    return res.status(400).json({ error: 'La lista de materiales está vacía.' });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // 🛡️ MODIFICACIÓN: Agrupar los materiales por su id_project correspondiente
+    const materialesPorProyecto = materiales.reduce((acc, mat) => {
+      const idProj = mat.id_project;
+      if (!idProj || isNaN(idProj)) {
+        throw new Error(`El material "${mat.material_description}" no tiene un id_project válido.`);
+      }
+      if (!acc[idProj]) {
+        acc[idProj] = [];
+      }
+      acc[idProj].push(mat);
+      return acc;
+    }, {});
+
+    const queryOrder = `INSERT INTO material_orders (id_project, id_employee, order_date, fiscal_week) VALUES (?, ?, ?, ?)`;
+    const queryDetails = `
+      INSERT INTO order_details 
+        (id_order, id_project_category, material_description, unit, quantity, commentary, status, unit_price) 
+      VALUES (?, ?, ?, ?, ?, ?, 'Pendiente', 0.00)
+    `;
+
+    // 🛡️ MODIFICACIÓN: Iterar por cada obra/proyecto y generar su orden con sus respectivos detalles
+    for (const [id_project, listaMats] of Object.entries(materialesPorProyecto)) {
+      const [resOrder] = await connection.query(queryOrder, [
+        id_project, 
+        id_employee, 
+        order_date, 
+        fiscal_week
+      ]);
+      const id_order = resOrder.insertId;
+
+      for (const mat of listaMats) {
+        if (!mat.id_project_category) {
+          throw new Error(`El material "${mat.material_description}" no tiene una categoría válida.`);
+        }
+        await connection.query(queryDetails, [
+          id_order, 
+          mat.id_project_category, 
+          mat.material_description, 
+          mat.unit, 
+          mat.quantity, 
+          mat.commentary
+        ]);
+      }
+    }
+
+    await connection.commit();
+    res.json({ status: 'success', mensaje: 'Solicitud guardada con éxito.' });
+  } catch (error) {
+    await connection.rollback();
+    console.error("❌ Error en inserción:", error.message);
+    res.status(500).json({ error: 'Error interno del servidor', detalle: error.message });
+  } finally {
+    connection.release();
+  }
+});
+
+// PROYECTOS //
+
+app.get('/api/proyectos/:id/categorias', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [rows] = await pool.query(
+      `SELECT id_project_category, grupo, categoria, subcategoria 
+       FROM project_categories 
+       WHERE id_project = ?`, 
+      [id]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Error al obtener categorías del proyecto:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// MATERIALES //
+
+app.put('/api/materiales/detalle/:id', async (req, res) => {
+  const { id } = req.params;
+  const { proveedor, referencia, precio_unitario, estado } = req.body;
+  const rolUsuario = req.headers['x-user-rol'];
+
+  const rolesAdministrativos = [
+    "Gerente Administración", "Compras", "Director General", 
+    "Director Operativo", "Gerente de Costos", "Auxiliar Costos"
+  ];
+
+  if (!rolUsuario || !rolesAdministrativos.includes(rolUsuario.trim())) {
+    return res.status(403).json({
+      error: 'Acceso denegado',
+      detalle: 'No cuentas con los permisos administrativos necesarios para editar cotizaciones.'
+    });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    let id_credit = null;
+    let id_provider = null; 
+    const precio = parseFloat(precio_unitario) || 0.00;
+    const refLimpia = referencia ? referencia.trim() : '';
+
+    if (proveedor && proveedor.trim() !== "") {
+      const nombreProveedor = proveedor.trim();
+      
+      const [provBD] = await connection.query(
+        'SELECT id_provider FROM providers WHERE provider_name = ? LIMIT 1',
+        [nombreProveedor]
+      );
+      
+      if (provBD.length > 0) {
+        id_provider = provBD[0].id_provider;
+      } else {
+        const [nuevoProv] = await connection.query(
+          'INSERT INTO providers (provider_name, credit_days) VALUES (?, 30)',
+          [nombreProveedor]
+        );
+        id_provider = nuevoProv.insertId;
+        console.log(`✨ Proveedor creado en su tabla: "${nombreProveedor}" con ID: ${id_provider}`);
+      }
+    }
+
+    if (refLimpia !== '') {
+      const [existeCredito] = await connection.query(
+        'SELECT id_credit FROM provider_credits WHERE reference_invoice = ? LIMIT 1',
+        [refLimpia]
+      );
+
+      if (existeCredito.length > 0) {
+        id_credit = existeCredito[0].id_credit;
+      } else {
+        const [datosOrigen] = await connection.query(`
+          SELECT mo.id_project, mo.order_date 
+          FROM order_details od
+          INNER JOIN material_orders mo ON od.id_order = mo.id_order
+          WHERE od.id_detail = ? LIMIT 1
+        `, [id]);
+
+        let id_project = null;
+        let fechaEmision = new Date().toISOString().split('T')[0];
+
+        if (datosOrigen.length > 0) {
+          id_project = datosOrigen[0].id_project;
+          if (datosOrigen[0].order_date) {
+            fechaEmision = new Date(datosOrigen[0].order_date).toISOString().split('T')[0];
+          }
+        }
+
+        const [nuevoCredito] = await connection.query(`
+          INSERT INTO provider_credits 
+            (id_provider, id_project, reference_invoice, emission_date, amount, status) 
+          VALUES (?, ?, ?, ?, 0.00, 'Pendiente')
+        `, [id_provider, id_project, refLimpia, fechaEmision]);
+
+        id_credit = nuevoCredito.insertId;
+      }
+    }
+
+    const querySQL = `
+      UPDATE order_details 
+      SET 
+        provider = ?,
+        reference = ?,
+        unit_price = ?, 
+        status = ?,
+        id_credit = ?
+      WHERE id_detail = ?
+    `;
+
+    const [result] = await connection.query(querySQL, [
+      proveedor && proveedor.trim() !== "" ? proveedor.trim() : null,
+      refLimpia || null,
+      precio,
+      estado || 'pendiente',
+      id_credit,
+      id
+    ]);
+
+    if (result.affectedRows === 0) {
+      throw new Error('No se encontró el registro de material especificado.');
+    }
+
+    if (id_credit) {
+      await connection.query(`
+        UPDATE provider_credits pc
+        SET pc.amount = (
+            SELECT COALESCE(SUM(od.quantity * od.unit_price), 0)
+            FROM order_details od
+            WHERE od.id_credit = pc.id_credit
+        )
+        WHERE pc.id_credit = ?
+      `, [id_credit]);
+    }
+
+    await connection.commit();
+    console.log(`💾 Guardado exitoso. Proveedor: "${proveedor}". Crédito ID: ${id_credit || 'Ninguno (Contado)'}`);
+    res.json({ status: 'success', mensaje: 'Detalle actualizado correctamente.' });
+
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error crítico en el PUT /api/materiales/detalle/:id:', error);
+    res.status(500).json({ error: 'Error interno del servidor', detalle: error.message });
+  } finally {
+    connection.release();
+  }
+});
+
+// CREDITOS //
+
+app.get('/api/creditos', async (req, res) => {
+  try {
+    const querySQL = `
+      SELECT 
+        pc.id_credit,
+        pc.reference_invoice,
+        pc.emission_date,
+        pc.due_date,
+        pc.amount,
+        pc.amount_paid,
+        pc.status,
+        pc.observations,
+        COALESCE(p.provider_name, 'Sin Proveedor') AS provider_name,
+        COALESCE(pr.project_name, 'Sin Obra') AS project_name,
+        CASE 
+          WHEN pc.status = 'Pagado' THEN 'Pagado'
+          WHEN pc.status = 'Cancelado' THEN 'Cancelado'
+          WHEN pc.due_date < CURDATE() THEN 'Vencido'
+          ELSE 'Activo'
+        END AS tiempo_credito
+      FROM provider_credits pc
+      LEFT JOIN providers p ON pc.id_provider = p.id_provider
+      LEFT JOIN projects pr ON pc.id_project = pr.id_project
+      ORDER BY pc.emission_date DESC
+    `;
+    const [rows] = await pool.query(querySQL);
+    res.json(rows);
+  } catch (error) {
+    console.error('Error al obtener créditos:', error);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
+app.put('/api/creditos/:id', async (req, res) => {
+  const { id } = req.params;
+  const { amount_paid, status, observations } = req.body;
+
+  try {
+    const [credito] = await pool.query('SELECT amount FROM provider_credits WHERE id_credit = ?', [id]);
+    if (credito.length === 0) return res.status(404).json({ error: 'No encontrado' });
+
+    const totalAmount = parseFloat(credito[0].amount) || 0;
+    let finalStatus = status;
+
+    if (status !== 'Cancelado') {
+      if (amount_paid >= totalAmount && totalAmount > 0) {
+        finalStatus = 'Pagado';
+      } else {
+        finalStatus = 'Pendiente';
+      }
+    }
+
+    await pool.query(`
+      UPDATE provider_credits 
+      SET amount_paid = ?, status = ?, observations = ? 
+      WHERE id_credit = ?
+    `, [amount_paid, finalStatus, observations, id]);
+
+    res.json({ status: 'success', statusCalculado: finalStatus });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al actualizar' });
+  }
+});
+
+
+const PORT = process.env.PORT;
+app.listen(PORT, () => {
+  console.log(`Servidor corriendo en el puerto ${PORT}`);
+});
+
+// CONTRATOS //
+app.post('/api/contratos', upload.single('pdfFile'), async (req, res) => {
+    const userRol = req.headers['x-user-rol'];
+    const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
+
+    const pdfFile = req.file;
+
+    const limpiarArchivoTemporal = () => {
+        if (pdfFile && pdfFile.path && fs.existsSync(pdfFile.path)) {
+            fs.unlinkSync(pdfFile.path);
+        }
+    };
+
+    if (!rolNormalizado || rolNormalizado !== 'residente de obra') {
+        limpiarArchivoTemporal();
+        return res.status(403).json({ 
+            success: false, 
+            error: "⛔ Acceso denegado: Solo usuarios con rol de 'Residente de Obra' pueden registrar contratos." 
+        });
+    }
+
+    if (!pdfFile) {
+        return res.status(400).json({
+            success: false,
+            error: "⚠️ Debe adjuntar el archivo PDF del contrato."
+        });
+    }
+
+    const {
+        id_project,
+        id_project_category, 
+        contract_key,
+        Concept,
+        supplier,
+        id_employee,
+        start_date,
+        end_date,
+        total_amount
+    } = req.body;
+
+    let urlDriveContrato = null;
+
+    try {
+        const ID_CARPETA_CONTRATOS_DRIVE = '1fh2e0QGmXYrwx5GoHJHmi058FP30B_q1';
+        console.log("📤 Subiendo PDF de contrato a Google Drive...");
+
+        urlDriveContrato = await subirArchivoADrive(pdfFile, ID_CARPETA_CONTRATOS_DRIVE);
+        console.log("🔗 Enlace de Contrato generado exitosamente:", urlDriveContrato);
+
+    } catch (errDrive) {
+        limpiarArchivoTemporal();
+        console.error("❌ Error al subir PDF del contrato a Google Drive:", errDrive.message);
+        return res.status(500).json({
+            success: false,
+            error: "Fallo al almacenar el PDF del contrato en Google Drive.",
+            details: errDrive.message
+        });
+    }
+
+    try {
+        const sql = `
+            INSERT INTO contracts 
+                (id_project, id_project_category, contract_key, supplier, id_employee, Concept, start_date, end_date, total_amount, contract_file_url, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pendiente')
+        `;
+
+        const [resultado] = await pool.query(sql, [
+            id_project,
+            id_project_category || null, 
+            contract_key,
+            supplier,
+            id_employee || null,
+            Concept || null, 
+            start_date || null,
+            end_date || null,
+            total_amount || 0,
+            urlDriveContrato,
+        ]);
+
+        res.status(201).json({ 
+            success: true, 
+            message: "🎉 Contrato guardado en la base de datos exitosamente.",
+            insertId: resultado.insertId 
+        });
+
+    } catch (error) {
+        console.error("❌ Error en MySQL al insertar contrato:", error);
+        res.status(500).json({ 
+            success: false, 
+            error: "No se pudo guardar el registro en la base de datos.",
+            details: error.message 
+        });
+    } finally {
+        limpiarArchivoTemporal();
+    }
+});
+
+app.get('/api/contratos', async (req, res) => {
+    try {
+        const sql = `
+            SELECT 
+                c.id_contract,
+                c.contract_key,
+                c.supplier,
+                c.Concept,
+                c.start_date,
+                c.end_date,
+                c.total_amount,
+                c.contract_file_url,
+                c.estado_costos,     
+                c.status_direccion,  
+                c.firma,
+                COALESCE(p.project_name, 'Sin Proyecto') AS project_name,
+                COALESCE(pc.grupo, '---') AS grupo,
+                COALESCE(pc.categoria, '---') AS categoria,
+                COALESCE(pc.subcategoria, '---') AS subcategoria,
+                COALESCE(pc.contratos, 0) AS contratos_aut,
+                CASE 
+                    WHEN LOWER(TRIM(c.status)) = 'rechazado' OR LOWER(TRIM(c.status_direccion)) = 'rechazado' OR LOWER(TRIM(c.estado_costos)) = 'rechazado' THEN 'Rechazado'
+                    
+                    WHEN c.total_amount > 0 AND (
+                        SELECT IFNULL(SUM(IFNULL(po_sub.monto_pagado, 0)), 0)
+                        FROM payment_orders po_sub
+                        INNER JOIN payment_order_details pod_sub ON po_sub.id_payment_order = pod_sub.id_payment_order
+                        WHERE LOWER(TRIM(pod_sub.provider)) = LOWER(TRIM(c.supplier))
+                          AND po_sub.payment_type IN ('contratista', 'especifico')
+                    ) >= c.total_amount THEN 'Pagado'
+                    
+                    ELSE 'Pendiente'
+                END AS status,
+
+                IFNULL((
+                    SELECT SUM(IFNULL(po_sub.monto_pagado, 0))
+                    FROM payment_orders po_sub
+                    INNER JOIN payment_order_details pod_sub ON po_sub.id_payment_order = pod_sub.id_payment_order
+                    WHERE LOWER(TRIM(pod_sub.provider)) = LOWER(TRIM(c.supplier))
+                      AND po_sub.payment_type IN ('contratista', 'especifico')
+                ), 0) AS monto_pagado
+            FROM contracts c
+            LEFT JOIN projects p ON c.id_project = p.id_project
+            LEFT JOIN project_categories pc ON c.id_project_category = pc.id_project_category
+            ORDER BY c.id_contract DESC
+        `;
+        
+        const [rows] = await pool.query(sql);
+        res.json(rows); 
+
+    } catch (error) {
+        console.error("❌ Error crítico al obtener contratos con relaciones:", error);
+        res.status(500).json({ error: "Error en la base de datos al realizar los cruces de contratos." });
+    }
+});
+
+app.put('/api/contratos/:id/actualizar-control', async (req, res) => {
+    const { id } = req.params;
+    let { status, estado_costos, status_direccion, firma } = req.body;
+
+    try {
+        if (status_direccion !== 'Rechazado' && status === 'Rechazado') {
+            status = 'Pendiente';
+        }
+
+        if (status_direccion !== 'Rechazado' && estado_costos === 'Rechazado') {
+            estado_costos = 'Pendiente';
+        }
+
+        const estadoPagoValido = status ? (status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()) : 'Pendiente';
+        const estadoCostosValido = estado_costos || 'Pendiente';
+        const statusDireccionValido = status_direccion || 'Pendiente';
+        const firmaValida = firma || 'Pendiente';
+
+        const sql = `
+            UPDATE contracts 
+            SET status = ?, estado_costos = ?, status_direccion = ?, firma = ? 
+            WHERE id_contract = ?
+        `;
+        
+        const [result] = await pool.query(sql, [
+            estadoPagoValido, 
+            estadoCostosValido, 
+            statusDireccionValido, 
+            firmaValida, 
+            id
+        ]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "No se encontró el contrato especificado." });
+        }
+
+        res.json({ success: true, message: "Control del contrato actualizado con éxito." });
+    } catch (error) {
+        console.error("❌ Error crítico en MySQL al auto-guardar contrato:", error);
+        res.status(500).json({ error: "Error interno del servidor al actualizar registro." });
+    }
+});
+
+// PAGOS //
+app.post('/api/pagos', upload.any(), async (req, res) => {
+  console.log("================= API PAGOS INVOCADA =================");
+  console.log("Datos recibidos en body:", req.body);
+  const { id_project, id_employee, request_date, fiscal_week, payment_type, payment_method, conceptos } = req.body;
+
+  const limpiarArchivosTemporales = () => {
+    if (req.files && Array.isArray(req.files)) {
+      req.files.forEach(file => {
+        if (file.path && fs.existsSync(file.path)) {
+          try { fs.unlinkSync(file.path); } catch (e) { /* ignorar error de eliminación */ }
+        }
+      });
+    }
+  };
+
+  const excelFile = req.files ? req.files.find(f => f.fieldname === 'excelFile') : null;
+
+  if (!id_project || !id_employee || !request_date || !fiscal_week || !payment_type || !payment_method) {
+    limpiarArchivosTemporales();
+    return res.status(400).json({ error: 'Faltan campos obligatorios en la cabecera de la solicitud.' });
+  }
+  if (!conceptos) {
+    limpiarArchivosTemporales();
+    return res.status(400).json({ error: 'No se envió ningún concepto financiero en la lista.' });
+  }
+
+  let listaConceptos = [];
+  try {
+    listaConceptos = JSON.parse(conceptos);
+  } catch (e) {
+    limpiarArchivosTemporales();
+    return res.status(400).json({ error: 'El formato de los conceptos es inválido.' });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    let primerTicketUrlHeader = null;
+
+    const [resOrder] = await connection.query(
+      `INSERT INTO payment_orders (id_project, id_employee, request_date, fiscal_week, payment_type, payment_method) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id_project, id_employee, request_date, fiscal_week, payment_type, payment_method]
+    );
+    const id_payment_order = resOrder.insertId;
+
+    console.log(`📝 Insertando Cabecera de Pagos ID: #${id_payment_order}. Total conceptos a procesar: ${listaConceptos.length}`);
+
+    const queryDetails = `
+      INSERT INTO payment_order_details 
+        (id_payment_order, id_project, id_project_category, payment_type, payment_method, provider, concept_description, amount, commentary, ticket_url) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    for (let i = 0; i < listaConceptos.length; i++) {
+      const item = listaConceptos[i];
+      const comentarioLimpiado = item.commentary || item.comment || item.comentario || null;
+      let ticketUrlDetalle = null;
+
+      const archivoTicket = req.files ? req.files.find(f => f.fieldname === `ticketFile_${i}` || (i === 0 && f.fieldname === 'ticketFile')) : null;
+
+      if (archivoTicket) {
+        try {
+          const ID_CARPETA_DRIVE_TARGET = '1T_WFb1LnEgzUk-eyNjv-qKW3XR5jAR1K';
+          console.log(`📤 Subiendo ticket/comprobante de posición ${i} (${item.payment_type || payment_type}) hacia Google Drive...`);
+          ticketUrlDetalle = await subirArchivoADrive(archivoTicket, ID_CARPETA_DRIVE_TARGET);
+          console.log(`🔗 Enlace generado para ítem ${i}:`, ticketUrlDetalle);
+
+          if (!primerTicketUrlHeader) {
+            primerTicketUrlHeader = ticketUrlDetalle;
+          }
+        } catch (errDrive) {
+          console.error(`❌ Fallo al subir ticket de la posición ${i}:`, errDrive.message);
+        }
+      }
+
+      await connection.query(queryDetails, [
+        id_payment_order, 
+        item.id_project || id_project,
+        item.id_project_category || null, 
+        item.payment_type || payment_type,
+        item.payment_method || payment_method,
+        item.provider_name || item.provider || null, 
+        item.concept_description || item.concept || null, 
+        item.amount, 
+        comentarioLimpiado,
+        ticketUrlDetalle
+      ]);
+    }
+
+    if (primerTicketUrlHeader) {
+      await connection.query(
+        `UPDATE payment_orders SET ticket_url = ? WHERE id_payment_order = ?`,
+        [primerTicketUrlHeader, id_payment_order]
+      );
+    }
+
+    await connection.commit();
+    console.log(`💾 ¡Éxito! Guardada solicitud de pago ID #${id_payment_order} en la nube.`);
+
+    let datosSolicitante = { name: 'Solicitante ERP', email: process.env.GMAIL_USER };
+    try {
+      const [empRows] = await pool.query(
+        'SELECT name, email FROM employees WHERE id_employee = ?',
+        [id_employee]
+      );
+      if (empRows.length > 0) {
+        datosSolicitante = empRows[0];
+      }
+    } catch (errEmp) {
+      console.error("⚠️ No se pudo obtener el detalle del empleado solicitante:", errEmp.message);
+    }
+
+    (async () => {
+      try {
+        console.log("✉️ Enviando correo a través de la API oficial de Gmail (Googleapis)...");
+
+        const montoTotal = listaConceptos.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
+        const correoDestino = process.env.RESPONSABLE_PAGOS_EMAIL || process.env.GMAIL_USER;
+
+        const MailComposer = require('nodemailer/lib/mail-composer');
+
+        const adjuntos = [];
+        if (excelFile) {
+          let bufferExcel = null;
+
+          if (excelFile.buffer) {
+            bufferExcel = excelFile.buffer;
+          } else if (excelFile.path && fs.existsSync(excelFile.path)) {
+            bufferExcel = fs.readFileSync(excelFile.path);
+          }
+
+          if (bufferExcel) {
+            adjuntos.push({
+              filename: excelFile.originalname || `Desglose_ManoDeObra_Folio_${id_payment_order}.xlsx`,
+              content: bufferExcel
+            });
+            console.log(`📎 Archivo Excel (${excelFile.originalname}) adjuntado correctamente al correo.`);
+          } else {
+            console.warn("⚠️ Se recibió referencia de excelFile pero no se pudo obtener su contenido binario.");
+          }
+        }
+
+        const mail = new MailComposer({
+          from: `"${datosSolicitante.name} (ERP MODISA)" <${process.env.GMAIL_USER}>`,
+          replyTo: `"${datosSolicitante.name}" <${datosSolicitante.email}>`,
+          to: correoDestino,
+          subject: `Solicitud de Pago - Sem. ${fiscal_week}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+              
+              <table style="width: 100%; border-collapse: collapse; margin: 15px 0; border: 1px solid #e2e8f0;">
+                <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Solicitante:</td><td style="padding: 8px;">${datosSolicitante.name} (&lt;${datosSolicitante.email}&gt;)</td></tr>
+                <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Tipo de Pago:</td><td style="padding: 8px;">${payment_type}</td></tr>
+                <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Semana Fiscal:</td><td style="padding: 8px;">Semana ${fiscal_week}</td></tr>
+                <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Fecha:</td><td style="padding: 8px;">${request_date}</td></tr>
+                <tr><td style="padding: 8px; font-weight: bold; background-color: #f8fafc;">Monto Total:</td><td style="padding: 8px; color: #16a34a; font-weight: bold;">$${montoTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td></tr>
+              </table>
+
+              <!-- MODIFICACIÓN: Se eliminó el enlace a Google Drive (${primerTicketUrlHeader}) -->
+              
+              <hr style="border: none; border-top: 1px solid #e2e8f0; margin-top: 20px;">
+              <p style="font-size: 11px; color: #64748b;">Notificación automática del sistema ERP MODISA.</p>
+            </div>
+          `,
+          attachments: adjuntos
+        });
+
+        const messageBuffer = await mail.compile().build();
+        const encodedMessage = messageBuffer
+          .toString('base64')
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+
+        const responseGmail = await gmail.users.messages.send({
+          userId: 'me',
+          requestBody: {
+            raw: encodedMessage
+          }
+        });
+
+        console.log(`📧 ¡Correo enviado con éxito mediante Gmail API! ID de mensaje: ${responseGmail.data.id}`);
+      } catch (errEmail) {
+        console.error("❌ Error al enviar el correo mediante Gmail API:", errEmail);
+      } finally {
+        limpiarArchivosTemporales();
+      }
+    })();
+
+    res.json({ status: 'success', mensaje: 'Solicitud de pago guardada con éxito en la base de datos.' });
+
+  } catch (error) {
+    await connection.rollback();
+    limpiarArchivosTemporales();
+    console.error("❌ Error en la transacción de pagos:", error.message);
+    res.status(500).json({ error: 'Error interno en el servidor de base de datos', detalle: error.message });
+  } finally {
+    connection.release();
+  }
+});
+
+app.get('/api/pagos', async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                po.id_payment_order AS id_payment_order,
+                pod.id_payment_detail AS id_payment_detail,
+                COALESCE(p_det.project_name, p.project_name, '---') AS project_name,
+                DATE_FORMAT(po.request_date, '%Y-%m-%d') AS request_date,
+                po.fiscal_week,
+                IFNULL(pod.payment_type, po.payment_type) AS payment_type,
+                IFNULL(pod.payment_method, po.payment_method) AS payment_method,
+                COALESCE(pod.ticket_url, po.ticket_url) AS ticket_url,
+                pod.commentary AS commentary,
+                pod.commentary AS resident_comment,
+                pod.compras_comment AS compras_comment,
+                COALESCE(pc.grupo, c_pc.grupo, '---') AS grupo,
+                COALESCE(pc.categoria, c_pc.categoria, '---') AS categoria,
+                COALESCE(pc.subcategoria, c_pc.subcategoria, '---') AS subcategoria,
+                
+                IFNULL(
+                    CASE 
+                        WHEN LOWER(TRIM(IFNULL(pod.payment_type, po.payment_type))) IN ('contratista') 
+                            THEN COALESCE(pc.contratos, c_pc.contratos, 0)
+                        WHEN LOWER(TRIM(IFNULL(pod.payment_type, po.payment_type))) IN ('manoobra', 'mano de obra') 
+                            THEN COALESCE(pc.mano_obra, c_pc.mano_obra, 0)
+                        WHEN LOWER(TRIM(IFNULL(pod.payment_type, po.payment_type))) IN ('material', 'materiales') 
+                            THEN COALESCE(pc.materiales, c_pc.materiales, 0)
+                        WHEN LOWER(TRIM(IFNULL(pod.payment_type, po.payment_type))) IN ('maquinariaequipo', 'maquinaria y equipo') 
+                            THEN COALESCE(pc.maquinaria_equipo, c_pc.maquinaria_equipo, 0)
+                        ELSE COALESCE(pc.total, c_pc.total, 0)
+                    END, 0
+                ) AS presupuesto_autorizado,
+
+                pod.provider AS provider,
+                pod.concept_description AS concept_description,
+                pod.amount AS amount,
+                pod.status AS status,
+                IFNULL(pod.monto_pagado, 0) AS monto_pagado,
+                c.firma AS contrato_firma,
+                c.start_date AS contrato_fecha_registro
+            FROM payment_orders po
+            INNER JOIN payment_order_details pod ON po.id_payment_order = pod.id_payment_order
+            LEFT JOIN projects p ON po.id_project = p.id_project
+            LEFT JOIN projects p_det ON pod.id_project = p_det.id_project
+            LEFT JOIN project_categories pc ON pod.id_project_category = pc.id_project_category
+            LEFT JOIN contracts c ON LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider))
+            LEFT JOIN project_categories c_pc ON c.id_project_category = c_pc.id_project_category
+            ORDER BY po.id_payment_order DESC;
+        `;
+
+        const [results] = await pool.query(query);
+        res.json(results);
+
+    } catch (err) {
+        console.error("❌ Error en la consulta SQL detallada de pagos:", err);
+        res.status(500).json({ error: "Error interno del servidor al consultar pagos", detalle: err.message });
+    }
+});
+
+app.put('/api/pagos/:id/monto-pagado', async (req, res) => {
+    try {
+        const idPaymentDetail = req.params.id;
+        const { monto_pagado, compras_comment } = req.body;
+
+        if (!idPaymentDetail || idPaymentDetail === 'undefined') {
+            return res.status(400).json({ error: "El ID del detalle de pago no es válido." });
+        }
+
+        if (monto_pagado !== undefined) {
+            const nuevoMonto = parseFloat(monto_pagado) || 0;
+
+            const [contratoInfo] = await pool.query(
+                `SELECT c.firma, c.start_date 
+                 FROM payment_order_details pod
+                 INNER JOIN contracts c ON LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider))
+                 WHERE pod.id_payment_detail = ? LIMIT 1`,
+                [idPaymentDetail]
+            );
+
+            if (contratoInfo.length > 0 && contratoInfo[0].start_date) {
+                const firma = contratoInfo[0].firma ? contratoInfo[0].firma.trim().toLowerCase() : 'pendiente';
+                const esFirmado = (firma === 'firmado' || firma === 'sí' || firma === 'si');
+                
+                if (!esFirmado) {
+                    const fechaContrato = new Date(contratoInfo[0].start_date);
+                    const fechaActual = new Date();
+                    fechaContrato.setHours(0, 0, 0, 0);
+                    fechaActual.setHours(0, 0, 0, 0);
+                    
+                    const diferenciaDias = Math.floor((fechaActual - fechaContrato) / (1000 * 60 * 60 * 24));
+                    
+                    if (diferenciaDias >= 7) {
+                        return res.status(403).json({ 
+                            error: `Bloqueo Financiero: El contrato asociado tiene ${diferenciaDias} días sin firmar. Captura deshabilitada.` 
+                        });
+                    }
+                }
+            }
+
+            const [detalle] = await pool.query(
+                `SELECT amount, id_payment_order FROM payment_order_details WHERE id_payment_detail = ?`,
+                [idPaymentDetail]
+            );
+
+            if (detalle.length === 0) {
+                return res.status(404).json({ error: "No se encontró el detalle de pago." });
+            }
+
+            const montoTotalConcepto = parseFloat(detalle[0].amount) || 0;
+            const idOrdenCabecera = detalle[0].id_payment_order;
+
+            let nuevoStatus = 'Pendiente';
+            if (montoTotalConcepto > 0 && nuevoMonto >= (montoTotalConcepto - 0.01)) {
+                nuevoStatus = 'Pagado';
+            }
+
+            const updateDetailQuery = `
+                UPDATE payment_order_details 
+                SET monto_pagado = ?, status = ?
+                WHERE id_payment_detail = ?
+            `;
+            await pool.query(updateDetailQuery, [nuevoMonto, nuevoStatus, idPaymentDetail]);
+
+            const [pendientes] = await pool.query(
+                `SELECT COUNT(*) AS incompletos FROM payment_order_details WHERE id_payment_order = ? AND status != 'Pagado'`,
+                [idOrdenCabecera]
+            );
+
+            const statusCabecera = pendientes[0].incompletos === 0 ? 'Pagado' : 'Pendiente';
+            await pool.query(
+                `UPDATE payment_orders SET status = ? WHERE id_payment_order = ?`,
+                [statusCabecera, idOrdenCabecera]
+            );
+
+            return res.json({ 
+                success: true, 
+                message: `Monto individual y estado (${nuevoStatus}) actualizados correctamente.`,
+                status: nuevoStatus
+            });
+        }
+
+        if (compras_comment !== undefined) {
+            const updateCommentQuery = `
+                UPDATE payment_order_details 
+                SET compras_comment = ?
+                WHERE id_payment_detail = ?
+            `;
+            await pool.query(updateCommentQuery, [compras_comment.trim(), idPaymentDetail]);
+
+            return res.json({ 
+                success: true, 
+                message: `Comentario de compras actualizado correctamente para el detalle.`
+            });
+        }
+
+        return res.status(400).json({ error: "No se proporcionaron campos para actualizar." });
+
+    } catch (err) {
+        console.error("❌ Error crítico en el servidor al actualizar detalle de pago:", err);
+        res.status(500).json({ error: `Error interno del servidor: ${err.message}` });
+    }
+});
+
+// CATEGORIZACIÓN
+const verificarGerenteCostos = (req, res, next) => {
+    const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim() : '';
+
+    const rolesPermitidos = ["Gerente de Costos", "Director Operativo"];
+
+    if (!rolesPermitidos.includes(rolUsuario)) {
+        return res.status(403).json({ 
+            success: false, 
+            error: "⛔ Acceso denegado. Este endpoint es confidencial y solo permite modificaciones por el Gerente de Costos o la Dirección Operativa." 
+        });
+    }
+    next();
+};
+
+app.get('/api/proyectos/:id/categorias', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [rows] = await pool.query(
+      `SELECT id_project_category, grupo, categoria, subcategoria FROM project_categories WHERE id_project = ?`, 
+      [id]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Error al obtener categorías del proyecto:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+app.get('/api/project-categories/:id_project', async (req, res) => {
+    const idProject = req.params.id_project;
+    let connection;
+
+    try {
+        connection = await pool.getConnection();
+        const query = `
+            SELECT 
+                pc.id_project_category,
+                pc.grupo,
+                pc.categoria,
+                pc.subcategoria,
+                
+                COALESCE(pc.mano_obra, 0) AS mano_obra_aut,
+                COALESCE(pc.materiales, 0) AS materiales_aut,
+                COALESCE(pc.maquinaria_equipo, 0) AS maquinaria_aut,
+                COALESCE(pc.contratos, 0) AS contratos_aut,
+                COALESCE(pc.total, 0) AS total_aut,
+
+                COALESCE(mat.total_mat, 0) AS materiales_ejecutado,
+                COALESCE(pag.pagado_mano_obra, 0) AS mano_obra_ejecutado,
+                COALESCE(pag.pagado_maquinaria, 0) AS maquinaria_ejecutado,
+                COALESCE(pag.pagado_contratos, 0) AS contratos_ejecutado,
+                COALESCE(pag.pagado_materiales_extra, 0) AS materiales_pagos_extra
+
+            FROM project_categories pc
+
+            LEFT JOIN (
+                SELECT 
+                    id_project_category,
+                    SUM(COALESCE(quoted_amount, (quantity * unit_price), 0)) AS total_mat
+                FROM order_details
+                WHERE LOWER(COALESCE(status, '')) IN ('cotizado', 'comprado', 'aprobado', 'pendiente')
+                GROUP BY id_project_category
+            ) mat ON pc.id_project_category = mat.id_project_category
+
+            LEFT JOIN (
+                SELECT 
+                    COALESCE(pod.id_project_category, c.id_project_category) AS id_category,
+                    
+                    SUM(CASE 
+                        WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%mano%'
+                           OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%manoobra%')
+                        THEN IFNULL(pod.monto_pagado, 0) ELSE 0 
+                    END) AS pagado_mano_obra,
+                    
+                    SUM(CASE 
+                        WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%maquinaria%'
+                           OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%equipo%')
+                        THEN IFNULL(pod.monto_pagado, 0) ELSE 0 
+                    END) AS pagado_maquinaria,
+                    
+                    SUM(CASE 
+                        WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%contrat%'
+                           OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%subcontrat%'
+                           OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%destajo%'
+                           OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%servicio%')
+                        THEN IFNULL(pod.monto_pagado, 0) ELSE 0 
+                    END) AS pagado_contratos,
+                    
+                    SUM(CASE 
+                        WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%material%' 
+                           OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%caja%')
+                        THEN IFNULL(pod.monto_pagado, 0) ELSE 0 
+                    END) AS pagado_materiales_extra
+
+                FROM payment_order_details pod
+                INNER JOIN payment_orders po ON pod.id_payment_order = po.id_payment_order
+                LEFT JOIN contracts c ON LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider))
+
+                WHERE IFNULL(pod.monto_pagado, 0) > 0
+                  AND COALESCE(pod.id_project_category, c.id_project_category) IS NOT NULL
+                GROUP BY COALESCE(pod.id_project_category, c.id_project_category)
+            ) pag ON pc.id_project_category = pag.id_category
+
+            WHERE pc.id_project = ?
+            ORDER BY pc.grupo ASC, pc.categoria ASC, pc.subcategoria ASC;
+        `;
+
+        const [rows] = await connection.query(query, [idProject]);
+        res.json(rows);
+
+    } catch (error) {
+        console.error("❌ ERROR EN BASE DE DATOS:", error);
+        res.status(500).json({ 
+            error: "Error en respuesta de base de datos", 
+            message: error.sqlMessage || error.message 
+        });
+    } finally {
+        if (connection) connection.release();
+    }
+});
+
+app.post('/api/upload-hierarchy', verificarGerenteCostos, async (req, res) => {
+    const { id_project, csvData } = req.body;
+    if (!id_project || !csvData) return res.status(400).json({ error: "Faltan parámetros requeridos." });
+
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+        const lineas = csvData.split(/\r?\n/).filter(line => line.trim() !== "");
+        const primeraLinea = lineas[0].toLowerCase();
+        const inicioIndex = (primeraLinea.includes("proyecto") || primeraLinea.includes("grupo") || primeraLinea.includes("categor")) ? 1 : 0;
+
+        const sqlInsert = `
+            INSERT IGNORE INTO project_categories 
+            (id_project, grupo, categoria, subcategoria, mano_obra, materiales, maquinaria_equipo, contratos, total)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        for (let i = inicioIndex; i < lineas.length; i++) {
+            const columnas = lineas[i].split(',').map(col => col.trim());
+            if (columnas.length < 3) continue;
+
+            const grupo = columnas[1];       
+            const categoria = columnas[2];   
+            let subcategoria = columnas[3] || null;
+            if (subcategoria === "") subcategoria = null;
+
+            if (!grupo || !categoria) continue;
+
+            await connection.query(sqlInsert, [
+                id_project, grupo, categoria, subcategoria,
+                parseFloat(columnas[4]) || 0, parseFloat(columnas[5]) || 0,
+                parseFloat(columnas[6]) || 0, parseFloat(columnas[7]) || 0, parseFloat(columnas[8]) || 0
+            ]);
+        }
+        await connection.commit();
+        res.json({ success: true, message: "Matriz de presupuestos guardada exitosamente." });
+    } catch (error) {
+        await connection.rollback();
+        console.error("❌ Error en Bulk Upload:", error);
+        res.status(500).json({ error: "Error interno en la carga masiva." });
+    } finally {
+        connection.release();
+    }
+});
+
+app.post('/api/project-categories', verificarGerenteCostos, async (req, res) => {
+    const { id_project, grupo, categoria, subcategoria, mano_obra, materiales, maquinaria_equipo, contratos, total } = req.body;
+    if (!id_project || !grupo || !categoria) return res.status(400).json({ error: "Campos obligatorios incompletos." });
+
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+        const sqlInsert = `INSERT IGNORE INTO project_categories (id_project, grupo, categoria, subcategoria, mano_obra, materiales, maquinaria_equipo, contratos, total) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        await connection.query(sqlInsert, [id_project, grupo.trim(), categoria.trim(), subcategoria || null, parseFloat(mano_obra) || 0, parseFloat(materiales) || 0, parseFloat(maquinaria_equipo) || 0, parseFloat(contratos) || 0, parseFloat(total) || 0]);
+        await connection.commit();
+        res.json({ success: true, message: "Categoría guardada con éxito." });
+    } catch (error) {
+        await connection.rollback();
+        res.status(500).json({ error: "Error al insertar categoría de forma manual." });
+    } finally {
+        connection.release();
+    }
+});
+
+app.put('/api/project-categories/:id', verificarGerenteCostos, async (req, res) => {
+    const idCategory = req.params.id;
+    const { grupo, categoria, subcategoria, mano_obra, materiales, maquinaria_equipo, contratos, total } = req.body;
+
+    if (!grupo || !categoria) return res.status(400).json({ error: "Campos obligatorios faltantes." });
+
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+        const sqlUpdate = `UPDATE project_categories SET grupo = ?, categoria = ?, subcategoria = ?, mano_obra = ?, materiales = ?, maquinaria_equipo = ?, contratos = ?, total = ? WHERE id_project_category = ?`;
+        await connection.query(sqlUpdate, [grupo.trim(), categoria.trim(), subcategoria || null, parseFloat(mano_obra) || 0, parseFloat(materiales) || 0, parseFloat(maquinaria_equipo) || 0, parseFloat(contratos) || 0, parseFloat(total) || 0, idCategory]);
+        await connection.commit();
+        res.json({ success: true, message: "Registro financiero actualizado." });
+    } catch (error) {
+        await connection.rollback();
+        res.status(500).json({ error: "Error al actualizar la categoría." });
+    } finally {
+        connection.release();
+    }
+});
+
+app.delete('/api/project-categories/:id', verificarGerenteCostos, async (req, res) => {
+    const idCategory = req.params.id;
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+        await connection.query(`DELETE FROM project_categories WHERE id_project_category = ?`, [idCategory]);
+        await connection.commit();
+        res.json({ success: true, message: "Renglón presupuestal eliminado." });
+    } catch (error) {
+        await connection.rollback();
+        res.status(500).json({ error: "Error interno al procesar borrado." });
+    } finally {
+        connection.release();
+    }
+});
+
+app.get('/api/projects-active', async (req, res) => {
+  try {
+    const querySQL = `
+      SELECT id_project, project_name 
+      FROM projects 
+      WHERE project_name IS NOT NULL 
+      ORDER BY project_name ASC;
+    `;
+
+    const [rows] = await pool.query(querySQL);
+    res.json(rows);
+  } catch (error) {
+    console.error('❌ Error al obtener proyectos activos:', error);
+    res.status(500).json({ error: 'Error interno al consultar los proyectos activos.' });
+  }
+});
+
 // Endpoint de métricas corregido
 app.get('/api/dashboard/metrics/:id_project', async (req, res) => {
   const { id_project } = req.params;
