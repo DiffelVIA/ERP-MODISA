@@ -34,16 +34,27 @@
             }
         });
 
+        // MODIFICADO: Ajuste de endpoint a /api/proyectos, headers de sesión y mapeo a project_name
         async function cargarProyectos() {
             try {
-                const res = await fetch('/api/projects');
+                const res = await fetch('/api/proyectos', {
+                    headers: {
+                        'x-employee-id': localStorage.getItem('id_employee') || '',
+                        'x-user-rol': localStorage.getItem('userRol') || ''
+                    }
+                });
+
+                if (!res.ok) {
+                    throw new Error(`Error en el servidor: ${res.status} ${res.statusText}`);
+                }
+
                 const proyectos = await res.json();
 
                 selectProyecto.innerHTML = '<option value="">-- Selecciona un Proyecto --</option>';
                 proyectos.forEach(proj => {
                     const opt = document.createElement('option');
                     opt.value = proj.id_project;
-                    opt.textContent = proj.name || proj.nombre;
+                    opt.textContent = proj.project_name;
                     selectProyecto.appendChild(opt);
                 });
 
