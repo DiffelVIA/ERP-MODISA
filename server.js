@@ -1008,10 +1008,8 @@ app.get('/api/materiales', async (req, res) => {
         od.unit_price AS precio_unitario,
         LOWER(od.status) AS estado,
         
-        -- Presupuesto asignado a la subcategoría (columna 'materiales')
         COALESCE(pc.materiales, 0.00) AS presupuesto_autorizado,
         
-        -- Suma de todo lo cotizado/comprado de esta subcategoría en este proyecto (excluyendo el detalle actual)
         COALESCE((
           SELECT SUM(sub_od.quantity * sub_od.unit_price)
           FROM order_details AS sub_od
@@ -1066,7 +1064,6 @@ app.get('/api/materiales', async (req, res) => {
 });
 
 app.post('/api/materiales', async (req, res) => {
-  // 🛡️ MODIFICACIÓN: Ya no se desestructura id_project de la raíz, pues cada material trae su propio id_project
   const { id_employee, order_date, fiscal_week, materiales } = req.body;
   
   console.log("📥 Datos recibidos en el Backend:", req.body);
@@ -1992,7 +1989,7 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
                     id_project_category,
                     SUM(COALESCE(quoted_amount, (quantity * unit_price), 0)) AS total_mat
                 FROM order_details
-                WHERE LOWER(COALESCE(status, '')) IN ('cotizado', 'comprado', 'aprobado', 'pendiente')
+                WHERE LOWER(TRIM(COALESCE(status, ''))) = 'comprado'
                 GROUP BY id_project_category
             ) mat ON pc.id_project_category = mat.id_project_category
 
@@ -2192,35 +2189,48 @@ app.get('/api/dashboard/metrics/:id_project', async (req, res) => {
     `;
 
     // 2. Ejecutado Real (Únicamente Pagos Efectuados de payment_order_details)
+    // MODIFICADO: Ejecutado Real unificando Materiales 'Comprado' y Pagos Efectuados
     const queryEjecutado = `
       SELECT 
         SUM(CASE 
-            WHEN LOWER(COALESCE(payment_type, '')) LIKE '%mano%' 
-              OR LOWER(COALESCE(payment_type, '')) LIKE '%destajo%' 
-            THEN IFNULL(monto_pagado, 0) ELSE 0 
+            WHEN LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%mano%' 
+              OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%destajo%' 
+            THEN IFNULL(pod.monto_pagado, 0) ELSE 0 
         END) AS mano_obra_ejecutado,
 
-        SUM(CASE 
-            WHEN LOWER(COALESCE(payment_type, '')) LIKE '%material%' 
-              OR LOWER(COALESCE(payment_type, '')) LIKE '%caja%' 
-            THEN IFNULL(monto_pagado, 0) ELSE 0 
-        END) AS materiales_ejecutado,
+        (
+          /* Egresos por órdenes de pago de materiales/caja */
+          SUM(CASE 
+              WHEN LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%material%' 
+                OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%caja%' 
+              THEN IFNULL(pod.monto_pagado, 0) ELSE 0 
+          END)
+          +
+          /* Materiales comprados registrados en solicitudes */
+          COALESCE((
+            SELECT SUM(COALESCE(od.quoted_amount, (od.quantity * od.unit_price), 0))
+            FROM order_details od
+            INNER JOIN project_categories pc ON od.id_project_category = pc.id_project_category
+            WHERE pc.id_project = ? AND LOWER(TRIM(COALESCE(od.status, ''))) = 'comprado'
+          ), 0)
+        ) AS materiales_ejecutado,
 
         SUM(CASE 
-            WHEN LOWER(COALESCE(payment_type, '')) LIKE '%maquinaria%' 
-              OR LOWER(COALESCE(payment_type, '')) LIKE '%equipo%' 
-            THEN IFNULL(monto_pagado, 0) ELSE 0 
+            WHEN LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%maquinaria%' 
+              OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%equipo%' 
+            THEN IFNULL(pod.monto_pagado, 0) ELSE 0 
         END) AS maquinaria_ejecutado,
 
         SUM(CASE 
-            WHEN LOWER(COALESCE(payment_type, '')) LIKE '%contrat%' 
-              OR LOWER(COALESCE(payment_type, '')) LIKE '%servicio%' 
-              OR LOWER(COALESCE(payment_type, '')) LIKE '%subcontrat%' 
-            THEN IFNULL(monto_pagado, 0) ELSE 0 
+            WHEN LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%contrat%' 
+              OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%servicio%' 
+              OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%subcontrat%' 
+            THEN IFNULL(pod.monto_pagado, 0) ELSE 0 
         END) AS contratos_ejecutado
 
-      FROM payment_order_details
-      WHERE id_project = ? AND IFNULL(monto_pagado, 0) > 0;
+      FROM payment_order_details pod
+      INNER JOIN payment_orders po ON pod.id_payment_order = po.id_payment_order
+      WHERE pod.id_project = ? AND IFNULL(pod.monto_pagado, 0) > 0;
     `;
 
     // 3. Monto Comprometido (Órdenes de Pago en estado Pendiente)
