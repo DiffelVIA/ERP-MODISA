@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MODISA - Dashboard de Pagos</title>
+    <script src="/timeout.js"></script>
+    <link class="favicon" rel="icon" type="image/x-icon" href="../img/MODISA-favicon.ico">
+    <link rel="stylesheet" href="../styles.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header id="header">
+        <div>
+            <img src="../img/logo.png" alt="logo" id="logo">
+        </div>
+        <nav>
+            <ul>
+                <li>
+                    <a href="../principal.html">Volver a Panel Principal</a>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="main-tabla">
+        <h1>Dashboard de Pagos y Egresos</h1>
+
+        <!-- Contenedor de Filtros -->
+        <div class="contenedorFiltros">
+            <div class="filtros">
+                <label for="select-proyecto-dashboard">Proyecto:</label>
+                <select id="select-proyecto-dashboard" class="select-tabla">
+                    <option value="">Cargando proyectos...</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Tarjetas KPI -->
+        <div class="grid-kpis-dashboard">
+            <div class="card-kpi-db">
+                <span class="lbl-kpi-db">Presupuesto Autorizado</span>
+                <span class="val-kpi-db" id="kpi-autorizado">$0.00</span>
+            </div>
+            <div class="card-kpi-db">
+                <span class="lbl-kpi-db">Monto Ejecutado (Pagos)</span>
+                <span class="val-kpi-db monto-pendiente" id="kpi-ejecutado">$0.00</span>
+            </div>
+            <div class="card-kpi-db">
+                <span class="lbl-kpi-db">% Avance Financiero</span>
+                <span class="val-kpi-db" id="kpi-porcentaje">0%</span>
+            </div>
+            <div class="card-kpi-db">
+                <span class="lbl-kpi-db">Saldo por Ejercer</span>
+                <span class="val-kpi-db monto-verde" id="kpi-saldo">$0.00</span>
+            </div>
+        </div>
+
+        <!-- Gráficos Principales -->
+        <div class="grid-graficos-dashboard">
+            <div class="card-grafico-db">
+                <h3 class="titulo-grafico-db">Distribución del Presupuesto Autorizado vs Ejecutado</h3>
+                <div class="contenedor-canvas-db">
+                    <canvas id="chartPresupuestoVsEjecutado"></canvas>
+                </div>
+            </div>
+            <div class="card-grafico-db">
+                <h3 class="titulo-grafico-db">Ejecución por Rubros ($)</h3>
+                <div class="contenedor-canvas-db">
+                    <canvas id="chartRubros"></canvas>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer id="footer">
+        <p>Software especializado MODISA ® 2026</p>
+        <a href="#" id="btn-logout" class="btn-logout-footer">Cerrar sesión</a>
+    </footer>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
