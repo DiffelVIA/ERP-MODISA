@@ -65,18 +65,23 @@
 
             <div id="seccion-agregar" class="seccion-accion">
                 <h3>Añadir Nueva Categoría y Presupuesto</h3>
+                
                 <div class="contenedor-formulario grupo-campos">
                     <label for="addGrupo">Grupo</label>
-                    <input type="text" id="addGrupo" placeholder="Ej: Obra Civil" class="input_form">
+                    <input type="text" id="addGrupo" list="dlGruposAdd" placeholder="Selecciona o escribe un grupo..." class="input_form" autocomplete="off">
+                    <datalist id="dlGruposAdd"></datalist>
                 </div>
                 <div class="contenedor-formulario grupo-campos">
                     <label for="addCategoria">Categoría</label>
-                    <input type="text" id="addCategoria" placeholder="Ej: Cimentaciones" class="input_form">
+                    <input type="text" id="addCategoria" list="dlCategoriasAdd" placeholder="Selecciona o escribe una categoría..." class="input_form" autocomplete="off">
+                    <datalist id="dlCategoriasAdd"></datalist>
                 </div>
                 <div class="contenedor-formulario grupo-campos">
                     <label for="addSubcategoria">Subcategoría</label>
-                    <input type="text" id="addSubcategoria" placeholder="Ej: Excavación Manual" class="input_form">
+                    <input type="text" id="addSubcategoria" list="dlSubcategoriasAdd" placeholder="Selecciona o escribe una subcategoría..." class="input_form" autocomplete="off">
+                    <datalist id="dlSubcategoriasAdd"></datalist>
                 </div>
+
                 <div class="contenedor-formulario grupo-campos" style="display: flex; align-items: center; gap: 10px; background: #fff1f2; padding: 10px; border-radius: 6px; border: 1px solid #fecdd3;">
                     <input type="checkbox" id="addEsDeductiva" style="width: 18px; height: 18px; cursor: pointer;">
                     <label for="addEsDeductiva" style="margin: 0; color: #be123c; font-weight: bold; cursor: pointer;">
@@ -137,17 +142,18 @@
                 </div>
 
                 <div id="camposEdicion" style="display: none; margin-top: 20px;">
+                    <!-- MODIFICADO: Atributos list="..." en inputs de edición para facilitar cambios -->
                     <div class="contenedor-formulario grupo-campos">
                         <label for="editGrupo">Editar Nombre de Grupo</label>
-                        <input type="text" id="editGrupo" class="input_form">
+                        <input type="text" id="editGrupo" list="dlGruposAdd" class="input_form">
                     </div>
                     <div class="contenedor-formulario grupo-campos">
                         <label for="editCategoria">Editar Nombre de Categoría</label>
-                        <input type="text" id="editCategoria" class="input_form">
+                        <input type="text" id="editCategoria" list="dlCategoriasAdd" class="input_form">
                     </div>
                     <div class="contenedor-formulario grupo-campos">
                         <label for="editSubcategoria">Editar Nombre de Subcategoría</label>
-                        <input type="text" id="editSubcategoria" class="input_form">
+                        <input type="text" id="editSubcategoria" list="dlSubcategoriasAdd" class="input_form">
                     </div>
                     <div class="contenedor-formulario grupo-campos" style="display: flex; align-items: center; gap: 10px; background: #fff1f2; padding: 10px; border-radius: 6px; border: 1px solid #fecdd3;">
                         <input type="checkbox" id="editEsDeductiva" style="width: 18px; height: 18px; cursor: pointer;">

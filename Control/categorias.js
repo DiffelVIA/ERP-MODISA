@@ -27,6 +27,7 @@
         configurarManejadoresInterfaz();
         configurarManejadorArchivo();
         configurarCalculosTotales();
+        configurarFiltrosCascadaDatalists(); 
     });
 
     function neutralizarEntorno() {
@@ -35,8 +36,6 @@
         configurarManejadorArchivo = () => {};
         configurarCalculosTotales = () => {};
     }
-
-    
 
     const BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000' : 'https://erp-modisa.onrender.com';
 
@@ -333,6 +332,69 @@
         } catch (e) {
             listaCategoriasCache = [];
         }
+        poblarDatalistsAutocompletado();
+    }
+
+    function poblarDatalistsAutocompletado() {
+        const dlGrupos = document.getElementById("dlGruposAdd");
+        const dlCats = document.getElementById("dlCategoriasAdd");
+        const dlSubcats = document.getElementById("dlSubcategoriasAdd");
+
+        if (!dlGrupos) return;
+
+        const gruposUnicos = [...new Set(listaCategoriasCache.map(c => c.grupo).filter(Boolean))].sort();
+        const catsUnicas = [...new Set(listaCategoriasCache.map(c => c.categoria).filter(Boolean))].sort();
+        const subcatsUnicas = [...new Set(listaCategoriasCache.map(c => c.subcategoria).filter(Boolean))].sort();
+
+        dlGrupos.innerHTML = gruposUnicos.map(g => `<option value="${g}">`).join("");
+        dlCats.innerHTML = catsUnicas.map(c => `<option value="${c}">`).join("");
+        dlSubcats.innerHTML = subcatsUnicas.map(s => `<option value="${s}">`).join("");
+    }
+
+    function configurarFiltrosCascadaDatalists() {
+        const inputGrupo = document.getElementById("addGrupo");
+        const inputCat = document.getElementById("addCategoria");
+        const dlCats = document.getElementById("dlCategoriasAdd");
+        const dlSubcats = document.getElementById("dlSubcategoriasAdd");
+
+        if (!inputGrupo || !inputCat) return;
+
+        inputGrupo.addEventListener("input", () => {
+            const valGrupo = inputGrupo.value.trim();
+            if (!valGrupo) {
+                poblarDatalistsAutocompletado();
+                return;
+            }
+
+            const catsFiltradas = [...new Set(
+                listaCategoriasCache.filter(c => c.grupo === valGrupo).map(c => c.categoria).filter(Boolean)
+            )].sort();
+
+            if (dlCats) {
+                dlCats.innerHTML = catsFiltradas.map(c => `<option value="${c}">`).join("");
+            }
+        });
+
+        inputCat.addEventListener("input", () => {
+            const valGrupo = inputGrupo.value.trim();
+            const valCat = inputCat.value.trim();
+
+            if (!valCat) {
+                poblarDatalistsAutocompletado();
+                return;
+            }
+
+            const subcatsFiltradas = [...new Set(
+                listaCategoriasCache
+                    .filter(c => (!valGrupo || c.grupo === valGrupo) && c.categoria === valCat)
+                    .map(c => c.subcategoria)
+                    .filter(Boolean)
+            )].sort();
+
+            if (dlSubcats) {
+                dlSubcats.innerHTML = subcatsFiltradas.map(s => `<option value="${s}">`).join("");
+            }
+        });
     }
 
     function poblarSelectGrupos() {
@@ -367,6 +429,7 @@
         document.getElementById("addMaquinaria").value = "0.00";
         document.getElementById("addContratos").value = "0.00";
         document.getElementById("addTotal").value = "0.00";
+        poblarDatalistsAutocompletado();
     }
 
     function limpiarSecciones() {
