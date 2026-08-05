@@ -2171,13 +2171,12 @@ app.get('/api/projects-active', async (req, res) => {
   }
 });
 
-
-// Endpoint de métricas del Dashboard de Pagos por Proyecto
+// Dashboard Metrics Endpoint
 app.get('/api/dashboard/metrics/:id_project', async (req, res) => {
   const { id_project } = req.params;
 
   try {
-    const [filas] = await pool.query(
+    const [filasAuth] = await pool.query(
       `SELECT 
         SUM(mano_obra) AS mano_obra_auth,
         SUM(materiales) AS materiales_auth,
@@ -2189,14 +2188,47 @@ app.get('/api/dashboard/metrics/:id_project', async (req, res) => {
       [id_project]
     );
 
-    const metrics = filas[0] || {};
+    const metrics = filasAuth[0] || {};
 
-    // Estructura de rubros para las gráficas
+    const [filasEjec] = await pool.query(
+      `SELECT 
+        payment_type,
+        SUM(COALESCE(monto_pagado, amount, 0)) AS total_ejecutado
+       FROM payment_order_details
+       WHERE id_project = ? 
+         AND (status = 'Pagado' OR status = 'Aprobado')
+       GROUP BY payment_type`,
+      [id_project]
+    );
+
+    const ejecucionPorTipo = {};
+    filasEjec.forEach(row => {
+      if (row.payment_type) {
+        ejecucionPorTipo[row.payment_type.trim()] = parseFloat(row.total_ejecutado) || 0;
+      }
+    });
+
     const rubros = [
-      { nombre: 'Mano de Obra', autorizado: metrics.mano_obra_auth || 0, ejecutado: 0.00 },
-      { nombre: 'Materiales', autorizado: metrics.materiales_auth || 0, ejecutado: 0.00 },
-      { nombre: 'Maquinaria y Equipo', autorizado: metrics.maquinaria_auth || 0, ejecutado: 0.00 },
-      { nombre: 'Contratos', autorizado: metrics.contratos_auth || 0, ejecutado: 0.00 }
+      {
+        nombre: 'Mano de Obra',
+        autorizado: parseFloat(metrics.mano_obra_auth) || 0,
+        ejecutado: ejecucionPorTipo['Mano de Obra'] || 0
+      },
+      {
+        nombre: 'Materiales',
+        autorizado: parseFloat(metrics.materiales_auth) || 0,
+        ejecutado: ejecucionPorTipo['Materiales'] || 0
+      },
+      {
+        nombre: 'Maquinaria y Equipo',
+        autorizado: parseFloat(metrics.maquinaria_auth) || 0,
+        ejecutado: ejecucionPorTipo['Maquinaria y Equipo'] || 0
+      },
+      {
+        nombre: 'Contratos',
+        autorizado: parseFloat(metrics.contratos_auth) || 0,
+        ejecutado: ejecucionPorTipo['Contratos'] || 0
+      }
     ];
 
     const totalAutorizado = parseFloat(metrics.total_auth) || 0;
