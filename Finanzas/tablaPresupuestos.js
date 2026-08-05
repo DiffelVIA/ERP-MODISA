@@ -6,7 +6,6 @@
   let cuerpoTabla;
   let filtroProyecto;
 
-  // Variables para controlar las selecciones múltiples en cascada
   let gruposSeleccionados = [];
   let categoriasSeleccionadas = [];
   let subcategoriasSeleccionadas = [];
@@ -24,7 +23,6 @@
     inicializarEventoExportarExcel();
     inicializarEventosFiltrosCascada();
 
-    // Evento para cambiar de Proyecto en el selector
     document.addEventListener('change', (e) => {
       if (e.target.classList.contains('chk-proyecto')) {
         if (e.target.checked) {
@@ -43,7 +41,6 @@
           const contenidoDropdown = document.getElementById("filtroProyecto");
           if (contenidoDropdown) contenidoDropdown.classList.remove('mostrar');
 
-          // Resetear selecciones previas al cambiar de obra
           resetearFiltrosCascada();
           cargarPresupuestoProyecto(proyectoSeleccionadoId);
         }
@@ -102,7 +99,6 @@
         const datos = await response.json();
         datosPresupuestoActual = datos;
         
-        // Cargar los filtros dinámicos encadenados y renderizar
         poblarFiltrosCascada();
         renderizarTablaPresupuestos(datos);
 
@@ -120,10 +116,6 @@
     }
   }
 
-  /* ==========================================================================
-     LÓGICA DE FILTROS EN CASCADA (Grupo -> Categoría -> Subcategoría)
-     ========================================================================== */
-
   function resetearFiltrosCascada() {
     gruposSeleccionados = [];
     categoriasSeleccionadas = [];
@@ -135,12 +127,28 @@
     if (!contenedorGlobal) return;
 
     contenedorGlobal.addEventListener('change', (e) => {
-      if (e.target.classList.contains('chk-cascada')) {
-        const grupoTipo = e.target.dataset.group;
+      const grupoTipo = e.target.dataset.group;
 
+      if (e.target.classList.contains('chk-seleccionar-todo')) {
+        const checkboxesGrupo = contenedorGlobal.querySelectorAll(`.chk-cascada[data-group="${grupoTipo}"]`);
+        
+        if (grupoTipo === 'grupo') {
+          gruposSeleccionados = e.target.checked ? Array.from(checkboxesGrupo).map(c => c.value) : [];
+          categoriasSeleccionadas = [];
+          subcategoriasSeleccionadas = [];
+        } else if (grupoTipo === 'categoria') {
+          categoriasSeleccionadas = e.target.checked ? Array.from(checkboxesGrupo).map(c => c.value) : [];
+          subcategoriasSeleccionadas = [];
+        } else if (grupoTipo === 'subcategoria') {
+          subcategoriasSeleccionadas = e.target.checked ? Array.from(checkboxesGrupo).map(c => c.value) : [];
+        }
+
+        poblarFiltrosCascada();
+        aplicarFiltrosPresupuesto();
+      }
+      else if (e.target.classList.contains('chk-cascada')) {
         if (grupoTipo === 'grupo') {
           gruposSeleccionados = Array.from(document.querySelectorAll('.chk-cascada[data-group="grupo"]:checked')).map(c => c.value);
-          // Al cambiar Grupos, depurar categorías/subcategorías que ya no apliquen
           categoriasSeleccionadas = [];
           subcategoriasSeleccionadas = [];
         } else if (grupoTipo === 'categoria') {
@@ -168,11 +176,9 @@
       return;
     }
 
-    // 1. Opciones para Grupos
     const gruposUnicos = Array.from(new Set(datosPresupuestoActual.map(item => item.grupo).filter(Boolean))).sort();
     if (divGrupo) renderOpcionesDropdown(divGrupo, gruposUnicos, 'grupo', gruposSeleccionados);
 
-    // 2. Opciones para Categorías (Dependen de los Grupos seleccionados)
     const datosFiltradosPorGrupo = gruposSeleccionados.length > 0
       ? datosPresupuestoActual.filter(item => gruposSeleccionados.includes(item.grupo))
       : datosPresupuestoActual;
@@ -180,7 +186,6 @@
     const categoriasUnicas = Array.from(new Set(datosFiltradosPorGrupo.map(item => item.categoria).filter(Boolean))).sort();
     if (divCategoria) renderOpcionesDropdown(divCategoria, categoriasUnicas, 'categoria', categoriasSeleccionadas);
 
-    // 3. Opciones para Subcategorías (Dependen de las Categorías seleccionadas)
     const datosFiltradosPorCategoria = categoriasSeleccionadas.length > 0
       ? datosFiltradosPorGrupo.filter(item => categoriasSeleccionadas.includes(item.categoria))
       : datosFiltradosPorGrupo;
@@ -195,7 +200,15 @@
       return;
     }
 
-    contenedorHTML.innerHTML = listaOpciones.map(opcion => {
+    const todosSeleccionados = listaOpciones.length > 0 && listaOpciones.every(op => marcados.includes(op));
+
+    let html = `
+      <label class="opcion-filtro" style="font-weight: bold; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 4px; display: block;">
+        <input type="checkbox" class="chk-seleccionar-todo" data-group="${dataGroup}" ${todosSeleccionados ? 'checked' : ''}> Seleccionar Todo
+      </label>
+    `;
+
+    html += listaOpciones.map(opcion => {
       const isChecked = marcados.includes(opcion) ? 'checked' : '';
       return `
         <label class="opcion-filtro">
@@ -204,6 +217,8 @@
         </label>
       `;
     }).join('');
+
+    contenedorHTML.innerHTML = html;
   }
 
   function aplicarFiltrosPresupuesto() {
@@ -221,10 +236,6 @@
 
     renderizarTablaPresupuestos(filtrados);
   }
-
-  /* ==========================================================================
-     FIN LÓGICA DE FILTROS EN CASCADA
-     ========================================================================== */
 
   function configurarDropdowns() {
     const dropdowns = document.querySelectorAll('.filtros');
