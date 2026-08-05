@@ -2171,63 +2171,103 @@ app.get('/api/projects-active', async (req, res) => {
   }
 });
 
-// Dashboard Metrics Endpoint
+// Endpoint de métricas del Dashboard 
 app.get('/api/dashboard/metrics/:id_project', async (req, res) => {
   const { id_project } = req.params;
+  let connection;
 
   try {
-    const [filasAuth] = await pool.query(
-      `SELECT 
-        SUM(mano_obra) AS mano_obra_auth,
-        SUM(materiales) AS materiales_auth,
-        SUM(maquinaria_equipo) AS maquinaria_auth,
-        SUM(contratos) AS contratos_auth,
-        SUM(total) AS total_auth
-       FROM project_categories 
-       WHERE id_project = ?`,
-      [id_project]
-    );
+    connection = await pool.getConnection();
 
-    const metrics = filasAuth[0] || {};
+    const query = `
+      SELECT 
+        SUM(COALESCE(pc.mano_obra, 0)) AS mano_obra_auth,
+        SUM(COALESCE(pc.materiales, 0)) AS materiales_auth,
+        SUM(COALESCE(pc.maquinaria_equipo, 0)) AS maquinaria_auth,
+        SUM(COALESCE(pc.contratos, 0)) AS contratos_auth,
+        SUM(COALESCE(pc.total, 0)) AS total_auth,
 
-    const [filasEjec] = await pool.query(
-      `SELECT 
-        payment_type,
-        SUM(COALESCE(monto_pagado, amount, 0)) AS total_ejecutado
-       FROM payment_order_details
-       WHERE id_project = ? 
-         AND (status = 'Pagado' OR status = 'Aprobado')
-       GROUP BY payment_type`,
-      [id_project]
-    );
+        SUM(COALESCE(mat.total_mat, 0) + COALESCE(pag.pagado_materiales_extra, 0)) AS materiales_ejecutado,
+        SUM(COALESCE(pag.pagado_mano_obra, 0)) AS mano_obra_ejecutado,
+        SUM(COALESCE(pag.pagado_maquinaria, 0)) AS maquinaria_ejecutado,
+        SUM(COALESCE(pag.pagado_contratos, 0)) AS contratos_ejecutado
 
-    const ejecucionPorTipo = {};
-    filasEjec.forEach(row => {
-      if (row.payment_type) {
-        ejecucionPorTipo[row.payment_type.trim()] = parseFloat(row.total_ejecutado) || 0;
-      }
-    });
+      FROM project_categories pc
+
+      LEFT JOIN (
+          SELECT 
+              id_project_category,
+              SUM(COALESCE(quoted_amount, (quantity * unit_price), 0)) AS total_mat
+          FROM order_details
+          WHERE LOWER(COALESCE(status, '')) IN ('cotizado', 'comprado', 'aprobado', 'pendiente')
+          GROUP BY id_project_category
+      ) mat ON pc.id_project_category = mat.id_project_category
+
+      LEFT JOIN (
+          SELECT 
+              COALESCE(pod.id_project_category, c.id_project_category) AS id_category,
+              
+              SUM(CASE 
+                  WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%mano%'
+                     OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%manoobra%')
+                  THEN IFNULL(pod.monto_pagado, 0) ELSE 0 
+              END) AS pagado_mano_obra,
+              
+              SUM(CASE 
+                  WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%maquinaria%'
+                     OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%equipo%')
+                  THEN IFNULL(pod.monto_pagado, 0) ELSE 0 
+              END) AS pagado_maquinaria,
+              
+              SUM(CASE 
+                  WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%contrat%'
+                     OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%subcontrat%'
+                     OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%destajo%'
+                     OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%servicio%')
+                  THEN IFNULL(pod.monto_pagado, 0) ELSE 0 
+              END) AS pagado_contratos,
+              
+              SUM(CASE 
+                  WHEN (LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%material%' 
+                     OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%caja%')
+                  THEN IFNULL(pod.monto_pagado, 0) ELSE 0 
+              END) AS pagado_materiales_extra
+
+          FROM payment_order_details pod
+          INNER JOIN payment_orders po ON pod.id_payment_order = po.id_payment_order
+          LEFT JOIN contracts c ON LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider))
+
+          WHERE IFNULL(pod.monto_pagado, 0) > 0
+            AND COALESCE(pod.id_project_category, c.id_project_category) IS NOT NULL
+          GROUP BY COALESCE(pod.id_project_category, c.id_project_category)
+      ) pag ON pc.id_project_category = pag.id_category
+
+      WHERE pc.id_project = ?;
+    `;
+
+    const [filas] = await connection.query(query, [id_project]);
+    const metrics = filas[0] || {};
 
     const rubros = [
-      {
-        nombre: 'Mano de Obra',
-        autorizado: parseFloat(metrics.mano_obra_auth) || 0,
-        ejecutado: ejecucionPorTipo['Mano de Obra'] || 0
+      { 
+        nombre: 'Mano de Obra', 
+        autorizado: parseFloat(metrics.mano_obra_auth) || 0, 
+        ejecutado: parseFloat(metrics.mano_obra_ejecutado) || 0 
       },
-      {
-        nombre: 'Materiales',
-        autorizado: parseFloat(metrics.materiales_auth) || 0,
-        ejecutado: ejecucionPorTipo['Materiales'] || 0
+      { 
+        nombre: 'Materiales', 
+        autorizado: parseFloat(metrics.materiales_auth) || 0, 
+        ejecutado: parseFloat(metrics.materiales_ejecutado) || 0 
       },
-      {
-        nombre: 'Maquinaria y Equipo',
-        autorizado: parseFloat(metrics.maquinaria_auth) || 0,
-        ejecutado: ejecucionPorTipo['Maquinaria y Equipo'] || 0
+      { 
+        nombre: 'Maquinaria y Equipo', 
+        autorizado: parseFloat(metrics.maquinaria_auth) || 0, 
+        ejecutado: parseFloat(metrics.maquinaria_ejecutado) || 0 
       },
-      {
-        nombre: 'Contratos',
-        autorizado: parseFloat(metrics.contratos_auth) || 0,
-        ejecutado: ejecucionPorTipo['Contratos'] || 0
+      { 
+        nombre: 'Contratos', 
+        autorizado: parseFloat(metrics.contratos_auth) || 0, 
+        ejecutado: parseFloat(metrics.contratos_ejecutado) || 0 
       }
     ];
 
@@ -2244,5 +2284,7 @@ app.get('/api/dashboard/metrics/:id_project', async (req, res) => {
   } catch (error) {
     console.error('Error al obtener métricas del dashboard:', error);
     res.status(500).json({ error: 'Error al consultar métricas' });
+  } finally {
+    if (connection) connection.release();
   }
 });
