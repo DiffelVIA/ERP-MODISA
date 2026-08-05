@@ -1,6 +1,10 @@
 (() => {
     'use strict';
 
+    const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+        ? 'http://localhost:3000/api' 
+        : 'https://erp-modisa.onrender.com/api';
+
     document.addEventListener('DOMContentLoaded', () => {
         const ROLES_PERMITIDOS = [
             'Director General',
@@ -34,12 +38,14 @@
             }
         });
 
-        // MODIFICADO: Ajuste de endpoint a /api/proyectos, headers de sesión y mapeo a project_name
         async function cargarProyectos() {
             try {
-                const res = await fetch('/api/proyectos', {
+                const usuarioMODISA = JSON.parse(sessionStorage.getItem('usuarioMODISA')) || {};
+                const idEmployee = usuarioMODISA.id_employee || localStorage.getItem('id_employee') || '';
+
+                const res = await fetch(`${API_URL}/proyectos`, {
                     headers: {
-                        'x-employee-id': localStorage.getItem('id_employee') || '',
+                        'x-employee-id': idEmployee,
                         'x-user-rol': localStorage.getItem('userRol') || ''
                     }
                 });
@@ -69,7 +75,7 @@
 
         async function cargarDatosDashboard(idProyecto) {
             try {
-                const res = await fetch(`/api/dashboard/metrics/${idProyecto}`);
+                const res = await fetch(`${API_URL}/dashboard/metrics/${idProyecto}`);
                 const data = await res.json();
 
                 actualizarKPIs(data.totales);
