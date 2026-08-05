@@ -288,16 +288,22 @@
     let totGenAut = 0, totGenEjec = 0;
 
     lista.forEach(cat => {
-        const maoAut = parseFloat(cat.mano_obra_aut || 0);
+        const esDeductiva = (cat.categoria || '').toLowerCase().includes('deductiva') || 
+                            (cat.subcategoria || '').toLowerCase().includes('deductiva') ||
+                            parseFloat(cat.total_aut || 0) < 0;
+        
+        const factor = (esDeductiva && parseFloat(cat.mano_obra_aut || 0) > 0) ? -1 : 1;
+
+        const maoAut = (parseFloat(cat.mano_obra_aut || 0)) * factor;
         const maoEjec = parseFloat(cat.mano_obra_ejecutado || 0);
 
-        const matAut = parseFloat(cat.materiales_aut || 0);
+        const matAut = (parseFloat(cat.materiales_aut || 0)) * factor;
         const matEjec = parseFloat(cat.materiales_ejecutado || 0) + parseFloat(cat.materiales_pagos_extra || 0);
 
-        const maqAut = parseFloat(cat.maquinaria_aut || 0);
+        const maqAut = (parseFloat(cat.maquinaria_aut || 0)) * factor;
         const maqEjec = parseFloat(cat.maquinaria_ejecutado || 0);
 
-        const conAut = parseFloat(cat.contratos_aut || 0);
+        const conAut = (parseFloat(cat.contratos_aut || 0)) * factor;
         const conEjec = parseFloat(cat.contratos_ejecutado || 0);
 
         const genAut = maoAut + matAut + maqAut + conAut;
@@ -387,16 +393,22 @@
       let totGenAut = 0, totGenEjec = 0;
 
       const filasExcel = datosPresupuestoActual.map(cat => {
-        const maoAut = parseFloat(cat.mano_obra_aut || 0);
+        const esDeductiva = (cat.categoria || '').toLowerCase().includes('deductiva') || 
+                            (cat.subcategoria || '').toLowerCase().includes('deductiva') ||
+                            parseFloat(cat.total_aut || 0) < 0;
+
+        const factor = (esDeductiva && parseFloat(cat.mano_obra_aut || 0) > 0) ? -1 : 1;
+
+        const maoAut = (parseFloat(cat.mano_obra_aut || 0)) * factor;
         const maoEjec = parseFloat(cat.mano_obra_ejecutado || 0);
 
-        const matAut = parseFloat(cat.materiales_aut || 0);
+        const matAut = (parseFloat(cat.materiales_aut || 0)) * factor;
         const matEjec = parseFloat(cat.materiales_ejecutado || 0) + parseFloat(cat.materiales_pagos_extra || 0);
 
-        const maqAut = parseFloat(cat.maquinaria_aut || 0);
+        const maqAut = (parseFloat(cat.maquinaria_aut || 0)) * factor;
         const maqEjec = parseFloat(cat.maquinaria_ejecutado || 0);
 
-        const conAut = parseFloat(cat.contratos_aut || 0);
+        const conAut = (parseFloat(cat.contratos_aut || 0)) * factor;
         const conEjec = parseFloat(cat.contratos_ejecutado || 0);
 
         const genAut = maoAut + matAut + maqAut + conAut;

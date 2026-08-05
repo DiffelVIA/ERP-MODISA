@@ -357,7 +357,6 @@
         });
     }
 
-    // MODIFICADO: Limpiar la casilla deductiva al resetear el formulario
     function resetearFormularioAgregar() {
         document.getElementById("addGrupo").value = "";
         document.getElementById("addCategoria").value = "";
