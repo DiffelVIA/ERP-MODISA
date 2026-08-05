@@ -37,7 +37,7 @@
             </div>
         </div>
 
-        <!-- Tarjetas KPI -->
+        <!-- Tarjetas KPI (MODIFICADO: Se agrega tarjeta de Monto Comprometido respetando la estructura existente) -->
         <div class="grid-kpis-dashboard">
             <div class="card-kpi-db">
                 <span class="lbl-kpi-db">Presupuesto Autorizado</span>
@@ -46,6 +46,11 @@
             <div class="card-kpi-db">
                 <span class="lbl-kpi-db">Monto Ejecutado (Pagos)</span>
                 <span class="val-kpi-db monto-pendiente" id="kpi-ejecutado">$0.00</span>
+            </div>
+            <!-- AGREGADO: Métrica de dinero comprometido en solicitudes pendientes -->
+            <div class="card-kpi-db">
+                <span class="lbl-kpi-db">Monto Comprometido (Pendiente)</span>
+                <span class="val-kpi-db" id="kpi-comprometido" style="color: #d97706;">$0.00</span>
             </div>
             <div class="card-kpi-db">
                 <span class="lbl-kpi-db">% Avance Financiero</span>
@@ -69,6 +74,28 @@
                 <h3 class="titulo-grafico-db">Ejecución por Rubros ($)</h3>
                 <div class="contenedor-canvas-db">
                     <canvas id="chartRubros"></canvas>
+                </div>
+            </div>
+
+            <!-- AGREGADO: Métricas y Gráficos Adicionales respetando tus clases 'card-grafico-db' -->
+            <div class="card-grafico-db">
+                <h3 class="titulo-grafico-db">Métodos de Pago Utilizados</h3>
+                <div class="contenedor-canvas-db">
+                    <canvas id="chartMetodosPago"></canvas>
+                </div>
+            </div>
+
+            <div class="card-grafico-db">
+                <h3 class="titulo-grafico-db">Flujo Semanal de Egresos</h3>
+                <div class="contenedor-canvas-db">
+                    <canvas id="chartFlujoSemanal"></canvas>
+                </div>
+            </div>
+
+            <div class="card-grafico-db" style="grid-column: span 2;">
+                <h3 class="titulo-grafico-db">Top 5 Proveedores con Mayor Desembolso</h3>
+                <div id="contenedorTopProveedores" style="padding: 10px 0; max-height: 250px; overflow-y: auto;">
+                    <p style="color: #94a3b8; font-size: 13px;">Cargando lista de proveedores...</p>
                 </div>
             </div>
         </div>
