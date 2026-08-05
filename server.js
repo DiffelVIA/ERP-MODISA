@@ -2168,7 +2168,7 @@ app.get('/api/projects-active', async (req, res) => {
   }
 });
 
-// Endpoint de métricas corregido
+// Endpoint de métricas del dashboard
 app.get('/api/dashboard/metrics/:id_project', async (req, res) => {
   const { id_project } = req.params;
   let connection;
@@ -2188,9 +2188,18 @@ app.get('/api/dashboard/metrics/:id_project', async (req, res) => {
       WHERE id_project = ?;
     `;
 
-    // 2. Ejecutado Real (Únicamente Pagos Efectuados de payment_order_details)
-    // MODIFICADO: Ejecutado Real unificando Materiales 'Comprado' y Pagos Efectuados
-    const queryEjecutado = `
+    // MODIFICADO: 2. Materiales Comprados (Consulta independiente para evitar desfasamiento de parámetros ?)
+    const queryMaterialesComprados = `
+      SELECT 
+        SUM(COALESCE(od.quoted_amount, (od.quantity * od.unit_price), 0)) AS total_mat_comprado
+      FROM order_details od
+      INNER JOIN project_categories pc ON od.id_project_category = pc.id_project_category
+      WHERE pc.id_project = ? 
+        AND LOWER(TRIM(COALESCE(od.status, ''))) = 'comprado';
+    `;
+
+    // MODIFICADO: 3. Pagos Efectuados por Rubro (Se eliminó la subconsulta anidada para asegurar 1 solo parámetro ?)
+    const queryPagosEjecutados = `
       SELECT 
         SUM(CASE 
             WHEN LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%mano%' 
@@ -2198,22 +2207,11 @@ app.get('/api/dashboard/metrics/:id_project', async (req, res) => {
             THEN IFNULL(pod.monto_pagado, 0) ELSE 0 
         END) AS mano_obra_ejecutado,
 
-        (
-          /* Egresos por órdenes de pago de materiales/caja */
-          SUM(CASE 
-              WHEN LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%material%' 
-                OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%caja%' 
-              THEN IFNULL(pod.monto_pagado, 0) ELSE 0 
-          END)
-          +
-          /* Materiales comprados registrados en solicitudes */
-          COALESCE((
-            SELECT SUM(COALESCE(od.quoted_amount, (od.quantity * od.unit_price), 0))
-            FROM order_details od
-            INNER JOIN project_categories pc ON od.id_project_category = pc.id_project_category
-            WHERE pc.id_project = ? AND LOWER(TRIM(COALESCE(od.status, ''))) = 'comprado'
-          ), 0)
-        ) AS materiales_ejecutado,
+        SUM(CASE 
+            WHEN LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%material%' 
+              OR LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%caja%' 
+            THEN IFNULL(pod.monto_pagado, 0) ELSE 0 
+        END) AS materiales_pagos_extra,
 
         SUM(CASE 
             WHEN LOWER(COALESCE(pod.payment_type, po.payment_type, '')) LIKE '%maquinaria%' 
@@ -2233,14 +2231,14 @@ app.get('/api/dashboard/metrics/:id_project', async (req, res) => {
       WHERE pod.id_project = ? AND IFNULL(pod.monto_pagado, 0) > 0;
     `;
 
-    // 3. Monto Comprometido (Órdenes de Pago en estado Pendiente)
+    // 4. Monto Comprometido (Órdenes de Pago en estado Pendiente)
     const queryComprometido = `
       SELECT SUM(COALESCE(amount, 0)) AS total_comprometido
       FROM payment_order_details
       WHERE id_project = ? AND LOWER(COALESCE(status, '')) = 'pendiente';
     `;
 
-    // 4. Métodos de Pago
+    // 5. Métodos de Pago
     const queryMetodosPago = `
       SELECT 
         COALESCE(NULLIF(TRIM(payment_method), ''), 'No especificado') AS metodo,
@@ -2250,7 +2248,7 @@ app.get('/api/dashboard/metrics/:id_project', async (req, res) => {
       GROUP BY metodo;
     `;
 
-    // 5. Flujo Semanal
+    // 6. Flujo Semanal
     const queryFlujoSemanal = `
       SELECT 
         COALESCE(po.fiscal_week, 0) AS semana,
@@ -2262,7 +2260,7 @@ app.get('/api/dashboard/metrics/:id_project', async (req, res) => {
       ORDER BY po.fiscal_week ASC;
     `;
 
-    // 6. Top Proveedores
+    // 7. Top Proveedores
     const queryTopProveedores = `
       SELECT 
         COALESCE(NULLIF(TRIM(provider), ''), 'Sin Proveedor') AS proveedor,
@@ -2274,12 +2272,19 @@ app.get('/api/dashboard/metrics/:id_project', async (req, res) => {
       LIMIT 5;
     `;
 
+    // MODIFICADO: Ejecución ordenada donde cada query recibe exactamente 1 parámetro [id_project]
     const [[authData]] = await connection.query(queryAuth, [id_project]);
-    const [[ejecData]] = await connection.query(queryEjecutado, [id_project]);
+    const [[matData]] = await connection.query(queryMaterialesComprados, [id_project]);
+    const [[ejecData]] = await connection.query(queryPagosEjecutados, [id_project]);
     const [[compData]] = await connection.query(queryComprometido, [id_project]);
     const [filasMetodos] = await connection.query(queryMetodosPago, [id_project]);
     const [filasFlujo] = await connection.query(queryFlujoSemanal, [id_project]);
     const [filasProveedores] = await connection.query(queryTopProveedores, [id_project]);
+
+    // MODIFICADO: Unificación del monto total ejecutado en materiales en JS
+    const totalMaterialesComprados = parseFloat(matData?.total_mat_comprado) || 0;
+    const totalMaterialesPagosExtra = parseFloat(ejecData?.materiales_pagos_extra) || 0;
+    const totalMateriales = totalMaterialesComprados + totalMaterialesPagosExtra;
 
     const rubros = [
       { 
@@ -2290,7 +2295,7 @@ app.get('/api/dashboard/metrics/:id_project', async (req, res) => {
       { 
         nombre: 'Materiales', 
         autorizado: parseFloat(authData?.materiales_auth) || 0, 
-        ejecutado: parseFloat(ejecData?.materiales_ejecutado) || 0 
+        ejecutado: totalMateriales 
       },
       { 
         nombre: 'Maquinaria y Equipo', 
@@ -2320,7 +2325,7 @@ app.get('/api/dashboard/metrics/:id_project', async (req, res) => {
 
   } catch (error) {
     console.error('Error al obtener métricas del dashboard:', error);
-    res.status(500).json({ error: 'Error al consultar métricas' });
+    res.status(500).json({ error: 'Error al consultar métricas', message: error.message });
   } finally {
     if (connection) connection.release();
   }
