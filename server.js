@@ -2171,7 +2171,7 @@ app.get('/api/projects-active', async (req, res) => {
   }
 });
 
-// Endpoint de métricas del Dashboard 
+// Endpoint de métricas completas para el Dashboard (Actualizado)
 app.get('/api/dashboard/metrics/:id_project', async (req, res) => {
   const { id_project } = req.params;
   let connection;
@@ -2179,7 +2179,7 @@ app.get('/api/dashboard/metrics/:id_project', async (req, res) => {
   try {
     connection = await pool.getConnection();
 
-    const query = `
+    const queryRubros = `
       SELECT 
         SUM(COALESCE(pc.mano_obra, 0)) AS mano_obra_auth,
         SUM(COALESCE(pc.materiales, 0)) AS materiales_auth,
@@ -2245,45 +2245,73 @@ app.get('/api/dashboard/metrics/:id_project', async (req, res) => {
       WHERE pc.id_project = ?;
     `;
 
-    const [filas] = await connection.query(query, [id_project]);
-    const metrics = filas[0] || {};
+    const queryComprometido = `
+      SELECT SUM(COALESCE(amount, 0)) AS total_comprometido
+      FROM payment_order_details
+      WHERE id_project = ? AND LOWER(COALESCE(status, '')) = 'pendiente';
+    `;
+
+    const queryMetodosPago = `
+      SELECT 
+        COALESCE(NULLIF(TRIM(payment_method), ''), 'No especificado') AS metodo,
+        SUM(COALESCE(monto_pagado, amount, 0)) AS total
+      FROM payment_order_details
+      WHERE id_project = ? AND IFNULL(monto_pagado, 0) > 0
+      GROUP BY metodo;
+    `;
+
+    const queryFlujoSemanal = `
+      SELECT 
+        COALESCE(po.fiscal_week, 0) AS semana,
+        SUM(COALESCE(pod.monto_pagado, 0)) AS total
+      FROM payment_order_details pod
+      INNER JOIN payment_orders po ON pod.id_payment_order = po.id_payment_order
+      WHERE pod.id_project = ? AND IFNULL(pod.monto_pagado, 0) > 0
+      GROUP BY po.fiscal_week
+      ORDER BY po.fiscal_week ASC;
+    `;
+
+    const queryTopProveedores = `
+      SELECT 
+        COALESCE(NULLIF(TRIM(provider), ''), 'Sin Proveedor') AS proveedor,
+        SUM(COALESCE(monto_pagado, 0)) AS total
+      FROM payment_order_details
+      WHERE id_project = ? AND IFNULL(monto_pagado, 0) > 0
+      GROUP BY proveedor
+      ORDER BY total DESC
+      LIMIT 5;
+    `;
+
+    const [filasRubros] = await connection.query(queryRubros, [id_project]);
+    const [filasComprometido] = await connection.query(queryComprometido, [id_project]);
+    const [filasMetodos] = await connection.query(queryMetodosPago, [id_project]);
+    const [filasFlujo] = await connection.query(queryFlujoSemanal, [id_project]);
+    const [filasProveedores] = await connection.query(queryTopProveedores, [id_project]);
+
+    const metrics = filasRubros[0] || {};
 
     const rubros = [
-      { 
-        nombre: 'Mano de Obra', 
-        autorizado: parseFloat(metrics.mano_obra_auth) || 0, 
-        ejecutado: parseFloat(metrics.mano_obra_ejecutado) || 0 
-      },
-      { 
-        nombre: 'Materiales', 
-        autorizado: parseFloat(metrics.materiales_auth) || 0, 
-        ejecutado: parseFloat(metrics.materiales_ejecutado) || 0 
-      },
-      { 
-        nombre: 'Maquinaria y Equipo', 
-        autorizado: parseFloat(metrics.maquinaria_auth) || 0, 
-        ejecutado: parseFloat(metrics.maquinaria_ejecutado) || 0 
-      },
-      { 
-        nombre: 'Contratos', 
-        autorizado: parseFloat(metrics.contratos_auth) || 0, 
-        ejecutado: parseFloat(metrics.contratos_ejecutado) || 0 
-      }
+      { nombre: 'Mano de Obra', autorizado: parseFloat(metrics.mano_obra_auth) || 0, ejecutado: parseFloat(metrics.mano_obra_ejecutado) || 0 },
+      { nombre: 'Materiales', autorizado: parseFloat(metrics.materiales_auth) || 0, ejecutado: parseFloat(metrics.materiales_ejecutado) || 0 },
+      { nombre: 'Maquinaria y Equipo', autorizado: parseFloat(metrics.maquinaria_auth) || 0, ejecutado: parseFloat(metrics.maquinaria_ejecutado) || 0 },
+      { nombre: 'Contratos', autorizado: parseFloat(metrics.contratos_auth) || 0, ejecutado: parseFloat(metrics.contratos_ejecutado) || 0 }
     ];
-
-    const totalAutorizado = parseFloat(metrics.total_auth) || 0;
-    const totalEjecutado = rubros.reduce((acc, r) => acc + r.ejecutado, 0);
 
     res.json({
       totales: {
-        autorizado: totalAutorizado,
-        ejecutado: totalEjecutado
+        autorizado: parseFloat(metrics.total_auth) || 0,
+        ejecutado: rubros.reduce((acc, r) => acc + r.ejecutado, 0),
+        comprometido: parseFloat(filasComprometido[0]?.total_comprometido) || 0
       },
-      rubros
+      rubros,
+      metodosPago: filasMetodos,
+      flujoSemanal: filasFlujo,
+      topProveedores: filasProveedores
     });
+
   } catch (error) {
-    console.error('Error al obtener métricas del dashboard:', error);
-    res.status(500).json({ error: 'Error al consultar métricas' });
+    console.error('Error al obtener métricas avanzadas del dashboard:', error);
+    res.status(500).json({ error: 'Error al consultar métricas del dashboard' });
   } finally {
     if (connection) connection.release();
   }
