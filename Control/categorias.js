@@ -156,11 +156,20 @@
                 document.getElementById("editCategoria").value = filaEncontrada.categoria || "";
                 document.getElementById("editSubcategoria").value = filaEncontrada.subcategoria || "";
                 
-                document.getElementById("editManoObra").value = parseFloat(filaEncontrada.mano_obra) || 0;
-                document.getElementById("editMateriales").value = parseFloat(filaEncontrada.materials || filaEncontrada.materiales) || 0;
-                document.getElementById("editMaquinaria").value = parseFloat(filaEncontrada.maquinaria_equipo) || 0;
-                document.getElementById("editContratos").value = parseFloat(filaEncontrada.contratos) || 0;
-                document.getElementById("editTotal").value = parseFloat(filaEncontrada.total) || 0;
+                const mo = parseFloat(filaEncontrada.mano_obra) || 0;
+                const mat = parseFloat(filaEncontrada.materials || filaEncontrada.materiales) || 0;
+                const maq = parseFloat(filaEncontrada.maquinaria_equipo) || 0;
+                const con = parseFloat(filaEncontrada.contratos) || 0;
+                const tot = parseFloat(filaEncontrada.total) || 0;
+
+                const esDeductiva = tot < 0 || mo < 0 || mat < 0 || maq < 0 || con < 0;
+                document.getElementById("editEsDeductiva").checked = esDeductiva;
+
+                document.getElementById("editManoObra").value = mo;
+                document.getElementById("editMateriales").value = mat;
+                document.getElementById("editMaquinaria").value = maq;
+                document.getElementById("editContratos").value = con;
+                document.getElementById("editTotal").value = tot;
 
                 camposEdicion.style.display = "block";
             }
@@ -173,12 +182,14 @@
                 const grupo = document.getElementById("addGrupo").value.trim();
                 const categoria = document.getElementById("addCategoria").value.trim();
                 const subcategoria = document.getElementById("addSubcategoria").value.trim();
+                const esDeductiva = document.getElementById("addEsDeductiva").checked;
+                const factor = esDeductiva ? -1 : 1;
                 
-                const mano_obra = parseFloat(document.getElementById("addManoObra").value) || 0;
-                const materiales = parseFloat(document.getElementById("addMateriales").value) || 0;
-                const maquinaria_equipo = parseFloat(document.getElementById("addMaquinaria").value) || 0;
-                const contratos = parseFloat(document.getElementById("addContratos").value) || 0;
-                const total = parseFloat(document.getElementById("addTotal").value) || 0;
+                const mano_obra = (Math.abs(parseFloat(document.getElementById("addManoObra").value)) || 0) * factor;
+                const materiales = (Math.abs(parseFloat(document.getElementById("addMateriales").value)) || 0) * factor;
+                const maquinaria_equipo = (Math.abs(parseFloat(document.getElementById("addMaquinaria").value)) || 0) * factor;
+                const contratos = (Math.abs(parseFloat(document.getElementById("addContratos").value)) || 0) * factor;
+                const total = (Math.abs(parseFloat(document.getElementById("addTotal").value)) || 0) * factor;
 
                 if (!grupo || !categoria) {
                     alert("⚠️ El Grupo y la Categoría son obligatorios.");
@@ -279,31 +290,36 @@
     }
 
     function configurarCalculosTotales() {
-        const inputsAdd = ["addManoObra", "addMateriales", "addMaquinaria", "addContratos"];
-        const inputsEdit = ["editManoObra", "editMateriales", "editMaquinaria", "editContratos"];
+        const inputsAdd = ["addManoObra", "addMateriales", "addMaquinaria", "addContratos", "addEsDeductiva"];
+        const inputsEdit = ["editManoObra", "editMateriales", "editMaquinaria", "editContratos", "editEsDeductiva"];
+
+        const calcularSumatoria = (moId, matId, maqId, conId, totalId, deductivaId) => {
+            const mo = Math.abs(parseFloat(document.getElementById(moId).value) || 0);
+            const mat = Math.abs(parseFloat(document.getElementById(matId).value) || 0);
+            const maq = Math.abs(parseFloat(document.getElementById(maqId).value) || 0);
+            const con = Math.abs(parseFloat(document.getElementById(conId).value) || 0);
+            const esDeductiva = document.getElementById(deductivaId)?.checked || false;
+
+            const factor = esDeductiva ? -1 : 1;
+            const subtotal = (mo + mat + maq + con) * factor;
+
+            document.getElementById(totalId).value = subtotal.toFixed(2);
+        };
 
         inputsAdd.forEach(id => {
-            const input = document.getElementById(id);
-            if (input) {
-                input.addEventListener("input", () => {
-                    const mo = parseFloat(document.getElementById("addManoObra").value) || 0;
-                    const mat = parseFloat(document.getElementById("addMateriales").value) || 0;
-                    const maq = parseFloat(document.getElementById("addMaquinaria").value) || 0;
-                    const con = parseFloat(document.getElementById("addContratos").value) || 0;
-                    document.getElementById("addTotal").value = (mo + mat + maq + con).toFixed(2);
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener(el.type === "checkbox" ? "change" : "input", () => {
+                    calcularSumatoria("addManoObra", "addMateriales", "addMaquinaria", "addContratos", "addTotal", "addEsDeductiva");
                 });
             }
         });
 
         inputsEdit.forEach(id => {
-            const input = document.getElementById(id);
-            if (input) {
-                input.addEventListener("input", () => {
-                    const mo = parseFloat(document.getElementById("editManoObra").value) || 0;
-                    const mat = parseFloat(document.getElementById("editMateriales").value) || 0;
-                    const maq = parseFloat(document.getElementById("editMaquinaria").value) || 0;
-                    const con = parseFloat(document.getElementById("editContratos").value) || 0;
-                    document.getElementById("editTotal").value = (mo + mat + maq + con).toFixed(2);
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener(el.type === "checkbox" ? "change" : "input", () => {
+                    calcularSumatoria("editManoObra", "editMateriales", "editMaquinaria", "editContratos", "editTotal", "editEsDeductiva");
                 });
             }
         });
@@ -341,10 +357,12 @@
         });
     }
 
+    // MODIFICADO: Limpiar la casilla deductiva al resetear el formulario
     function resetearFormularioAgregar() {
         document.getElementById("addGrupo").value = "";
         document.getElementById("addCategoria").value = "";
         document.getElementById("addSubcategoria").value = "";
+        document.getElementById("addEsDeductiva").checked = false;
         document.getElementById("addManoObra").value = "0.00";
         document.getElementById("addMateriales").value = "0.00";
         document.getElementById("addMaquinaria").value = "0.00";
