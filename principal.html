@@ -113,6 +113,13 @@
                         <p>Registro, modificación y eliminación de categorías</p>
                         <a href="Control/form_categorias.html" class="btn-tarjeta">Ir a Categorización</a>
                     </div>
+                    <!-- MODIFICACIÓN: Reubicación de tarjeta Dashboard de pagos a sub-panel de Control Operativo -->
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="control">
+                        <img src="img/dashboard.png" alt="Dashboard" class="icono-tarjeta">
+                        <h2>Dashboard de pagos</h2>
+                        <p>Consulta los egresos por proyecto en tiempo real</p>
+                        <a href="https://app.powerbi.com/" target="_blank" class="btn-tarjeta" rel="noopener noreferrer">Ir a Dashboard</a>
+                    </div>
 
                     <!-- ==========================================
                          NIVEL 1: SUB-PANEL DE FINANZAS (Oculto al inicio)
@@ -153,19 +160,12 @@
                         <p>Verifica los montos asignados y límites por categoría de obra</p>
                         <a href="Finanzas/tabla_presupuestos.html" class="btn-tarjeta">Ir a Presupuestos</a>
                     </div>
-                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="finanzas">
-                        <img src="img/dashboard.png" alt="Dashboard" class="icono-tarjeta">
-                        <h2>Dashboard de pagos</h2>
-                        <p>Consulta los egresos por proyecto en tiempo real</p>
-                        <a href="https://app.powerbi.com/" target="_blank" class="btn-tarjeta" rel="noopener noreferrer">Ir a Dashboard</a>
-                    </div>
 
                 </div>
             </div>
         </div>
     </main>
 
-    <!-- 🛡️ MODIFICACIÓN: Se reubica el botón de cerrar sesión en el footer a la extrema derecha -->
     <footer id="footer">
         <p>Software especializado MODISA ® 2026</p>
         <a href="#" id="btn-logout" class="btn-logout-footer">Cerrar sesión</a>
