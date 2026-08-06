@@ -480,6 +480,23 @@
         const tbody = document.querySelector(".cuerpoTabla");
         if (!tbody) return;
 
+        tbody.addEventListener('focusin', (e) => {
+            if (e.target.classList.contains('input-monto-pagado')) {
+                e.target.select();
+            }
+        });
+
+        tbody.addEventListener('focusout', (e) => {
+            if (e.target.classList.contains('input-monto-pagado')) {
+                const valorLimpio = e.target.value.trim();
+                if (valorLimpio === '' || isNaN(valorLimpio)) {
+                    e.target.value = 0;
+                } else {
+                    e.target.value = parseFloat(valorLimpio);
+                }
+            }
+        });
+
         tbody.addEventListener('change', async (e) => {
             if (e.target.classList.contains('input-monto-pagado')) {
                 const inputElement = e.target;
