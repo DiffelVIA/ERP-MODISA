@@ -1810,7 +1810,21 @@ app.get('/api/pagos', async (req, res) => {
             LEFT JOIN projects p ON po.id_project = p.id_project
             LEFT JOIN projects p_det ON pod.id_project = p_det.id_project
             LEFT JOIN project_categories pc ON pod.id_project_category = pc.id_project_category
-            LEFT JOIN contracts c ON LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider))
+
+            LEFT JOIN (
+                SELECT c1.*
+                FROM contracts c1
+                INNER JOIN (
+                    SELECT 
+                        LOWER(TRIM(supplier)) AS supplier_clean, 
+                        COALESCE(id_project, 0) AS proj_id,
+                        MAX(id_contract) AS max_id
+                    FROM contracts
+                    GROUP BY LOWER(TRIM(supplier)), COALESCE(id_project, 0)
+                ) c2 ON c1.id_contract = c2.max_id
+            ) c ON LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider))
+               AND (c.id_project = pod.id_project OR c.id_project = po.id_project OR c.id_project IS NULL)
+
             LEFT JOIN project_categories c_pc ON c.id_project_category = c_pc.id_project_category
             ORDER BY po.id_payment_order DESC;
         `;
