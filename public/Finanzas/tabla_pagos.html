@@ -3,25 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Consulta de Materiales</title>
+    <title>Consulta de Pagos</title>
     <script src="/timeout.js"> </script>
-    <link rel="icon" type="image/x-icon" href="../img/MODISA-favicon.ico">
-    <link rel="stylesheet" href="../styles.css">
+    <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
+    <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
     <header id="header">
         <div>
-            <img src="../img/logo.png" alt="logo" id="logo">
+            <img src="/img/logo.png" alt="logo" id="logo">
         </div>
         <nav>
             <ul>
-                <li><a href="../principal.html?panel=finanzas">Volver a Panel Principal</a></li>
+                <li><a href="/principal.html?panel=finanzas">Volver a Panel Principal</a></li>
             </ul>
         </nav>
     </header>
+
     <main class="main-tabla">
-        <h1>Consulta de Materiales</h1>
+        <h1>Consulta de Pagos</h1>
         <div class="contenedorFiltros">
+            <button type="button" id="descargar" class="btn">Descargar Excel</button>
 
             <div class="filtros" id="dropdownObra">
                 <button type="button" class="btn-dropdown">Filtro Obra ▾</button>
@@ -29,21 +31,15 @@
                 </div>
             </div>
 
-            <div class="filtros" id="dropdownSolicitante">
-                <button type="button" class="btn-dropdown">Filtro Solicitante ▾</button>
-                <div class="contenido-dropdown" id="filtroSolicitante">
+            <div class="filtros" id="dropdownForma">
+                <button type="button" class="btn-dropdown">Filtro Forma de Pago ▾</button>
+                <div class="contenido-dropdown" id="filtroForma">
                 </div>
             </div>
 
             <div class="filtros" id="dropdownEstado">
                 <button type="button" class="btn-dropdown">Filtro Estado ▾</button>
                 <div class="contenido-dropdown" id="filtroEstado">
-                </div>
-            </div>
-
-            <div class="filtros" id="dropdownProveedor">
-                <button type="button" class="btn-dropdown">Filtro Proveedor ▾</button>
-                <div class="contenido-dropdown" id="filtroProveedor">
                 </div>
             </div>
 
@@ -58,32 +54,28 @@
                 <div class="contenido-dropdown" id="filtroSemana">
                 </div>
             </div>
-
-            <div class="contenedor-botones">
-                <button type="button" id="descargar" class="btn">Descargar</button>
-            </div>
         </div>  
 
         <div class="tabla">
             <table>
                 <thead>
                     <tr>
-                        <th>Solicitante</th>
                         <th>Obra</th>
                         <th>Fecha</th>
                         <th>Semana</th>
+                        <th>Tipo</th>
+                        <th>Forma de Pago</th>
+                        <th>Comentario Solicitante</th>
                         <th>Grupo</th>
                         <th>Categoría</th>
                         <th>Subcategoría</th>
-                        <th>Descripción</th>
-                        <th>Unidad</th>
-                        <th>Cantidad</th>
-                        <th>Comentario</th>
                         <th>Proveedor</th>
-                        <th>Referencia</th>
-                        <th>Precio Unitario</th>
-                        <th>Monto cotizado</th>
+                        <th>Concepto</th>
+                        <th>Monto Total</th>
+                        <th>Monto Pagado</th>
+                        <th>Porcentaje Pagado</th>
                         <th>Estado</th>
+                        <th>Comentario Compras</th>
                     </tr>
                 </thead>
                 <tbody class="cuerpoTabla">
@@ -91,14 +83,14 @@
             </table>
         </div>
     </main>
-
+    
     <footer id="footer">
         <p>Software especializado MODISA ®</p>
-        <p>Esta aplicación web está diseñada exclusivamente para la consulta y gestión de solicitudes de materiales</p>
+        <p>Esta aplicación web está diseñada exclusivamente para controlar los pagos solicitados y efectuados</p>
     </footer>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="tablaMateriales.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="tablaPagos.js"></script>
 
 </body>
 </html>
