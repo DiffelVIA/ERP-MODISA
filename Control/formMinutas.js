@@ -128,7 +128,8 @@
     });
   }
 
-  document.querySelector('form').addEventListener('submit', function(event) {event.preventDefault();
+  document.querySelector('form').addEventListener('submit', function(event) {
+    event.preventDefault();
     
     const actividadFlotante = document.getElementById('actividad').value.trim();
     const responsableFlotante = document.getElementById('responsable').value;
@@ -162,102 +163,10 @@
       return;
     }
 
-    const actividadesParaPDF = [...actividadesAcumuladas];
-
-    ejecutarGeneracionPDF(actividadesParaPDF);
-    procesarEnvioNube(actividadesParaPDF);
+    const actividadesParaGuardar = [...actividadesAcumuladas];
+    procesarEnvioNube(actividadesParaGuardar);
   });
 
-  function ejecutarGeneracionPDF(actividadesParaPDF) {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-
-    const today = new Date();
-    const day = String(today.getDate()).padStart(2, '0');
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const year = today.getFullYear();
-
-    const semanaFiscalCalculada = actividadesParaPDF[0].semana;
-    const proyectoBase = actividadesParaPDF[0].proyecto;
-    const proyectoSinEspacios = proyectoBase.replace(/ /g,'_');
-
-    const fechaHoy= new Date();
-    const primeraFechaAnio = new Date(fechaHoy.getFullYear(), 0, 1);
-    const diasPasados = Math.floor((fechaHoy - primeraFechaAnio) / (1000 * 60 * 60 * 24));
-    const semanaFiscalHoy = Math.ceil((diasPasados + primeraFechaAnio.getDay() + 1) / 7);
-
-    const rutaLogoLocal = '../img/logo-negro.png';
-    const img = new Image();
-
-    function procesarEstructuraPDF() {
-      doc.addImage(img, 'PNG', 15, 12, 40, 12);
-      doc.setTextColor(6, 18, 30);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.text(`Minuta_${proyectoSinEspacios}_Semana:${semanaFiscalHoy}`, 75, 22);
-      doc.setDrawColor(203,213,225);
-      doc.setLineWidth(0.5);
-      doc.line(15,38,195,38);
-
-      armarCuerpoPDF(doc, actividadesParaPDF);
-      doc.save(`Minuta_${proyectoSinEspacios}_semana_${semanaFiscalHoy}.pdf`);
-    }
-
-    img.onload = function() {
-      procesarEstructuraPDF();
-    };
-
-    img.onerror = function() {
-      console.warn("Logo no encontrado. Se genera PDF son Logo");
-      procesarEstructuraPDF();
-    };
-
-    img.src = rutaLogoLocal;
-  }
-
-  function armarCuerpoPDF(doc, listaDeActividades) {
-    doc.setTextColor(51, 65, 85);
-    let coordenadaY = 55;
-
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text("Resumen de Actividades Asignadas", 15, coordenadaY);
-    coordenadaY += 8;
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    const proyectoGeneral = listaDeActividades[0] ? listaDeActividades[0].proyecto : 'Sin Proyecto';
-    doc.text(`Proyecto: ${proyectoGeneral}`, 15, coordenadaY);
-    coordenadaY += 10;
-
-    listaDeActividades.forEach(function(item, indice) {
-      if (coordenadaY > 260) {
-        doc.addPage();
-        coordenadaY = 25;
-      }
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.text(`Actividad ${indice + 1}:`, 15, coordenadaY);
-
-      doc.setFont("helvetica", "normal");
-      doc.text(`Responsable: ${item.responsable} | Límite: ${item.fecha}`, 42, coordenadaY);
-
-      coordenadaY +=6;
-      let textoCompleto = `Descripción: ${item.descripcion}`;
-      const comentarioTexto = item.comentarioDirector ? String(item.comentarioDirector).trim() : '';
-      if (comentarioTexto !== "") {
-        textoCompleto += `\nComentario: ${comentarioTexto}`;
-      }
-
-      const textoAjustado = doc.splitTextToSize(textoCompleto ,175); 
-      doc.text(textoAjustado,15,coordenadaY);
-      coordenadaY += (textoAjustado.length * 5) + 10;
-
-      doc.setDrawColor(226,232,240);
-      doc.line(15, coordenadaY - 5, 195, coordenadaY-5);
-    });
-  }
 
   async function procesarEnvioNube(listaDeActividades) {
     try {
@@ -277,7 +186,6 @@
       });
 
       if (!respuesta.ok) {
-
         const errorBackend = await respuesta.json().catch(() => ({}));
         throw new Error(errorBackend.detalle || 'Error en la respuesta del servidor');
       }
@@ -294,7 +202,8 @@
       alert('¡Minuta guardada con éxito');
     } catch (error) {
       console.error('Error al conectar el backend:', error);
-      alert('❌ Error al conectar con la base de datos. Se generó PDF local de respaldo');
+
+      alert(`❌ Error al conectar con la base de datos: ${error.message || 'Verifica tu conexión a internet o el servidor'}`);
     }
   }
 
