@@ -1,10 +1,10 @@
+// MODIFICACIÓN DE SEGURIDAD Y ESTABILIZACIÓN DE SESIÓN (JWT)
 (() => {
     const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
         ? 'http://localhost:3000/api' 
         : 'https://erp-modisa.onrender.com/api';
 
     let ROL_USUARIO = '';
-    const TOKEN_SESION = sessionStorage.getItem('authToken');
 
     window.addEventListener('pageshow', (event) => {
         if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
@@ -12,12 +12,8 @@
         }
     });
 
-    if (!TOKEN_SESION || !sessionStorage.getItem('usuarioMODISA')) {
-        window.location.replace('/');
-        return;
-    }
-
     document.addEventListener("DOMContentLoaded", async () => {
+        // Se valida la sesión directamente contra el backend antes de renderizar la interfaz
         const autenticado = await validarSesionConServidor();
         if (!autenticado) return;
 
@@ -127,11 +123,12 @@
     });
 
     async function validarSesionConServidor() {
+        // Obtención dinámica del token en tiempo de ejecución
         const tokenActual = sessionStorage.getItem('authToken');
+        const usuarioLocal = sessionStorage.getItem('usuarioMODISA');
 
-        if (!tokenActual) {
-            sessionStorage.clear();
-            window.location.replace('/');
+        if (!tokenActual || !usuarioLocal) {
+            limpiarYSalir();
             return false;
         }
 
@@ -141,26 +138,30 @@
                     'Authorization': `Bearer ${tokenActual}`
                 }
             });
+
             if (res.status === 401 || res.status === 403) {
-                console.warn("⚠️ Sesión expirada o no autorizada por el servidor.");
-                sessionStorage.clear();
-                localStorage.removeItem('userRol');
-                window.location.replace('/');
+                limpiarYSalir();
                 return false;
             }
 
             if (!res.ok) {
-                throw new Error(`Respuesta inesperada del servidor: ${res.status}`);
+                throw new Error(`Error en el servidor de autenticación: ${res.status}`);
             }
 
             const datos = await res.json();
             ROL_USUARIO = datos.rol || '';
             return true;
-
         } catch (error) {
-            console.error("❌ Error de comunicación con el servidor de autenticación:", error);
+            console.error("❌ Error de verificación de sesión:", error);
             return false;
         }
+    }
+
+    function limpiarYSalir() {
+        sessionStorage.removeItem('authToken');
+        sessionStorage.removeItem('usuarioMODISA');
+        localStorage.removeItem('userRol');
+        window.location.replace('/');
     }
 
     function renderizarSaludoUsuario() {
@@ -193,6 +194,7 @@
 
     async function cargarNotificacionesMinutas() {
         try {
+            const tokenActual = sessionStorage.getItem('authToken');
             const rawSesion = sessionStorage.getItem('usuarioMODISA');
             let nombreUsuario = '';
 
@@ -205,7 +207,7 @@
 
             const res = await fetch(`${API_URL}/notificaciones/minutas-resumen`, {
                 headers: {
-                    'Authorization': `Bearer ${TOKEN_SESION}`,
+                    'Authorization': `Bearer ${tokenActual}`,
                     'x-usuario-nombre': nombreUsuario
                 }
             });
@@ -269,46 +271,8 @@
     if (btnLogout) {
         btnLogout.addEventListener('click', (e) => {
             e.preventDefault(); 
-            
-            localStorage.removeItem('userRol');
-            sessionStorage.removeItem('authToken');
-            sessionStorage.removeItem('usuarioMODISA');
-            
-            window.location.replace("/"); 
+            limpiarYSalir();
         });
     }
-
-    function procesarFiltrosUrl() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const estadoParam = urlParams.get('estado');
-        const responsableParam = urlParams.get('responsable');
-
-        let hayFiltrosUrl = false;
-
-        if (estadoParam) {
-            const estadoLimpio = decodeURIComponent(estadoParam).toLowerCase().trim();
-            const checkboxesEstado = document.querySelectorAll('.chk-estado');
-            checkboxesEstado.forEach(chk => {
-                if (chk.value.toLowerCase().trim() === estadoLimpio) {
-                    chk.checked = true;
-                    hayFiltrosUrl = true;
-                }
-            });
-        }
-
-        if (responsableParam) {
-            const respLimpio = decodeURIComponent(responsableParam).toLowerCase().trim();
-            const checkboxesResp = document.querySelectorAll('.chk-responsable');
-            checkboxesResp.forEach(chk => {
-                if (chk.value.toLowerCase().trim() === respLimpio) {
-                    chk.checked = true;
-                    hayFiltrosUrl = true;
-                }
-            });
-        }
-
-        if (hayFiltrosUrl) {
-            aplicarFiltros();
-        }
-    }
 })();
+// FIN DE LA MODIFICACIÓN
