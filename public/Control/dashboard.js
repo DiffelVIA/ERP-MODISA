@@ -5,6 +5,15 @@
         ? 'http://localhost:3000/api' 
         : 'https://erp-modisa.onrender.com/api';
 
+    // Función auxiliar para obtener los encabezados con el token JWT de forma segura y dinámica
+    function getAuthHeaders(headersExtra = {}) {
+        const token = localStorage.getItem('token') || '';
+        return {
+            ...headersExtra,
+            "Authorization": token ? `Bearer ${token}` : ''
+        };
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         const ROLES_PERMITIDOS = [
             'Director General',
@@ -43,14 +52,8 @@
 
         async function cargarProyectos() {
             try {
-                const usuarioMODISA = JSON.parse(sessionStorage.getItem('usuarioMODISA')) || {};
-                const idEmployee = usuarioMODISA.id_employee || localStorage.getItem('id_employee') || '';
-
                 const res = await fetch(`${API_URL}/proyectos`, {
-                    headers: {
-                        'x-employee-id': idEmployee,
-                        'x-user-rol': localStorage.getItem('userRol') || ''
-                    }
+                    headers: getAuthHeaders()
                 });
 
                 if (!res.ok) {
@@ -78,7 +81,14 @@
 
         async function cargarDatosDashboard(idProyecto) {
             try {
-                const res = await fetch(`${API_URL}/dashboard/metrics/${idProyecto}`);
+                const res = await fetch(`${API_URL}/dashboard/metrics/${idProyecto}`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (!res.ok) {
+                    throw new Error(`Error en el servidor: ${res.status} ${res.statusText}`);
+                }
+
                 const data = await res.json();
 
                 actualizarKPIs(data.totales);
