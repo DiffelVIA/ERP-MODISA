@@ -12,15 +12,27 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { Readable } = require('stream');
 const app = express();
+
+if (!process.env.JWT_SECRET) {
+  console.error("❌ ERROR CRÍTICO: La variable de entorno JWT_SECRET no está configurada en el servidor.");
+}
+
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // Middleware para verificar Token JWT en peticiones
 const verificarAutenticacion = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
+
   if (!token) {
     return res.status(401).json({ error: 'Acceso denegado: Token no proporcionado.' });
   }
+
+  if (!JWT_SECRET) {
+    console.error("❌ ERROR: Imposible verificar JWT, JWT_SECRET no existe en las variables de entorno.");
+    return res.status(500).json({ error: 'Error de configuración en el servidor.' });
+  }
+
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.usuario = decoded;
@@ -30,8 +42,26 @@ const verificarAutenticacion = (req, res, next) => {
   }
 };
 
-// Middlewares globales y servidor de archivos estáticos
-app.use(cors());
+// Middlewares globales y configuración explícita de CORS
+const origenesPermitidos = [
+  'https://modisa-erp.vercel.app',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || origenesPermitidos.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(null, true);
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-usuario-nombre', 'x-user-rol'],
+  credentials: true
+}));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
