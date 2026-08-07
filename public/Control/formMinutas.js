@@ -1,8 +1,7 @@
 (() => {
-  const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
+  'use strict';
 
   let actividadesAcumuladas = [];
-  let TOKEN_SESION = sessionStorage.getItem('authToken');
 
   document.addEventListener('DOMContentLoaded', async () => {
 
@@ -21,19 +20,10 @@
   });
 
   async function validarPermisosAcceso() {
-    if (!TOKEN_SESION) {
-      mostrarAccesoDenegado();
-      return false;
-    }
-
     try {
-      const respuesta = await fetch(`${API_URL}/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${TOKEN_SESION}`
-        }
-      });
+      const respuesta = await apiFetch('/auth/me');
 
-      if (!respuesta.ok) throw new Error('Sesión no autorizada');
+      if (!respuesta || !respuesta.ok) throw new Error('Sesión no autorizada');
 
       const datos = await respuesta.json();
       const rolLimpio = datos.rol ? datos.rol.trim().toLowerCase() : '';
@@ -71,12 +61,8 @@
     if (!selectResponsable) return;
 
     try {
-      const respuesta = await fetch(`${API_URL}/empleados/gestion`, {
-        headers: {
-          'Authorization': `Bearer ${TOKEN_SESION}`
-        }
-      });
-      if (!respuesta.ok) throw new Error('Error al traer empleados');
+      const respuesta = await apiFetch('/empleados/gestion');
+      if (!respuesta || !respuesta.ok) throw new Error('Error al traer empleados');
 
       const empleados = await respuesta.json();
       selectResponsable.innerHTML = '<option value="">-- Selecciona un responsable --</option>';
@@ -99,12 +85,8 @@
     if (!selectProyecto) return;
 
     try {
-      const respuesta = await fetch(`${API_URL}/proyectos`, {
-        headers: {
-          'Authorization': `Bearer ${TOKEN_SESION}`
-        }
-      });
-      if (!respuesta.ok) throw new Error('Error al obtener los proyectos');
+      const respuesta = await apiFetch('/proyectos');
+      if (!respuesta || !respuesta.ok) throw new Error('Error al obtener los proyectos');
 
       const proyectos = await respuesta.json();
 
@@ -176,7 +158,6 @@
       if(actividadFlotante && responsableFlotante && proyectoFlotante && fechaFlotante) {
         const fechaHoy = new Date();
         const semanaFiscal = obtenerNumeroSemana(fechaHoy);
-        const inputAvance = document.getElementById('avance');
         const comentarioInput = document.getElementById('comentarioDirector');
         const comentario = comentarioInput ? comentarioInput.value.trim() : '';
 
@@ -211,17 +192,13 @@
         comentarioDirector: act.comentarioDirector ? String(act.comentarioDirector).trim() : ''
       }));
 
-      const respuesta = await fetch(`${API_URL}/tabla_minutas`, {
+      const respuesta = await apiFetch('/tabla_minutas', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${TOKEN_SESION}`
-        },
         body: JSON.stringify(datosSanitizados)
       });
 
-      if (!respuesta.ok) {
-        const errorBackend = await respuesta.json().catch(() => ({}));
+      if (!respuesta || !respuesta.ok) {
+        const errorBackend = respuesta ? await respuesta.json().catch(() => ({})) : {};
         throw new Error(errorBackend.detalle || 'Error en la respuesta del servidor');
       }
 
@@ -234,7 +211,7 @@
       if (formulario) formulario.reset();
 
       document.getElementById('actividad').focus();
-      alert('¡Minuta guardada con éxito');
+      alert('¡Minuta guardada con éxito!');
     } catch (error) {
       console.error('Error al conectar el backend:', error);
 
