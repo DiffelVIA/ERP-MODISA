@@ -171,8 +171,6 @@ const createRawMessage = ({ from, to, subject, html }) => {
 };
 
 // Endpoint para login de usuario
-const JWT_SECRET = process.env.JWT_SECRET;
-
 app.post('/api/auth/login', async (req, res) => {
   const { correo, contrasena } = req.body;
   try {
