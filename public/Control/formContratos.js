@@ -1,5 +1,5 @@
 (() => {
-    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
+    'use strict';
 
     let categoriasCache = [];
 
@@ -71,10 +71,10 @@
                 headers['x-employee-id'] = empId;
             }
 
-            const response = await fetch(`${API_BASE}/proyectos`, { headers });
+            const response = await apiFetch('/proyectos', { headers });
             const selectProy = document.getElementById("proyecto");
 
-            if (response.ok) {
+            if (response && response.ok) {
                 const proyectos = await response.json();
                 selectProy.innerHTML = '<option value="">-- Selecciona --</option>';
                 proyectos.forEach(p => {
@@ -103,8 +103,8 @@
             if (!idProyecto) return;
 
             try {
-                const response = await fetch(`${API_BASE}/proyectos/${idProyecto}/categorias`);
-                if (!response.ok) throw new Error("No se pudieron cargar las categorías.");
+                const response = await apiFetch(`/proyectos/${idProyecto}/categorias`);
+                if (!response || !response.ok) throw new Error("No se pudieron cargar las categorías.");
 
                 categoriasCache = await response.json();
                 const gruposUnicos = [...new Set(categoriasCache.map(c => c.grupo))].sort();
@@ -197,7 +197,7 @@
             formData.append("total_amount", document.getElementById("monto").value);
 
             try {
-                const response = await fetch(`${API_BASE}/contratos`, {
+                const response = await apiFetch('/contratos', {
                     method: "POST",
                     headers: { 
                         "x-user-rol": sesionUsuario ? sesionUsuario.rol : ""
@@ -205,7 +205,7 @@
                     body: formData
                 });
 
-                if (response.ok) {
+                if (response && response.ok) {
                     alert("🎉 ¡Contrato y PDF registrados con éxito en MODISA!");
                     e.target.reset();
                     resetSelect(document.getElementById("grupo"), "-- Selecciona Proyecto Primero --", true);
@@ -214,7 +214,7 @@
                     
                     inicializarFechas();
                     cargarDatosUsuarioLogueado(); 
-                } else {
+                } else if (response) {
                     const errData = await response.json();
                     alert(`❌ Error del servidor: ${errData.error || "No se pudo guardar."}`);
                 }

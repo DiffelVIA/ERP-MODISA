@@ -1,19 +1,6 @@
 (() => {
     'use strict';
 
-    const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-        ? 'http://localhost:3000/api' 
-        : 'https://erp-modisa.onrender.com/api';
-
-    // Función auxiliar para obtener los encabezados con el token JWT de forma segura y dinámica
-    function getAuthHeaders(headersExtra = {}) {
-        const token = localStorage.getItem('token') || '';
-        return {
-            ...headersExtra,
-            "Authorization": token ? `Bearer ${token}` : ''
-        };
-    }
-
     document.addEventListener('DOMContentLoaded', () => {
         const ROLES_PERMITIDOS = [
             'Director General',
@@ -52,12 +39,10 @@
 
         async function cargarProyectos() {
             try {
-                const res = await fetch(`${API_URL}/proyectos`, {
-                    headers: getAuthHeaders()
-                });
+                const res = await apiFetch('/proyectos');
 
-                if (!res.ok) {
-                    throw new Error(`Error en el servidor: ${res.status} ${res.statusText}`);
+                if (!res || !res.ok) {
+                    throw new Error(`Error en el servidor al cargar proyectos`);
                 }
 
                 const proyectos = await res.json();
@@ -81,12 +66,10 @@
 
         async function cargarDatosDashboard(idProyecto) {
             try {
-                const res = await fetch(`${API_URL}/dashboard/metrics/${idProyecto}`, {
-                    headers: getAuthHeaders()
-                });
+                const res = await apiFetch(`/dashboard/metrics/${idProyecto}`);
 
-                if (!res.ok) {
-                    throw new Error(`Error en el servidor: ${res.status} ${res.statusText}`);
+                if (!res || !res.ok) {
+                    throw new Error(`Error en el servidor al cargar métricas`);
                 }
 
                 const data = await res.json();
