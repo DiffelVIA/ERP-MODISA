@@ -1,14 +1,7 @@
 (() => {
-    const ROL_AUTORIZADO = ["Gerente de Costos", "Director Operativo"];
+    'use strict';
 
-    // Función auxiliar para obtener el header Authorization centralizado y seguro
-    function getAuthHeaders(headersExtra = {}) {
-        const token = localStorage.getItem('token') || '';
-        return {
-            ...headersExtra,
-            "Authorization": token ? `Bearer ${token}` : ''
-        };
-    }
+    const ROL_AUTORIZADO = ["Gerente de Costos", "Director Operativo"];
 
     document.addEventListener("DOMContentLoaded", () => {
 
@@ -46,8 +39,6 @@
         configurarCalculosTotales = () => {};
     }
 
-    const BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000' : 'https://erp-modisa.onrender.com';
-
     let archivoSeleccionado = null;
     let listaCategoriasCache = []; 
     let idRegistroSeleccionado = null; 
@@ -55,10 +46,8 @@
     async function cargarProyectosDestino() {
         const select = document.getElementById("selectProyecto");
         try {
-            const res = await fetch(`${BASE_URL}/api/projects-report`, {
-                headers: getAuthHeaders()
-            });
-            if (!res.ok) throw new Error("Error al consultar proyectos");
+            const res = await apiFetch("/projects-report");
+            if (!res || !res.ok) throw new Error("Error al consultar proyectos");
             const proys = await res.json();
             proys.forEach(p => {
                 const opt = document.createElement("option");
@@ -207,16 +196,15 @@
                 }
 
                 try {
-                    const res = await fetch(`${BASE_URL}/api/project-categories`, {
+                    const res = await apiFetch("/project-categories", {
                         method: "POST",
-                        headers: getAuthHeaders({
-                            "Content-Type": "application/json"
-                        }),
                         body: JSON.stringify({ 
                             id_project: idProject, grupo, categoria, subcategoria, 
                             mano_obra, materiales, maquinaria_equipo, contratos, total 
                         })
                     });
+                    
+                    if (!res) return;
                     const data = await res.json();
                     if (!res.ok) throw new Error(data.error || "Fallo al insertar");
 
@@ -249,16 +237,15 @@
                 }
 
                 try {
-                    const res = await fetch(`${BASE_URL}/api/project-categories/${idRegistroSeleccionado}`, {
+                    const res = await apiFetch(`/project-categories/${idRegistroSeleccionado}`, {
                         method: "PUT",
-                        headers: getAuthHeaders({
-                            "Content-Type": "application/json"
-                        }),
                         body: JSON.stringify({ 
                             grupo, categoria, subcategoria, 
                             mano_obra, materiales, maquinaria_equipo, contratos, total 
                         })
                     });
+
+                    if (!res) return;
                     const data = await res.json();
                     if (!res.ok) throw new Error(data.error || "Fallo al actualizar");
 
@@ -279,10 +266,11 @@
                 if (!confirm("⚠️ ¿Estás completamente seguro de eliminar esta línea de categoría y sus costos?")) return;
 
                 try {
-                    const res = await fetch(`${BASE_URL}/api/project-categories/${idRegistroSeleccionado}`, { 
-                        method: "DELETE",
-                        headers: getAuthHeaders()
+                    const res = await apiFetch(`/project-categories/${idRegistroSeleccionado}`, { 
+                        method: "DELETE"
                     });
+
+                    if (!res) return;
                     const data = await res.json();
                     if (!res.ok) throw new Error(data.error || "Fallo al eliminar");
 
@@ -335,10 +323,8 @@
 
     async function cargarCategoriasProyecto(idProject) {
         try {
-            const res = await fetch(`${BASE_URL}/api/project-categories/${idProject}`, {
-                headers: getAuthHeaders()
-            });
-            if (!res.ok) throw new Error("Error al obtener catálogo actual");
+            const res = await apiFetch(`/project-categories/${idProject}`);
+            if (!res || !res.ok) throw new Error("Error al obtener catálogo actual");
             listaCategoriasCache = await res.json();
         } catch (e) {
             listaCategoriasCache = [];
@@ -475,14 +461,14 @@
             reader.onload = async function (evt) {
                 const contenidoTexto = evt.target.result;
                 try {
-                    const response = await fetch(`${BASE_URL}/api/upload-hierarchy`, {
+                    const response = await apiFetch("/upload-hierarchy", {
                         method: 'POST',
-                        headers: getAuthHeaders({
-                            'Content-Type': 'application/json'
-                        }),
                         body: JSON.stringify({ id_project: idProject, csvData: contenidoTexto })
                     });
+
+                    if (!response) return;
                     const resultado = await response.json();
+
                     if (response.ok) {
                         alert("✨ Matriz presupuestal inyectada con éxito a MySQL.");
                         form.reset();
