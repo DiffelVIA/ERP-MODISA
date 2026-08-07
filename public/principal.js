@@ -3,22 +3,28 @@
         ? 'http://localhost:3000/api' 
         : 'https://erp-modisa.onrender.com/api';
 
+    let ROL_USUARIO = '';
+    const TOKEN_SESION = sessionStorage.getItem('authToken');
+
     window.addEventListener('pageshow', (event) => {
         if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
             window.location.reload();
         }
     });
 
-    if (!localStorage.getItem('userRol') || !sessionStorage.getItem('usuarioMODISA')) {
+    if (!TOKEN_SESION || !sessionStorage.getItem('usuarioMODISA')) {
         window.location.replace('/');
+        return;
     }
 
-    document.addEventListener("DOMContentLoaded", () => {
+    document.addEventListener("DOMContentLoaded", async () => {
+        const autenticado = await validarSesionConServidor();
+        if (!autenticado) return;
+
         renderizarSaludoUsuario();
         cargarNotificacionesMinutas();
         configurarEventosTarjetasKPI();
 
-        const rolUsuario = localStorage.getItem('userRol');
         const ventana = document.querySelector('.carrusel-ventana');
         const trackContenedor = document.getElementById('carrusel-track');
         
@@ -30,8 +36,9 @@
         const tarjetasMaster = document.querySelectorAll('.tarjeta-master');
         const tarjetasSub = document.querySelectorAll('.tarjeta-sub');
         const tarjetaEmpleados = document.getElementById('tarjeta-empleados');
+
         if (tarjetaEmpleados) {
-            const rolLimpio = rolUsuario ? rolUsuario.trim().toLowerCase() : '';
+            const rolLimpio = ROL_USUARIO ? ROL_USUARIO.trim().toLowerCase() : '';
             
             const rolesPermitidosEmpleados = [
                 'director operativo',
@@ -119,6 +126,28 @@
         }
     });
 
+    async function validarSesionConServidor() {
+        try {
+            const res = await fetch(`${API_URL}/auth/me`, {
+                headers: {
+                    'Authorization': `Bearer ${TOKEN_SESION}`
+                }
+            });
+
+            if (!res.ok) throw new Error("Sesión inválida o expirada");
+
+            const datos = await res.json();
+            ROL_USUARIO = datos.rol || '';
+            return true;
+        } catch (error) {
+            console.error("❌ Error de autenticación con el servidor:", error);
+            sessionStorage.clear();
+            localStorage.removeItem('userRol');
+            window.location.replace('/');
+            return false;
+        }
+    }
+
     function renderizarSaludoUsuario() {
         const saludoElem = document.getElementById('saludo-texto');
         if (!saludoElem) return;
@@ -161,6 +190,7 @@
 
             const res = await fetch(`${API_URL}/notificaciones/minutas-resumen`, {
                 headers: {
+                    'Authorization': `Bearer ${TOKEN_SESION}`,
                     'x-usuario-nombre': nombreUsuario
                 }
             });
@@ -226,6 +256,7 @@
             e.preventDefault(); 
             
             localStorage.removeItem('userRol');
+            sessionStorage.removeItem('authToken');
             sessionStorage.removeItem('usuarioMODISA');
             
             window.location.replace("/"); 
@@ -233,36 +264,36 @@
     }
 
     function procesarFiltrosUrl() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const estadoParam = urlParams.get('estado');
-    const responsableParam = urlParams.get('responsable');
+        const urlParams = new URLSearchParams(window.location.search);
+        const estadoParam = urlParams.get('estado');
+        const responsableParam = urlParams.get('responsable');
 
-    let hayFiltrosUrl = false;
+        let hayFiltrosUrl = false;
 
-    if (estadoParam) {
-      const estadoLimpio = decodeURIComponent(estadoParam).toLowerCase().trim();
-      const checkboxesEstado = document.querySelectorAll('.chk-estado');
-      checkboxesEstado.forEach(chk => {
-        if (chk.value.toLowerCase().trim() === estadoLimpio) {
-          chk.checked = true;
-          hayFiltrosUrl = true;
+        if (estadoParam) {
+            const estadoLimpio = decodeURIComponent(estadoParam).toLowerCase().trim();
+            const checkboxesEstado = document.querySelectorAll('.chk-estado');
+            checkboxesEstado.forEach(chk => {
+                if (chk.value.toLowerCase().trim() === estadoLimpio) {
+                    chk.checked = true;
+                    hayFiltrosUrl = true;
+                }
+            });
         }
-      });
-    }
 
-    if (responsableParam) {
-      const respLimpio = decodeURIComponent(responsableParam).toLowerCase().trim();
-      const checkboxesResp = document.querySelectorAll('.chk-responsable');
-      checkboxesResp.forEach(chk => {
-        if (chk.value.toLowerCase().trim() === respLimpio) {
-          chk.checked = true;
-          hayFiltrosUrl = true;
+        if (responsableParam) {
+            const respLimpio = decodeURIComponent(responsableParam).toLowerCase().trim();
+            const checkboxesResp = document.querySelectorAll('.chk-responsable');
+            checkboxesResp.forEach(chk => {
+                if (chk.value.toLowerCase().trim() === respLimpio) {
+                    chk.checked = true;
+                    hayFiltrosUrl = true;
+                }
+            });
         }
-      });
-    }
 
-    if (hayFiltrosUrl) {
-      aplicarFiltros();
+        if (hayFiltrosUrl) {
+            aplicarFiltros();
+        }
     }
-  }
 })();
