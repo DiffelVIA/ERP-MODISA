@@ -44,12 +44,10 @@
                 contenedorLogin.style.display = "none";
                 contenedorCambio.style.display = "block";
             } else {
-                localStorage.setItem("userRol", datos.rol);
-
+                sessionStorage.setItem("authToken", datos.token);
                 sessionStorage.setItem("usuarioMODISA", JSON.stringify({
                     id_employee: datos.id_employee,
-                    nombre: datos.nombre || datos.usuario || usuarioActual,
-                    rol: datos.rol || "Director Operativo",
+                    nombre: datos.nombre,
                     loginTime: Date.now()
                 }));
                 window.location.href = "principal.html";
@@ -94,12 +92,13 @@
                 return;
             }
 
-            localStorage.setItem("userRol", datos.rol || "Director Operativo");
+            if (datos.token) {
+                sessionStorage.setItem("authToken", datos.token);
+            }
 
             sessionStorage.setItem("usuarioMODISA", JSON.stringify({
                 id_employee: datos.id_employee,
-                nombre: datos.nombre || datos.usuario || usuarioActual,
-                rol: datos.rol || "Director Operativo",
+                nombre: datos.nombre || usuarioActual,
                 loginTime: Date.now()
             }));
 
@@ -123,13 +122,13 @@
     };
 
     window.addEventListener('pageshow', () => {
-        if (localStorage.getItem('userRol') && sessionStorage.getItem('usuarioMODISA')) {
+        if (sessionStorage.getItem('authToken') && sessionStorage.getItem('usuarioMODISA')) {
             window.location.replace('principal.html');
             return;
         }
 
         localStorage.removeItem('userRol');
-        sessionStorage.removeItem('usuarioMODISA');
+        sessionStorage.clear();
         if (inputUsuario) inputUsuario.value = "";
         if (inputContrasena) inputContrasena.value = "";
     });

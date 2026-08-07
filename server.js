@@ -9,8 +9,26 @@ const { google } = require('googleapis');
 const path = require('path');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const { Readable } = require('stream');
 const app = express();
+const JWT_SECRET = process.env.JWT_SECRET;
+
+// Middleware para verificar Token JWT en peticiones
+const verificarAutenticacion = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'Acceso denegado: Token no proporcionado.' });
+  }
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.usuario = decoded;
+    next();
+  } catch (err) {
+    return res.status(403).json({ error: 'Token inválido o expirado. Sesión no autorizada.' });
+  }
+};
 
 // Middlewares globales y servidor de archivos estáticos
 app.use(cors());
@@ -119,6 +137,16 @@ app.get('/api/auth/google/callback', async (req, res) => {
 });
 
 // ======== INICIO DE SESIÓN Y RECUPERACIÓN DE CONTRASEÑA
+
+// Endpoint para obtener información del usuario autenticado mediante JWT
+app.get('/api/auth/me', verificarAutenticacion, (req, res) => {
+  res.json({
+    id_employee: req.usuario.id_employee,
+    nombre: req.usuario.nombre,
+    rol: req.usuario.rol
+  });
+});
+
 // Endpoint para recuperación de contraseña olvidada
 app.get('/recuperar.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'recuperar.html'));
@@ -158,11 +186,28 @@ app.post('/api/auth/login', async (req, res) => {
     if (!coinciden) {
       return res.status(401).json({ mensaje: 'Contraseña Incorrecta' });
     }
+    if (usuarioBD.first_entry === 1) {
+      return res.json({
+        id_employee: usuarioBD.id_employee,
+        nombre: usuarioBD.name,
+        primerIngreso: true
+      });
+    }
+    const token = jwt.sign(
+      {
+        id_employee: usuarioBD.id_employee,
+        nombre: usuarioBD.name,
+        rol: usuarioBD.job_title
+      },
+      JWT_SECRET,
+      { expiresIn: '12h' }
+    );
     res.json({
+      token,
       id_employee: usuarioBD.id_employee,
       nombre: usuarioBD.name,
       rol: usuarioBD.job_title,
-      primerIngreso: usuarioBD.first_entry === 1 
+      primerIngreso: false
     });
   } catch (error) {
     console.error(error);
