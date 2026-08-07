@@ -2,26 +2,12 @@
   const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
 
   let actividadesAcumuladas = [];
+  let TOKEN_SESION = sessionStorage.getItem('authToken');
 
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
 
-    const rolUsuario = localStorage.getItem('userRol');
-    
-    if (rolUsuario !== "Director Operativo") {
-      const mainContent = document.querySelector('.form_main');
-      if (mainContent) {
-        mainContent.innerHTML = `
-          <div style="text-align: center; padding: 60px 20px; font-family: sans-serif;">
-            <div style="font-size: 64px; margin-bottom: 20px;">🔒</div>
-            <h1 style="color: #1e293b; font-size: 28px; margin-bottom: 10px; font-weight: bold;">Acceso Denegado</h1>
-            <p style="color: #64748b; font-size: 16px; max-width: 400px; margin: 0 auto 30px auto; line-height: 1.5;">
-              No tienes los permisos necesarios para ver esta sección.
-            </p>
-          </div>
-        `;
-        return;
-      }
-    }
+    const autenticado = await validarPermisosAcceso();
+    if (!autenticado) return;
 
     cargarResponsablesDesdeNube();
     cargarProyectosDesdeNube();
@@ -34,6 +20,52 @@
     });
   });
 
+  async function validarPermisosAcceso() {
+    if (!TOKEN_SESION) {
+      mostrarAccesoDenegado();
+      return false;
+    }
+
+    try {
+      const respuesta = await fetch(`${API_URL}/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${TOKEN_SESION}`
+        }
+      });
+
+      if (!respuesta.ok) throw new Error('Sesión no autorizada');
+
+      const datos = await respuesta.json();
+      const rolLimpio = datos.rol ? datos.rol.trim().toLowerCase() : '';
+
+      if (rolLimpio !== "director operativo" && rolLimpio !== "director_operativo") {
+        mostrarAccesoDenegado();
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error al verificar sesión:', error);
+      mostrarAccesoDenegado();
+      return false;
+    }
+  }
+
+  function mostrarAccesoDenegado() {
+    const mainContent = document.querySelector('.form_main');
+    if (mainContent) {
+      mainContent.innerHTML = `
+        <div style="text-align: center; padding: 60px 20px; font-family: sans-serif;">
+          <div style="font-size: 64px; margin-bottom: 20px;">🔒</div>
+          <h1 style="color: #1e293b; font-size: 28px; margin-bottom: 10px; font-weight: bold;">Acceso Denegado</h1>
+          <p style="color: #64748b; font-size: 16px; max-width: 400px; margin: 0 auto 30px auto; line-height: 1.5;">
+            No tienes los permisos necesarios para ver esta sección.
+          </p>
+        </div>
+      `;
+    }
+  }
+
   async function cargarResponsablesDesdeNube() {
     const selectResponsable = document.getElementById('responsable');
     if (!selectResponsable) return;
@@ -41,7 +73,7 @@
     try {
       const respuesta = await fetch(`${API_URL}/empleados/gestion`, {
         headers: {
-          'x-user-rol': localStorage.getItem('userRol') || ''
+          'Authorization': `Bearer ${TOKEN_SESION}`
         }
       });
       if (!respuesta.ok) throw new Error('Error al traer empleados');
@@ -67,7 +99,11 @@
     if (!selectProyecto) return;
 
     try {
-      const respuesta = await fetch(`${API_URL}/proyectos`);
+      const respuesta = await fetch(`${API_URL}/proyectos`, {
+        headers: {
+          'Authorization': `Bearer ${TOKEN_SESION}`
+        }
+      });
       if (!respuesta.ok) throw new Error('Error al obtener los proyectos');
 
       const proyectos = await respuesta.json();
@@ -91,40 +127,40 @@
 
   if (botonAgregar) {
     botonAgregar.addEventListener('click', function(event) {
-    const actividad = document.getElementById('actividad').value.trim();
-    const responsable = document.getElementById('responsable').value;
-    const proyecto = document.getElementById('proyecto').value;
-    const fecha = document.getElementById('fecha').value;
+      const actividad = document.getElementById('actividad').value.trim();
+      const responsable = document.getElementById('responsable').value;
+      const proyecto = document.getElementById('proyecto').value;
+      const fecha = document.getElementById('fecha').value;
 
-    if(!actividad || !responsable || !proyecto || !fecha) {
-      alert('Por favor, añade los campos antes de guardar la actividad');
-      return;
-    }
+      if(!actividad || !responsable || !proyecto || !fecha) {
+        alert('Por favor, añade los campos antes de guardar la actividad');
+        return;
+      }
 
-    const fechaHoy = new Date();
-    const semanaFiscalCalculada = obtenerNumeroSemana(fechaHoy);
-    const comentarioInput = document.getElementById('comentarioDirector');
-    const comentario = comentarioInput ? comentarioInput.value.trim() : '';
+      const fechaHoy = new Date();
+      const semanaFiscalCalculada = obtenerNumeroSemana(fechaHoy);
+      const comentarioInput = document.getElementById('comentarioDirector');
+      const comentario = comentarioInput ? comentarioInput.value.trim() : '';
 
-    const actividadNueva = {
-      id: 'id_' + Math.random().toString(36).substr(2, 9),
-      proyecto: proyecto,
-      responsable: responsable,
-      semana: semanaFiscalCalculada,
-      fecha: fecha,
-      descripcion: actividad,
-      estado: 'pendiente',
-      comentarioDirector: comentario
-    };
+      const actividadNueva = {
+        id: 'id_' + Math.random().toString(36).substr(2, 9),
+        proyecto: proyecto,
+        responsable: responsable,
+        semana: semanaFiscalCalculada,
+        fecha: fecha,
+        descripcion: actividad,
+        estado: 'pendiente',
+        comentarioDirector: comentario
+      };
 
-    actividadesAcumuladas.push(actividadNueva);
-    alert('Actividad registrada temporalmente');
+      actividadesAcumuladas.push(actividadNueva);
+      alert('Actividad registrada temporalmente');
 
-    document.getElementById('actividad').value = '';
-    document.getElementById('responsable').value = '';
-    document.getElementById('fecha').value='';
-    document.getElementById('comentarioDirector').value = '';
-    document.getElementById('actividad').focus();
+      document.getElementById('actividad').value = '';
+      document.getElementById('responsable').value = '';
+      document.getElementById('fecha').value='';
+      document.getElementById('comentarioDirector').value = '';
+      document.getElementById('actividad').focus();
     });
   }
 
@@ -167,7 +203,6 @@
     procesarEnvioNube(actividadesParaGuardar);
   });
 
-
   async function procesarEnvioNube(listaDeActividades) {
     try {
       const datosSanitizados = listaDeActividades.map(act => ({
@@ -180,7 +215,7 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-rol': localStorage.getItem('userRol') || ''
+          'Authorization': `Bearer ${TOKEN_SESION}`
         },
         body: JSON.stringify(datosSanitizados)
       });
