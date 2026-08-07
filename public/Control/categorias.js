@@ -1,6 +1,15 @@
 (() => {
     const ROL_AUTORIZADO = ["Gerente de Costos", "Director Operativo"];
 
+    // Función auxiliar para obtener el header Authorization centralizado y seguro
+    function getAuthHeaders(headersExtra = {}) {
+        const token = localStorage.getItem('token') || '';
+        return {
+            ...headersExtra,
+            "Authorization": token ? `Bearer ${token}` : ''
+        };
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
 
         const rolActual = localStorage.getItem('userRol') ? localStorage.getItem('userRol').trim() : '';
@@ -46,7 +55,9 @@
     async function cargarProyectosDestino() {
         const select = document.getElementById("selectProyecto");
         try {
-            const res = await fetch(`${BASE_URL}/api/projects-report`);
+            const res = await fetch(`${BASE_URL}/api/projects-report`, {
+                headers: getAuthHeaders()
+            });
             if (!res.ok) throw new Error("Error al consultar proyectos");
             const proys = await res.json();
             proys.forEach(p => {
@@ -198,10 +209,9 @@
                 try {
                     const res = await fetch(`${BASE_URL}/api/project-categories`, {
                         method: "POST",
-                        headers: { 
-                            "Content-Type": "application/json",
-                            "x-user-rol": localStorage.getItem('userRol') || '' 
-                        },
+                        headers: getAuthHeaders({
+                            "Content-Type": "application/json"
+                        }),
                         body: JSON.stringify({ 
                             id_project: idProject, grupo, categoria, subcategoria, 
                             mano_obra, materiales, maquinaria_equipo, contratos, total 
@@ -241,10 +251,9 @@
                 try {
                     const res = await fetch(`${BASE_URL}/api/project-categories/${idRegistroSeleccionado}`, {
                         method: "PUT",
-                        headers: { 
-                            "Content-Type": "application/json",
-                            "x-user-rol": localStorage.getItem('userRol') || ''
-                        },
+                        headers: getAuthHeaders({
+                            "Content-Type": "application/json"
+                        }),
                         body: JSON.stringify({ 
                             grupo, categoria, subcategoria, 
                             mano_obra, materiales, maquinaria_equipo, contratos, total 
@@ -272,7 +281,7 @@
                 try {
                     const res = await fetch(`${BASE_URL}/api/project-categories/${idRegistroSeleccionado}`, { 
                         method: "DELETE",
-                        headers: { "x-user-rol": localStorage.getItem('userRol') || '' }
+                        headers: getAuthHeaders()
                     });
                     const data = await res.json();
                     if (!res.ok) throw new Error(data.error || "Fallo al eliminar");
@@ -326,7 +335,9 @@
 
     async function cargarCategoriasProyecto(idProject) {
         try {
-            const res = await fetch(`${BASE_URL}/api/project-categories/${idProject}`);
+            const res = await fetch(`${BASE_URL}/api/project-categories/${idProject}`, {
+                headers: getAuthHeaders()
+            });
             if (!res.ok) throw new Error("Error al obtener catálogo actual");
             listaCategoriasCache = await res.json();
         } catch (e) {
@@ -466,10 +477,9 @@
                 try {
                     const response = await fetch(`${BASE_URL}/api/upload-hierarchy`, {
                         method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json',
-                            "x-user-rol": localStorage.getItem('userRol') || ''
-                        },
+                        headers: getAuthHeaders({
+                            'Content-Type': 'application/json'
+                        }),
                         body: JSON.stringify({ id_project: idProject, csvData: contenidoTexto })
                     });
                     const resultado = await response.json();
