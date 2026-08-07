@@ -1,5 +1,5 @@
 (() => {
-    const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
+    'use strict';
 
     const ROLES_PERMITIDOS = ["Director Operativo", "Subdirector de Obra", "Gerente Administración", "Compras"];
 
@@ -40,15 +40,9 @@
         if (!selectResponsable) return;
 
         try {
-            const response = await fetch(`${API_URL}/empleados/gestion`, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-user-rol": localStorage.getItem('userRol') || ''
-                }
-            });
+            const response = await apiFetch('/empleados/gestion');
 
-            if (!response.ok) throw new Error(`Estado HTTP: ${response.status}`);
+            if (!response || !response.ok) throw new Error(`Estado HTTP: ${response ? response.status : 'Desconocido'}`);
 
             const empleados = await response.json();
             selectResponsable.innerHTML = '<option value="">-- Selecciona --</option>';
@@ -84,14 +78,14 @@
         }
 
         try {
-            const response = await fetch(`${API_URL}/projects`, {
+            const response = await apiFetch('/projects', {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-user-rol": localStorage.getItem('userRol')
-                },
                 body: JSON.stringify(formData)
             });
+
+            if (!response) {
+                throw new Error("No se pudo obtener respuesta del servidor.");
+            }
 
             const data = await response.json();
 
