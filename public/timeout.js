@@ -1,8 +1,14 @@
 (() => {
-    if (!localStorage.getItem('userRol') || !sessionStorage.getItem('usuarioMODISA')) {
+    // MODIFICACIÓN DE VALIDACIÓN DE SESIÓN (JWT)
+    // Se valida el token y la sesión usando sessionStorage en lugar de la clave inexistente userRol
+    const tokenSesion = sessionStorage.getItem('authToken');
+    const usuarioSesion = sessionStorage.getItem('usuarioMODISA');
+
+    if (!tokenSesion || !usuarioSesion) {
         window.location.replace('/'); 
         return;
     }
+    // FIN DE LA MODIFICACIÓN
 
     window.addEventListener('pageshow', (event) => {
         if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
@@ -16,8 +22,9 @@
     function cerrarSesionPorInactividad() {
         console.warn("⚠️ Sesión expirada debido a inactividad prolongada.");
         
-        localStorage.removeItem('userRol');
+        sessionStorage.removeItem('authToken');
         sessionStorage.removeItem('usuarioMODISA');
+        localStorage.removeItem('userRol');
 
         alert("Tu sesión ha expirado por inactividad. Por favor, inicia sesión de nuevo.");
         window.location.replace('/'); 
