@@ -1360,20 +1360,26 @@ app.get('/api/contratos', async (req, res) => {
                 CASE 
                     WHEN LOWER(TRIM(c.status)) = 'rechazado' OR LOWER(TRIM(c.status_direccion)) = 'rechazado' OR LOWER(TRIM(c.estado_costos)) = 'rechazado' THEN 'Rechazado'
                     WHEN c.total_amount > 0 AND (
-                        SELECT IFNULL(SUM(IFNULL(po_sub.monto_pagado, 0)), 0)
-                        FROM payment_orders po_sub
-                        INNER JOIN payment_order_details pod_sub ON po_sub.id_payment_order = pod_sub.id_payment_order
-                        WHERE LOWER(TRIM(pod_sub.provider)) = LOWER(TRIM(c.supplier))
-                          AND po_sub.payment_type IN ('contratista', 'especifico')
+                        SELECT IFNULL(SUM(IFNULL(pod_sub.monto_pagado, 0)), 0)
+                        FROM payment_order_details pod_sub
+                        INNER JOIN payment_orders po_sub ON pod_sub.id_payment_order = po_sub.id_payment_order
+                        WHERE pod_sub.id_project = c.id_project
+                          AND pod_sub.id_project_category = c.id_project_category
+                          AND LOWER(TRIM(pod_sub.provider)) = LOWER(TRIM(c.supplier))
+                          AND LOWER(TRIM(IFNULL(po_sub.status, ''))) != 'rechazado'
+                          AND LOWER(TRIM(IFNULL(pod_sub.status, ''))) != 'rechazado'
                     ) >= c.total_amount THEN 'Pagado'
                     ELSE 'Pendiente'
                 END AS status,
                 IFNULL((
-                    SELECT SUM(IFNULL(po_sub.monto_pagado, 0))
-                    FROM payment_orders po_sub
-                    INNER JOIN payment_order_details pod_sub ON po_sub.id_payment_order = pod_sub.id_payment_order
-                    WHERE LOWER(TRIM(pod_sub.provider)) = LOWER(TRIM(c.supplier))
-                      AND po_sub.payment_type IN ('contratista', 'especifico')
+                    SELECT SUM(IFNULL(pod_sub.monto_pagado, 0))
+                    FROM payment_order_details pod_sub
+                    INNER JOIN payment_orders po_sub ON pod_sub.id_payment_order = po_sub.id_payment_order
+                    WHERE pod_sub.id_project = c.id_project
+                      AND pod_sub.id_project_category = c.id_project_category
+                      AND LOWER(TRIM(pod_sub.provider)) = LOWER(TRIM(c.supplier))
+                      AND LOWER(TRIM(IFNULL(po_sub.status, ''))) != 'rechazado'
+                      AND LOWER(TRIM(IFNULL(pod_sub.status, ''))) != 'rechazado'
                 ), 0) AS monto_pagado
             FROM contracts c
             LEFT JOIN projects p ON c.id_project = p.id_project
