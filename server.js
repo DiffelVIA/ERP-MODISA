@@ -171,6 +171,8 @@ const createRawMessage = ({ from, to, subject, html }) => {
 };
 
 // Endpoint para login de usuario
+const JWT_SECRET = process.env.JWT_SECRET;
+
 app.post('/api/auth/login', async (req, res) => {
   const { correo, contrasena } = req.body;
   try {
@@ -193,6 +195,7 @@ app.post('/api/auth/login', async (req, res) => {
         primerIngreso: true
       });
     }
+
     const token = jwt.sign(
       {
         id_employee: usuarioBD.id_employee,
@@ -202,6 +205,7 @@ app.post('/api/auth/login', async (req, res) => {
       JWT_SECRET,
       { expiresIn: '12h' }
     );
+
     res.json({
       token,
       id_employee: usuarioBD.id_employee,
