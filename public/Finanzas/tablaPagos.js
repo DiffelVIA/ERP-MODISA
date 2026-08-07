@@ -72,7 +72,10 @@
         const formas = extraerUnicos(i => i.payment_method);
         const estados = extraerUnicos(i => i.status || 'Pendiente');
         const semanas = extraerUnicos(i => i.fiscal_week ? `Semana ${i.fiscal_week}` : null);
-        const tipos = extraerUnicos(i => i.payment_type);
+        const tipos = extraerUnicos(i => i.payment_type).map(clave => ({
+            value: clave,
+            label: mapaTiposPago[clave] || mapaTiposPago[clave.toLowerCase()] || clave
+        }));
         llenarDropdownHTML('filtroObra', obras, 'obra');
         llenarDropdownHTML('filtroTipo', tipos, 'tipo');
         llenarDropdownHTML('filtroForma', formas, 'forma');
@@ -121,18 +124,18 @@
     function llenarDropdownHTML(containerId, listaOpciones, dataGroup, seleccionadosPrevios = []) {
         const container = document.getElementById(containerId);
         if (!container) return;
-
         if (listaOpciones.length === 0) {
             container.innerHTML = '<p style="padding: 8px; color: #94a3b8; font-size: 13px;">Sin opciones</p>';
             return;
         }
-
         container.innerHTML = listaOpciones.map(opcion => {
-            const estaMarcado = seleccionadosPrevios.includes(opcion) ? 'checked' : '';
+            const val = typeof opcion === 'object' && opcion !== null ? opcion.value : opcion;
+            const label = typeof opcion === 'object' && opcion !== null ? opcion.label : opcion;
+            const estaMarcado = seleccionadosPrevios.includes(val) ? 'checked' : '';
             return `
                 <label style="display: block; padding: 6px 12px; cursor: pointer; font-size: 13px; color: #334155;">
-                    <input type="checkbox" class="filtro-chk" data-group="${dataGroup}" value="${opcion}" ${estaMarcado} style="margin-right: 8px;">
-                    ${opcion}
+                    <input type="checkbox" class="filtro-chk" data-group="${dataGroup}" value="${val}" ${estaMarcado} style="margin-right: 8px;">
+                    ${label}
                 </label>
             `;
         }).join('');
