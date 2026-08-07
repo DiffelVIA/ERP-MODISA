@@ -127,23 +127,38 @@
     });
 
     async function validarSesionConServidor() {
+        const tokenActual = sessionStorage.getItem('authToken');
+
+        if (!tokenActual) {
+            sessionStorage.clear();
+            window.location.replace('/');
+            return false;
+        }
+
         try {
             const res = await fetch(`${API_URL}/auth/me`, {
                 headers: {
-                    'Authorization': `Bearer ${TOKEN_SESION}`
+                    'Authorization': `Bearer ${tokenActual}`
                 }
             });
+            if (res.status === 401 || res.status === 403) {
+                console.warn("⚠️ Sesión expirada o no autorizada por el servidor.");
+                sessionStorage.clear();
+                localStorage.removeItem('userRol');
+                window.location.replace('/');
+                return false;
+            }
 
-            if (!res.ok) throw new Error("Sesión inválida o expirada");
+            if (!res.ok) {
+                throw new Error(`Respuesta inesperada del servidor: ${res.status}`);
+            }
 
             const datos = await res.json();
             ROL_USUARIO = datos.rol || '';
             return true;
+
         } catch (error) {
-            console.error("❌ Error de autenticación con el servidor:", error);
-            sessionStorage.clear();
-            localStorage.removeItem('userRol');
-            window.location.replace('/');
+            console.error("❌ Error de comunicación con el servidor de autenticación:", error);
             return false;
         }
     }
