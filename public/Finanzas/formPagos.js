@@ -5,6 +5,8 @@
     let categoriasCargadas = [];
     let contratosCargados = [];
     let idCategoryContratoActivo = null;
+    // VARIABLE AGREGADA: Control del ID del contrato seleccionado
+    let idContractActivo = null;
 
     document.addEventListener('DOMContentLoaded', () => {
         inicializarCamposFechas();
@@ -219,6 +221,8 @@
                     const provInput = document.getElementById('proveedor');
                     if (provInput) provInput.value = '';
                     idCategoryContratoActivo = null; 
+                    // MODIFICACIÓN: Reset de ID contrato activo
+                    idContractActivo = null;
                     return;
                 }
 
@@ -226,6 +230,8 @@
                 if (provInput) provInput.value = contrato.supplier || '';
                 
                 idCategoryContratoActivo = contrato.id_project_category || null;
+                // MODIFICACIÓN: Capturar ID del contrato seleccionado
+                idContractActivo = contrato.id_contract || null;
 
                 inyectarOpcionBloqueada('grupo', contrato.grupo);
                 inyectarOpcionBloqueada('categoria', contrato.categoria);
@@ -372,8 +378,12 @@
         }
 
         let idCategoryFinal = null;
+        // MODIFICACIÓN: Variable para almacenar la relación explícita con el contrato
+        let idContractFinal = null;
+
         if (tipo === 'contratista') {
             idCategoryFinal = idCategoryContratoActivo;
+            idContractFinal = idContractActivo;
         } else {
             const registroMatch = categoriasCargadas.find(c => 
                 String(c.grupo).trim() === String(grupo).trim() && 
@@ -381,12 +391,15 @@
                 String(c.subcategoria).trim() === String(subcategoria).trim()
             );
             idCategoryFinal = registroMatch ? registroMatch.id_project_category : null;
+            idContractFinal = null;
         }
 
         const nuevoConcepto = {
             id_project: parseInt(idProyectoSel),
             nombre_proyecto: nombreProyectoSel,
             id_project_category: idCategoryFinal, 
+            // MODIFICACIÓN: Propiedad id_contract incluida en el objeto que se enviará
+            id_contract: idContractFinal ? parseInt(idContractFinal) : null,
             payment_type: tipo,
             payment_method: formaPago,
             provider_name: proveedor,
@@ -538,7 +551,6 @@
         }
     }
 
-
     function renderizarMiniTabla() {
         const contenedorVacio = document.getElementById('tabla-conceptos-vacia');
         const tablaElemento = document.getElementById('tabla-mini-conceptos');
@@ -628,6 +640,8 @@
 
     function restaurarControlesCascada(limpiarTodo = false) {
         idCategoryContratoActivo = null; 
+        // MODIFICACIÓN: Limpiar también el contrato activo al restaurar controles
+        idContractActivo = null; 
         ['grupo', 'categoria', 'subcategoria'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {

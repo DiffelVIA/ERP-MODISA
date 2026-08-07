@@ -1363,9 +1363,7 @@ app.get('/api/contratos', async (req, res) => {
                         SELECT IFNULL(SUM(IFNULL(pod_sub.monto_pagado, 0)), 0)
                         FROM payment_order_details pod_sub
                         INNER JOIN payment_orders po_sub ON pod_sub.id_payment_order = po_sub.id_payment_order
-                        WHERE pod_sub.id_project = c.id_project
-                          AND pod_sub.id_project_category = c.id_project_category
-                          AND LOWER(TRIM(pod_sub.provider)) = LOWER(TRIM(c.supplier))
+                        WHERE pod_sub.id_contract = c.id_contract
                           AND LOWER(TRIM(IFNULL(po_sub.status, ''))) != 'rechazado'
                           AND LOWER(TRIM(IFNULL(pod_sub.status, ''))) != 'rechazado'
                     ) >= c.total_amount THEN 'Pagado'
@@ -1375,9 +1373,7 @@ app.get('/api/contratos', async (req, res) => {
                     SELECT SUM(IFNULL(pod_sub.monto_pagado, 0))
                     FROM payment_order_details pod_sub
                     INNER JOIN payment_orders po_sub ON pod_sub.id_payment_order = po_sub.id_payment_order
-                    WHERE pod_sub.id_project = c.id_project
-                      AND pod_sub.id_project_category = c.id_project_category
-                      AND LOWER(TRIM(pod_sub.provider)) = LOWER(TRIM(c.supplier))
+                    WHERE pod_sub.id_contract = c.id_contract
                       AND LOWER(TRIM(IFNULL(po_sub.status, ''))) != 'rechazado'
                       AND LOWER(TRIM(IFNULL(pod_sub.status, ''))) != 'rechazado'
                 ), 0) AS monto_pagado
@@ -1474,10 +1470,12 @@ app.post('/api/pagos', upload.any(), async (req, res) => {
     );
     const id_payment_order = resOrder.insertId;
     console.log(`📝 Insertando Cabecera de Pagos ID: #${id_payment_order}. Total conceptos a procesar: ${listaConceptos.length}`);
+    
+    // MODIFICACIÓN: Inclusión de la columna id_contract en la consulta INSERT
     const queryDetails = `
       INSERT INTO payment_order_details 
-        (id_payment_order, id_project, id_project_category, payment_type, payment_method, provider, concept_description, amount, commentary, ticket_url) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id_payment_order, id_project, id_project_category, id_contract, payment_type, payment_method, provider, concept_description, amount, commentary, ticket_url) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     for (let i = 0; i < listaConceptos.length; i++) {
       const item = listaConceptos[i];
@@ -1497,10 +1495,13 @@ app.post('/api/pagos', upload.any(), async (req, res) => {
           console.error(`❌ Fallo al subir ticket de la posición ${i}:`, errDrive.message);
         }
       }
+      
+      // MODIFICACIÓN: Pasar el parámetro item.id_contract || null en los valores de la query
       await connection.query(queryDetails, [
         id_payment_order, 
         item.id_project || id_project,
         item.id_project_category || null, 
+        item.id_contract || null,
         item.payment_type || payment_type,
         item.payment_method || payment_method,
         item.provider_name || item.provider || null, 
