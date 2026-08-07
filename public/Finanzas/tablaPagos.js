@@ -68,13 +68,13 @@
 
     function poblarFiltrosEfectivos(lista) {
         const extraerUnicos = (keyExtractor) => Array.from(new Set(lista.map(keyExtractor).filter(Boolean))).sort();
-
         const obras = extraerUnicos(i => i.project_name);
         const formas = extraerUnicos(i => i.payment_method);
         const estados = extraerUnicos(i => i.status || 'Pendiente');
         const semanas = extraerUnicos(i => i.fiscal_week ? `Semana ${i.fiscal_week}` : null);
-
+        const tipos = extraerUnicos(i => i.payment_type);
         llenarDropdownHTML('filtroObra', obras, 'obra');
+        llenarDropdownHTML('filtroTipo', tipos, 'tipo');
         llenarDropdownHTML('filtroForma', formas, 'forma');
         llenarDropdownHTML('filtroEstado', estados, 'estado');
         llenarDropdownHTML('filtroSemana', semanas, 'semana');
@@ -140,16 +140,14 @@
 
     function aplicarFiltrosMultiples() {
         poblarFiltroFecha(todosLosPagos);
-
         const obtenerSeleccionados = (group) => 
             Array.from(document.querySelectorAll(`.filtro-chk[data-group="${group}"]:checked`)).map(c => c.value);
-
         const selObras = obtenerSeleccionados('obra');
         const selFormas = obtenerSeleccionados('forma');
         const selEstados = obtenerSeleccionados('estado');
         const selFechas = obtenerSeleccionados('fecha');
         const selSemanas = obtenerSeleccionados('semana');
-
+        const selTipos = obtenerSeleccionados('tipo');
         const filtrados = todosLosPagos.filter(item => {
             const fechaTxt = item.request_date ? formatearFechaLocal(item.request_date) : '';
             const semanaTxt = item.fiscal_week ? `Semana ${item.fiscal_week}` : '';
@@ -159,10 +157,9 @@
             const matchEstado = selEstados.length === 0 || selEstados.includes(estadoTxt);
             const matchFecha = selFechas.length === 0 || selFechas.includes(fechaTxt);
             const matchSemana = selSemanas.length === 0 || selSemanas.includes(semanaTxt);
-
-            return matchObra && matchForma && matchEstado && matchFecha && matchSemana;
+            const matchTipo = selTipos.length === 0 || selTipos.includes(item.payment_type);
+            return matchObra && matchForma && matchEstado && matchFecha && matchSemana && matchTipo;
         });
-
         pagosFiltradosActuales = filtrados;
         renderizarTablaPagos(filtrados);
     }
