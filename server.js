@@ -2033,7 +2033,12 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
                     id_project_category,
                     SUM(COALESCE(quoted_amount, (quantity * unit_price), 0)) AS total_mat
                 FROM order_details
-                WHERE LOWER(COALESCE(status, '')) IN ('cotizado', 'comprado', 'aprobado', 'pendiente')
+                /* =========================================================================
+                   MODIFICACIÓN: Se remueven los estados 'cotizado' y 'pendiente' del WHERE.
+                   Ahora solo los materiales con estatus 'comprado' se contemplan como 
+                   monto ejecutado en la tabla de presupuestos autorizados.
+                   ========================================================================= */
+                WHERE LOWER(COALESCE(status, '')) IN ('comprado')
                 GROUP BY id_project_category
             ) mat ON pc.id_project_category = mat.id_project_category
 
@@ -2069,11 +2074,6 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
 
                 FROM payment_order_details pod
                 INNER JOIN payment_orders po ON pod.id_payment_order = po.id_payment_order
-                /* =========================================================================
-                   MODIFICACIÓN: Se reemplaza el JOIN de cadenas por nombre de proveedor 
-                   (LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider))) por la relación exacta 
-                   de llave foránea (c.id_contract = pod.id_contract).
-                   ========================================================================= */
                 LEFT JOIN contracts c ON c.id_contract = pod.id_contract
 
                 WHERE IFNULL(pod.monto_pagado, 0) > 0
