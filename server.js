@@ -1813,7 +1813,22 @@ app.get('/api/pagos', async (req, res) => {
             LEFT JOIN projects p ON po.id_project = p.id_project
             LEFT JOIN projects p_det ON pod.id_project = p_det.id_project
             LEFT JOIN project_categories pc ON pod.id_project_category = pc.id_project_category
-            LEFT JOIN contracts c ON LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider))
+
+            LEFT JOIN (
+                SELECT 
+                    LOWER(TRIM(supplier)) AS supplier_clean,
+                    id_project_category,
+                    firma,
+                    start_date,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY LOWER(TRIM(supplier)), IFNULL(id_project_category, 0) 
+                        ORDER BY start_date DESC
+                    ) AS rn
+                FROM contracts
+            ) c ON c.supplier_clean = LOWER(TRIM(pod.provider)) 
+               AND (c.id_project_category = pod.id_project_category OR pod.id_project_category IS NULL)
+               AND c.rn = 1
+
             LEFT JOIN project_categories c_pc ON c.id_project_category = c_pc.id_project_category
             ORDER BY po.id_payment_order DESC;
         `;
