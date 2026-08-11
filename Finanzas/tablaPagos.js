@@ -486,14 +486,13 @@
                 const trFila = inputElement.closest('tr');
                 if (!trFila) return;
 
-                const idOrden = inputElement.getAttribute('data-id');
+                const idDetalleUnico = inputElement.getAttribute('data-id');
                 const presupuestoAutorizado = parseFloat(inputElement.getAttribute('data-presupuesto') || 0);
                 const nuevoMontoPagado = parseFloat(inputElement.value) || 0;
 
                 const cellTotal = trFila.querySelector('.monto-total-celda');
                 const montoTotal = cellTotal ? parseFloat(cellTotal.getAttribute('data-total') || 0) : 0;
 
-                const porcentajeActualizado = montoTotal > 0 ? Math.round((nuevoMontoPagado / montoTotal) * 100) : 0;
                 const semaforo = calcularSemaforoPresupuesto(nuevoMontoPagado, montoTotal);
 
                 const tdPorcentaje = trFila.querySelector('.porcentaje-celda')?.closest('td');
@@ -510,16 +509,16 @@
                     badgeEstado.style.backgroundColor = esPagado ? '#16a34a' : '#eab308';
                 }
 
-                await guardarMontoPagadoEnBD(idOrden, nuevoMontoPagado, trFila);
+                await guardarMontoPagadoEnBD(idDetalleUnico, nuevoMontoPagado, trFila);
             }
 
             if (e.target.classList.contains('input-compras-comment')) {
                 const inputElement = e.target;
                 const trFila = inputElement.closest('tr');
-                const idOrden = inputElement.getAttribute('data-id');
+                const idDetalleUnico = inputElement.getAttribute('data-id');
                 const comentarioTexto = inputElement.value;
 
-                await guardarComentarioComprasEnBD(idOrden, comentarioTexto, trFila);
+                await guardarComentarioComprasEnBD(idDetalleUnico, comentarioTexto, trFila);
             }
         });
     }
@@ -541,6 +540,13 @@
                 registroLocal.status = data.status;
             }
 
+            todosLosPagos.forEach(registro => {
+                if (String(registro.id_payment_detail) === String(idDetalleUnico)) {
+                    registro.monto_pagado = monto;
+                    registro.status = data.status;
+                }
+            });
+            
             const badgeEstado = trElemento.querySelector('.badge-status-pago');
             if (badgeEstado && data.status) {
                 badgeEstado.textContent = data.status;
