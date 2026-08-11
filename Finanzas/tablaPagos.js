@@ -534,19 +534,13 @@
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Error al actualizar el registro.');
 
-            const registroLocal = todosLosPagos.find(p => String(p.id_payment_detail) === String(idOrden));
-            if (registroLocal) {
-                registroLocal.monto_pagado = monto;
-                registroLocal.status = data.status;
-            }
-
             todosLosPagos.forEach(registro => {
-                if (String(registro.id_payment_detail) === String(idDetalleUnico)) {
+                if (String(registro.id_payment_detail) === String(idOrden)) {
                     registro.monto_pagado = monto;
                     registro.status = data.status;
                 }
             });
-            
+
             const badgeEstado = trElemento.querySelector('.badge-status-pago');
             if (badgeEstado && data.status) {
                 badgeEstado.textContent = data.status;
