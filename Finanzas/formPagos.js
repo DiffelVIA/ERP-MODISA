@@ -5,6 +5,7 @@
     let categoriasCargadas = [];
     let contratosCargados = [];
     let idCategoryContratoActivo = null;
+    let idContratoActivo = null;
 
     document.addEventListener('DOMContentLoaded', () => {
         inicializarCamposFechas();
@@ -219,13 +220,21 @@
                     const provInput = document.getElementById('proveedor');
                     if (provInput) provInput.value = '';
                     idCategoryContratoActivo = null; 
+                    /* =========================================================================
+                       MODIFICACIÓN: Limpiar idContratoActivo si no hay selección
+                       ========================================================================= */
+                    idContratoActivo = null;
                     return;
                 }
 
                 const provInput = document.getElementById('proveedor');
                 if (provInput) provInput.value = contrato.supplier || '';
                 
-                idCategoryContratoActivo = contrato.id_project_category || null;
+                /* =========================================================================
+                   MODIFICACIÓN: Guardar id_contract y id_project_category del contrato seleccionado
+                   ========================================================================= */
+                idContratoActivo = contrato.id_contract ? parseInt(contrato.id_contract) : null;
+                idCategoryContratoActivo = contrato.id_project_category ? parseInt(contrato.id_project_category) : null;
 
                 inyectarOpcionBloqueada('grupo', contrato.grupo);
                 inyectarOpcionBloqueada('categoria', contrato.categoria);
@@ -383,10 +392,14 @@
             idCategoryFinal = registroMatch ? registroMatch.id_project_category : null;
         }
 
+        /* =========================================================================
+           MODIFICACIÓN: Mapeo explícito de id_contract dentro del objeto nuevoConcepto
+           ========================================================================= */
         const nuevoConcepto = {
             id_project: parseInt(idProyectoSel),
             nombre_proyecto: nombreProyectoSel,
             id_project_category: idCategoryFinal, 
+            id_contract: (tipo === 'contratista') ? idContratoActivo : null,
             payment_type: tipo,
             payment_method: formaPago,
             provider_name: proveedor,
@@ -626,8 +639,12 @@
         el.style.cursor = 'not-allowed';
     }
 
+    /* =========================================================================
+       MODIFICACIÓN: Limpieza de idContratoActivo al restaurar cascada
+       ========================================================================= */
     function restaurarControlesCascada(limpiarTodo = false) {
         idCategoryContratoActivo = null; 
+        idContratoActivo = null;
         ['grupo', 'categoria', 'subcategoria'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
