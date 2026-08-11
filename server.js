@@ -2069,7 +2069,12 @@ app.get('/api/project-categories/:id_project', async (req, res) => {
 
                 FROM payment_order_details pod
                 INNER JOIN payment_orders po ON pod.id_payment_order = po.id_payment_order
-                LEFT JOIN contracts c ON LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider))
+                /* =========================================================================
+                   MODIFICACIÓN: Se reemplaza el JOIN de cadenas por nombre de proveedor 
+                   (LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider))) por la relación exacta 
+                   de llave foránea (c.id_contract = pod.id_contract).
+                   ========================================================================= */
+                LEFT JOIN contracts c ON c.id_contract = pod.id_contract
 
                 WHERE IFNULL(pod.monto_pagado, 0) > 0
                   AND COALESCE(pod.id_project_category, c.id_project_category) IS NOT NULL
