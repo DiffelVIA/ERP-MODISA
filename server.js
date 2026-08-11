@@ -1828,8 +1828,15 @@ app.get('/api/pagos', async (req, res) => {
             LEFT JOIN projects p_det ON pod.id_project = p_det.id_project
             LEFT JOIN project_categories pc ON pod.id_project_category = pc.id_project_category
 
+            /* =========================================================================
+               INICIO MODIFICACIÓN: Corrección de duplicados al vincular contratos.
+               Se incluye id_contract en la subconsulta y se prioriza la relación directa
+               por pod.id_contract. Para pagos históricos, se exige id_project_category 
+               sincronizado evitando que 'pod.id_project_category IS NULL' duplique filas.
+               ========================================================================= */
             LEFT JOIN (
                 SELECT 
+                    id_contract,
                     LOWER(TRIM(supplier)) AS supplier_clean,
                     id_project_category,
                     firma,
@@ -1839,9 +1846,22 @@ app.get('/api/pagos', async (req, res) => {
                         ORDER BY start_date DESC
                     ) AS rn
                 FROM contracts
-            ) c ON c.supplier_clean = LOWER(TRIM(pod.provider)) 
-               AND (c.id_project_category = pod.id_project_category OR pod.id_project_category IS NULL)
-               AND c.rn = 1
+            ) c ON (
+                -- Caso 1: Vínculo exacto mediante la llave foránea id_contract
+                (pod.id_contract IS NOT NULL AND c.id_contract = pod.id_contract)
+                OR 
+                -- Caso 2: Coincidencia por proveedor y categoría si no existe id_contract explicito
+                (
+                    pod.id_contract IS NULL 
+                    AND c.supplier_clean = LOWER(TRIM(pod.provider)) 
+                    AND pod.id_project_category IS NOT NULL 
+                    AND c.id_project_category = pod.id_project_category 
+                    AND c.rn = 1
+                )
+            )
+            /* =========================================================================
+               FIN MODIFICACIÓN
+               ========================================================================= */
 
             LEFT JOIN project_categories c_pc ON c.id_project_category = c_pc.id_project_category
             ORDER BY po.id_payment_order DESC;
