@@ -383,9 +383,6 @@
                 || mapaTiposPago[claveTipo.toLowerCase()] 
                 || `💳 ${claveTipo || 'No definido'}`;
 
-            // =========================================================================
-            // INICIO MODIFICACIÓN: Enlace únicamente para Materiales, Caja Chica y Maquinaria
-            // =========================================================================
             const tiposConComprobanteClickeable = [
                 'cajaChica', 'caja chica', 
                 'material', 'materiales', 
@@ -408,9 +405,7 @@
                        ${tipoTextoPlano}
                     </a>`;
             }
-            // =========================================================================
-            // FIN MODIFICACIÓN
-            // =========================================================================
+
 
             const comentarioResidente = pod.commentary || pod.resident_comment || pod.comentario || '-';
             const comentarioComprasVal = pod.compras_comment || '';
@@ -534,12 +529,31 @@
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Error al actualizar el registro.');
 
-            todosLosPagos.forEach(registro => {
-                if (String(registro.id_payment_detail) === String(idOrden)) {
-                    registro.monto_pagado = monto;
-                    registro.status = data.status;
+            const idBuscado = String(idOrden);
+
+            todosLosPagos = todosLosPagos.map(registro => {
+                if (String(registro.id_payment_detail) === idBuscado) {
+                    return {
+                        ...registro,
+                        monto_pagado: monto,
+                        status: data.status
+                    };
                 }
+                return registro;
             });
+
+            if (pagosFiltradosActuales && pagosFiltradosActuales.length > 0) {
+                pagosFiltradosActuales = pagosFiltradosActuales.map(registro => {
+                    if (String(registro.id_payment_detail) === idBuscado) {
+                        return {
+                            ...registro,
+                            monto_pagado: monto,
+                            status: data.status
+                        };
+                    }
+                    return registro;
+                });
+            }
 
             const badgeEstado = trElemento.querySelector('.badge-status-pago');
             if (badgeEstado && data.status) {
@@ -547,6 +561,9 @@
                 badgeEstado.style.backgroundColor = data.status === 'Pagado' ? '#16a34a' : '#eab308';
             }
             
+            const listaParaTotales = pagosFiltradosActuales.length > 0 ? pagosFiltradosActuales : todosLosPagos;
+            actualizarPieTablaTotales(listaParaTotales);
+
             trElemento.style.backgroundColor = "#eaffea";
             setTimeout(() => trElemento.style.backgroundColor = "", 600);
         } catch (error) {
