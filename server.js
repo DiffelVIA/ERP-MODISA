@@ -10,91 +10,18 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// CONEXIÓN A MYSQL//
 const pool = require('./src/config/db'); // ajuste hecho por arreglo de server.js, el pool esta en db.js, linea nueva
 
-/* CONEXIÓN A MYSQL sección en db.js
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  port: process.env.DB_PORT,
-  ssl: {
-    ca: fs.readFileSync(path.join(__dirname, 'ca.pem'))
-  },
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
-*/
-
 // DRIVE //
+const authRouter = require('./src/routes/auth');
+app.use('/api/auth/google', authRouter);
+
+// MULTER //
 const multer = require('multer');
-const { google } = require('googleapis');
 
-const credentialsPath = path.join(__dirname, 'credentials.json');
-const credentials = JSON.parse(fs.readFileSync(credentialsPath));
-const { client_id, client_secret, redirect_uris } = credentials.web;
-
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || client_id;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || client_secret;
-
-const redirectUri = process.env.NODE_ENV === 'production' 
-  ? 'https://erp-modisa.onrender.com/api/auth/google/callback' 
-  : 'http://localhost:3000/api/auth/google/callback';
-
-const oauth2Client = new google.auth.OAuth2(
-  GOOGLE_CLIENT_ID,
-  GOOGLE_CLIENT_SECRET,
-  redirectUri
-);
-
-const SCOPES = [
-  'https://www.googleapis.com/auth/drive.file',
-  'https://www.googleapis.com/auth/drive',
-  'https://www.googleapis.com/auth/gmail.send'
-];
-
-oauth2Client.setCredentials({
-  refresh_token: process.env.GOOGLE_TOKEN,
-  scope: SCOPES.join(' ')
-});
-
-const drive = google.drive({ version: 'v3', auth: oauth2Client });
-const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-
-
-app.get('/api/auth/google/login', (req, res) => {
-  const authUrl = oauth2Client.generateAuthUrl({
-    access_type: 'offline',
-    prompt: 'consent',
-    scope: SCOPES
-  });
-  res.redirect(authUrl);
-});
-
-app.get('/api/auth/google/callback', async (req, res) => {
-  const code = req.query.code;
-  if (!code) {
-    return res.status(400).send('No se recibió el código de autorización desde Google.');
-  }
-
-  try {
-    const { tokens } = await oauth2Client.getToken(code);
-    
-    res.send(`
-      <div style="font-family: Arial, sans-serif; padding: 30px; line-height: 1.6;">
-        <h2 style="color: #28a745;">¡Autenticación con Google completada con éxito!</h2>
-        <p>Copia el siguiente <strong>refresh_token</strong> y actualízalo en la variable de entorno <code>GOOGLE_TOKEN</code> de tu panel de Render:</p>
-        <textarea style="width: 100%; height: 100px; font-family: monospace; padding: 10px;" readonly>${tokens.refresh_token || 'Atención: No se generó refresh_token. Reintenta entrando de nuevo a /api/auth/google/login'}</textarea>
-        <p style="color: #666; font-size: 0.9rem;">Una vez actualizado en Render y redeplegado el backend, la subida de tickets a Google Drive funcionará inmediatamente sin error 403/500.</p>
-      </div>
-    `);
-  } catch (err) {
-    console.error('❌ Error al canjear token de Google:', err);
-    res.status(500).send(`Error al autenticar con Google: ${err.message}`);
-  }
-});
+// UPLOAD //
+const upload = require('./src/middlewares/uploads');
 
 // INICIO DE SESIÓN Y RECUPERACIÓN DE CONTRASEÑA //
 const crypto = require('crypto');
@@ -331,51 +258,6 @@ app.put('/api/auth/reset-password', async (req, res) => {
   }
 });
 
-async function subirArchivoADrive(fileObject, idCarpetaDrive) {
-  try {
-    const fileMetadata = {
-      name: Date.now() + path.extname(fileObject.originalname),
-      parents: [idCarpetaDrive],
-    };
-
-    let bodyStream;
-    if (fileObject.buffer) {
-      const { Readable } = require('stream');
-      bodyStream = Readable.from(fileObject.buffer);
-    } else if (fileObject.path && fs.existsSync(fileObject.path)) {
-      bodyStream = fs.createReadStream(fileObject.path);
-    } else {
-      throw new Error("El archivo recibido no contiene un buffer válido ni una ruta en disco.");
-    }
-
-    const media = {
-      mimeType: fileObject.mimetype,
-      body: bodyStream,
-    };
-
-    const response = await drive.files.create({
-      requestBody: fileMetadata,
-      media: media,
-      supportsAllDrives: true,
-      supportsTeamDrives: true,
-      fields: 'id, webViewLink',
-    });
-
-    if (fileObject && fileObject.path && fs.existsSync(fileObject.path)) {
-      fs.unlinkSync(fileObject.path);
-    }
-
-    return response.data.webViewLink;
-  } catch (error) {
-    console.error("❌ Error interno en la subida a Google Drive API:", error);
-    
-    if (fileObject && fileObject.path && fs.existsSync(fileObject.path)) {
-      fs.unlinkSync(fileObject.path);
-    }
-    throw error;
-  }
-}
-
 // REGISTRO DE NUEVOS PROYECTOS
 app.post('/api/projects', async (req, res) => {
     const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim() : '';
@@ -525,45 +407,6 @@ app.put('/api/projects/:id', async (req, res) => {
         console.error("❌ Error crítico en la actualización automática:", error);
         res.status(500).json({ error: "No se pudo actualizar el registro debido a un error interno." });
     }
-});
-
-// MULTER
-const storage = multer.diskStorage({
-  destination: (req, file, cb) =>{
-    const dir = './uploads';
-    if (!fs.existsSync(dir)){
-      fs.mkdirSync(dir);
-    }
-    cb(null,dir);
-  },
-  filename: (req, file, cb) =>{
-    cb(null, Date.now() + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 10 * 1024 * 1024 // Límite recomendado de 10 MB por archivo
-  },
-  fileFilter: (req, file, cb) => {
-    if (file.fieldname === 'ticketFile') {
-      const extension = path.extname(file.originalname).toLowerCase();
-      const mimeType = file.mimetype;
-
-      const esImagenOPdf = mimeType.startsWith('image/') || 
-                           mimeType === 'application/pdf' || 
-                           extension === '.pdf';
-
-      if (esImagenOPdf) {
-        cb(null, true);
-      } else {
-        cb(new Error('Formato no permitido para el comprobante. Solo se admiten imágenes o archivos PDF.'));
-      }
-    } else {
-      cb(null, true); // Permitir otros campos (como el Excel de mano de obra)
-    }
-  }
 });
 
 // PROYECTOS //
@@ -1290,7 +1133,11 @@ app.put('/api/materiales/detalle/:id', async (req, res) => {
 const creditosRouter = require('./src/routes/credits');
 app.use('/api/creditos', creditosRouter);
 
-// CONTRATOS //
+// CONTRATOS // Nuevas líneas
+const contratosRouter = require('./src/routes/contracts');
+app.use('/api/contratos', contratosRouter);
+
+/* CONTRATOS //
 app.post('/api/contratos', upload.single('pdfFile'), async (req, res) => {
     const userRol = req.headers['x-user-rol'];
     const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
@@ -1499,6 +1346,7 @@ app.put('/api/contratos/:id/actualizar-control', async (req, res) => {
         res.status(500).json({ error: "Error interno del servidor al actualizar registro." });
     }
 });
+*/
 
 // PAGOS //
 app.post('/api/pagos', upload.any(), async (req, res) => {
