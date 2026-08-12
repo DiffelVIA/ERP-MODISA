@@ -1,17 +1,18 @@
-require('dotenv').config();
+require('dotenv').config(); // db
 const express = require('express');
-const mysql = require('mysql2/promise');
+const mysql = require('mysql2/promise'); // db
 const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
+const fs = require('fs'); // db
+const path = require('path'); // db
 const bcrypt = require('bcrypt');
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// CONEXIÓN A MYSQL
+const pool = require('./src/config/db'); // ajuste hecho por arreglo de server.js, el pool esta en db.js, linea nueva
 
+/* CONEXIÓN A MYSQL sección en db.js
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -25,6 +26,7 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0
 });
+*/
 
 // DRIVE //
 const multer = require('multer');
@@ -1098,7 +1100,6 @@ app.post('/api/materiales', async (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, 'Pendiente', 0.00)
     `;
 
-    // 🛡️ MODIFICACIÓN: Iterar por cada obra/proyecto y generar su orden con sus respectivos detalles
     for (const [id_project, listaMats] of Object.entries(materialesPorProyecto)) {
       const [resOrder] = await connection.query(queryOrder, [
         id_project, 
@@ -1285,78 +1286,9 @@ app.put('/api/materiales/detalle/:id', async (req, res) => {
   }
 });
 
-// CREDITOS //
-
-app.get('/api/creditos', async (req, res) => {
-  try {
-    const querySQL = `
-      SELECT 
-        pc.id_credit,
-        pc.reference_invoice,
-        pc.emission_date,
-        pc.due_date,
-        pc.amount,
-        pc.amount_paid,
-        pc.status,
-        pc.observations,
-        COALESCE(p.provider_name, 'Sin Proveedor') AS provider_name,
-        COALESCE(pr.project_name, 'Sin Obra') AS project_name,
-        CASE 
-          WHEN pc.status = 'Pagado' THEN 'Pagado'
-          WHEN pc.status = 'Cancelado' THEN 'Cancelado'
-          WHEN pc.due_date < CURDATE() THEN 'Vencido'
-          ELSE 'Activo'
-        END AS tiempo_credito
-      FROM provider_credits pc
-      LEFT JOIN providers p ON pc.id_provider = p.id_provider
-      LEFT JOIN projects pr ON pc.id_project = pr.id_project
-      ORDER BY pc.emission_date DESC
-    `;
-    const [rows] = await pool.query(querySQL);
-    res.json(rows);
-  } catch (error) {
-    console.error('Error al obtener créditos:', error);
-    res.status(500).json({ error: 'Error interno' });
-  }
-});
-
-app.put('/api/creditos/:id', async (req, res) => {
-  const { id } = req.params;
-  const { amount_paid, status, observations } = req.body;
-
-  try {
-    const [credito] = await pool.query('SELECT amount FROM provider_credits WHERE id_credit = ?', [id]);
-    if (credito.length === 0) return res.status(404).json({ error: 'No encontrado' });
-
-    const totalAmount = parseFloat(credito[0].amount) || 0;
-    let finalStatus = status;
-
-    if (status !== 'Cancelado') {
-      if (amount_paid >= totalAmount && totalAmount > 0) {
-        finalStatus = 'Pagado';
-      } else {
-        finalStatus = 'Pendiente';
-      }
-    }
-
-    await pool.query(`
-      UPDATE provider_credits 
-      SET amount_paid = ?, status = ?, observations = ? 
-      WHERE id_credit = ?
-    `, [amount_paid, finalStatus, observations, id]);
-
-    res.json({ status: 'success', statusCalculado: finalStatus });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error al actualizar' });
-  }
-});
-
-
-const PORT = process.env.PORT;
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en el puerto ${PORT}`);
-});
+//CREDITOS //
+const creditosRouter = require('./src/routes/credits');
+app.use('/api/creditos', creditosRouter);
 
 // CONTRATOS //
 app.post('/api/contratos', upload.single('pdfFile'), async (req, res) => {
@@ -2249,4 +2181,9 @@ app.get('/api/dashboard/metrics/:id_project', async (req, res) => {
     console.error('Error al obtener métricas del dashboard:', error);
     res.status(500).json({ error: 'Error al consultar métricas' });
   }
+});
+
+const PORT = process.env.PORT;
+app.listen(PORT, () => {
+  console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
