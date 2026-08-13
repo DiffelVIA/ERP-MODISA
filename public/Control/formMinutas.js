@@ -42,7 +42,7 @@
       const token = localStorage.getItem('token') || '';
       const respuesta = await fetch(`${API_URL}/empleados/gestion`, {
         headers: {
-          'Authorization': `Bearer ${token}`, // 👈 Estándar JWT
+          'Authorization': `Bearer ${token}`,
           'x-user-rol': localStorage.getItem('userRol') || ''
         }
       });
@@ -58,7 +58,7 @@
         option.textContent = nombreCompleto;
         selectResponsable.appendChild(option);
       });
-      console.log('Responsables cargados desde Aiven');
+      console.log('Responsables cargados con éxito');
     } catch (error) {
       console.error('Error al llenar responsables:', error);
     }
@@ -69,7 +69,16 @@
     if (!selectProyecto) return;
 
     try {
-      const respuesta = await fetch(`${API_URL}/proyectos`);
+      const token = localStorage.getItem('token') || '';
+      const rolUsuario = localStorage.getItem('userRol') || '';
+
+      const respuesta = await fetch(`${API_URL}/proyectos`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-user-rol': rolUsuario
+        }
+      });
+
       if (!respuesta.ok) throw new Error('Error al obtener los proyectos');
 
       const proyectos = await respuesta.json();
@@ -83,7 +92,7 @@
         selectProyecto.appendChild(option);
       });
       
-      console.log('¡Proyectos cargados con éxito desde la tabla projects!');
+      console.log('Proyectos cargados con éxito');
     } catch (error) {
       console.error('Error al rellenar proyectos:', error);
     }
@@ -138,27 +147,24 @@
     const proyectoFlotante = document.getElementById('proyecto').value;
     const fechaFlotante = document.getElementById('fecha').value;
 
-    if (actividadesAcumuladas.length === 0){
-      if(actividadFlotante && responsableFlotante && proyectoFlotante && fechaFlotante) {
-        const fechaHoy = new Date();
-        const semanaFiscal = obtenerNumeroSemana(fechaHoy);
-        // [MODIFICADO]: Se eliminó la variable sin uso `inputAvance`
-        const comentarioInput = document.getElementById('comentarioDirector');
-        const comentario = comentarioInput ? comentarioInput.value.trim() : '';
+    if (actividadFlotante && responsableFlotante && proyectoFlotante && fechaFlotante) {
+      const fechaHoy = new Date();
+      const semanaFiscal = obtenerNumeroSemana(fechaHoy);
+      const comentarioInput = document.getElementById('comentarioDirector');
+      const comentario = comentarioInput ? comentarioInput.value.trim() : '';
 
-        const ultimaActividad = {
-          id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-          proyecto : proyectoFlotante,
-          responsable : responsableFlotante,
-          semana: semanaFiscal,
-          fecha : fechaFlotante,
-          descripcion: actividadFlotante,
-          estado: 'pendiente',
-          comentarioDirector: comentario
-        };
-        actividadesAcumuladas.push(ultimaActividad);
-      }
-    }    
+      const ultimaActividad = {
+        id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        proyecto : proyectoFlotante,
+        responsable : responsableFlotante,
+        semana: semanaFiscal,
+        fecha : fechaFlotante,
+        descripcion: actividadFlotante,
+        estado: 'pendiente',
+        comentarioDirector: comentario
+      };
+      actividadesAcumuladas.push(ultimaActividad);
+    }
 
     if(actividadesAcumuladas.length === 0) { 
       alert('Por favor, agrega al menos una actividad');
