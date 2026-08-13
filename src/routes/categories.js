@@ -241,4 +241,4 @@ router.get('/projects-active', async (req, res) => {
   }
 });
 
-module.exports = Router;
+module.exports = router;
