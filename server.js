@@ -24,7 +24,6 @@ const multer = require('multer');
 const upload = require('./src/middlewares/uploads');
 
 // INICIO DE SESIÓN Y GESTIÓN DE CONTRASEÑA //
-const authRouter = require('./src/routes/auth');
 app.use('/api/auth', authRouter);
 
 // PROYECTOS //
