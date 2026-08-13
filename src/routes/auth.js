@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const { gmail, oauth2Client, SCOPES } = require('../config/google');
 
@@ -80,7 +81,18 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ mensaje: 'Contraseña Incorrecta' });
     }
 
+    const token = jwt.sign(
+      {
+        id_employee: usuarioBD.id_employee,
+        nombre: usuarioBD.name,
+        rol: usuarioBD.job_title
+      },
+      process.env.JWT_SECRET || 'secreto_fallback_temp',
+      { expiresIn: '12h' }
+    );
+
     res.json({
+      token,
       id_employee: usuarioBD.id_employee,
       nombre: usuarioBD.name,
       rol: usuarioBD.job_title,
@@ -107,7 +119,19 @@ router.put('/update-password', async (req, res) => {
       [correo.trim()]
     );
 
+    const usuarioBD = usuarios[0];
+
+    const token = jwt.sign({
+        id_employee: usuarioBD.id_employee,
+        nombre: usuarioBD.name,
+        rol: usuarioBD.job_title
+      },
+      process.env.JWT_SECRET || 'secreto_fallback_temp',
+      { expiresIn: '12h' }
+    );
+
     res.json({ 
+      token,
       mensaje: 'Contraseña actualizada', 
       id_employee: usuarios[0].id_employee,
       nombre: usuarios[0].name,
@@ -154,16 +178,17 @@ router.post('/request-reset', async (req, res) => {
     }
 
     const usuario = resultado[0];
-    const token = crypto.randomBytes(32).toString('hex');
+    const rawtoken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
     const expires = new Date(Date.now() + 5 * 60 * 1000);
 
     await pool.query(
       'UPDATE employees SET reset_token = ?, reset_expires = ? WHERE email = ?',
-      [token, expires, email.trim()]
+      [hashedToken, expires, email.trim()]
     );
 
     const baseUrl = process.env.FRONTEND_URL || 'https://erp-modisa.onrender.com';
-    const resetUrl = `${baseUrl}/recuperar.html?token=${token}`;
+    const resetUrl = `${baseUrl}/recuperar.html?token=${rawtoken}`;
 
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
@@ -207,9 +232,10 @@ router.post('/verify-token', async (req, res) => {
   const { token } = req.body;
 
   try {
+    const hashedToken = crypto.createHash('sha256').update(token.trim()).digest('hex');
     const [resultado] = await pool.query(
       'SELECT id_employee FROM employees WHERE reset_token = ? AND reset_expires > NOW()',
-      [token.trim()]
+      [hashedToken.trim()]
     );
 
     if (resultado.length === 0) {
@@ -227,11 +253,13 @@ router.put('/reset-password', async (req, res) => {
   const { token, nuevaContrasena } = req.body;
 
   try {
+    const hashedToken = crypto.createHash('sha256').update(token.trim()).digest('hex');
+
     const [resultado] = await pool.query(
       'SELECT id_employee FROM employees WHERE reset_token = ? AND reset_expires > NOW()',
-      [token.trim()]
+      [hashedToken.trim()]
     );
-
+    
     if (resultado.length === 0) {
       return res.status(400).json({ mensaje: 'El token es inválido o ha expirado. Solicita un nuevo token.' });
     }
