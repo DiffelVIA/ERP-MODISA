@@ -69,7 +69,7 @@ app.use('/api/pagos', pagosRouter);
 const dashboardRouter = require('./src/routes/dashboard');
 app.use('/api/dashboard', dashboardRouter);
 
-// 
+// ARRANQUE DE SERVIDOR //
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
