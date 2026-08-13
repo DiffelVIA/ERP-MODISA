@@ -34,24 +34,6 @@
     });
   });
 
-  function crearEstructuraActividad(actividadText, responsableVal, proyectoVal, fechaVal) {
-    const fechaHoy = new Date();
-    const semanaFiscalCalculada = obtenerNumeroSemana(fechaHoy);
-    const comentarioInput = document.getElementById('comentarioDirector');
-    const comentario = comentarioInput ? comentarioInput.value.trim() : '';
-
-    return {
-      id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-      proyecto: proyectoVal,
-      responsable: responsableVal,
-      semana: semanaFiscalCalculada,
-      fecha: fechaVal,
-      descripcion: actividadText,
-      estado: 'pendiente',
-      comentarioDirector: comentario
-    };
-  }
-
   async function cargarResponsablesDesdeNube() {
     const selectResponsable = document.getElementById('responsable');
     if (!selectResponsable) return;
@@ -60,7 +42,8 @@
       const token = localStorage.getItem('token') || '';
       const respuesta = await fetch(`${API_URL}/empleados/gestion`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`, // 👈 Estándar JWT
+          'x-user-rol': localStorage.getItem('userRol') || ''
         }
       });
       if (!respuesta.ok) throw new Error('Error al traer empleados');
@@ -86,12 +69,7 @@
     if (!selectProyecto) return;
 
     try {
-      const token = localStorage.getItem('token') || '';
-      const respuesta = await fetch(`${API_URL}/proyectos`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const respuesta = await fetch(`${API_URL}/proyectos`);
       if (!respuesta.ok) throw new Error('Error al obtener los proyectos');
 
       const proyectos = await respuesta.json();
@@ -115,40 +93,69 @@
 
   if (botonAgregar) {
     botonAgregar.addEventListener('click', function(event) {
-      const actividad = document.getElementById('actividad')?.value.trim() || '';
-      const responsable = document.getElementById('responsable')?.value || '';
-      const proyecto = document.getElementById('proyecto')?.value || '';
-      const fecha = document.getElementById('fecha')?.value || '';
+    const actividad = document.getElementById('actividad').value.trim();
+    const responsable = document.getElementById('responsable').value;
+    const proyecto = document.getElementById('proyecto').value;
+    const fecha = document.getElementById('fecha').value;
 
-      if(!actividad || !responsable || !proyecto || !fecha) {
-        alert('Por favor, añade los campos antes de guardar la actividad');
-        return;
-      }
+    if(!actividad || !responsable || !proyecto || !fecha) {
+      alert('Por favor, añade los campos antes de guardar la actividad');
+      return;
+    }
 
-      const actividadNueva = crearEstructuraActividad(actividad, responsable, proyecto, fecha);
+    const fechaHoy = new Date();
+    const semanaFiscalCalculada = obtenerNumeroSemana(fechaHoy);
+    const comentarioInput = document.getElementById('comentarioDirector');
+    const comentario = comentarioInput ? comentarioInput.value.trim() : '';
 
-      actividadesAcumuladas.push(actividadNueva);
-      alert('Actividad registrada temporalmente');
+    const actividadNueva = {
+      id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      proyecto: proyecto,
+      responsable: responsable,
+      semana: semanaFiscalCalculada,
+      fecha: fecha,
+      descripcion: actividad,
+      estado: 'pendiente',
+      comentarioDirector: comentario
+    };
 
-      document.getElementById('actividad').value = '';
-      document.getElementById('responsable').value = '';
-      document.getElementById('fecha').value = '';
-      document.getElementById('comentarioDirector').value = '';
-      document.getElementById('actividad').focus();
+    actividadesAcumuladas.push(actividadNueva);
+    alert('Actividad registrada temporalmente');
+
+    document.getElementById('actividad').value = '';
+    document.getElementById('responsable').value = '';
+    document.getElementById('fecha').value='';
+    document.getElementById('comentarioDirector').value = '';
+    document.getElementById('actividad').focus();
     });
   }
 
   document.querySelector('form').addEventListener('submit', function(event) {
     event.preventDefault();
     
-    const actividadFlotante = document.getElementById('actividad')?.value.trim() || '';
-    const responsableFlotante = document.getElementById('responsable')?.value || '';
-    const proyectoFlotante = document.getElementById('proyecto')?.value || '';
-    const fechaFlotante = document.getElementById('fecha')?.value || '';
+    const actividadFlotante = document.getElementById('actividad').value.trim();
+    const responsableFlotante = document.getElementById('responsable').value;
+    const proyectoFlotante = document.getElementById('proyecto').value;
+    const fechaFlotante = document.getElementById('fecha').value;
 
-    if (actividadesAcumuladas.length === 0) {
+    if (actividadesAcumuladas.length === 0){
       if(actividadFlotante && responsableFlotante && proyectoFlotante && fechaFlotante) {
-        const ultimaActividad = crearEstructuraActividad(actividadFlotante, responsableFlotante, proyectoFlotante, fechaFlotante);
+        const fechaHoy = new Date();
+        const semanaFiscal = obtenerNumeroSemana(fechaHoy);
+        // [MODIFICADO]: Se eliminó la variable sin uso `inputAvance`
+        const comentarioInput = document.getElementById('comentarioDirector');
+        const comentario = comentarioInput ? comentarioInput.value.trim() : '';
+
+        const ultimaActividad = {
+          id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+          proyecto : proyectoFlotante,
+          responsable : responsableFlotante,
+          semana: semanaFiscal,
+          fecha : fechaFlotante,
+          descripcion: actividadFlotante,
+          estado: 'pendiente',
+          comentarioDirector: comentario
+        };
         actividadesAcumuladas.push(ultimaActividad);
       }
     }    
@@ -177,12 +184,14 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'x-user-rol': localStorage.getItem('userRol') || ''
         },
         body: JSON.stringify(datosSanitizados)
       });
 
       if (!respuesta.ok) {
+
         const errorBackend = await respuesta.json().catch(() => ({}));
         throw new Error(errorBackend.detalle || 'Error en la respuesta del servidor');
       }
