@@ -134,6 +134,7 @@
 
     document.getElementById('actividad').value = '';
     document.getElementById('responsable').value = '';
+    document.getElementById('proyecto').value = '';
     document.getElementById('fecha').value='';
     document.getElementById('comentarioDirector').value = '';
     document.getElementById('actividad').focus();
@@ -279,7 +280,6 @@
       cuerpoTabla.appendChild(tr);
     });
 
-    // Asignar listeners a los botones de edición y eliminación
     cuerpoTabla.querySelectorAll('.btn-editar').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const idx = Number(e.currentTarget.getAttribute('data-index'));
