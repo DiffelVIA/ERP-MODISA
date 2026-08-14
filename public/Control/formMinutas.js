@@ -131,7 +131,6 @@
 
     actividadesAcumuladas.push(actividadNueva);
     renderizarMiniTabla();
-    alert('Actividad registrada temporalmente');
 
     document.getElementById('actividad').value = '';
     document.getElementById('responsable').value = '';
