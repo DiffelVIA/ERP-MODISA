@@ -564,7 +564,10 @@
       let estadoParam = urlParams.get('estado');
       let responsableParam = urlParams.get('responsable');
 
-      if (!responsableParam) {
+      const rolUsuario = localStorage.getItem('userRol');
+      const esDirector = (rolUsuario === "Director Operativo");
+
+      if (!responsableParam && !esDirector) {
         try {
           const rawSesion = sessionStorage.getItem('usuarioMODISA');
           if (rawSesion && rawSesion.trim().startsWith('{')) {
