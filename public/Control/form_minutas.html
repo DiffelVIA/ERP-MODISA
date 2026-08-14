@@ -53,6 +53,29 @@
                 <label for="fecha">Fecha de Cumplimiento:</label>
                 <input type="date" name="fecha" id="fecha" required>
             </div>
+
+            <div class="contenedor-mini-tabla">
+                <h3 class="titulo-mini-tabla">
+                    📋 Minutas Añadidas
+                </h3>
+                <div id="tabla-minutas-vacia" class="tabla-vacia">
+                    (sin minutas aún)
+                </div>
+                <table id="tabla-mini-minutas" class="mini-tabla" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Actividad</th>
+                            <th>Responsable</th>
+                            <th>Proyecto</th>
+                            <th>Fecha</th>
+                            <th>Comentario</th>
+                            <th class="col-accion">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpo-mini-tabla-minutas">
+                    </tbody>
+                </table>
+            </div>
             
             <div class="contenedor-botones">
                 <button type="button" id="agregar" class="btn">+ Agregar otra actividad</button>

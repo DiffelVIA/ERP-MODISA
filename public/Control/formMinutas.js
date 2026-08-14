@@ -26,6 +26,7 @@
     cargarResponsablesDesdeNube();
     cargarProyectosDesdeNube();
     configurarBotonGuardarAlterno();
+    renderizarMiniTabla();
 
     window.addEventListener('pageshow', (event) => {
       if (event.persisted) {
@@ -129,6 +130,7 @@
     };
 
     actividadesAcumuladas.push(actividadNueva);
+    renderizarMiniTabla();
     alert('Actividad registrada temporalmente');
 
     document.getElementById('actividad').value = '';
@@ -139,42 +141,46 @@
     });
   }
 
-  document.querySelector('form').addEventListener('submit', function(event) {
-    event.preventDefault();
-    
-    const actividadFlotante = document.getElementById('actividad').value.trim();
-    const responsableFlotante = document.getElementById('responsable').value;
-    const proyectoFlotante = document.getElementById('proyecto').value;
-    const fechaFlotante = document.getElementById('fecha').value;
+  const formularioMinutas = document.getElementById('form-minutas');
+  if (formularioMinutas) {
+    formularioMinutas.addEventListener('submit', function(event) {
+      event.preventDefault();
+      
+      const actividadFlotante = document.getElementById('actividad').value.trim();
+      const responsableFlotante = document.getElementById('responsable').value;
+      const proyectoFlotante = document.getElementById('proyecto').value;
+      const fechaFlotante = document.getElementById('fecha').value;
 
-    if (actividadFlotante && responsableFlotante && proyectoFlotante && fechaFlotante) {
-      const fechaHoy = new Date();
-      const semanaFiscal = obtenerNumeroSemana(fechaHoy);
-      const comentarioInput = document.getElementById('comentarioDirector');
-      const comentario = comentarioInput ? comentarioInput.value.trim() : '';
+      if (actividadFlotante && responsableFlotante && proyectoFlotante && fechaFlotante) {
+        const fechaHoy = new Date();
+        const semanaFiscal = obtenerNumeroSemana(fechaHoy);
+        const comentarioInput = document.getElementById('comentarioDirector');
+        const comentario = comentarioInput ? comentarioInput.value.trim() : '';
 
-      const ultimaActividad = {
-        id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-        proyecto : proyectoFlotante,
-        responsable : responsableFlotante,
-        semana: semanaFiscal,
-        fecha : fechaFlotante,
-        descripcion: actividadFlotante,
-        estado: 'pendiente',
-        comentarioDirector: comentario
-      };
-      actividadesAcumuladas.push(ultimaActividad);
-    }
+        const ultimaActividad = {
+          id: typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+          proyecto : proyectoFlotante,
+          responsable : responsableFlotante,
+          semana: semanaFiscal,
+          fecha : fechaFlotante,
+          descripcion: actividadFlotante,
+          estado: 'pendiente',
+          comentarioDirector: comentario
+        };
+        actividadesAcumuladas.push(ultimaActividad);
+        renderizarMiniTabla();
+      }
 
-    if(actividadesAcumuladas.length === 0) { 
-      alert('Por favor, agrega al menos una actividad');
-      return;
-    }
+      if(actividadesAcumuladas.length === 0) { 
+        alert('Por favor, agrega al menos una actividad');
+        return;
+      }
 
-    const actividadesParaEnviar = [...actividadesAcumuladas];
+      const actividadesParaEnviar = [...actividadesAcumuladas];
 
-    procesarEnvioNube(actividadesParaEnviar);
-  });
+      procesarEnvioNube(actividadesParaEnviar);
+    });
+  }
 
   async function procesarEnvioNube(listaDeActividades) {
     try {
@@ -197,7 +203,6 @@
       });
 
       if (!respuesta.ok) {
-
         const errorBackend = await respuesta.json().catch(() => ({}));
         throw new Error(errorBackend.detalle || 'Error en la respuesta del servidor');
       }
@@ -206,15 +211,16 @@
       console.log('Respuesta del servidor:', resultado);
 
       actividadesAcumuladas = [];
+      renderizarMiniTabla();
 
-      const formulario = document.querySelector('form');
+      const formulario = document.getElementById('form-minutas');
       if (formulario) formulario.reset();
 
       document.getElementById('actividad').focus();
       alert('¡Minuta guardada con éxito');
     } catch (error) {
       console.error('Error al conectar el backend:', error);
-      alert('❌ Error al conectar con la base de datos.');
+      alert('❌ Error al conectar con la base de datos. Tus minutas se conservan en la tabla inferior para respaldo.');
     }
   }
 
@@ -223,7 +229,8 @@
     if (botonGuardar) {
       botonGuardar.addEventListener('click',(evento) => {
         evento.preventDefault();
-        document.querySelector('form').dispatchEvent(new Event('submit'));
+        const formulario = document.getElementById('form-minutas');
+        if (formulario) formulario.dispatchEvent(new Event('submit'));
       });
     }
   }
@@ -234,5 +241,79 @@
     d.setUTCDate(d.getUTCDate() + 4 - dianNum);
     const anioInicio = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
     return Math.ceil((((d - anioInicio) / 86400000) + 1) / 7);
+  }
+
+  // [AGREGADO]: Función encargada de sincronizar la mini-tabla con la variable actividadesAcumuladas
+  function renderizarMiniTabla() {
+    const contenedorVacio = document.getElementById('tabla-minutas-vacia');
+    const tabla = document.getElementById('tabla-mini-minutas');
+    const cuerpoTabla = document.getElementById('cuerpo-mini-tabla-minutas');
+
+    if (!cuerpoTabla || !contenedorVacio || !tabla) return;
+
+    cuerpoTabla.innerHTML = '';
+
+    if (actividadesAcumuladas.length === 0) {
+      contenedorVacio.style.display = 'block';
+      tabla.style.display = 'none';
+      return;
+    }
+
+    contenedorVacio.style.display = 'none';
+    tabla.style.display = 'table';
+
+    actividadesAcumuladas.forEach((act, index) => {
+      const tr = document.createElement('tr');
+
+      tr.innerHTML = `
+        <td>${act.descripcion}</td>
+        <td>${act.responsable}</td>
+        <td>${act.proyecto}</td>
+        <td>${act.fecha}</td>
+        <td>${act.comentarioDirector || ''}</td>
+        <td class="col-accion">
+          <button type="button" class="btn-editar" data-index="${index}" title="Editar actividad" style="background:none; border:none; cursor:pointer;">✏️</button>
+          <button type="button" class="btn-eliminar" data-index="${index}" title="Eliminar actividad" style="background:none; border:none; cursor:pointer;">❌</button>
+        </td>
+      `;
+
+      cuerpoTabla.appendChild(tr);
+    });
+
+    // Asignar listeners a los botones de edición y eliminación
+    cuerpoTabla.querySelectorAll('.btn-editar').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const idx = Number(e.currentTarget.getAttribute('data-index'));
+        editarActividad(idx);
+      });
+    });
+
+    cuerpoTabla.querySelectorAll('.btn-eliminar').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const idx = Number(e.currentTarget.getAttribute('data-index'));
+        eliminarActividad(idx);
+      });
+    });
+  }
+
+  function editarActividad(index) {
+    const act = actividadesAcumuladas[index];
+    if (!act) return;
+
+    document.getElementById('actividad').value = act.descripcion;
+    document.getElementById('responsable').value = act.responsable;
+    document.getElementById('proyecto').value = act.proyecto;
+    document.getElementById('fecha').value = act.fecha;
+    const comentarioInput = document.getElementById('comentarioDirector');
+    if (comentarioInput) comentarioInput.value = act.comentarioDirector || '';
+
+    actividadesAcumuladas.splice(index, 1);
+    renderizarMiniTabla();
+    document.getElementById('actividad').focus();
+  }
+
+  function eliminarActividad(index) {
+    actividadesAcumuladas.splice(index, 1);
+    renderizarMiniTabla();
   }
 })();
