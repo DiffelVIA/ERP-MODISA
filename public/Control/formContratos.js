@@ -1,15 +1,15 @@
+const { use } = require("react");
+
 (() => {
     const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
 
     let categoriasCache = [];
-
-    const sesionUsuarioRaw = JSON.parse(sessionStorage.getItem("usuarioMODISA")) || null;
-    const userRolString = localStorage.getItem("userRol") || null;
+    const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
 
     const sesionUsuario = {
         id: sesionUsuarioRaw ? sesionUsuarioRaw.id_employee : null,
         nombre: sesionUsuarioRaw ? sesionUsuarioRaw.nombre : 'Solicitante',
-        rol: (sesionUsuarioRaw && sesionUsuarioRaw.rol) ? sesionUsuarioRaw.rol : userRolString
+        rol: (userToken && userToken.rol) ? userToken.rol.trim() : ''
     };
 
     const ROLES_PERMITIDOS = ["Residente de Obra", "Director Operativo"];
@@ -65,8 +65,11 @@
 
     async function cargarSelectoresIniciales() {
         try {
+            const token = localStorage.getItem('jwtToken') || '';
             const empId = sesionUsuario ? sesionUsuario.id : null;
-            const headers = {};
+            const headers = {
+                'Authorization': token ? `Bearer ${token}` : ''
+            };
             if (empId) {
                 headers['x-employee-id'] = empId;
             }
@@ -103,7 +106,12 @@
             if (!idProyecto) return;
 
             try {
-                const response = await fetch(`${API_BASE}/proyectos/${idProyecto}/categorias`);
+                const token = localStorage.getItem('jwtToken') || '';
+                const response = await fetch(`${API_BASE}/proyectos/${idProyecto}/categorias`, {
+                    headers: {
+                        'Authorization': token ? `Bearer ${token}` : ''
+                    }
+                });
                 if (!response.ok) throw new Error("No se pudieron cargar las categorías.");
 
                 categoriasCache = await response.json();
@@ -197,9 +205,11 @@
             formData.append("total_amount", document.getElementById("monto").value);
 
             try {
+                const token = localStorage.getItem('jwtToken') || '';
                 const response = await fetch(`${API_BASE}/contratos`, {
                     method: "POST",
                     headers: { 
+                        'Authorization': token ? `Bearer ${token}` : '',
                         "x-user-rol": sesionUsuario ? sesionUsuario.rol : ""
                     },
                     body: formData
