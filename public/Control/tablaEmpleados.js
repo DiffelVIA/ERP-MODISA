@@ -3,7 +3,8 @@
         ? 'http://localhost:3000/api' 
         : 'https://erp-modisa.onrender.com/api';
 
-    const ROL_USUARIO = (localStorage.getItem('userRol') || '').trim().toLowerCase();
+    const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+    const ROL_USUARIO = (userToken && userToken.rol) ? userToken.rol.trim().toLowerCase() : '';
 
     let listaEmpleados = [];
 
@@ -28,8 +29,12 @@
 
     async function cargarEmpleados() {
         try {
+            const token = localStorage.getItem('jwtToken') || '';
             const res = await fetch(`${API_BASE}/empleados/gestion`, {
-                headers: { 'x-user-rol': localStorage.getItem('userRol') }
+                headers: { 
+                    'Authorization': token ? `Bearer ${token}` : '',
+                    'x-user-rol': localStorage.getItem('userRol') 
+                }
             });
             if (!res.ok) throw new Error('Error al obtener datos.');
 
@@ -162,11 +167,15 @@
                 const method = esEdicion ? 'PUT' : 'POST';
 
                 try {
+                    const token = localStorage.getItem('jwtToken') || '';
+                    const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+                    const rolActual = (userToken && userToken.rol) ? userToken.rol.trim() : '';
                     const res = await fetch(url, {
                         method: method,
                         headers: {
                             'Content-Type': 'application/json',
-                            'x-user-rol': localStorage.getItem('userRol')
+                            'Authorization': token ? `Bearer ${token}` : '',
+                            'x-user-rol': rolActual
                         },
                         body: JSON.stringify(payload)
                     });
@@ -186,9 +195,15 @@
 
     async function eliminarEmpleado(id) {
         try {
+            const token = localStorage.getItem('jwtToken') || '';
+            const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+            const rolActual = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
             const res = await fetch(`${API_BASE}/empleados/${id}`, {
                 method: 'DELETE',
-                headers: { 'x-user-rol': localStorage.getItem('userRol') }
+                headers: { 
+                    'Authorization': token ? `Bearer ${token}` : '',
+                    'x-user-rol': localStorage.getItem('userRol')
+                }
             });
 
             const data = await res.json();
