@@ -3,7 +3,9 @@
 
     document.addEventListener("DOMContentLoaded", () => {
 
-        const rolActual = localStorage.getItem('userRol') ? localStorage.getItem('userRol').trim() : '';
+        const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+        const userRolString = localStorage.getItem('userRol') ? localStorage.getItem('userRol').trim() : '';
+        const rolActual = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : userRolString;
 
         if (!ROL_AUTORIZADO.includes(rolActual)) {
             const contenedorPrincipal = document.querySelector('.form_main');
@@ -46,7 +48,13 @@
     async function cargarProyectosDestino() {
         const select = document.getElementById("selectProyecto");
         try {
-            const res = await fetch(`${BASE_URL}/api/projects-report`);
+            const token = localStorage.getItem('jwtToken') || '';
+            const res = await fetch(`${BASE_URL}/api/projects-report`, {
+                headers: {
+                    "Authorization": token ? `Bearer ${token}` : ''
+                }
+            });
+
             if (!res.ok) throw new Error("Error al consultar proyectos");
             const proys = await res.json();
             proys.forEach(p => {
@@ -196,10 +204,12 @@
                 }
 
                 try {
+                    const token = localStorage.getItem('jwtToken') || '';
                     const res = await fetch(`${BASE_URL}/api/project-categories`, {
                         method: "POST",
                         headers: { 
                             "Content-Type": "application/json",
+                            "Authorization": token ? `Bearer ${token}` : '',
                             "x-user-rol": localStorage.getItem('userRol') || '' 
                         },
                         body: JSON.stringify({ 
@@ -239,10 +249,12 @@
                 }
 
                 try {
+                    const token = localStorage.getItem('jwtToken') || '';
                     const res = await fetch(`${BASE_URL}/api/project-categories/${idRegistroSeleccionado}`, {
                         method: "PUT",
                         headers: { 
                             "Content-Type": "application/json",
+                            "Authorization": token ? `Bearer ${token}` : '',
                             "x-user-rol": localStorage.getItem('userRol') || ''
                         },
                         body: JSON.stringify({ 
@@ -270,9 +282,13 @@
                 if (!confirm("⚠️ ¿Estás completamente seguro de eliminar esta línea de categoría y sus costos?")) return;
 
                 try {
+                    const token = localStorage.getItem('jwtToken') || '';
                     const res = await fetch(`${BASE_URL}/api/project-categories/${idRegistroSeleccionado}`, { 
                         method: "DELETE",
-                        headers: { "x-user-rol": localStorage.getItem('userRol') || '' }
+                        headers: { 
+                            "Authorization": token ? `Bearer ${token}` : '',
+                            "x-user-rol": localStorage.getItem('userRol') || '' 
+                        }
                     });
                     const data = await res.json();
                     if (!res.ok) throw new Error(data.error || "Fallo al eliminar");
@@ -326,7 +342,13 @@
 
     async function cargarCategoriasProyecto(idProject) {
         try {
-            const res = await fetch(`${BASE_URL}/api/project-categories/${idProject}`);
+            const token = localStorage.getItem('jwtToken') || '';
+            const res = await fetch(`${BASE_URL}/api/project-categories/${idProject}`, {
+                headers: {
+                    "Authorization": token ? `Bearer ${token}` : ''
+                }
+            });
+
             if (!res.ok) throw new Error("Error al obtener catálogo actual");
             listaCategoriasCache = await res.json();
         } catch (e) {
@@ -464,10 +486,12 @@
             reader.onload = async function (evt) {
                 const contenidoTexto = evt.target.result;
                 try {
+                    const token = localStorage.getItem('jwtToken') || '';
                     const response = await fetch(`${BASE_URL}/api/upload-hierarchy`, {
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json',
+                            "Authorization": token ? `Bearer ${token}` : '',
                             "x-user-rol": localStorage.getItem('userRol') || ''
                         },
                         body: JSON.stringify({ id_project: idProject, csvData: contenidoTexto })

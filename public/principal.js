@@ -228,6 +228,7 @@
         btnLogout.addEventListener('click', (e) => {
             e.preventDefault(); 
             
+            localStorage.removeItem('jwtToken');
             localStorage.removeItem('userRol');
             sessionStorage.removeItem('usuarioMODISA');
             
