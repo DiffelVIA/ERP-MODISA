@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 
+const { vereficarToken, verificarRol, verificarToken } = require('../middlewares/authMiddleware');
+
 router.get('/tabla_minutas', async (req, res) => {
   try {
     const fechaActual = new Date();
@@ -40,12 +42,15 @@ router.get('/tabla_minutas', async (req, res) => {
   }
 });
 
-router.post('/tabla_minutas', async (req, res) => {
-  const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim() : '';
+router.post('/tabla_minutas', verificarToken, (req, res, next) => {
+  const rolUsuario = req.usuario ? req.usuario.rol : (req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim() : '');
   if (rolUsuario !== "Director Operativo") {
     return res.status(403).json({ error: '⛔ Acceso denegado'});
   }
 
+  next();
+
+}, async (req, res) => {
   const minutas = req.body;
   const listaMinutas = Array.isArray(minutas) ? minutas : [minutas];
 
@@ -140,8 +145,8 @@ router.post('/tabla_minutas', async (req, res) => {
 
     res.json({ mensaje: 'Minutas sincronizadas con éxito en Aiven' });
   } catch (error) {
-    console.error('Error crítico controlado en el guardado de minutas:', error);
-    res.status(500).json({ error: 'Error al persistir minutas en la base de datos', detalle: error.message });
+    console.error('Error en el guardado de minutas', error);
+    res.status(500).json({ error: 'Error al traer minutas de las bases de datos', detalle: error.message });
   }
 });
 

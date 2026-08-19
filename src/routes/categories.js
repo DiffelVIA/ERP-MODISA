@@ -30,7 +30,7 @@ router.get('/proyectos/:id/categorias', async (req, res) => {
   }
 });
 
-router.get('/api/project-categories/:id_project', async (req, res) => {
+router.get('/project-categories/:id_project', async (req, res) => {
     const idProject = req.params.id_project;
     let connection;
 
