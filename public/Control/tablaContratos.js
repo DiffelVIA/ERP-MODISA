@@ -5,8 +5,8 @@
     let todosLosContratos = [];
 
     document.addEventListener("DOMContentLoaded", () => {
-        const rolRaw = localStorage.getItem("userRol");
-        const rolUsuario = rolRaw ? rolRaw.trim().toLowerCase() : null;
+        const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+        const rolUsuario = (userToken && userToken.rol) ? userToken.rol.trim().toLowerCase() : null;
 
         const rolesPermitidos = [
             "gerente administración", "compras", "director general", 
@@ -41,7 +41,12 @@
 
     async function cargarContratos() {
         try {
-            const response = await fetch(`${API_BASE}/contratos`);
+            const token = localStorage.getItem('jwtToken') || '';
+            const response = await fetch(`${API_BASE}/contratos`,{
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : ''
+                }
+            });
             if (!response.ok) throw new Error("Error al obtener los contratos");
 
             todosLosContratos = await response.json();
@@ -57,8 +62,8 @@
         const tbody = document.querySelector(".cuerpoTabla");
         if (!tbody) return;
 
-        const rolRaw = localStorage.getItem("userRol");
-        const rolUsuario = rolRaw ? rolRaw.trim().toLowerCase() : "";
+        const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+        const rolUsuario = (userToken && userToken.rol) ? userToken.rol.trim().toLowerCase() : "";
 
         tbody.innerHTML = "";
 
@@ -288,9 +293,13 @@
         }
 
         try {
+            const token = localStorage.getItem('jwtToken') || '';
             const response = await fetch(`${API_BASE}/contratos/${id}/actualizar-control`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": token ? `Bearer ${token}` : ''
+                },
                 body: JSON.stringify({
                     status: statusGeneral, 
                     estado_costos: estadoCostos,
