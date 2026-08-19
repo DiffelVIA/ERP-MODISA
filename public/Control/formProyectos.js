@@ -4,7 +4,8 @@
     const ROLES_PERMITIDOS = ["Director Operativo", "Subdirector de Obra", "Gerente Administración", "Compras"];
 
     document.addEventListener("DOMContentLoaded", () => {
-        const rolUsuario = localStorage.getItem('userRol') ? localStorage.getItem('userRol').trim() : '';
+        const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+        const rolUsuario = (userToken && userToken.rol) ? userToken.rol.trim() : '';
 
         if (!ROLES_PERMITIDOS.includes(rolUsuario)) {
             const mainContent = document.querySelector('.form_main');
@@ -40,11 +41,13 @@
         if (!selectResponsable) return;
 
         try {
+            const token = localStorage.getItem('jwtToken') || '';
             const response = await fetch(`${API_URL}/empleados/gestion`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
-                    "x-user-rol": localStorage.getItem('userRol') || ''
+                    "Authorization": token ? `Bearer ${token}` : '',
+                    "x-user-rol": rolUsuario
                 }
             });
 
@@ -84,11 +87,13 @@
         }
 
         try {
+            const token = localStorage.getItem('jwtToken') || '';
             const response = await fetch(`${API_URL}/projects`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "x-user-rol": localStorage.getItem('userRol')
+                    "Authorization": token ? `Bearer ${token}` : '',
+                    "x-user-rol": rolUsuario
                 },
                 body: JSON.stringify(formData)
             });
