@@ -15,7 +15,12 @@
         try {
             cuerpoTabla.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px;">⏳ Cargando proyectos desde el servidor...</td></tr>`;
 
-            const response = await fetch(`${API_BASE_URL}/projects-report`);
+            const token = localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
+            const response = await fetch(`${API_BASE_URL}/projects-report`, {
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : ''
+                }
+            });
             if (!response.ok) throw new Error(`Error en el servidor: ${response.status}`);
 
             proyectosOriginales = await response.json();
@@ -45,8 +50,9 @@
             return;
         }
 
-        const rolUsuario = localStorage.getItem('userRol');
-        const esDirector = (rolUsuario === "Director Operativo");
+        const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+        const rolUsuario = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
+        const esDirector = (rolUsuario.toLowerCase() === "director operativo" || rolUsuario.toLowerCase() === "director_operativo");
 
         const traduccionEstados = {
             'Active': 'Activo',
@@ -161,11 +167,16 @@
 
     async function procesarActualizacionRenglon(id, status, finishDate) {
         try {
+            const token = localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
+            const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+            const rolActual = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
+
             const response = await fetch(`${API_BASE_URL}/projects/${id}`, {
                 method: "PUT",
                 headers: { 
                     "Content-Type": "application/json",
-                    "x-user-rol": localStorage.getItem('userRol') || '' 
+                    "Authorization": token ? `Bearer ${token}` : '',
+                    "x-user-rol": rolActual 
                 },
                 body: JSON.stringify({ status, finish_date: finishDate })
             });
