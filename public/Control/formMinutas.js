@@ -5,7 +5,8 @@
 
   document.addEventListener('DOMContentLoaded', () => {
 
-    const rolUsuario = localStorage.getItem('userRol');
+    const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+    const rolUsuario = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
     
     if (rolUsuario !== "Director Operativo") {
       const mainContent = document.querySelector('.form_main');
@@ -40,11 +41,11 @@
     if (!selectResponsable) return;
 
     try {
-      const token = localStorage.getItem('token') || '';
+      const token = localStorage.getItem('jwtToken') || '';
       const respuesta = await fetch(`${API_URL}/empleados/gestion`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'x-user-rol': localStorage.getItem('userRol') || ''
+          'Authorization': token ? `Bearer ${token}` : '',
+          'x-user-rol': rolUsuario
         }
       });
       if (!respuesta.ok) throw new Error('Error al traer empleados');
@@ -70,8 +71,7 @@
     if (!selectProyecto) return;
 
     try {
-      const token = localStorage.getItem('token') || '';
-      const rolUsuario = localStorage.getItem('userRol') || '';
+      const token = localStorage.getItem('jwtToken') || '';
 
       const respuesta = await fetch(`${API_URL}/proyectos`, {
         headers: {
@@ -190,14 +190,14 @@
         comentarioDirector: act.comentarioDirector ? String(act.comentarioDirector).trim() : ''
       }));
 
-      const token = localStorage.getItem('token') || '';
+      const token = localStorage.getItem('jwtToken') || '';
 
       const respuesta = await fetch(`${API_URL}/tabla_minutas`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': token ? `Bearer ${token}` : '',
-          'x-user-rol': localStorage.getItem('userRol') || ''
+          'x-user-rol': rolUsuario
         },
         body: JSON.stringify(datosSanitizados)
       });
