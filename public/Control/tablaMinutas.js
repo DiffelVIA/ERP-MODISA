@@ -56,7 +56,9 @@
 
   async function cargarActividades() {
     try {
-      const token = localStorage.getItem('jwtToken');
+      const token = localStorage.getItem('jwtToken') || '';
+      const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+      const rolActual = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
       const respuesta = await fetch(`${API_URL}/tabla_minutas`, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
@@ -157,8 +159,9 @@
       return;
     }
 
-    const rolUsuario = localStorage.getItem('userRol');
-    const esDirector = (rolUsuario === "Director Operativo");
+    const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+    const rolUsuario = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
+    const esDirector = (rolUsuario.toLowerCase() === "Director Operativo" || '');
 
     actividadesAFiltrar.forEach((actividad) => {
       const fila = document.createElement('tr');
@@ -336,7 +339,9 @@
 
       console.log("Enviando este payload corregido al servidor:", payloadParaBackend);
 
-      const token = localStorage.getItem('jwtToken');
+      const token = localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
+      const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+      const rolActual = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
       const respuesta = await fetch(url, {
         method: 'POST',
         headers: {
@@ -367,7 +372,6 @@
     return `${partes[2]}/${partes[1]}/${partes[0]}`;
   }
 
-  // Se renombró para evitar colisiones con variables u otras funciones
   function MinutasPDF() {
     if (actividadesFiltradas.length === 0) {
       alert('No hay actividades para generar el PDF. Aplica filtros que muestren actividades o elimina los filtros.');
@@ -572,8 +576,9 @@
       let estadoParam = urlParams.get('estado');
       let responsableParam = urlParams.get('responsable');
 
-      const rolUsuario = localStorage.getItem('userRol');
-      const esDirector = (rolUsuario === "Director Operativo");
+      const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+      const rolUsuario = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
+      const esDirector = (rolUsuario.toLowerCase() === "director operativo" || rolUsuario.toLowerCase() === "director_operativo");
 
       if (!responsableParam && !esDirector) {
         try {
