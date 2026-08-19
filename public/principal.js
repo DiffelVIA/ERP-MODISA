@@ -159,9 +159,12 @@
                 nombreUsuario = rawSesion;
             }
 
+            const token = localStorage.getItem('jwtToken') || '';
             const res = await fetch(`${API_URL}/notificaciones/minutas-resumen`, {
                 headers: {
-                    'x-usuario-nombre': nombreUsuario
+                    'Authorization': token ? `Bearer ${token}` : '',
+                    'x-usuario-nombre': nombreUsuario,
+                    'x-user.rol': localStorage.getItem('userRol') || ''
                 }
             });
 
