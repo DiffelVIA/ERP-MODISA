@@ -16,7 +16,8 @@
             'Gerente de Costos'
         ];
 
-        const userRol = localStorage.getItem('userRol');
+        const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+        const userRol = (userToken && userToken.rol) ? userToken.rol.trim() : '';
         
         if (!userRol || !ROLES_PERMITIDOS.includes(userRol.trim())) {
             alert('Acceso no autorizado a este módulo.');
@@ -40,13 +41,15 @@
 
         async function cargarProyectos() {
             try {
+                const token = localStorage.getItem('jwtToken') || '';
                 const usuarioMODISA = JSON.parse(sessionStorage.getItem('usuarioMODISA')) || {};
                 const idEmployee = usuarioMODISA.id_employee || localStorage.getItem('id_employee') || '';
 
                 const res = await fetch(`${API_URL}/proyectos`, {
                     headers: {
+                        'Authorization': token ? `Bearer ${token}` : '',
                         'x-employee-id': idEmployee,
-                        'x-user-rol': localStorage.getItem('userRol') || ''
+                        'x-user-rol': userRol
                     }
                 });
 
@@ -75,7 +78,13 @@
 
         async function cargarDatosDashboard(idProyecto) {
             try {
-                const res = await fetch(`${API_URL}/dashboard/metrics/${idProyecto}`);
+                const token = localStorage.getItem('jwtToken') || '';
+                const res = await fetch(`${API_URL}/dashboard/metrics/${idProyecto}`, {
+                    headers: {
+                        'Authorization': token ? `Bearer ${token}` : '',
+                    }
+                });
+                
                 const data = await res.json();
 
                 actualizarKPIs(data.totales);
