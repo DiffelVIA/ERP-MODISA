@@ -4,8 +4,7 @@
     document.addEventListener("DOMContentLoaded", () => {
 
         const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-        const userRolString = localStorage.getItem('userRol') ? localStorage.getItem('userRol').trim() : '';
-        const rolActual = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : userRolString;
+        const rolActual = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
 
         if (!ROL_AUTORIZADO.includes(rolActual)) {
             const contenedorPrincipal = document.querySelector('.form_main');
