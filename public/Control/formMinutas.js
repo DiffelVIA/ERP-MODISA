@@ -75,7 +75,7 @@
 
       const respuesta = await fetch(`${API_URL}/proyectos`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': token ? `Bearer ${token}` : '',
           'x-user-rol': rolUsuario
         }
       });
@@ -196,7 +196,7 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': token ? `Bearer ${token}` : '',
           'x-user-rol': localStorage.getItem('userRol') || ''
         },
         body: JSON.stringify(datosSanitizados)

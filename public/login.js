@@ -44,6 +44,7 @@
                 contenedorLogin.style.display = "none";
                 contenedorCambio.style.display = "block";
             } else {
+                localStorage.setItem("jwtToken", datos.token);
                 localStorage.setItem("userRol", datos.rol);
 
                 sessionStorage.setItem("usuarioMODISA", JSON.stringify({
@@ -94,6 +95,7 @@
                 return;
             }
 
+            localStorage.setItem("jwtToken", datos.token);
             localStorage.setItem("userRol", datos.rol || "Director Operativo");
 
             sessionStorage.setItem("usuarioMODISA", JSON.stringify({
@@ -128,6 +130,7 @@
             return;
         }
 
+        localStorage.removeItem('jwtToken');
         localStorage.removeItem('userRol');
         sessionStorage.removeItem('usuarioMODISA');
         if (inputUsuario) inputUsuario.value = "";
