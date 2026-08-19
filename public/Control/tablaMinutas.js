@@ -56,7 +56,13 @@
 
   async function cargarActividades() {
     try {
-      const respuesta = await fetch(`${API_URL}/tabla_minutas`);
+      const token = localStorage.getItem('jwtToken');
+      const respuesta = await fetch(`${API_URL}/tabla_minutas`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'x-user-rol': localStorage.getItem('userRol') || ''
+        }
+      });
       
       if (!respuesta.ok) {
         throw new Error('Error al conectar con el servidor');
@@ -330,10 +336,12 @@
 
       console.log("Enviando este payload corregido al servidor:", payloadParaBackend);
 
+      const token = localStorage.getItem('jwtToken');
       const respuesta = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
           'x-user-rol': localStorage.getItem('userRol')
         },
         body: JSON.stringify(payloadParaBackend)
