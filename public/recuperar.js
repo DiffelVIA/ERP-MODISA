@@ -111,6 +111,11 @@
             const nuevaVal = inputNueva ? inputNueva.value : '';
             const confirmarVal = inputConfirmar ? inputConfirmar.value : '';
 
+            if (nuevaVal.length < 6) {
+                mostrarError(errorNueva, "La nueva contraseña debe tener mínimo 6 caracteres");
+                return;
+            }
+
             if (nuevaVal !== confirmarVal) {
                 mostrarError(errorNueva, "Las contraseñas no coinciden.");
                 return;
