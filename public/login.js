@@ -45,7 +45,6 @@
                 contenedorCambio.style.display = "block";
             } else {
                 localStorage.setItem("jwtToken", datos.token);
-                localStorage.setItem("userRol", datos.rol);
 
                 sessionStorage.setItem("usuarioMODISA", JSON.stringify({
                     id_employee: datos.id_employee,
@@ -96,7 +95,6 @@
             }
 
             localStorage.setItem("jwtToken", datos.token);
-            localStorage.setItem("userRol", datos.rol || "Director Operativo");
 
             sessionStorage.setItem("usuarioMODISA", JSON.stringify({
                 id_employee: datos.id_employee,
@@ -125,7 +123,8 @@
     };
 
     window.addEventListener('pageshow', () => {
-        if (localStorage.getItem('userRol') && sessionStorage.getItem('usuarioMODISA')) {
+        const token = localStorage.getItem('jwtToken');
+        if (token && sessionStorage.getItem('usuarioMODISA')) {
             window.location.replace('principal.html');
             return;
         }
