@@ -4,7 +4,9 @@
     let esResidente = false;
 
     (() => {
-        const rolUsuario = localStorage.getItem("userRol");
+        const usuarioSesion = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+        const rolUsuario = (usuarioSesion && usuarioSesion.rol) ? usuarioSesion.rol.trim() : null;
+        const token = localStorage.getItem('jwtToken') || '';
         const sesionRaw = sessionStorage.getItem("usuarioMODISA");
         const puestosAutorizados = [
             "Gerente Administración",
@@ -16,7 +18,7 @@
             "Residente de Obra"
         ];
 
-        if (!rolUsuario || !sesionRaw || !puestosAutorizados.includes(rolUsuario.trim())) {
+        if (!token || !usuarioSesion || !rolUsuario || !puestosAutorizados.includes(rolUsuario)) {
             document.addEventListener('DOMContentLoaded', () => {
                 const mainContent = document.querySelector('.main-tabla');
                 if (mainContent) {
@@ -34,7 +36,7 @@
             throw new Error("Acceso denegado: Usuario no autorizado para ver esta sección.");
         }
 
-        if (rolUsuario.trim() === "Residente de Obra") {
+        if (rolUsuario === "Residente de Obra") {
             esResidente = true;
         }
     })();
@@ -108,16 +110,23 @@
         try {
             cuerpoTabla.innerHTML = `<tr><td colspan="15" style="text-align: center; padding: 25px;">⏳ Cargando materiales desde la base de datos...</td></tr>`;
 
-            const rolParaHeaders = localStorage.getItem("userRol") || '';
+            const token = localStorage.getItem('jwtToken') || '';
+            const usuarioSesion = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+            const rolParaHeaders = (usuarioSesion && usuarioSesion.rol) ? usuarioSesion.rol : '';
+
+            const headersPeticion = {
+                'Authorization' : token ? `Bearer ${token}` : '',
+                'x-user-rol': rolParaHeaders
+            };
 
             const [resMateriales, resProyectos] = await Promise.all([
                 fetch(`${API_URL}/materiales`, {
                     method: 'GET',
-                    headers: {
-                        'x-user-rol': rolParaHeaders
-                    }
+                    headers: headersPeticion
                 }),
-                fetch(`${API_URL}/proyectos`)
+                fetch(`${API_URL}/proyectos`, {
+                    headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+                })
             ]);
             
             if (!resMateriales.ok || !resProyectos.ok) {
@@ -400,11 +409,16 @@
 
                         renderizarTabla(materialesAVer);
 
+                        const token = localStorage.getItem('jwtToken') || '';
+                        const usuarioSesion = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+                        const rolParaHeaders = (usuarioSesion && usuarioSesion.rol) ? usuarioSesion.rol : '';
+
                         const respuesta = await fetch(`${API_URL}/materiales/detalle/${item.id_detail}`, {
                             method: 'PUT',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'x-user-rol': localStorage.getItem("userRol") || ''
+                                'Authorization': token ? `Bearer ${token}` : '',
+                                'x-user-rol': rolParaHeaders
                             },
                             body: JSON.stringify({
                                 proveedor: nuevoProveedor,
