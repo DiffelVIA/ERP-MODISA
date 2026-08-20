@@ -50,7 +50,13 @@
 
   async function cargarProyectosActivos() {
     try {
-      const respuesta = await fetch(`${API_URL}/projects-active`);
+      const token = localStorage.getItem('jwtToken') || '';
+      const respuesta = await fetch(`${API_URL}/projects-active`, {
+        method: 'GET',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      });
       if (!respuesta.ok) throw new Error('Error al conectar con el servidor');
 
       proyectosActivos = await respuesta.json();
@@ -89,18 +95,24 @@
     if (tfoot) tfoot.innerHTML = "";
 
     try {
-        const response = await fetch(`${API_URL}/project-categories/${idProyecto}`);
-        
-        if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            throw new Error(errData.message || `Error del servidor (${response.status})`);
+      const token = localStorage.getItem('jwtToken') || '';
+      const response = await fetch(`${API_URL}/project-categories/${idProyecto}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : ''
         }
+      });
+      
+      if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.message || `Error del servidor (${response.status})`);
+      }
 
-        const datos = await response.json();
-        datosPresupuestoActual = datos;
-        
-        poblarFiltrosCascada();
-        renderizarTablaPresupuestos(datos);
+      const datos = await response.json();
+      datosPresupuestoActual = datos;
+      
+      poblarFiltrosCascada();
+      renderizarTablaPresupuestos(datos);
 
     } catch (error) {
         console.error("❌ Error al cargar presupuestos:", error);
