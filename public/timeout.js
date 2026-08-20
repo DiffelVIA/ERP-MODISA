@@ -1,5 +1,6 @@
 (() => {
-    if (!localStorage.getItem('userRol') || !sessionStorage.getItem('usuarioMODISA')) {
+    const token = localStorage.getItem('jwtToken') || '';
+    if (!token || !sessionStorage.getItem('usuarioMODISA')) {
         window.location.replace('/'); 
         return;
     }
@@ -16,7 +17,7 @@
     function cerrarSesionPorInactividad() {
         console.warn("⚠️ Sesión expirada debido a inactividad prolongada.");
         
-        localStorage.removeItem('userRol');
+        localStorage.removeItem('jwtToken');
         sessionStorage.removeItem('usuarioMODISA');
 
         alert("Tu sesión ha expirado por inactividad. Por favor, inicia sesión de nuevo.");
