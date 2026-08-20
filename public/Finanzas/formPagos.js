@@ -36,17 +36,9 @@
         if (!inputSolicitante) return;
 
         try {
-            const rawSesion = sessionStorage.getItem('usuarioMODISA');
-            if (!rawSesion) {
-                console.error("❌ No se encontró 'usuarioMODISA' en sessionStorage.");
-                asignarEstadoSolicitante(inputSolicitante, "", "Usuario Desconocido");
-                return;
-            }
-
-            const usuarioSesion = JSON.parse(rawSesion);
-            
-            if (usuarioSesion && usuarioSesion.id_employee !== undefined && usuarioSesion.id_employee !== null) {
-                const idEmp = usuarioSesion.id_employee;
+            const usuarioSesion = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+            if (usuarioSesion && (usuarioSesion.id_employee || usuarioSesion.id)) {
+                const idEmp = usuarioSesion.id_employee || usuarioSesion.id;
                 const nombreEmp = usuarioSesion.nombre || usuarioSesion.name || "Usuario Activo";
 
                 inputSolicitante.setAttribute('data-id', idEmp);
@@ -76,19 +68,10 @@
 
     async function cargarSelectoresIniciales() {
         try {
-            let idEmp = null;
-            let userRol = null;
-
-            try {
-                const rawSesion = sessionStorage.getItem('usuarioMODISA');
-                if (rawSesion) {
-                    const usuarioSesion = JSON.parse(rawSesion);
-                    idEmp = usuarioSesion ? usuarioSesion.id_employee : null;
-                    userRol = usuarioSesion ? usuarioSesion.rol : null;
-                }
-            } catch (e) {
-                console.error(" Error al leer la sesión para filtrado de proyectos:", e);
-            }
+            const token = localStorage.getItem('jwtToken') || '';
+            const usuarioSesion = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+            const idEmp = usuarioSesion ? (usuarioSesion.id_employee || usuarioSesion.id) : null;
+            const userRol = usuarioSesion ? usuarioSesion.rol : null;
 
             const rolesAdministrativos = [
                 'director operativo',
@@ -107,7 +90,9 @@
             const rolLimpio = userRol ? userRol.trim().toLowerCase() : '';
             const esRolGlobal = rolesAdministrativos.includes(rolLimpio);
 
-            const headersPeticion = {};
+            const headersPeticion = {
+                'Authorization': token ? `Bearer ${token}` : ''
+            };
             if (idEmp) headersPeticion['x-employee-id'] = idEmp;
             if (userRol) headersPeticion['x-user-rol'] = userRol;
 
@@ -133,7 +118,9 @@
                 llenarSelect('proyecto', lista);
             }
 
-            const resContratos = await fetch(`${API_URL}/contratos`);
+            const resContratos = await fetch(`${API_URL}/contratos`, {
+                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+            });
             if (resContratos.ok) {
                 contratosCargados = await resContratos.json();
             }
@@ -220,19 +207,13 @@
                     const provInput = document.getElementById('proveedor');
                     if (provInput) provInput.value = '';
                     idCategoryContratoActivo = null; 
-                    /* =========================================================================
-                       MODIFICACIÓN: Limpiar idContratoActivo si no hay selección
-                       ========================================================================= */
                     idContratoActivo = null;
                     return;
                 }
 
                 const provInput = document.getElementById('proveedor');
                 if (provInput) provInput.value = contrato.supplier || '';
-                
-                /* =========================================================================
-                   MODIFICACIÓN: Guardar id_contract y id_project_category del contrato seleccionado
-                   ========================================================================= */
+            
                 idContratoActivo = contrato.id_contract ? parseInt(contrato.id_contract) : null;
                 idCategoryContratoActivo = contrato.id_project_category ? parseInt(contrato.id_project_category) : null;
 
@@ -276,7 +257,10 @@
                 }
 
                 try {
-                    const res = await fetch(`${API_URL}/proyectos/${idProyecto}/categorias`);
+                    const token = localStorage.getItem('jwtToken') || '';
+                    const res = await fetch(`${API_URL}/proyectos/${idProyecto}/categorias`, {
+                        headers: {'Authorization': token ? `Bearer ${token}` : ''}
+                    });
 
                     if (res.ok) {
                         categoriasCargadas = await res.json();
@@ -392,9 +376,6 @@
             idCategoryFinal = registroMatch ? registroMatch.id_project_category : null;
         }
 
-        /* =========================================================================
-           MODIFICACIÓN: Mapeo explícito de id_contract dentro del objeto nuevoConcepto
-           ========================================================================= */
         const nuevoConcepto = {
             id_project: parseInt(idProyectoSel),
             nombre_proyecto: nombreProyectoSel,
@@ -500,8 +481,12 @@
         }
 
         try {
+            const token = localStorage.getItem('jwtToken') || '';
             const res = await fetch(`${API_URL}/pagos`, {
                 method: 'POST',
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : ''
+                },
                 body: formData
             });
 
