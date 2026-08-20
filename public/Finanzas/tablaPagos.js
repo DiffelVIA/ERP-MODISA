@@ -3,7 +3,8 @@
         ? 'http://localhost:3000/api' 
         : 'https://erp-modisa.onrender.com/api';
 
-    const ROL_RAW = localStorage.getItem('userRol');
+    const usuarioSesion = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+    const ROL_RAW = usuarioSesion && usuarioSesion.rol ? usuarioSesion.rol : '';
     const ROL_USUARIO = ROL_RAW ? ROL_RAW.trim().toLowerCase() : 'residente';
 
     const mapaTiposPago = {
@@ -45,7 +46,13 @@
 
     async function cargarPagosSolicitados() {
         try {
-            const response = await fetch(`${API_BASE}/pagos`);
+            const token = localStorage.getItem('jwtToken') || '';
+            const response = await fetch(`${API_BASE}/pagos`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': token ? `Bearer ${token}`: ''
+                }
+            });
             if (!response.ok) throw new Error(`Error en el servidor: Estado HTTP ${response.status}`);
 
             todosLosPagos = await response.json();
@@ -520,9 +527,13 @@
 
     async function guardarMontoPagadoEnBD(idOrden, monto, trElemento) {
         try {
+            const token = localStorage.getItem('jwtToken') || '';
             const response = await fetch(`${API_BASE}/pagos/${idOrden}/monto-pagado`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : ''
+                },
                 body: JSON.stringify({ monto_pagado: monto })
             });
             
@@ -575,9 +586,13 @@
 
     async function guardarComentarioComprasEnBD(idDetalle, comentarioTexto, trElemento) {
         try {
+            const token = localStorage.getItem('jwtToken') || '';
             const response = await fetch(`${API_BASE}/pagos/${idDetalle}/monto-pagado`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}`: ''
+                },
                 body: JSON.stringify({ compras_comment: comentarioTexto })
             });
 
