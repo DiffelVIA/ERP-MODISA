@@ -9,7 +9,8 @@
         }
     });
 
-    if (!localStorage.getItem('userRol') || !sessionStorage.getItem('usuarioMODISA')) {
+    const token = localStorage.getItem('jwtToken') || '';
+    if (!token || !sessionStorage.getItem('usuarioMODISA')) {
         window.location.replace('/');
     }
 
@@ -18,7 +19,9 @@
         cargarNotificacionesMinutas();
         configurarEventosTarjetasKPI();
 
-        const rolUsuario = localStorage.getItem('userRol');
+        const usuarioSesion = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+        const ROL_RAW = usuarioSesion && usuarioSesion.rol ? usuarioSesion.rol : '';
+        const rolUsuario = ROL_RAW || localStorage.getItem('userRol') || '';
         const ventana = document.querySelector('.carrusel-ventana');
         const trackContenedor = document.getElementById('carrusel-track');
         
@@ -163,8 +166,7 @@
             const res = await fetch(`${API_URL}/notificaciones/minutas-resumen`, {
                 headers: {
                     'Authorization': token ? `Bearer ${token}` : '',
-                    'x-usuario-nombre': nombreUsuario,
-                    'x-user.rol': localStorage.getItem('userRol') || ''
+                    'x-usuario-nombre': nombreUsuario
                 }
             });
 
