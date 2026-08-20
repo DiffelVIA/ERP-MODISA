@@ -35,17 +35,11 @@
         if (!inputSolicitante) return;
 
         try {
-            const rawSesion = sessionStorage.getItem('usuarioMODISA');
-            if (!rawSesion) {
-                console.error("❌ No se encontró 'usuarioMODISA' en sessionStorage.");
-                inputSolicitante.value = "Usuario Desconocido";
-                return;
-            }
+            const usuarioSesion = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
 
-            const usuarioSesion = JSON.parse(rawSesion);
-            
-            if (usuarioSesion && usuarioSesion.id_employee !== undefined && usuarioSesion.id_employee !== null) {
-                inputSolicitante.setAttribute('data-id', usuarioSesion.id_employee);
+            if (usuarioSesion && (usuarioSesion.id_employee || usuarioSesion.id)) {
+                const idEmp = usuarioSesion.id_employee || usuarioSesion.id;
+                inputSolicitante.setAttribute('data-id', idEmp);
                 inputSolicitante.value = usuarioSesion.nombre || usuarioSesion.name || "Usuario Activo";
             } else {
                 inputSolicitante.value = "Usuario Desconocido";
@@ -59,22 +53,15 @@
 
     async function cargarSelectoresIniciales() {
         try {
-            let idEmp = null;
-            try {
-                const rawSesion = sessionStorage.getItem('usuarioMODISA');
-                if (rawSesion) {
-                    const usuarioSesion = JSON.parse(rawSesion);
-                    idEmp = usuarioSesion ? usuarioSesion.id_employee : null;
-                }
-            } catch (e) {
-                console.error("Error al leer sesión para materiales:", e);
-            }
-
-            const headers = {};
+            const token = localStorage.getItem('jwtToken') || '';
+            const usuarioSesion = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+            const idEmp = usuarioSesion ? (usuarioSesion.id_employee || usuarioSesion.id) : null;
+            const headers = {
+                'Authorization': token ? `Bearer ${token}` : ''
+            };
             if (idEmp) {
                 headers['x-employee-id'] = idEmp;
             }
-
             const resProyectos = await fetch(`${API_URL}/proyectos`, { headers });
             if (resProyectos.ok) {
                 const proyectos = await resProyectos.json();
@@ -95,7 +82,12 @@
             if (!idProyecto) return;
 
             try {
-                const res = await fetch(`${API_URL}/proyectos/${idProyecto}/categorias`);
+                const token = localStorage.getItem('jwtToken') || '';
+                const res = await fetch(`${API_URL}/proyectos/${idProyecto}/categorias`, {
+                    headers: {
+                        'Authorization': token ? `Bearer ${token}` : ''
+                    }
+                });
 
                 if (res.ok) {
                     categoriasCargadas = await res.json();
@@ -228,7 +220,9 @@
 
         fetch(`${API_URL}/materiales`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+            },
             body: JSON.stringify(payloadOrden)
         })
         .then(async res => {
