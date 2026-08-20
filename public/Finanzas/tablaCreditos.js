@@ -4,8 +4,8 @@
     let todosLosCreditos = [];
 
     document.addEventListener('DOMContentLoaded', () => {
-        const rolRaw = localStorage.getItem("userRol");
-        const rolUsuario = rolRaw ? rolRaw.trim().toLowerCase() : null;
+        const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+        const rolUsuario = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim().toLowerCase() : null;
 
         const rolesPermitidosCreditos = [
             "gerente administración", 
@@ -36,7 +36,12 @@
 
     async function fetchCreditos() {
         try {
-            const response = await fetch(`${API_URL}/creditos`);
+            const token = localStorage.getItem('jwtToken') || '';
+            const response = await fetch(`${API_URL}/creditos`, {
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : ''
+                }
+            });
             if (!response.ok) throw new Error('Error en la API');
             
             todosLosCreditos = await response.json();
@@ -59,8 +64,8 @@
             return;
         }
 
-        const rolRaw = localStorage.getItem("userRol");
-        const rolUsuario = rolRaw ? rolRaw.trim().toLowerCase() : "";
+        const usuarioToken = window.obtenerUsuarioDesdeToken ? window.usuarioToken() : null;
+        const rolUsuario = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim().toLowerCase() : "";
         const puedeEditar = (rolUsuario === "compras" || rolUsuario === "gerente administración");
 
         datos.forEach(credito => {
@@ -170,7 +175,10 @@
                 try {
                     await fetch(`${API_URL}/creditos/${credito.id_credit}`, {
                         method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization' : token ? `Bearer ${token}` : ''
+                        },
                         body: JSON.stringify({ amount_paid: currentPago, status: currentStatus, observations: currentObs })
                     });
                 } catch (err) {
