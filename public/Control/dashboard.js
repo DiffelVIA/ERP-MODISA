@@ -19,12 +19,21 @@
         const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
         const userRol = (userToken && userToken.rol) ? userToken.rol.trim() : '';
         
-        if (!userRol || !ROLES_PERMITIDOS.includes(userRol.trim())) {
-            alert('Acceso no autorizado a este módulo.');
-            window.location.href = '../principal.html';
-            return;
+        if (!userRol || !ROLES_PERMITIDOS.includes(userRol)) {
+            const mainContent = document.querySelector('main') || document.querySelector('.dashboard-container') || document.body;
+            if (mainContent) {
+                mainContent.innerHTML = `
+                  <div style="text-align: center; padding: 60px 20px; font-family: sans-serif;">
+                    <div style="font-size: 64px; margin-bottom: 20px;">🔒</div>
+                    <h1 style="color: #1e293b; font-size: 28px; margin-bottom: 10px; font-weight: bold;">Acceso Denegado</h1>
+                    <p style="color: #64748b; font-size: 16px; max-width: 400px; margin: 0 auto 30px auto; line-height: 1.5;">
+                      No tienes los permisos necesarios para ver esta sección.
+                    </p>
+                  </div>
+                `;
+                return;
+            }
         }
-
         let chartPresupuesto = null;
         let chartRubros = null;
 
@@ -47,9 +56,7 @@
 
                 const res = await fetch(`${API_URL}/proyectos`, {
                     headers: {
-                        'Authorization': token ? `Bearer ${token}` : '',
-                        'x-employee-id': idEmployee,
-                        'x-user-rol': userRol
+                        'Authorization': token ? `Bearer ${token}` : ''
                     }
                 });
 
