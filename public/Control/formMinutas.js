@@ -6,7 +6,7 @@
   document.addEventListener('DOMContentLoaded', () => {
 
     const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-    const rolUsuario = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
+    const rolUsuario = (userToken && userToken.rol) ? userToken.rol.trim() : '';
     
     if (rolUsuario !== "Director Operativo") {
       const mainContent = document.querySelector('.form_main');
@@ -44,8 +44,7 @@
       const token = localStorage.getItem('jwtToken') || '';
       const respuesta = await fetch(`${API_URL}/empleados/gestion`, {
         headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'x-user-rol': rolUsuario
+          'Authorization': token ? `Bearer ${token}` : ''
         }
       });
       if (!respuesta.ok) throw new Error('Error al traer empleados');
@@ -75,8 +74,7 @@
 
       const respuesta = await fetch(`${API_URL}/proyectos`, {
         headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'x-user-rol': rolUsuario
+          'Authorization': token ? `Bearer ${token}` : ''
         }
       });
 
@@ -196,8 +194,7 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : '',
-          'x-user-rol': rolUsuario
+          'Authorization': token ? `Bearer ${token}` : ''
         },
         body: JSON.stringify(datosSanitizados)
       });
