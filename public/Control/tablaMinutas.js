@@ -61,8 +61,7 @@
       const rolActual = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
       const respuesta = await fetch(`${API_URL}/tabla_minutas`, {
         headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'x-user-rol': localStorage.getItem('userRol') || ''
+          'Authorization': token ? `Bearer ${token}` : ''
         }
       });
       
@@ -161,7 +160,7 @@
 
     const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
     const rolUsuario = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
-    const esDirector = (rolUsuario.toLowerCase() === "Director Operativo" || '');
+    const esDirector = (rolUsuario === "Director Operativo" || '');
 
     actividadesAFiltrar.forEach((actividad) => {
       const fila = document.createElement('tr');
@@ -346,8 +345,7 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : '',
-          'x-user-rol': localStorage.getItem('userRol')
+          'Authorization': token ? `Bearer ${token}` : ''
         },
         body: JSON.stringify(payloadParaBackend)
       });
