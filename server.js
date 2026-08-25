@@ -17,7 +17,7 @@ const materialesRouter = require('./src/routes/materials');
 const creditosRouter = require('./src/routes/credits');
 const contratosRouter = require('./src/routes/contracts');
 const pagosRouter = require('./src/routes/payments');
-const dashboardRouter = require('./src/routes/dashboard');
+const dashboardRouter = require('./src/routes/dashboardBackend');
 
 // Vinculación de Rutas
 app.use('/api/auth/google', authRouter);
