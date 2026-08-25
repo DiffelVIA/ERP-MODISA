@@ -5,25 +5,11 @@
 
   document.addEventListener('DOMContentLoaded', () => {
 
-    let userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-    
-    if (!userToken) {
-      try {
-        const sesionStorageUsuario = sessionStorage.getItem('usuarioMODISA');
-        if (sesionStorageUsuario) {
-          userToken = JSON.parse(sesionStorageUsuario);
-        }
-      } catch (e) {
-        console.error('Error al parsear usuarioMODISA desde sessionStorage:', e);
-      }
-    }
-
+    const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
     const rawRol = (userToken && userToken.rol) ? String(userToken.rol).trim() : '';
     const rolNormalizado = rawRol.toLowerCase().replace(/_/g, ' ');
 
-    const esDirectorOperativo = rolNormalizado === "director operativo";
-    
-    if (!esDirectorOperativo) {
+    if (rolNormalizado !== "director operativo") {
       const mainContent = document.querySelector('.form_main');
       if (mainContent) {
         mainContent.innerHTML = `
