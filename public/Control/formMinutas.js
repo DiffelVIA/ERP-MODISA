@@ -48,8 +48,7 @@
 
       const respuesta = await fetch(`${API_URL}/empleados/gestion`, {
         headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'x-user-rol': rolUsuario
+          'Authorization': token ? `Bearer ${token}` : ''
         }
       });
       if (!respuesta.ok) throw new Error('Error al traer empleados');

@@ -41,11 +41,6 @@ const verificarRol = (rolesPermitidos = []) => {
       return res.status(403).json({ error: '⛔ Acceso denegado. Permisos insuficientes.' });
     }
 
-    const rolHeader = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim() : '';
-    if (rolHeader && roles.includes(rolHeader)) {
-      return next();
-    }
-
     return res.status(403).json({ error: '⛔ Acceso denegado. Se requiere autenticación válida.' });
   };
 };

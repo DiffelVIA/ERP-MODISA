@@ -1,3 +1,23 @@
+window.obtenerUsuarioDesdeToken = function() {
+    const token = localStorage.getItem('jwtToken');
+    if (!token) return null;
+
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+
+        return JSON.parse(jsonPayload);
+    } catch (error) {
+        console.error("Token no válido o alterado:", error);
+        localStorage.removeItem('jwtToken');
+        sessionStorage.clear();
+        return null;
+    }
+};
+
 (() => {
     const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
 
