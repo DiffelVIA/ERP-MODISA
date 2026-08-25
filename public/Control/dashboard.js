@@ -16,7 +16,6 @@
             'Gerente de Costos'
         ];
 
-        // [INICIO MODIFICACIÓN VALIDACIÓN DE ROL ROBUSTA DASHBOARD]
         let userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
         
         if (!userToken) {
