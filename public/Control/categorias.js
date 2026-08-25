@@ -217,7 +217,7 @@
                         })
                     });
                     const data = await res.json();
-                    if (!res.ok) throw new Error(data.error || "Fallo al insertar");
+                    if (!res.ok) throw new Error(data.error || data.message || "Fallo al insertar");
 
                     alert("✨ Categoría y matriz presupuestal guardadas.");
                     resetearFormularioAgregar();
@@ -262,7 +262,7 @@
                         })
                     });
                     const data = await res.json();
-                    if (!res.ok) throw new Error(data.error || "Fallo al actualizar");
+                    if (!res.ok) throw new Error(data.error || data.message || "Fallo al actualizar");
 
                     alert("✨ Registro y matriz de costos modificados correctamente.");
                     camposEdicion.style.display = "none";
@@ -290,7 +290,7 @@
                         }
                     });
                     const data = await res.json();
-                    if (!res.ok) throw new Error(data.error || "Fallo al eliminar");
+                    if (!res.ok) throw new Error(data.error || data.message || "Fallo al eliminar");
 
                     alert("🗑️ Renglón eliminado con éxito.");
                     camposEdicion.style.display = "none";
@@ -503,7 +503,7 @@
                         archivoSeleccionado = null;
                         await cargarCategoriasProyecto(idProject);
                     } else {
-                        throw new Error(resultado.error || "Fallo al procesar archivo");
+                        throw new Error(resultado.error || resultado.message || "Fallo al procesar archivo");
                     }
                 } catch (err) {
                     alert(`❌ Error en carga masiva: ${err.message}`);
