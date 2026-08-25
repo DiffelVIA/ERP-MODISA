@@ -92,7 +92,7 @@
             const token = localStorage.getItem('jwtToken') || '';
             const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
             const rolUsuario = (userToken && userToken.rol) ? userToken.rol.trim() : '';
-            const response = await fetch(`${API_URL}/projects`, {
+            const response = await fetch(`${API_URL}/proyectos`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
