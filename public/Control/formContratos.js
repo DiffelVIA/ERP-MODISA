@@ -1,5 +1,3 @@
-const { use } = require("react");
-
 (() => {
     const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
 
@@ -7,11 +5,10 @@ const { use } = require("react");
     const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
 
     const sesionUsuario = {
-        id: sesionUsuarioRaw ? sesionUsuarioRaw.id_employee : null,
-        nombre: sesionUsuarioRaw ? sesionUsuarioRaw.nombre : 'Solicitante',
+        id: userToken ? userToken.id_employee : null,
+        nombre: userToken ? (userToken.nombre || `${userToken.name || ''} ${userToken.last_name || ''}`.trim() || 'Solicitante') : 'Solicitante',
         rol: (userToken && userToken.rol) ? userToken.rol.trim() : ''
     };
-
     const ROLES_PERMITIDOS = ["Residente de Obra", "Director Operativo"];
 
     document.addEventListener("DOMContentLoaded", () => {
