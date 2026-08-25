@@ -21,8 +21,14 @@ window.obtenerUsuarioDesdeToken = function() {
         }
     }
 
-    return {
+    const usuarioFinal = {
         ...(usuarioToken || {}),
         ...(usuarioSesion || {})
     };
+
+    if (usuarioToken && usuarioToken.rol) {
+        usuarioFinal.rol = usuarioToken.rol;
+    }
+
+    return usuarioFinal;
 };
