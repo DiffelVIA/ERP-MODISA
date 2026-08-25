@@ -16,10 +16,25 @@
             'Gerente de Costos'
         ];
 
-        const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-        const userRol = (userToken && userToken.rol) ? userToken.rol.trim() : '';
+        // [INICIO MODIFICACIÓN VALIDACIÓN DE ROL ROBUSTA DASHBOARD]
+        let userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
         
-        if (!userRol || !ROLES_PERMITIDOS.includes(userRol)) {
+        if (!userToken) {
+            try {
+                const sesionStorageUsuario = sessionStorage.getItem('usuarioMODISA');
+                if (sesionStorageUsuario) {
+                    userToken = JSON.parse(sesionStorageUsuario);
+                }
+            } catch (e) {
+                console.error('Error al parsear usuarioMODISA en dashboard:', e);
+            }
+        }
+
+        const rawRol = (userToken && userToken.rol) ? String(userToken.rol).trim() : '';
+        const rolNormalizado = rawRol.toLowerCase().replace(/_/g, ' ');
+        const rolesPermitidosNormalizados = ROLES_PERMITIDOS.map(r => r.toLowerCase());
+
+        if (!rolNormalizado || !rolesPermitidosNormalizados.includes(rolNormalizado)) {
             const mainContent = document.querySelector('main') || document.querySelector('.dashboard-container') || document.body;
             if (mainContent) {
                 mainContent.innerHTML = `
