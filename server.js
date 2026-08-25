@@ -34,7 +34,7 @@ app.use('/api/materiales', materialesRouter);
 app.use('/api/creditos', creditosRouter);
 app.use('/api/contratos', contratosRouter);
 app.use('/api/pagos', pagosRouter);
-app.use('/api/dashboard', dashboardRouter);
+app.use('/api/dashboardBackend', dashboardRouter);
 
 // Arranque de Servidor
 const PORT = process.env.PORT;
