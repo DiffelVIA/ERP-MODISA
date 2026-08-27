@@ -108,7 +108,7 @@
                 
                 const contentType = res.headers.get('content-type') || '';
 
-                if (!res.ok || !contentTyoe.includes('application/json')) {
+                if (!res.ok || !contentType.includes('application/json')) {
                     throw new Error(`Respuesta no válida del servidor: ${res.status} (${contentType})`);
                 }
                 const data = await res.json();
