@@ -27,14 +27,16 @@ app.use('/api/projects-report', (req, res, next) => {
   req.url = '/report' + req.url;
   projectsRouter(req, res, next);
 });
-app.use('/api', categoriesRouter);
+
 app.use('/api/empleados', employeesRouter);
-app.use('/api', minutesRouter);
 app.use('/api/materiales', materialesRouter);
 app.use('/api/creditos', creditosRouter);
 app.use('/api/contratos', contratosRouter);
 app.use('/api/pagos', pagosRouter);
-app.use('/api/dashboard', dashboardRouter);
+app.use('/api/dashboardBackend', dashboardRouter);
+
+app.use('/api', categoriesRouter);
+app.use('/api', minutesRouter);
 
 // Arranque de Servidor
 const PORT = process.env.PORT;
