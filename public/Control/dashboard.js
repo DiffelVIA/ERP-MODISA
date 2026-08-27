@@ -100,7 +100,7 @@
         async function cargarDatosDashboard(idProyecto) {
             try {
                 const token = localStorage.getItem('jwtToken') || '';
-                const res = await fetch(`${API_URL}/dashboard/metrics/${idProyecto}`, {
+                const res = await fetch(`${API_URL}/dashboardBackend/metrics/${idProyecto}`, {
                     headers: {
                         'Authorization': token ? `Bearer ${token}` : '',
                     }
