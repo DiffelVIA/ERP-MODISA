@@ -11,7 +11,7 @@ const rolesPermitidos = [
     'gerente_administracion'
 ]
 
-const { verificarToken, verificarRol } = require('../middlewares/authMiddleware');
+const { verificarToken } = require('../middlewares/authMiddleware');
 
 const validarRolJWT = (req, res, next) => {
     if (!req.usuario || !req.usuario.rol) {
