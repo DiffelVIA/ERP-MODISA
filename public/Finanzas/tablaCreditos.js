@@ -64,7 +64,7 @@
             return;
         }
 
-        const usuarioToken = window.obtenerUsuarioDesdeToken ? window.usuarioToken() : null;
+        const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
         const rolUsuario = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim().toLowerCase() : "";
         const puedeEditar = (rolUsuario === "compras" || rolUsuario === "gerente administración");
 
