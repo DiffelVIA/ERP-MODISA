@@ -43,13 +43,9 @@
 
     try {
       const token = localStorage.getItem('jwtToken') || '';
-      const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-      const rolUsuario = (userToken && userToken.rol) ? userToken.rol : '';
-
       const respuesta = await fetch(`${API_URL}/empleados/gestion`, {
         headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'x-user-rol': rolUsuario
+          'Authorization': token ? `Bearer ${token}` : ''
         }
       });
       if (!respuesta.ok) throw new Error('Error al traer empleados');
