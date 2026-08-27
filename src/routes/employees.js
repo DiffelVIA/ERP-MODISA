@@ -17,8 +17,14 @@ const validarRolJWT = (req, res, next) => {
     if (!req.usuario || !req.usuario.rol) {
         return res.status(403).json({ error: "⛔ Acceso denegado: Se requiere un token válido." });
     }
-    const rolNormalizado = req.usuario.rol.rtrim().toLowerCase();
-    if (!rolesPermitidos.includes(rolNormalizado)){
+    const rolRaw = req.usuario.rol ? String(req.usuario.rol) : '';
+    const rolNormalizado = rolRaw.trim().toLocaleLowerCase().replace(/_/g, ' ');
+    const coincideRol = rolesPermitidos.some(rolesPermitido => {
+        const permitidoNormalizado = rolesPermitido.trim().toLowerCase().replace(/_/g, ' ');
+        return permitidoNormalizado === rolNormalizado;
+    });
+
+    if (!coincideRol){
         return res.status(403).json({ error: "⛔ Acceso denegado: No tienes permisos para consultar esta sección."});
     }
     next();
