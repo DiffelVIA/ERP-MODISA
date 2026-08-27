@@ -11,14 +11,20 @@ const rolesPermitidos = [
     'gerente_administracion'
 ]
 
-router.get('/gestion', async (req, res) => {
-    const userRol = req.headers['x-user-rol'];
-    const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
+const { verificarToken, verificarRol } = require('../middlewares/authMiddleware');
 
-    if (!rolesPermitidos.includes(rolNormalizado)) {
-        return res.status(403).json({ error: "⛔ Acceso denegado: No tienes permisos para consultar esta sección." });
+const validarRolJWT = (req, res, next) => {
+    if (!req.usuario || !req.usuario.rol) {
+        return res.status(403).json({ error: "⛔ Acceso denegado: Se requiere un token válido." });
     }
+    const rolNormalizado = req.usuario.rol.rtrim().toLowerCase();
+    if (!rolesPermitidos.includes(rolNormalizado)){
+        return res.status(403).json({ error: "⛔ Acceso denegado: No tienes permisos para consultar esta sección."});
+    }
+    next();
+};
 
+router.get('/gestion', verificarToken, validarRolJWT, async (req, res) => {
     try {
         const sql = `
             SELECT id_employee, name, last_name, email, phone, job_title, department, hire_date, first_entry 
@@ -33,14 +39,7 @@ router.get('/gestion', async (req, res) => {
     }
 });
 
-router.post('/', async (req, res) => {
-    const userRol = req.headers['x-user-rol'];
-    const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
-
-    if (!rolesPermitidos.includes(rolNormalizado)) {
-        return res.status(403).json({ error: "⛔ Acceso denegado: No tienes permisos para registrar empleados." });
-    }
-
+router.post('/', verificarToken, validarRolJWT, async (req, res) => {
     const { name, last_name, email, phone, job_title, department, password, hire_date } = req.body;
 
     if (!name || !last_name || !email || !password || !job_title) {
@@ -76,15 +75,8 @@ router.post('/', async (req, res) => {
     }
 });
 
-router.put('/:id', async (req, res) => {
-    const userRol = req.headers['x-user-rol'];
-    const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
+router.put('/:id', verificarToken, validarRolJWT, async (req, res) => {
     const { id } = req.params;
-
-    if (!rolesPermitidos.includes(rolNormalizado)) {
-        return res.status(403).json({ error: "⛔ Acceso denegado: No tienes permisos para actualizar datos de empleados." });
-    }
-
     const { name, last_name, email, phone, job_title, department, hire_date } = req.body;
 
     try {
@@ -115,14 +107,8 @@ router.put('/:id', async (req, res) => {
     }
 });
 
-router.delete('/:id', async (req, res) => {
-    const userRol = req.headers['x-user-rol'];
-    const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
+router.delete('/:id', verificarToken, validarRolJWT, async (req, res) => {
     const { id } = req.params;
-
-    if (!rolesPermitidos.includes(rolNormalizado)) {
-        return res.status(403).json({ error: "⛔ Acceso denegado: No tienes permisos para eliminar empleados." });
-    }
 
     try {
         const [result] = await pool.query("DELETE FROM employees WHERE id_employee = ?", [id]);
