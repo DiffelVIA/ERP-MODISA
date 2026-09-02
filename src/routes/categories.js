@@ -14,7 +14,7 @@ const verificarGerenteCostos = (req, res, next) => {
         });
     }
     next(); 
-};
+}; 
 
 router.get('/proyectos/:id/categorias', async (req, res) => {
   const { id } = req.params;
