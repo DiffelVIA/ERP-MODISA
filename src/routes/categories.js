@@ -5,7 +5,7 @@ const pool = require('../config/db');
 const verificarGerenteCostos = (req, res, next) => {
     const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim() : '';
 
-    const rolesPermitidos = ["Gerente de Costos", "Director Operativo"];
+    const rolesPermitidos = ["Gerente de Costos", "Director Operativo", "compras"];
 
     if (!rolesPermitidos.includes(rolUsuario)) {
         return res.status(403).json({ 
