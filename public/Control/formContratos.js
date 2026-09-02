@@ -9,7 +9,7 @@
         nombre: userToken ? (userToken.nombre || `${userToken.name || ''} ${userToken.last_name || ''}`.trim() || 'Solicitante') : 'Solicitante',
         rol: (userToken && userToken.rol) ? userToken.rol.trim() : ''
     };
-    const ROLES_PERMITIDOS = ["Residente de Obra", "Director Operativo"];
+    const ROLES_PERMITIDOS = ["Residente de Obra", "Director Operativo", "Compras", "compras"];
 
     document.addEventListener("DOMContentLoaded", () => {
         

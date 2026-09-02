@@ -17,7 +17,8 @@ router.post('/', upload.single('pdfFile'), async (req, res) => {
         }
     };
 
-    if (!rolNormalizado || rolNormalizado !== 'residente de obra') {
+    const rolesPermitidos = ['residente de obra', 'director operativo', 'compras'];
+    if (!rolNormalizado || !rolesPermitidos.includes(rolNormalizado)) {
         limpiarArchivoTemporal();
         return res.status(403).json({ 
             success: false, 
