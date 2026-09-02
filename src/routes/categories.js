@@ -3,9 +3,9 @@ const router = express.Router();
 const pool = require('../config/db');
 
 const verificarGerenteCostos = (req, res, next) => {
-    const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim() : '';
+    const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim().toLowerCase() : '';
 
-    const rolesPermitidos = ["Gerente de Costos", "Director Operativo", "compras"];
+    const rolesPermitidos = ["gerente de costos", "director operativo", "compras"];
 
     if (!rolesPermitidos.includes(rolUsuario)) {
         return res.status(403).json({ 

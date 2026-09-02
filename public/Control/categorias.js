@@ -1,10 +1,10 @@
 (() => {
-    const ROL_AUTORIZADO = ["Gerente de Costos", "Director Operativo"];
+    const ROL_AUTORIZADO = ["gerente de costos", "director operativo", "compras"];
 
     document.addEventListener("DOMContentLoaded", () => {
 
         const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-        const rolActual = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
+        const rolActual = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim().toLowerCase()  : '';
 
         if (!ROL_AUTORIZADO.includes(rolActual)) {
             const contenedorPrincipal = document.querySelector('.form_main');
@@ -486,12 +486,14 @@
                 const contenidoTexto = evt.target.result;
                 try {
                     const token = localStorage.getItem('jwtToken') || '';
+                    const usuarioObj = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+                    const rolEnvio = (usuarioObj && usuarioObj.rol) ? usuarioObj.rol : (localStorage.getItem('userRol') || '');
                     const response = await fetch(`${BASE_URL}/api/upload-hierarchy`, {
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json',
                             "Authorization": token ? `Bearer ${token}` : '',
-                            "x-user-rol": localStorage.getItem('userRol') || ''
+                            "x-user-rol": rolEnvio || ''
                         },
                         body: JSON.stringify({ id_project: idProject, csvData: contenidoTexto })
                     });
