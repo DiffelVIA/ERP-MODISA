@@ -13,7 +13,7 @@ const verificarGerenteCostos = (req, res, next) => {
             error: "⛔ Acceso denegado. Este endpoint es confidencial y solo permite modificaciones por el Gerente de Costos o la Dirección Operativa." 
         });
     }
-    next();
+    next(); 
 };
 
 router.get('/proyectos/:id/categorias', async (req, res) => {
