@@ -65,7 +65,8 @@
             const token = localStorage.getItem('jwtToken') || '';
             const empId = sesionUsuario ? sesionUsuario.id : null;
             const headers = {
-                'Authorization': token ? `Bearer ${token}` : ''
+                'Authorization': token ? `Bearer ${token}` : '',
+                'x-user-rol': sesionUsuario ? sesionUsuario.rol : ''
             };
             if (empId) {
                 headers['x-employee-id'] = empId;
