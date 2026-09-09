@@ -261,7 +261,7 @@ router.get('/', async (req, res) => {
                     id_project_category,
                     firma,
                     estado_costos,
-                    estatus,direccion,
+                    status_direccion,
                     start_date,
                     ROW_NUMBER() OVER (
                         PARTITION BY LOWER(TRIM(supplier)), IFNULL(id_project_category, 0) 
@@ -322,6 +322,8 @@ router.put('/:id/monto-pagado', async (req, res) => {
 
             if (contratoInfo.length > 0 && contratoInfo[0].start_date) {
                 const firma = contratoInfo[0].firma ? contratoInfo[0].firma.trim().toLowerCase() : 'pendiente';
+                const estadoCostos = contratoInfo[0].estado_costos ? contratoInfo[0].estado_costos.trim().toLowerCase() : 'pendiente';
+                const statusDireccion = contratoInfo[0].status_direccion ? contratoInfo[0].status_direccion.trim().toLowerCase() : 'pendiente';
                 const esFirmado = (firma === 'firmado' || firma === 'sí' || firma === 'si');
                 const esRevisadoCostos = (estadoCostos.includes('aprobado') || estadoCostos.includes('autorizado'));
                 const esAutorizadoDireccion = (statusDireccion.includes('autorizado') || statusDireccion.includes('aprobado'));
