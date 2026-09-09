@@ -336,8 +336,8 @@
         const tipo = selectTipo ? selectTipo.value : '';
         const formaPago = selectFormaPago ? selectFormaPago.value : '';
 
-        if (!idProyectoSel || !tipo || !formaPago || !concepto || isNaN(monto) || monto <= 0 || !grupo || !categoria || !subcategoria || !proveedor) {
-            alert('⚠️ Error: Completa todos los campos obligatorios (Proyecto, Tipo, Forma de Pago, Grupo, Categoría, Subcategoría, Proveedor, Concepto y Monto).');
+        if (!idProyectoSel || !tipo || !formaPago || !concepto || isNaN(monto) || monto <= 0 || !proveedor) {
+            alert('⚠️ Error: Completa todos los campos obligatorios (Proyecto, Tipo, Forma de Pago, Proveedor, Concepto y Monto).');
             return;
         }
 
