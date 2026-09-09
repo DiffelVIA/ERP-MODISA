@@ -96,9 +96,9 @@
         selectProy.addEventListener("change", async () => {
             const idProyecto = selectProy.value;
             
-            resetSelect(selectGrupo, "-- Selecciona Proyecto Primero --", true);
-            resetSelect(selectCat, "-- Selecciona Grupo Primero --", true);
-            resetSelect(selectSub, "-- Selecciona Categoría Primero --", true);
+            resetSelect(selectGrupo, "-- Selecciona Proyecto (Opcional) --", true);
+            resetSelect(selectCat, "-- Selecciona Grupo Primero (Opcional) --", true);
+            resetSelect(selectSub, "-- Selecciona Categoría Primero (Opcional) --", true);
             categoriasCache = [];
 
             if (!idProyecto) return;
@@ -122,7 +122,7 @@
                     });
                     selectGrupo.disabled = false;
                 } else {
-                    resetSelect(selectGrupo, "⚠️ Proyecto sin clasificaciones registradas", true);
+                    resetSelect(selectGrupo, "⚠️ Proyecto sin clasificaciones registradas", false);
                 }
             } catch (error) {
                 console.error("❌ Error al cargar datos en cascada:", error);
@@ -131,8 +131,8 @@
 
         selectGrupo.addEventListener("change", () => {
             const grupoSeleccionado = selectGrupo.value;
-            resetSelect(selectCat, "-- Selecciona Grupo Primero --", true);
-            resetSelect(selectSub, "-- Selecciona Categoría Primero --", true);
+            resetSelect(selectCat, "-- Selecciona Grupo Primero (Opcional) --", true);
+            resetSelect(selectSub, "-- Selecciona Categoría Primero (Opcional) --", true);
 
             if (!grupoSeleccionado) return;
 
@@ -149,7 +149,7 @@
         selectCat.addEventListener("change", () => {
             const grupoSeleccionado = selectGrupo.value;
             const catSeleccionada = selectCat.value;
-            resetSelect(selectSub, "-- Selecciona Categoría Primero --", true);
+            resetSelect(selectSub, "-- Selecciona Categoría Primero (Opcional) --", true);
 
             if (!grupoSeleccionado || !catSeleccionada) return;
 
@@ -193,7 +193,8 @@
             const formData = new FormData();
             formData.append("pdfFile", pdfFile);
             formData.append("id_project", document.getElementById("proyecto").value);
-            formData.append("id_project_category", document.getElementById("subcategoria").value || "");
+            const subcategoriaValue = document.getElementById("subcategoria").value;
+            formData.append("id_project_category", subcategoriaValue || "");
             formData.append("contract_key", document.getElementById("clave").value);
             formData.append("Concept", document.getElementById("concepto").value);
             formData.append("supplier", document.getElementById("proveedor").value);
@@ -219,9 +220,9 @@
                     resetSelect(document.getElementById("grupo"), "-- Selecciona Proyecto Primero --", true);
                     resetSelect(document.getElementById("categoria"), "-- Selecciona Grupo Primero --", true);
                     resetSelect(document.getElementById("subcategoria"), "-- Selecciona Categoría Primero --", true);
-                    
+
                     inicializarFechas();
-                    cargarDatosUsuarioLogueado(); 
+                    cargarDatosUsuarioLogueado();
                 } else {
                     const errData = await response.json();
                     alert(`❌ Error del servidor: ${errData.error || "No se pudo guardar."}`);
