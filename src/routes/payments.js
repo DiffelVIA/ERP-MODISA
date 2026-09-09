@@ -304,8 +304,15 @@ router.put('/:id/monto-pagado', async (req, res) => {
             const [contratoInfo] = await pool.query(
                 `SELECT c.firma, c.start_date 
                  FROM payment_order_details pod
-                 INNER JOIN contracts c ON LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider))
-                 WHERE pod.id_payment_detail = ? LIMIT 1`,
+                 INNER JOIN contracts c ON (
+                    (pod.id_contract IS NOT NULL AND c.id_contract = pod.id_contract)
+                    OR 
+                    (pod.id_contract IS NULL
+                    AND pod.id_project_category IS NOT NULL
+                    AND c.id_project_category = pod.id_project_category
+                    AND LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider)))
+                )
+                WHERE pod.id_payment_detail = ? LIMIT 1`,
                 [idPaymentDetail]
             );
 
