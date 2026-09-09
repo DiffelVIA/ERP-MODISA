@@ -336,19 +336,20 @@
             const presupuestoAutorizado = parseFloat(pod.presupuesto_autorizado || 0);
             const estadoActual = pod.status || 'Pendiente';
             const semaforo = calcularSemaforoPresupuesto(montoPagado, montoConcepto);
-            
-            // MODIFICACIÓN: Lectura y validación explícita de Firma, Revisión de Costos y Autorización de Dirección
+            const tieneContratoAsociado = Boolean(
+                pod.contrato_firma ||
+                pod.id_contract ||
+                pod.contrato_estado_costos ||
+                pod.contrato_status_direccion
+            );
             const firmaContrato = pod.contrato_firma ? pod.contrato_firma.trim().toLowerCase() : 'pendiente';
             const estadoCostos = pod.contrato_estado_costos ? pod.contrato_estado_costos.trim().toLowerCase() : 'pendiente';
             const statusDireccion = pod.contrato_status_direccion ? pod.contrato_status_direccion.trim().toLowerCase() : 'pendiente';
-
             const estaFirmado = (firmaContrato === 'firmado' || firmaContrato === 'sí' || firmaContrato === 'si');
             const estaRevisado = (estadoCostos.includes('aprobado') || estadoCostos.includes('autorizado'));
             const estaAutorizado = (statusDireccion.includes('autorizado') || statusDireccion.includes('aprobado'));
-
-            const tieneContratoAsociado = Boolean(pod.contrato_firma || pod.id_contract);
             const contratoBloqueado = tieneContratoAsociado && (!estaFirmado || !estaRevisado || !estaAutorizado);
-
+            
             let motivoBloqueo = '';
             if (contratoBloqueado) {
                 if (!estaFirmado) motivoBloqueo = 'El contrato asociado no está firmado.';
