@@ -307,6 +307,9 @@
         const mapaColoresMontoTotal = {};
 
         pagosOrdenados.forEach(pod => {
+            const grupoLimpio = (pod.grupo && pod.grupo !== '---') ? pod.grupo : 'SIN_GRUPO';
+            const catLimpia = (pod.categoria && pod.categoria !== '---') ? pod.categoria : 'SIN_CAT';
+            const subCatLimpia = (pod.subcategoria && pod.subcategoria !== '---') ? pod.subcategoria : 'SIN_SUBCAT';
             const claveSubcat = `${pod.project_name || ''}_${pod.grupo || ''}_${pod.categoria || ''}_${pod.subcategoria || ''}`;
             const monto = parseFloat(pod.amount || 0);
             const autorizado = parseFloat(pod.presupuesto_autorizado || 0);
