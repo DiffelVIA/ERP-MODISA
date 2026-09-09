@@ -245,6 +245,8 @@ router.get('/', async (req, res) => {
                 pod.status AS status,
                 IFNULL(pod.monto_pagado, 0) AS monto_pagado,
                 c.firma AS contrato_firma,
+                c.estado_costos AS contrato_estado_costos,
+                c.status_direccion AS contrato_status_direccion,
                 c.start_date AS contrato_fecha_registro
             FROM payment_orders po
             INNER JOIN payment_order_details pod ON po.id_payment_order = pod.id_payment_order
@@ -258,6 +260,8 @@ router.get('/', async (req, res) => {
                     LOWER(TRIM(supplier)) AS supplier_clean,
                     id_project_category,
                     firma,
+                    estado_costos,
+                    estatus,direccion,
                     start_date,
                     ROW_NUMBER() OVER (
                         PARTITION BY LOWER(TRIM(supplier)), IFNULL(id_project_category, 0) 
@@ -302,7 +306,7 @@ router.put('/:id/monto-pagado', async (req, res) => {
             const nuevoMonto = parseFloat(monto_pagado) || 0;
 
             const [contratoInfo] = await pool.query(
-                `SELECT c.firma, c.start_date 
+                `SELECT c.firma, c.estado_costos, c.status_direccion, c.start_date 
                  FROM payment_order_details pod
                  INNER JOIN contracts c ON (
                     (pod.id_contract IS NOT NULL AND c.id_contract = pod.id_contract)
@@ -319,20 +323,19 @@ router.put('/:id/monto-pagado', async (req, res) => {
             if (contratoInfo.length > 0 && contratoInfo[0].start_date) {
                 const firma = contratoInfo[0].firma ? contratoInfo[0].firma.trim().toLowerCase() : 'pendiente';
                 const esFirmado = (firma === 'firmado' || firma === 'sí' || firma === 'si');
+                const esRevisadoCostos = (estadoCostos.includes('aprobado') || estadoCostos.includes('autorizado'));
+                const esAutorizadoDireccion = (statusDireccion.includes('autorizado') || statusDireccion.includes('aprobado'));
                 
                 if (!esFirmado) {
-                    const fechaContrato = new Date(contratoInfo[0].start_date);
-                    const fechaActual = new Date();
-                    fechaContrato.setHours(0, 0, 0, 0);
-                    fechaActual.setHours(0, 0, 0, 0);
-                    
-                    const diferenciaDias = Math.floor((fechaActual - fechaContrato) / (1000 * 60 * 60 * 24));
-                    
-                    if (diferenciaDias >= 7) {
-                        return res.status(403).json({ 
-                            error: `Bloqueo Financiero: El contrato asociado tiene ${diferenciaDias} días sin firmar. Captura deshabilitada.` 
-                        });
-                    }
+                  return res.status(403).json({ 
+                      error: `Bloqueo Financiero: El contrato asociado no se encuentra firmado. Captura deshabilitada.` 
+                  });
+                }
+
+                if (!esRevisadoCostos || !esAutorizadoDireccion) {
+                  return res.status(403).json({ 
+                      error: `Bloqueo Financiero: El contrato debe estar Revisado por Costos y Autorizado por Dirección.` 
+                  });
                 }
             }
 

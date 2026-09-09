@@ -272,7 +272,6 @@
         };
     }
 
-    
     function formatearFechaLocal(fechaCadena) {
         if (!fechaCadena) return '---';
         const fechaLimpia = String(fechaCadena).split('T')[0];
@@ -337,32 +336,31 @@
             const presupuestoAutorizado = parseFloat(pod.presupuesto_autorizado || 0);
             const estadoActual = pod.status || 'Pendiente';
             const semaforo = calcularSemaforoPresupuesto(montoPagado, montoConcepto);
-            const firmaContrato = pod.contrato_firma ? pod.contrato_firma.trim().toLowerCase() : 'pendiente';
-            const estaFirmado = (firmaContrato === 'firmado' || firmaContrato === 'sí' || firmaContrato === 'si');
             
-            let contratoExpiradoSinFirma = false;
-            let diasTranscurridos = 0;
+            // MODIFICACIÓN: Lectura y validación explícita de Firma, Revisión de Costos y Autorización de Dirección
+            const firmaContrato = pod.contrato_firma ? pod.contrato_firma.trim().toLowerCase() : 'pendiente';
+            const estadoCostos = pod.contrato_estado_costos ? pod.contrato_estado_costos.trim().toLowerCase() : 'pendiente';
+            const statusDireccion = pod.contrato_status_direccion ? pod.contrato_status_direccion.trim().toLowerCase() : 'pendiente';
 
-            if (!estaFirmado && pod.contrato_fecha_registro) {
-                const fechaInicio = new Date(pod.contrato_fecha_registro);
-                const fechaActual = new Date();
-                
-                fechaInicio.setHours(0, 0, 0, 0);
-                fechaActual.setHours(0, 0, 0, 0);
-                
-                const diferenciaMilisegundos = fechaActual - fechaInicio;
-                diasTranscurridos = Math.floor(diferenciaMilisegundos / (1000 * 60 * 60 * 24));
-                
-                if (diasTranscurridos >= 6) {
-                    contratoExpiradoSinFirma = true;
-                }
+            const estaFirmado = (firmaContrato === 'firmado' || firmaContrato === 'sí' || firmaContrato === 'si');
+            const estaRevisado = (estadoCostos.includes('aprobado') || estadoCostos.includes('autorizado'));
+            const estaAutorizado = (statusDireccion.includes('autorizado') || statusDireccion.includes('aprobado'));
+
+            const tieneContratoAsociado = Boolean(pod.contrato_firma || pod.id_contract);
+            const contratoBloqueado = tieneContratoAsociado && (!estaFirmado || !estaRevisado || !estaAutorizado);
+
+            let motivoBloqueo = '';
+            if (contratoBloqueado) {
+                if (!estaFirmado) motivoBloqueo = 'El contrato asociado no está firmado.';
+                else if (!estaRevisado) motivoBloqueo = 'El contrato asociado no está revisado por Costos.';
+                else if (!estaAutorizado) motivoBloqueo = 'El contrato asociado no está autorizado por Dirección.';
             }
 
             let celdaMontoPagadoHTML = "";
             if (puedeModificarRol) {
-                if (contratoExpiradoSinFirma) {
+                if (contratoBloqueado) {
                     celdaMontoPagadoHTML = `
-                        <td style="text-align: center;" title="Bloqueado: El contrato de este proveedor tiene ${diasTranscurridos} días sin firmar.">
+                        <td style="text-align: center;" title="Bloqueado: ${motivoBloqueo}">
                             <input type="number" 
                                 class="input-monto-pagado" 
                                 value="${montoPagado}" 
@@ -415,7 +413,6 @@
                        ${tipoTextoPlano}
                     </a>`;
             }
-
 
             const comentarioResidente = pod.commentary || pod.resident_comment || pod.comentario || '-';
             const comentarioComprasVal = pod.compras_comment || '';
