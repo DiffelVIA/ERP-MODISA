@@ -284,15 +284,9 @@ router.put('/:id/monto-pagado', async (req, res) => {
             const [contratoInfo] = await pool.query(
                 `SELECT c.firma, c.estado_costos, c.status_direccion, c.start_date 
                  FROM payment_order_details pod
-                 INNER JOIN contracts c ON (
-                    (pod.id_contract IS NOT NULL AND c.id_contract = pod.id_contract)
-                    OR 
-                    (pod.id_contract IS NULL
-                    AND pod.id_project_category IS NOT NULL
-                    AND c.id_project_category = pod.id_project_category
-                    AND LOWER(TRIM(c.supplier)) = LOWER(TRIM(pod.provider)))
-                )
-                WHERE pod.id_payment_detail = ? LIMIT 1`,
+                 INNER JOIN contracts c ON c.id_contract = pod.id_contract
+                 WHERE pod.id_payment_detail = ? AND pod.id_contract IS NOT NULL
+                 LIMIT 1`,
                 [idPaymentDetail]
             );
 
@@ -301,7 +295,7 @@ router.put('/:id/monto-pagado', async (req, res) => {
                 const estadoCostos = contratoInfo[0].estado_costos ? contratoInfo[0].estado_costos.trim().toLowerCase() : 'pendiente';
                 const statusDireccion = contratoInfo[0].status_direccion ? contratoInfo[0].status_direccion.trim().toLowerCase() : 'pendiente';
                 const esFirmado = (firma === 'firmado' || firma === 'sí' || firma === 'si');
-                const esRevisadoCostos = (estadoCostos.includes('aprobado') || estadoCostos.includes('autorizado'));
+                const esRevisadoCostos = (estadoCostos.includes('aprobado') || estadoCostos.includes('autorizado')) || estadoCostos.includes('revisado');
                 const esAutorizadoDireccion = (statusDireccion.includes('autorizado') || statusDireccion.includes('aprobado') || statusDireccion.includes('revisado'));
                 
                 if (!esFirmado) {

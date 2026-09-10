@@ -343,7 +343,7 @@
             const statusDireccion = pod.contrato_status_direccion ? String(pod.contrato_status_direccion).trim().toLowerCase() : '';
 
             const estaFirmado = (firmaContrato === 'firmado' || firmaContrato === 'sí' || firmaContrato === 'si');
-            const estaRevisado = (estadoCostos.includes('aprobado') || estadoCostos.includes('autorizado'));
+            const estaRevisado = (estadoCostos.includes('aprobado') || estadoCostos.includes('autorizado') || estadoCostos.includes('revisado'));
             const estaAutorizado = (statusDireccion.includes('autorizado') || statusDireccion.includes('aprobado'));
 
             const contratoBloqueado = tieneContratoAsociado && (!estaFirmado || !estaRevisado || !estaAutorizado);
