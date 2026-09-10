@@ -254,31 +254,7 @@ router.get('/', async (req, res) => {
             LEFT JOIN projects p_det ON pod.id_project = p_det.id_project
             LEFT JOIN project_categories pc ON pod.id_project_category = pc.id_project_category
 
-            LEFT JOIN (
-                SELECT 
-                    id_contract,
-                    LOWER(TRIM(supplier)) AS supplier_clean,
-                    id_project_category,
-                    firma,
-                    estado_costos,
-                    status_direccion,
-                    start_date,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY LOWER(TRIM(supplier)), IFNULL(id_project_category, 0) 
-                        ORDER BY start_date DESC
-                    ) AS rn
-                FROM contracts
-            ) c ON (
-                (pod.id_contract IS NOT NULL AND c.id_contract = pod.id_contract)
-                OR 
-                (
-                    pod.id_contract IS NULL 
-                    AND c.supplier_clean = LOWER(TRIM(pod.provider)) 
-                    AND pod.id_project_category IS NOT NULL 
-                    AND c.id_project_category = pod.id_project_category 
-                    AND c.rn = 1
-                )
-            )
+            LEFT JOIN contracts c ON (pod.id_contract IS NOT NULL AND c.id_contract = pod.id_contract)
 
             LEFT JOIN project_categories c_pc ON c.id_project_category = c_pc.id_project_category
             ORDER BY po.id_payment_order DESC;
