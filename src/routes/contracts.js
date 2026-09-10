@@ -177,12 +177,13 @@ router.put('/:id/actualizar-control', async (req, res) => {
     let { status, estado_costos, status_direccion, firma } = req.body;
 
     try {
-        if (status_direccion !== 'Rechazado' && status === 'Rechazado') {
-            status = 'Pendiente';
-        }
-
-        if (status_direccion !== 'Rechazado' && estado_costos === 'Rechazado') {
-            estado_costos = 'Pendiente';
+        if (status_direccion === 'Rechazado') {
+            estado_costos = 'Rechazado';
+            firma = 'Pendiente';
+            status = 'Rechazado';
+        } 
+        else if (estado_costos === 'Rechazado') {
+            status = 'Rechazado';
         }
 
         const estadoPagoValido = status ? (status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()) : 'Pendiente';
