@@ -326,7 +326,7 @@ router.put('/:id/monto-pagado', async (req, res) => {
                 const statusDireccion = contratoInfo[0].status_direccion ? contratoInfo[0].status_direccion.trim().toLowerCase() : 'pendiente';
                 const esFirmado = (firma === 'firmado' || firma === 'sí' || firma === 'si');
                 const esRevisadoCostos = (estadoCostos.includes('aprobado') || estadoCostos.includes('autorizado'));
-                const esAutorizadoDireccion = (statusDireccion.includes('autorizado') || statusDireccion.includes('aprobado'));
+                const esAutorizadoDireccion = (statusDireccion.includes('autorizado') || statusDireccion.includes('aprobado') || statusDireccion.includes('revisado'));
                 
                 if (!esFirmado) {
                   return res.status(403).json({ 
