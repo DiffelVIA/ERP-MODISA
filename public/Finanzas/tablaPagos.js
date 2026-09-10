@@ -354,7 +354,7 @@
                 else if (!estaRevisado) motivoBloqueo = 'El contrato asociado no está revisado por Costos.';
                 else if (!estaAutorizado) motivoBloqueo = 'El contrato asociado no está autorizado por Dirección.';
             }
-
+ 
             let celdaMontoPagadoHTML = "";
             if (puedeModificarRol) {
                 if (contratoBloqueado) {
