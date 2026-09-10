@@ -138,12 +138,16 @@
                    </select>`
                 : `<span>${mapaDireccion[currentDireccion] || currentDireccion}</span>`;
 
+            // ==================== INICIO MODIFICACIÓN: Deshabilitar firma si Dirección rechazó ====================
+            const firmaDeshabilitada = (currentDireccion === 'Rechazado') ? 'disabled' : '';
+
             const celdaFirma = (rolUsuario === 'compras')
-                ? `<select id="firma-${c.id_contract}" class="select-tabla" onchange="autoGuardarFila(${c.id_contract})">
+                ? `<select id="firma-${c.id_contract}" class="select-tabla" ${firmaDeshabilitada} onchange="autoGuardarFila(${c.id_contract})">
                         <option value="Pendiente" ${currentFirma === 'Pendiente' || currentFirma === 'No' ? 'selected' : ''}>⏳ No</option>
                         <option value="Firmado" ${currentFirma === 'Firmado' || currentFirma === 'Sí' ? 'selected' : ''}>✅ Sí</option>
                    </select>`
                 : `<span>${mapaFirma[currentFirma] || currentFirma}</span>`;
+            // ==================== FIN MODIFICACIÓN ====================
 
             tr.innerHTML = `
                 <td>${c.project_name || 'Sin Proyecto'}</td>
@@ -262,35 +266,51 @@
         let statusGeneral   = cellStatusPago ? (cellStatusPago.getAttribute('data-valor-real') || "Pendiente") : "Pendiente";
         let estadoCostos    = selectCostos ? selectCostos.value : (cellEstadoCostos ? cellEstadoCostos.innerText.replace(/[⏳🔍❌\s]/g, "") : "Pendiente");
 
-        if (statusDireccion === "Rechazado") {
-            statusGeneral = "Rechazado";
-            estadoCostos = "Rechazado";
-
-            if (selectCostos) selectCostos.value = "Rechazado";
-            cellStatusPago.innerHTML = `<span>❌ Rechazado</span>`;
-            cellStatusPago.setAttribute('data-valor-real', "Rechazado");
-            if (!selectCostos && cellEstadoCostos) cellEstadoCostos.innerHTML = `<span>❌ Rechazado</span>`;
-        }
-        else if (statusDireccion === "Pendiente" || statusDireccion === "Autorizado") {
-            if (statusGeneral === "Rechazado") {
-                statusGeneral = "Pendiente";
-                cellStatusPago.innerHTML = `<span>⏳ Pendiente</span>`;
-                cellStatusPago.setAttribute('data-valor-real', "Pendiente");
-            }
-
-            if (estadoCostos === "Rechazado") {
-                estadoCostos = "Pendiente";
-                if (selectCostos) selectCostos.value = "Pendiente";
-                if (!selectCostos && cellEstadoCostos) cellEstadoCostos.innerHTML = `<span>⏳ Pendiente</span>`;
-            }
-        }
-        
         let firmaVal = "Pendiente";
         if (selectFirma) {
             firmaVal = selectFirma.value;
         } else if (cellFirma) {
             firmaVal = cellFirma.innerText.includes("Sí") ? "Firmado" : "Pendiente";
         }
+
+        // ==================== INICIO MODIFICACIÓN: Lógica de reglas de negocio al auto-guardar ====================
+        if (statusDireccion === "Rechazado") {
+            statusGeneral = "Rechazado";
+            estadoCostos = "Rechazado";
+            firmaVal = "Pendiente"; // Resetea firma a Pendiente / No
+
+            if (selectCostos) selectCostos.value = "Rechazado";
+            if (!selectCostos && cellEstadoCostos) cellEstadoCostos.innerHTML = `<span>❌ Rechazado</span>`;
+
+            if (selectFirma) {
+                selectFirma.value = "Pendiente";
+                selectFirma.disabled = true; // Se inhabilita para compras
+            } else if (cellFirma) {
+                cellFirma.innerHTML = `<span>⏳ No</span>`;
+            }
+
+            cellStatusPago.innerHTML = `<span>❌ Rechazado</span>`;
+            cellStatusPago.setAttribute('data-valor-real', "Rechazado");
+        } 
+        else if (estadoCostos === "Rechazado") {
+            // Gerente de costos rechaza (conserva la acción aun si la firma está en Sí y Dirección está en Autorizado)
+            statusGeneral = "Rechazado";
+            cellStatusPago.innerHTML = `<span>❌ Rechazado</span>`;
+            cellStatusPago.setAttribute('data-valor-real', "Rechazado");
+
+            if (selectFirma) selectFirma.disabled = false;
+        } 
+        else {
+            // Si no hay rechazo por Dirección, rehabilitamos el select de firma por si estaba deshabilitado
+            if (selectFirma) selectFirma.disabled = false;
+
+            if (statusGeneral === "Rechazado") {
+                statusGeneral = "Pendiente";
+                cellStatusPago.innerHTML = `<span>⏳ Pendiente</span>`;
+                cellStatusPago.setAttribute('data-valor-real', "Pendiente");
+            }
+        }
+        // ==================== FIN MODIFICACIÓN ====================
 
         try {
             const token = localStorage.getItem('jwtToken') || '';
@@ -343,18 +363,18 @@
     };
 
     function obtenerColorTextoContrato(montoContrato, montoAutorizado) {
-    if (!montoAutorizado || montoAutorizado <= 0) {
-        return '#dc2626'; // Rojo si supera o no tiene presupuesto asignado
-    }
-    const porcentaje = (montoContrato / montoAutorizado) * 100;
+        if (!montoAutorizado || montoAutorizado <= 0) {
+            return '#dc2626'; // Rojo si supera o no tiene presupuesto asignado
+        }
+        const porcentaje = (montoContrato / montoAutorizado) * 100;
 
-    if (porcentaje >= 90) {
-        return '#dc2626';
-    } else if (porcentaje >= 75) {
-        return '#ca8a04';
-    } else {
-        return '#16a34a';
+        if (porcentaje >= 90) {
+            return '#dc2626';
+        } else if (porcentaje >= 75) {
+            return '#ca8a04';
+        } else {
+            return '#16a34a';
+        }
     }
-}
 
 })();
