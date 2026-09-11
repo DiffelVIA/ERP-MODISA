@@ -166,9 +166,9 @@
 
             tr.innerHTML = `
                 <td>${c.project_name || 'Sin Proyecto'}</td>
-                <td><span style="font-weight: 500; color: #475569;">${c.grupo || '---'}</span></td>
-                <td>${c.categoria || '---'}</td>
-                <td>${c.subcategoria || '---'}</td>
+                <!-- <td><span style="font-weight: 500; color: #475569;">${c.grupo || '---'}</span></td> -->
+                <!-- <td>${c.categoria || '---'}</td> -->
+                <!-- <td>${c.subcategoria || '---'}</td> -->
                 <td>${fechaFormateada}</td>
                 <td>Semana ${numeroSemana}</td>
                 <td>${celdaClave}</td>
