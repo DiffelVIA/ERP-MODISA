@@ -4,7 +4,7 @@ const fs = require('fs');
 const pool = require('../config/db');
 const upload = require('../middlewares/uploads');
 const { subirArchivoADrive } = require('../services/drive');
-const { validarRol } = require('../middlewares/validarRol');
+const { verificarToken } = require('../middlewares/authMiddleware');
 
 router.post('/', upload.single('pdfFile'), async (req, res) => {
     const userRol = req.headers['x-user-rol'];
@@ -217,7 +217,7 @@ router.put('/:id/actualizar-control', async (req, res) => {
     }
 });
 
-router.put('/id/actualizar-url', validarRol(['gerente de costos', 'compras', 'director operativo']), async (req, res) => {
+router.put('/id/actualizar-url', verificarToken, async (req, res) => {
     const { id } = req.params;
     const { contract_file_url } = req.body;
 
