@@ -185,7 +185,7 @@
                 <td data-campo="status-direccion">${celdaDireccion}</td>
                 <td data-campo="firma">${celdaFirma}</td>
             `;
-
+ 
             tbody.appendChild(tr);
         });
     }
