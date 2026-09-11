@@ -68,7 +68,7 @@
         tbody.innerHTML = "";
 
         if (listaContratos.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="18" style="text-align:center;">🚫 No se encontraron contratos con los filtros seleccionados.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="19" style="text-align:center;">🚫 No se encontraron contratos con los filtros seleccionados.</td></tr>`;
             return;
         }
 
@@ -106,8 +106,6 @@
             const numeroSemana = Math.ceil((diasPasados + inicioAño.getDay() + 1) / 7);
 
             const esCostos = (rolUsuario === 'gerente de costos' || rolUsuario === 'costos');
-            const esDireccion = (rolUsuario === 'director operativo');
-            const esCompras = (rolUsuario === 'compras');
 
             const botonEditarUrl = esCostos 
                 ? `<button type="button" onclick="editarUrlContrato(${c.id_contract}, '${c.contract_file_url || ''}')" title="Editar enlace de contrato" style="background:none; border:none; cursor:pointer; font-size:14px; margin-left:4px;">✏️</button>`
@@ -121,6 +119,7 @@
 
             const currentStatus = c.status || "Pendiente";
             const currentCostos = c.estado_costos || "Pendiente";
+            const currentComentarioCostos = c.comentarios_costos || "";
             const currentDireccion = c.status_direccion || "Pendiente";
             const currentFirma = c.firma || "Pendiente";
 
@@ -132,13 +131,21 @@
             const celdaMontoPagado = `<span>$${pagado.toLocaleString('es-MX', {minimumFractionDigits: 2})}</span>`;
             const celdaStatusPago = `<span>${mapaStatus[currentStatus] || mapaStatus["Pendiente"]}</span>`;
 
-            const celdaCostos = (rolUsuario === 'gerente de costos' || rolUsuario === 'costos')
+            const celdaTotal = esCostos
+                ? `<input type="number" step="0.01" id="total-${c.id_contract}" class="input-tabla" value="${total}" onchange="autoGuardarFila(${c.id_contract})" style="width: 110px; font-weight: 700; color: ${colorFuente}; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px;">`
+                : `$${total.toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
+
+            const celdaCostos = esCostos
                 ? `<select id="costos-${c.id_contract}" class="select-tabla" onchange="autoGuardarFila(${c.id_contract})">
                         <option value="Pendiente" ${currentCostos === 'Pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
                         <option value="Revisado" ${currentCostos === 'Revisado' ? 'selected' : ''}>🔍 Revisado</option>
                         <option value="Rechazado" ${currentCostos === 'Rechazado' ? 'selected' : ''}>❌ Rechazado</option>
                    </select>`
                 : `<span>${mapaCostos[currentCostos] || currentCostos}</span>`;
+
+            const celdaComentarioCostos = esCostos
+                ? `<textarea id="comentario-costos-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Escribe un comentario..." style="width: 100%; min-width: 180px; height: 38px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px; font-family: inherit; font-size: 13px;">${currentComentarioCostos}</textarea>`
+                : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155;">${currentComentarioCostos || '---'}</span>`;
 
             const celdaDireccion = (rolUsuario === 'director operativo')
                 ? `<select id="direccion-${c.id_contract}" class="select-tabla" onchange="autoGuardarFila(${c.id_contract})">
@@ -167,13 +174,14 @@
                 <td>${celdaClave}</td>
                 <td>${c.Concept || 'Sin descripción'}</td>
                 <td>${c.supplier}</td>
-                <td data-campo="total" data-total="${total}" style="color: ${colorFuente}; font-weight: 700;">$${total.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                <td data-campo="total" data-total="${total}" style="color: ${colorFuente}; font-weight: 700;">${celdaTotal}</td>
                 <td data-campo="monto-consultar" data-monto-consultar="${pagado}">${celdaMontoPagado}</td>
                 <td id="porcentaje-${c.id_contract}"><strong>${porcentajePagado}%</strong></td>
                 <td data-campo="saldo-dinero" style="color: #64748b; font-weight: 500;">$${saldoPendienteDinero.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
                 <td data-campo="saldo-porcentaje" style="color: #64748b; font-weight: bold;">${saldoPendientePorcentaje}%</td>
                 <td data-campo="status-pago" data-valor-real="${currentStatus}">${celdaStatusPago}</td>
                 <td data-campo="estado-costos">${celdaCostos}</td>
+                <td data-campo="comentarios-costos">${celdaComentarioCostos}</td>
                 <td data-campo="status-direccion">${celdaDireccion}</td>
                 <td data-campo="firma">${celdaFirma}</td>
             `;
@@ -266,9 +274,15 @@
         const selectCostos = document.getElementById(`costos-${id}`);
         const selectDireccion = document.getElementById(`direccion-${id}`);
         const selectFirma = document.getElementById(`firma-${id}`);
+        
+        const inputTotal = document.getElementById(`total-${id}`);
+        const inputComentarioCostos = document.getElementById(`comentario-costos-${id}`);
 
-        const totalFilaNum = cellTotal ? Number(cellTotal.getAttribute('data-total') || 0) : 0;
+        const totalFilaNum = inputTotal ? Number(inputTotal.value || 0) : (cellTotal ? Number(cellTotal.getAttribute('data-total') || 0) : 0);
+        if (cellTotal) cellTotal.setAttribute('data-total', totalFilaNum);
+
         const montoPagado = cellMontoConsultar ? Number(cellMontoConsultar.getAttribute('data-monto-consultar') || 0) : 0;
+        const comentarioCostosVal = inputComentarioCostos ? inputComentarioCostos.value : null;
 
         let statusDireccion = selectDireccion ? selectDireccion.value : (cellStatusDireccion ? cellStatusDireccion.innerText.replace(/[⏳✔️❌\s]/g, "") : "Pendiente");
         let statusGeneral   = cellStatusPago ? (cellStatusPago.getAttribute('data-valor-real') || "Pendiente") : "Pendiente";
@@ -328,7 +342,9 @@
                     status: statusGeneral, 
                     estado_costos: estadoCostos,
                     status_direccion: statusDireccion,
-                    firma: firmaVal
+                    firma: firmaVal,
+                    total_amount: totalFilaNum,
+                    comentarios_costos: comentarioCostosVal
                 })
             });
 
@@ -354,6 +370,8 @@
                     contratoEnCache.estado_costos = estadoCostos;
                     contratoEnCache.status_direccion = statusDireccion;
                     contratoEnCache.firma = firmaVal;
+                    contratoEnCache.total_amount = totalFilaNum;
+                    contratoEnCache.comentarios_costos = comentarioCostosVal;
                 }
                 
                 trFila.style.backgroundColor = "#eaffea";

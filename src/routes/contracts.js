@@ -115,7 +115,8 @@ router.get('/', async (req, res) => {
                 c.end_date,
                 c.total_amount,
                 c.contract_file_url,
-                c.estado_costos,     
+                c.estado_costos,
+                c.comentarios_costos,    
                 c.status_direccion,  
                 c.firma,
                 COALESCE(p.project_name, 'Sin Proyecto') AS project_name,
@@ -175,7 +176,7 @@ router.get('/', async (req, res) => {
 
 router.put('/:id/actualizar-control', async (req, res) => {
     const { id } = req.params;
-    let { status, estado_costos, status_direccion, firma } = req.body;
+    let { status, estado_costos, status_direccion, firma, total_amount, comentarios_costos } = req.body;
 
     try {
         if (status_direccion === 'Rechazado') {
@@ -191,10 +192,12 @@ router.put('/:id/actualizar-control', async (req, res) => {
         const estadoCostosValido = estado_costos || 'Pendiente';
         const statusDireccionValido = status_direccion || 'Pendiente';
         const firmaValida = firma || 'Pendiente';
+        const nuevoTotal = (total_amount !== undefined && total_amount !== null) ? Number(total_amount) : null;
+        const comentarioValido = comentarios_costos !== undefined ? comentarios_costos : null;
 
         const sql = `
             UPDATE contracts 
-            SET status = ?, estado_costos = ?, status_direccion = ?, firma = ? 
+            SET status = ?, estado_costos = ?, status_direccion = ?, firma = ?, total_amount = ?, comentarios_costos = ?
             WHERE id_contract = ?
         `;
         
@@ -203,6 +206,8 @@ router.put('/:id/actualizar-control', async (req, res) => {
             estadoCostosValido, 
             statusDireccionValido, 
             firmaValida, 
+            nuevoTotal,
+            comentarioValido,
             id
         ]);
 
