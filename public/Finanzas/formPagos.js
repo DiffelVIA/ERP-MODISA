@@ -30,7 +30,7 @@
         
         inputSemana.value = `Semana ${numeroSemana}`;
     }
-
+ 
     function establecerSolicitanteLogueado() {
         const inputSolicitante = document.getElementById('solicitante');
         if (!inputSolicitante) return;
