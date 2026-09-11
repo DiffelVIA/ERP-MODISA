@@ -132,7 +132,7 @@
             const celdaStatusPago = `<span>${mapaStatus[currentStatus] || mapaStatus["Pendiente"]}</span>`;
 
             const celdaTotal = esCostos
-                ? `<input type="number" step="0.01" id="total-${c.id_contract}" class="input-tabla" value="${total}" onchange="autoGuardarFila(${c.id_contract})" style="width: 110px; font-weight: 700; color: ${colorFuente}; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px;">`
+                ? `<input type="number" step="0.01" id="total-${c.id_contract}" class="input-tabla" value="${total}" onchange="autoGuardarFila(${c.id_contract})" style="width: 100%; font-weight: 700; color: ${colorFuente}; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; text-align: right; font-size: 13px;">`
                 : `$${total.toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
 
             const celdaCostos = esCostos
@@ -146,7 +146,7 @@
             const celdaComentarioCostos = esCostos
                 ? `<textarea id="comentario-costos-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Escribe un comentario..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${currentComentarioCostos || ''}</textarea>`
                 : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155; word-break: break-word; overflow-wrap: break-word;">${currentComentarioCostos || '---'}</span>`;
-                
+
             const celdaDireccion = (rolUsuario === 'director operativo')
                 ? `<select id="direccion-${c.id_contract}" class="select-tabla" onchange="autoGuardarFila(${c.id_contract})">
                         <option value="Pendiente" ${currentDireccion === 'Pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
@@ -174,7 +174,8 @@
                 <td>${celdaClave}</td>
                 <td>${c.Concept || 'Sin descripción'}</td>
                 <td>${c.supplier}</td>
-                <td data-campo="total" data-total="${total}" style="color: ${colorFuente}; font-weight: 700;">${celdaTotal}</td>
+                <td>${c.supplier}</td>
+                <td data-campo="total" data-total="${total}" style="width: 130px; min-width: 130px; max-width: 130px; color: ${colorFuente}; font-weight: 700; vertical-align: middle;">${celdaTotal}</td>
                 <td data-campo="monto-consultar" data-monto-consultar="${pagado}">${celdaMontoPagado}</td>
                 <td id="porcentaje-${c.id_contract}"><strong>${porcentajePagado}%</strong></td>
                 <td data-campo="saldo-dinero" style="color: #64748b; font-weight: 500;">$${saldoPendienteDinero.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
