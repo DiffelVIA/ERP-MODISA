@@ -217,7 +217,7 @@ router.put('/:id/actualizar-control', async (req, res) => {
     }
 });
 
-router.put('/id/actualizar-url', verificarToken, async (req, res) => {
+router.put('/:id/actualizar-url', verificarToken, async (req, res) => {
     const { id } = req.params;
     const { contract_file_url } = req.body;
 
