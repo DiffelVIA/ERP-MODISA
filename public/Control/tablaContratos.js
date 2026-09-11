@@ -144,8 +144,8 @@
                 : `<span>${mapaCostos[currentCostos] || currentCostos}</span>`;
 
             const celdaComentarioCostos = esCostos
-                ? `<textarea id="comentario-costos-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Escribe un comentario..." style="width: 100%; min-width: 180px; height: 38px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 4px; font-family: inherit; font-size: 13px;">${currentComentarioCostos}</textarea>`
-                : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155;">${currentComentarioCostos || '---'}</span>`;
+                ? `<textarea id="comentario-costos-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Escribe un comentario..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;"></textarea>`
+                : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155; word-break: break-word; overflow-wrap: break-word;">${currentComentarioCostos || '---'}</span>`;
 
             const celdaDireccion = (rolUsuario === 'director operativo')
                 ? `<select id="direccion-${c.id_contract}" class="select-tabla" onchange="autoGuardarFila(${c.id_contract})">
@@ -181,7 +181,7 @@
                 <td data-campo="saldo-porcentaje" style="color: #64748b; font-weight: bold;">${saldoPendientePorcentaje}%</td>
                 <td data-campo="status-pago" data-valor-real="${currentStatus}">${celdaStatusPago}</td>
                 <td data-campo="estado-costos">${celdaCostos}</td>
-                <td data-campo="comentarios-costos">${celdaComentarioCostos}</td>
+                <td data-campo="comentarios-costos" style="width: 220px; min-width: 220px; max-width: 220px; vertical-align: middle;">${celdaComentarioCostos}</td>
                 <td data-campo="status-direccion">${celdaDireccion}</td>
                 <td data-campo="firma">${celdaFirma}</td>
             `;
