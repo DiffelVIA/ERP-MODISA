@@ -608,7 +608,37 @@
 
         const selectProyecto = document.getElementById('proyecto');
         const textoProyecto = selectProyecto.options[selectProyecto.selectedIndex].text;
-        const contratosFiltrados = contratosCargados.filter(c => c.project_name === textoProyecto);
+        const ahora = new Date();
+
+        const contratosFiltrados = contratosCargados.filter(c => {
+            if (c.project_name !== textoProyecto) return false;
+
+            const estadoCostos = c.estado_costos ? c.estado_costos.trim().toLowerCase() : 'pendiente';
+            const statusDireccion = c.status_direccion ? c.status_direccion.trim().toLowerCase() : 'pendiente';
+            const estadoFirma = c.firma ? c.firma.trim().toLowerCase() : 'pendiente';
+
+            const estaRevisado = estadoCostos !== 'pendiente' && estadoCostos !== 'rechazado';
+            const estaAutorizado = statusDireccion !== 'pendiente' && statusDireccion !== 'rechazado';
+
+            if (!estaRevisado || !estaAutorizado) {
+                return false;
+            }
+
+            if (estadoFirma === 'pendiente') {
+                const fechaCreacionRaw = c.created_at || c.start_date;
+                if (fechaCreacionRaw) {
+                    const fechaRegistro = new Date(fechaCreacionRaw);
+                    const diferenciaMilisegundos = ahora - fechaRegistro;
+                    const diasTranscurridos = diferenciaMilisegundos / (1000 * 60 * 60 * 24);
+
+                    if (diasTranscurridos > 5) {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        });
 
         selectClave.innerHTML = `<option value="">-- Selecciona Contrato --</option>` + 
             contratosFiltrados.map(c => `<option value="${c.id_contract}">${c.contract_key} (${c.supplier})</option>`).join('');
@@ -624,9 +654,6 @@
         el.style.cursor = 'not-allowed';
     }
 
-    /* =========================================================================
-       MODIFICACIÓN: Limpieza de idContratoActivo al restaurar cascada
-       ========================================================================= */
     function restaurarControlesCascada(limpiarTodo = false) {
         idCategoryContratoActivo = null; 
         idContratoActivo = null;
