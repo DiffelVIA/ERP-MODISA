@@ -144,9 +144,9 @@
                 : `<span>${mapaCostos[currentCostos] || currentCostos}</span>`;
 
             const celdaComentarioCostos = esCostos
-                ? `<textarea id="comentario-costos-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Escribe un comentario..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;"></textarea>`
+                ? `<textarea id="comentario-costos-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Escribe un comentario..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${currentComentarioCostos || ''}</textarea>`
                 : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155; word-break: break-word; overflow-wrap: break-word;">${currentComentarioCostos || '---'}</span>`;
-
+                
             const celdaDireccion = (rolUsuario === 'director operativo')
                 ? `<select id="direccion-${c.id_contract}" class="select-tabla" onchange="autoGuardarFila(${c.id_contract})">
                         <option value="Pendiente" ${currentDireccion === 'Pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
