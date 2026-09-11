@@ -105,9 +105,19 @@
             const diasPasados = Math.floor((fechaRef - inicioAño) / (24 * 60 * 60 * 1000));
             const numeroSemana = Math.ceil((diasPasados + inicioAño.getDay() + 1) / 7);
 
-            const celdaClave = c.contract_file_url 
+            const esCostos = (rolUsuario === 'gerente de costos' || rolUsuario === 'costos');
+            const esDireccion = (rolUsuario === 'director operativo');
+            const esCompras = (rolUsuario === 'compras');
+
+            const botonEditarUrl = esCostos 
+                ? `<button type="button" onclick="editarUrlContrato(${c.id_contract}, '${c.contract_file_url || ''}')" title="Editar enlace de contrato" style="background:none; border:none; cursor:pointer; font-size:14px; margin-left:4px;">✏️</button>`
+                : '';
+
+            const enlaceTexto = c.contract_file_url
                 ? `<a href="${c.contract_file_url}" target="_blank" style="color: #007bff; text-decoration: underline;"><strong>${c.contract_key}</strong></a>`
                 : `<strong>${c.contract_key}</strong>`;
+            
+            const celdaClave = `${enlaceTexto}${botonEditarUrl}`;
 
             const currentStatus = c.status || "Pendiente";
             const currentCostos = c.estado_costos || "Pendiente";
@@ -138,7 +148,6 @@
                    </select>`
                 : `<span>${mapaDireccion[currentDireccion] || currentDireccion}</span>`;
 
-            // ==================== INICIO MODIFICACIÓN: Deshabilitar firma si Dirección rechazó ====================
             const firmaDeshabilitada = (currentDireccion === 'Rechazado') ? 'disabled' : '';
 
             const celdaFirma = (rolUsuario === 'compras')
@@ -147,7 +156,6 @@
                         <option value="Firmado" ${currentFirma === 'Firmado' || currentFirma === 'Sí' ? 'selected' : ''}>✅ Sí</option>
                    </select>`
                 : `<span>${mapaFirma[currentFirma] || currentFirma}</span>`;
-            // ==================== FIN MODIFICACIÓN ====================
 
             tr.innerHTML = `
                 <td>${c.project_name || 'Sin Proyecto'}</td>
@@ -273,18 +281,17 @@
             firmaVal = cellFirma.innerText.includes("Sí") ? "Firmado" : "Pendiente";
         }
 
-        // ==================== INICIO MODIFICACIÓN: Lógica de reglas de negocio al auto-guardar ====================
         if (statusDireccion === "Rechazado") {
             statusGeneral = "Rechazado";
             estadoCostos = "Rechazado";
-            firmaVal = "Pendiente"; // Resetea firma a Pendiente / No
+            firmaVal = "Pendiente";
 
             if (selectCostos) selectCostos.value = "Rechazado";
             if (!selectCostos && cellEstadoCostos) cellEstadoCostos.innerHTML = `<span>❌ Rechazado</span>`;
 
             if (selectFirma) {
                 selectFirma.value = "Pendiente";
-                selectFirma.disabled = true; // Se inhabilita para compras
+                selectFirma.disabled = true;
             } else if (cellFirma) {
                 cellFirma.innerHTML = `<span>⏳ No</span>`;
             }
@@ -293,7 +300,6 @@
             cellStatusPago.setAttribute('data-valor-real', "Rechazado");
         } 
         else if (estadoCostos === "Rechazado") {
-            // Gerente de costos rechaza (conserva la acción aun si la firma está en Sí y Dirección está en Autorizado)
             statusGeneral = "Rechazado";
             cellStatusPago.innerHTML = `<span>❌ Rechazado</span>`;
             cellStatusPago.setAttribute('data-valor-real', "Rechazado");
@@ -301,7 +307,6 @@
             if (selectFirma) selectFirma.disabled = false;
         } 
         else {
-            // Si no hay rechazo por Dirección, rehabilitamos el select de firma por si estaba deshabilitado
             if (selectFirma) selectFirma.disabled = false;
 
             if (statusGeneral === "Rechazado") {
@@ -310,7 +315,6 @@
                 cellStatusPago.setAttribute('data-valor-real', "Pendiente");
             }
         }
-        // ==================== FIN MODIFICACIÓN ====================
 
         try {
             const token = localStorage.getItem('jwtToken') || '';
@@ -362,9 +366,40 @@
         }
     };
 
+    window.editarUrlContrato = async function(idContract, urlActual) {
+        const nuevaUrl = prompt("Ingrese la nueva URL del contrato (Drive / Enlace):", urlActual);
+        
+        if (nuevaUrl === null) return; // Cancela prompt
+        
+        const token = localStorage.getItem('jwtToken') || '';
+
+        try {
+            const response = await fetch(`${API_BASE}/contratos/${idContract}/actualizar-url`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": token ? `Bearer ${token}` : ''
+                },
+                body: JSON.stringify({ contract_file_url: nuevaUrl.trim() })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                alert("✅ Enlace del contrato actualizado con éxito.");
+                cargarContratos();
+            } else {
+                alert(`❌ Error: ${data.error || "No se pudo actualizar el enlace."}`);
+            }
+        } catch (error) {
+            console.error("❌ Error al enviar nueva URL:", error);
+            alert("❌ Ocurrió un error de red al intentar actualizar el enlace.");
+        }
+    };
+
     function obtenerColorTextoContrato(montoContrato, montoAutorizado) {
         if (!montoAutorizado || montoAutorizado <= 0) {
-            return '#dc2626'; // Rojo si supera o no tiene presupuesto asignado
+            return '#dc2626';
         }
         const porcentaje = (montoContrato / montoAutorizado) * 100;
 

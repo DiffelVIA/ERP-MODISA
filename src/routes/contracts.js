@@ -4,6 +4,7 @@ const fs = require('fs');
 const pool = require('../config/db');
 const upload = require('../middlewares/uploads');
 const { subirArchivoADrive } = require('../services/drive');
+const { validarRol } = require('../middlewares/validarRol');
 
 router.post('/', upload.single('pdfFile'), async (req, res) => {
     const userRol = req.headers['x-user-rol'];
@@ -213,6 +214,25 @@ router.put('/:id/actualizar-control', async (req, res) => {
     } catch (error) {
         console.error("❌ Error crítico en MySQL al auto-guardar contrato:", error);
         res.status(500).json({ error: "Error interno del servidor al actualizar registro." });
+    }
+});
+
+router.put('/id/actualizar-url', validarRol(['gerente de costos', 'compras', 'director operativo']), async (req, res) => {
+    const { id } = req.params;
+    const { contract_file_url } = req.body;
+
+    try {
+        const sql = `UPDATE contracts SET contract_file_url = ? WHERE id_contract = ?`;
+        const [result] = await pool.query(sql, [contract_file_url, id || null, id]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, error: "No se encontró el contrato especificado." });
+        }
+        
+        res.json( { success: true, message: "Contrato Actualizado con éxito." });    
+    } catch (error) {
+        console.error("Error al actualizar la URL del contrato:", error);
+        res.status(500).json({ success: false, error: "Error intenro del servidor al actualizar la URL del contrato."});
     }
 });
 
