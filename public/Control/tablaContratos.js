@@ -174,7 +174,6 @@
                 <td>${celdaClave}</td>
                 <td>${c.Concept || 'Sin descripción'}</td>
                 <td>${c.supplier}</td>
-                <td>${c.supplier}</td>
                 <td data-campo="total" data-total="${total}" style="width: 130px; min-width: 130px; max-width: 130px; color: ${colorFuente}; font-weight: 700; vertical-align: middle;">${celdaTotal}</td>
                 <td data-campo="monto-consultar" data-monto-consultar="${pagado}">${celdaMontoPagado}</td>
                 <td id="porcentaje-${c.id_contract}"><strong>${porcentajePagado}%</strong></td>
