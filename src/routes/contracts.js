@@ -103,6 +103,7 @@ router.post('/', upload.single('pdfFile'), async (req, res) => {
     }
 });
 
+// ==================== INICIO MODIFICACIÓN: Incluir comentarios_costos en el SELECT ====================
 router.get('/', async (req, res) => {
     try {
         const sql = `
@@ -115,8 +116,8 @@ router.get('/', async (req, res) => {
                 c.end_date,
                 c.total_amount,
                 c.contract_file_url,
-                c.estado_costos,
-                c.comentarios_costos,    
+                c.estado_costos,     
+                c.comentarios_costos,
                 c.status_direccion,  
                 c.firma,
                 COALESCE(p.project_name, 'Sin Proyecto') AS project_name,
