@@ -624,7 +624,7 @@
                 <td colspan="11" style="text-align: right; padding: 12px 15px; color: #334155; font-size: 12px; letter-spacing: 0.5px;">TOTALES:</td>
                 <td style="text-align: right; padding: 12px 10px; color: #0284c7; font-weight: 800;">$${sumaTotal.toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                 <td style="text-align: right; padding: 12px 10px; color: #16a34a; font-weight: 800;">$${sumaPagado.toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                <td colspan="3"></td>
+                <td colspan="2"></td>
             </tr>
         `;
     }
