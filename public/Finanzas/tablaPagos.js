@@ -205,7 +205,6 @@
                     "Concepto": item.concept_description || '---',
                     "Monto Total": montoConcepto,
                     "Monto Pagado": montoPagado,
-                    "% Pagado": `${porcentaje}%`,
                     "Estado": item.status || 'Pendiente',
                     "Comentario Compras": item.compras_comment || '---'
                 };
@@ -458,10 +457,6 @@
                 </td>
                 
                 ${celdaMontoPagadoHTML}
-                
-                <td style="text-align: center;">
-                    <strong class="porcentaje-celda" style="color: ${semaforo.color}">${semaforo.porcentaje}%</strong>
-                </td>
                 
                 <td style="text-align: center;">
                     <span class="badge-status-pago" style="padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #fff; background-color: ${estadoActual === 'Pagado' ? '#16a34a' : '#eab308'}">
