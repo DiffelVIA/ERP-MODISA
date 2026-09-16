@@ -365,10 +365,11 @@
                     const saldoDisponible = montoTotalContrato - (montoAcumuladoBD + montoTemporalMiniTabla);
 
                     if (monto > saldoDisponible) {
-                        alert(`❌ Exceso de Contrato: No se puede solicitar $${monto.toLocaleString('es-MX', {minimumFractionDigits: 2})}.\n\n` +
+                        alert(`❌ No se puede solicitar $${monto.toLocaleString('es-MX', {minimumFractionDigits: 2})}.\n\n` +
                               `• Monto Total del Contrato: $${montoTotalContrato.toLocaleString('es-MX', {minimumFractionDigits: 2})}\n` +
                               `• Acumulado Solicitado/Pagado: $${(montoAcumuladoBD + montoTemporalMiniTabla).toLocaleString('es-MX', {minimumFractionDigits: 2})}\n` +
-                              `• Saldo Disponible Real: $${Math.max(0, saldoDisponible).toLocaleString('es-MX', {minimumFractionDigits: 2})}`);
+                              `• Saldo Disponible Real: $${Math.max(0, saldoDisponible).toLocaleString('es-MX', {minimumFractionDigits: 2})}` +
+                              `\n\nPor favor, comunicate con el área de administración`);
                         return;
                     }
                 } catch (errSaldo) {
