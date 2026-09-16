@@ -279,6 +279,10 @@
         const inputComentarioCostos = document.getElementById(`comentario-costos-${id}`);
 
         const totalFilaNum = inputTotal ? Number(inputTotal.value || 0) : (cellTotal ? Number(cellTotal.getAttribute('data-total') || 0) : 0);
+        
+        const contratoEnCache = todosLosContratos.find(c => c.id_contract === id);
+        const montoAnterior = contratoEnCache ? Number(contratoEnCache.total_amount || 0) : totalFilaNum;
+
         if (cellTotal) cellTotal.setAttribute('data-total', totalFilaNum);
 
         const montoPagado = cellMontoConsultar ? Number(cellMontoConsultar.getAttribute('data-monto-consultar') || 0) : 0;
@@ -293,6 +297,21 @@
             firmaVal = selectFirma.value;
         } else if (cellFirma) {
             firmaVal = cellFirma.innerText.includes("Sí") ? "Firmado" : "Pendiente";
+        }
+
+        if (montoAnterior !== totalFilaNum) {
+            statusDireccion = "Pendiente";
+            firmaVal = "Pendiente";
+            
+            if (selectDireccion) selectDireccion.value = "Pendiente";
+            if (selectFirma) {
+                selectFirma.value = "Pendiente";
+            } else if (cellFirma) {
+                cellFirma.innerHTML = `<span>⏳ No</span>`;
+            }
+            if (cellStatusDireccion && !selectDireccion) {
+                cellStatusDireccion.innerHTML = `<span>⏳ Pendiente</span>`;
+            }
         }
 
         if (statusDireccion === "Rechazado") {
@@ -364,7 +383,6 @@
                 if (cellSaldoDinero) cellSaldoDinero.innerText = `$${nuevoSaldoDinero.toLocaleString('es-MX', {minimumFractionDigits: 2})}`;
                 if (cellSaldoPorcentaje) cellSaldoPorcentaje.innerText = `${nuevoSaldoPorcentaje}%`;
 
-                const contratoEnCache = todosLosContratos.find(c => c.id_contract === id);
                 if (contratoEnCache) {
                     contratoEnCache.status = statusGeneral;
                     contratoEnCache.estado_costos = estadoCostos;
@@ -387,7 +405,10 @@
     window.editarUrlContrato = async function(idContract, urlActual) {
         const nuevaUrl = prompt("Ingrese la nueva URL del contrato (Drive / Enlace):", urlActual);
         
-        if (nuevaUrl === null) return; // Cancela prompt
+        if (nuevaUrl === null) return;
+        const urlLimpia = nuevaUrl.trim();
+
+        if (urlLimpia === urlActual.trim()) return;
         
         const token = localStorage.getItem('jwtToken') || '';
 
@@ -398,13 +419,26 @@
                     "Content-Type": "application/json",
                     "Authorization": token ? `Bearer ${token}` : ''
                 },
-                body: JSON.stringify({ contract_file_url: nuevaUrl.trim() })
+                body: JSON.stringify({ contract_file_url: urlLimpia })
             });
 
             const data = await response.json();
 
             if (response.ok && data.success) {
-                alert("✅ Enlace del contrato actualizado con éxito.");
+                await fetch(`${API_BASE}/contratos/${idContract}/actualizar-control`, {
+                    method: "PUT",
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "Authorization": token ? `Bearer ${token}` : ''
+                    },
+                    body: JSON.stringify({
+                        estado_costos: 'Pendiente',
+                        status_direccion: 'Pendiente',
+                        firma: 'Pendiente'
+                    })
+                });
+
+                alert("✅ Enlace del contrato actualizado con éxito. Las autorizaciones se han reiniciado.");
                 cargarContratos();
             } else {
                 alert(`❌ Error: ${data.error || "No se pudo actualizar el enlace."}`);
