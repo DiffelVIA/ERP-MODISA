@@ -62,6 +62,36 @@ router.post('/', upload.any(), async (req, res) => {
       const comentarioLimpiado = item.commentary || item.comment || item.comentario || null;
       let ticketUrlDetalle = null;
 
+      if (item.id_contract) {
+        const [cRows] = await connection.query(
+          `SELECT total_amount FROM contracts WHERE id_contract = ?`,
+          [item.id_contract]
+        );
+
+        if (cRows.length > 0) {
+          const totalContrato = parseFloat(cRows[0].total_amount) || 0;
+          
+          const [solicitadoRows] = await connection.query(
+            `SELECT IFNULL(SUM(amount), 0) AS total_solicitado 
+             FROM payment_order_details 
+             WHERE id_contract = ? AND LOWER(TRIM(IFNULL(status, ''))) != 'rechazado'`,
+            [item.id_contract]
+          );
+
+          const totalSolicitadoPrevio = parseFloat(solicitadoRows[0].total_solicitado) || 0;
+          const montoNuevo = parseFloat(item.amount) || 0;
+
+          if ((totalSolicitadoPrevio + montoNuevo) > totalContrato) {
+            await connection.rollback();
+            limpiarArchivosTemporales();
+            const saldoLibre = Math.max(0, totalContrato - totalSolicitadoPrevio);
+            return res.status(400).json({ 
+              error: `Bloqueo de Monto: La solicitud de $${montoNuevo.toLocaleString('es-MX')} excede el saldo formalizado del contrato. Saldo disponible actual: $${saldoLibre.toLocaleString('es-MX')}.` 
+            });
+          }
+        }
+      }
+
       const archivoTicket = req.files ? req.files.find(f => f.fieldname === `ticketFile_${i}` || (i === 0 && f.fieldname === 'ticketFile')) : null;
 
       if (archivoTicket) {

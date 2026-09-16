@@ -306,9 +306,9 @@
         if (formRequisicion) formRequisicion.addEventListener('submit', enviarSolicitudFinal);
     }
 
-    function añadirConceptoALista(e) {
+    async function añadirConceptoALista(e) {
         if (e) e.preventDefault();
-
+        
         const selectProyecto = document.getElementById('proyecto');
         const idProyectoSel = selectProyecto ? selectProyecto.value : '';
         const nombreProyectoSel = (selectProyecto && selectProyecto.selectedIndex >= 0) 
@@ -339,6 +339,42 @@
         if (!idProyectoSel || !tipo || !formaPago || !concepto || isNaN(monto) || monto <= 0 || !proveedor) {
             alert('⚠️ Error: Completa todos los campos obligatorios (Proyecto, Tipo, Forma de Pago, Proveedor, Concepto y Monto).');
             return;
+        }
+
+        if (tipo === 'contratista' && idContratoActivo) {
+            const contratoSel = contratosCargados.find(c => String(c.id_contract) === String(idContratoActivo));
+            if (contratoSel) {
+                const montoTotalContrato = parseFloat(contratoSel.total_amount) || 0;
+                
+                const montoTemporalMiniTabla = listaConceptosPagos
+                    .filter(item => String(item.id_contract) === String(idContratoActivo))
+                    .reduce((acc, item) => acc + item.amount, 0);
+
+                try {
+                    const token = localStorage.getItem('jwtToken') || '';
+                    const resSaldo = await fetch(`${API_URL}/contratos/${idContratoActivo}/saldo`, {
+                        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+                    });
+
+                    let montoAcumuladoBD = 0;
+                    if (resSaldo.ok) {
+                        const dataSaldo = await resSaldo.json();
+                        montoAcumuladoBD = parseFloat(dataSaldo.monto_solicitado_total) || 0;
+                    }
+
+                    const saldoDisponible = montoTotalContrato - (montoAcumuladoBD + montoTemporalMiniTabla);
+
+                    if (monto > saldoDisponible) {
+                        alert(`❌ Exceso de Contrato: No se puede solicitar $${monto.toLocaleString('es-MX', {minimumFractionDigits: 2})}.\n\n` +
+                              `• Monto Total del Contrato: $${montoTotalContrato.toLocaleString('es-MX', {minimumFractionDigits: 2})}\n` +
+                              `• Acumulado Solicitado/Pagado: $${(montoAcumuladoBD + montoTemporalMiniTabla).toLocaleString('es-MX', {minimumFractionDigits: 2})}\n` +
+                              `• Saldo Disponible Real: $${Math.max(0, saldoDisponible).toLocaleString('es-MX', {minimumFractionDigits: 2})}`);
+                        return;
+                    }
+                } catch (errSaldo) {
+                    console.error(" Error al verificar saldo del contrato:", errSaldo);
+                }
+            }
         }
 
         if (tipo === 'manoObra' && (!inputExcelFile.files || inputExcelFile.files.length === 0)) {

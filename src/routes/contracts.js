@@ -242,4 +242,34 @@ router.put('/:id/actualizar-url', verificarToken, async (req, res) => {
     }
 });
 
+router.get('/:id/saldo', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [contrato] = await pool.query(
+            `SELECT id_contract, total_amount FROM contracts WHERE id_contract = ?`, 
+            [id]
+        );
+
+        if (contrato.length === 0) {
+            return res.status(404).json({ error: "Contrato no encontrado" });
+        }
+
+        const [acumuladoBD] = await pool.query(
+            `SELECT IFNULL(SUM(amount), 0) AS monto_solicitado_total 
+             FROM payment_order_details 
+             WHERE id_contract = ? AND LOWER(TRIM(IFNULL(status, ''))) != 'rechazado'`,
+            [id]
+        );
+
+        res.json({
+            id_contract: contrato[0].id_contract,
+            total_amount: parseFloat(contrato[0].total_amount) || 0,
+            monto_solicitado_total: parseFloat(acumuladoBD[0].monto_solicitado_total) || 0
+        });
+    } catch (error) {
+        console.error("❌ Error al obtener el saldo del contrato:", error);
+        res.status(500).json({ error: "Error interno al verificar saldo de contrato" });
+    }
+});
+
 module.exports = router;
