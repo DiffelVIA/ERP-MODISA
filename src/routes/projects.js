@@ -9,16 +9,11 @@ router.get('/', async (req, res) => {
     const userRolHeader = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim().toLowerCase() : '';
     const rolesAdministrativos = [
       'director operativo',
-      'director_operativo',
       'subdirector de obra',
-      'subdirector_de_obra',
-      'gerente administración y compras',
-      'gerente administracion y compras',
-      'gerente_administracion_y_compras',
       'gerente administración',
-      'gerente administracion',
-      'gerente_administracion',
-      'compras'
+      'compras',
+      'gerente de costos',
+      'director general'
     ];
 
     const esRolGlobal = rolesAdministrativos.includes(userRolHeader);
