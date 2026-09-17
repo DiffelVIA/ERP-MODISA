@@ -5,7 +5,6 @@ let sock = null;
 
 const useMySQLAuthState = async (sessionId) => {
     const writeData = async (data, key) => {
-        // Asumiendo serialización segura con BufferJSON para preservar Buffers
         const jsonStr = JSON.stringify(data, BufferJSON.replacer);
         const sql = `
             INSERT INTO whatsapp_sessions (session_id, key_id, data) 
@@ -85,6 +84,14 @@ const iniciarWhatsApp = async () => {
 
         sock.ev.on('creds.update', saveCreds);
 
+        // Captura de JID si alguien escribe en un grupo
+        sock.ev.on('messages.upsert', async (m) => {
+            const msg = m.messages[0];
+            if (msg && msg.key && msg.key.remoteJid && msg.key.remoteJid.endsWith('@g.us')) {
+                console.log(`📌 [JID DE GRUPO DETECTADO VÍA MENSAJE]: ${msg.key.remoteJid}`);
+            }
+        });
+
         sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect, qr } = update;
 
@@ -111,16 +118,26 @@ const iniciarWhatsApp = async () => {
             } else if (connection === 'open') {
                 console.log('✅ Conexión con WhatsApp establecida exitosamente.');
                 
-                try {
-                    const groupList = await sock.groupFetchAllParticipating();
-                    console.log('📋 --- LISTA DE GRUPOS DE WHATSAPP DISPONIBLES ---');
-                    for (const jid in groupList) {
-                        console.log(`📌 Grupo: "${groupList[jid].subject}" | JID: ${jid}`);
+                // Espera de 4 segundos para asegurar sincronización de grupos
+                setTimeout(async () => {
+                    try {
+                        console.log('🔍 Obteniendo lista de grupos...');
+                        const groupList = await sock.groupFetchAllParticipating();
+                        const groupKeys = Object.keys(groupList);
+
+                        if (groupKeys.length === 0) {
+                            console.log('⚠️ No se encontraron grupos asociados.');
+                        } else {
+                            console.log('📋 --- LISTA DE GRUPOS DE WHATSAPP DISPONIBLES ---');
+                            for (const jid of groupKeys) {
+                                console.log(`📌 Grupo: "${groupList[jid].subject}" | JID: ${jid}`);
+                            }
+                            console.log('--------------------------------------------------');
+                        }
+                    } catch (err) {
+                        console.error('Error al listar grupos:', err.message);
                     }
-                    console.log('--------------------------------------------------');
-                } catch (err) {
-                    console.error('Error al listar grupos:', err.message);
-                }
+                }, 4000);
             }
         });
     } catch (err) {
