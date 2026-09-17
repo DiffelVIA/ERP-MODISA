@@ -1,4 +1,5 @@
-const { makeWASocket, DisconnectReason, useMultiFileAuthState } = require('@whiskeysockets/baileys');
+const { makeWASocket, DisconnectReason, initAuthCreds, proto } = require('@whiskeysockets/baileys');
+const qrcode = require('qrcode-terminal');
 const pool = require('../../config/db');
 
 let sock = null;
@@ -32,7 +33,7 @@ const useMySQLAuthState = async (sessionId) => {
         await pool.query(sql, [sessionId, key]);
     };
 
-    const creds = (await readData('creds')) || require('@whiskeysockets/baileys').initAuthCreds();
+    const creds = (await readData('creds')) || initAuthCreds();
 
     return {
         state: {
@@ -43,7 +44,7 @@ const useMySQLAuthState = async (sessionId) => {
                     for (const id of ids) {
                         let value = await readData(`${type}-${id}`);
                         if (type === 'app-state-sync-key' && value) {
-                            value = require('@whiskeysockets/baileys').proto.Message.AppStateSyncKeyData.fromObject(value);
+                            value = proto.Message.AppStateSyncKeyData.fromObject(value);
                         }
                         data[id] = value;
                     }
@@ -71,40 +72,50 @@ const useMySQLAuthState = async (sessionId) => {
 };
 
 const iniciarWhatsApp = async () => {
-    const sessionId = process.env.SESSION_ID;
-    const { state, saveCreds } = await useMySQLAuthState(sessionId);
+    try {
+        const sessionId = process.env.SESSION_ID || 'session_modisa_erp';
+        const { state, saveCreds } = await useMySQLAuthState(sessionId);
 
-    sock = makeWASocket({
-        auth: state,
-        printQRInTerminal: true,
-        browser: ['MODISA ERP', 'Chrome', '1.0.0']
-    });
+        sock = makeWASocket({
+            auth: state,
+            printQRInTerminal: false,
+            browser: ['MODISA ERP', 'Chrome', '1.0.0']
+        });
 
-    sock.ev.on('creds.update', saveCreds);
+        sock.ev.on('creds.update', saveCreds);
 
-    sock.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect } = update;
-        if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut);
-            console.log('🔴 Conexión de WhatsApp cerrada. Reconectando:', shouldReconnect);
-            if (shouldReconnect) {
-                setTimeout(iniciarWhatsApp, 5000);
+        sock.ev.on('connection.update', async (update) => {
+            const { connection, lastDisconnect, qr } = update;
+
+            if (qr) {
+                console.log('📱 ESCANEA ESTE CÓDIGO QR EN WHATSAPP:');
+                qrcode.generate(qr, { small: true });
             }
-        } else if (connection === 'open') {
-            console.log('✅ Conexión con WhatsApp establecida exitosamente.');
-            
-            try {
-                const groupList = await sock.groupFetchAllParticipating();
-                console.log('📋 --- LISTA DE GRUPOS DE WHATSAPP DISPONIBLES ---');
-                for (const jid in groupList) {
-                    console.log(`📌 Grupo: "${groupList[jid].subject}" | JID: ${jid}`);
+
+            if (connection === 'close') {
+                const shouldReconnect = (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut);
+                console.log('🔴 Conexión de WhatsApp cerrada. Reconectando:', shouldReconnect);
+                if (shouldReconnect) {
+                    setTimeout(iniciarWhatsApp, 5000);
                 }
-                console.log('--------------------------------------------------');
-            } catch (err) {
-                console.error('Error al listar grupos:', err.message);
+            } else if (connection === 'open') {
+                console.log('✅ Conexión con WhatsApp establecida exitosamente.');
+                
+                try {
+                    const groupList = await sock.groupFetchAllParticipating();
+                    console.log('📋 --- LISTA DE GRUPOS DE WHATSAPP DISPONIBLES ---');
+                    for (const jid in groupList) {
+                        console.log(`📌 Grupo: "${groupList[jid].subject}" | JID: ${jid}`);
+                    }
+                    console.log('--------------------------------------------------');
+                } catch (err) {
+                    console.error('Error al listar grupos:', err.message);
+                }
             }
-        }
-    });
+        });
+    } catch (err) {
+        console.error('❌ Error al inicializar servicio de WhatsApp:', err.message);
+    }
 };
 
 const notificarModificacionContrato = async (contractKey) => {
