@@ -164,6 +164,71 @@ const notificarModificacionContrato = async (contractKey, targetGroupJid) => {
     }
 };
 
+
+const verificarYNotificarContratosSinFirma = async () => {
+    try {
+        if (!sock) {
+            console.warn('⚠️ No se ejecutó la revisión de firmas: WhatsApp no está conectado.');
+            return;
+        }
+
+        console.log('🔍 Ejecutando revisión automática de contratos sin firma...');
+
+        const sql = `
+            SELECT 
+                c.id_contract,
+                c.contract_key,
+                c.supplier,
+                c.total_amount,
+                p.whatsapp_group_jid,
+                DATEDIFF(NOW(), c.created_at) AS dias_transcurridos
+            FROM contracts c
+            LEFT JOIN projects p ON c.id_project = p.id_project
+            WHERE LOWER(TRIM(IFNULL(c.firma, ''))) != 'autorizado'
+              AND LOWER(TRIM(IFNULL(c.estado_costos, ''))) = 'autorizado'
+              AND LOWER(TRIM(IFNULL(c.status_direccion, ''))) = 'autorizado'
+        `;
+
+        const [contratos] = await pool.query(sql);
+
+        if (contratos.length === 0) {
+            console.log('✅ No hay contratos autorizados pendientes de firma el día de hoy.');
+            return;
+        }
+
+        for (const contrato of contratos) {
+            const dias = Number(contrato.dias_transcurridos);
+            
+            const correspondeNotificar = (dias === 3) || (dias === 7) || (dias > 7 && (dias - 7) % 3 === 0);
+
+            if (correspondeNotificar) {
+                const targetJid = contrato.whatsapp_group_jid || process.env.WHATSAPP_GROUP_JID;
+
+                if (!targetJid) {
+                    console.warn(`⚠️ No hay JID configurado para el contrato: ${contrato.contract_key}`);
+                    continue;
+                }
+
+                const clave = contrato.contract_key || `ID #${contrato.id_contract}`;
+                const mensaje = `⚠️ *RECORDATORIO DE FIRMA DE CONTRATO*\n\n` +
+                                `El contrato *${clave}* del proveedor *${contrato.supplier}* lleva *${dias} días* *pendiente de firma*.\n\n` +
+                                `📌 *Por favor, se requiere la firma para proceder con las solicitudes de pago.*`;
+
+                await sock.sendMessage(targetJid, { text: mensaje });
+                console.log(`📲 Recordatorio de firma enviado a (${targetJid}) para contrato: ${clave} (${dias} días)`);
+            }
+        }
+    } catch (error) {
+        console.error('❌ Error en la verificación automática de firmas:', error.message);
+    }
+};
+
+module.exports = {
+    iniciarWhatsApp,
+    notificarModificacionContrato,
+    verificarYNotificarContratosSinFirma // <-- Comentar/Agregar esta exportación
+};
+
 module.exports = {
     iniciarWhatsApp,
     notificarModificacionContrato

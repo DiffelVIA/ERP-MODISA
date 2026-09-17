@@ -42,5 +42,28 @@ app.use('/api', minutesRouter);
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
-  iniciarWhatsApp(); 
+  iniciarWhatsApp();
+
+  const PROGRAMAR_HORA = 8;
+  const PROGRAMAR_MINUTO = 30;
+
+  const calcularTiempoSiguienteEjecucion = () => {
+      const ahora = new Date();
+      const siguiente = new Date();
+      siguiente.setHours(PROGRAMAR_HORA, PROGRAMAR_MINUTO, 0, 0);
+
+      if (ahora >= siguiente) {
+          siguiente.setDate(siguiente.getDate() + 1);
+      }
+      return siguiente - ahora;
+  };
+
+  const iniciarCronDiario = () => {
+      setTimeout(() => {
+          verificarYNotificarContratosSinFirma();
+          setInterval(verificarYNotificarContratosSinFirma, 24 * 60 * 60 * 1000);
+      }, calcularTiempoSiguienteEjecucion());
+  };
+
+  iniciarCronDiario();
 });

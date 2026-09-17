@@ -25,7 +25,7 @@ router.post('/', upload.single('pdfFile'), async (req, res) => {
         return res.status(403).json({ 
             success: false, 
             error: "⛔ Acceso denegado: Solo usuarios con rol de 'Residente de Obra' pueden registrar contratos." 
-        });
+        }); 
     }
 
     if (!pdfFile) {
