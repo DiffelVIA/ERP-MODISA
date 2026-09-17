@@ -7,7 +7,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const { iniciarWhatsApp, verificarYNotificarContratosSinFirma} = require('./src/services/whatsapp');
+const { iniciarWhatsApp } = require('./src/services/whatsapp');
 const authRouter = require('./src/routes/auth');
 const projectsRouter = require('./src/routes/projects');
 const categoriesRouter = require('./src/routes/categories');
@@ -37,15 +37,6 @@ app.use('/api/dashboardBackend', dashboardRouter);
 
 app.use('/api', categoriesRouter);
 app.use('/api', minutesRouter);
-
-app.get('/api/test-firmas-whatsapp', async (req, res) => {
-    try {
-        const resultado = await verificarYNotificarContratosSinFirma();
-        res.json({ success: true, resultado });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-});
 
 // Arranque de Servidor
 const PORT = process.env.PORT;

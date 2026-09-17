@@ -214,7 +214,7 @@ const verificarYNotificarContratosSinFirma = async () => {
                 const clave = contrato.contract_key || `ID #${contrato.id_contract}`;
                 const mensaje = `⚠️ *RECORDATORIO DE FIRMA DE CONTRATO*\n\n` +
                                 `El contrato *${clave}* del proveedor *${contrato.supplier}* lleva *${dias} días* autorizado y aún continúa *pendiente de firma*.\n\n` +
-                                `📌 *Por favor, regularizar la firma para autorizar los pagos*`;
+                                `📌 *Por favor, regulariza la firma para autorizar los pagos*`;
 
                 await sock.sendMessage(targetJid, { text: mensaje });
                 notificacionesEnviadas++;
