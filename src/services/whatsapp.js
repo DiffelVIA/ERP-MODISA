@@ -1,5 +1,4 @@
 const { makeWASocket, DisconnectReason, initAuthCreds, proto } = require('@whiskeysockets/baileys');
-const qrcode = require('qrcode-terminal');
 const pool = require('../config/db');
 
 let sock = null;
@@ -79,7 +78,7 @@ const iniciarWhatsApp = async () => {
         sock = makeWASocket({
             auth: state,
             printQRInTerminal: false,
-            browser: ['MODISA ERP', 'Chrome', '1.0.0']
+            browser: ['Ubuntu', 'Chrome', '20.0.04']
         });
 
         sock.ev.on('creds.update', saveCreds);
@@ -87,10 +86,15 @@ const iniciarWhatsApp = async () => {
         sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect, qr } = update;
 
+            // ==================== INICIO MODIFICACIÓN: Enlace QR para navegador ====================
             if (qr) {
-                console.log('📱 ESCANEA ESTE CÓDIGO QR EN WHATSAPP:');
-                qrcode.generate(qr, { small: true });
+                const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qr)}&size=300x300`;
+                console.log('\n======================================================');
+                console.log('🔗 ABRE ESTE ENLACE EN TU NAVEGADOR PARA ESCANEAR EL QR:');
+                console.log(qrImageUrl);
+                console.log('======================================================\n');
             }
+            // ==================== FIN MODIFICACIÓN ====================
 
             if (connection === 'close') {
                 const shouldReconnect = (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut);
