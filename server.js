@@ -39,8 +39,12 @@ app.use('/api', categoriesRouter);
 app.use('/api', minutesRouter);
 
 app.get('/api/test-firmas-whatsapp', async (req, res) => {
-    await verificarYNotificarContratosSinFirma();
-    res.send(' Revisa los logs de Render y tu WhatsApp.');
+    try {
+        const resultado = await verificarYNotificarContratosSinFirma();
+        res.json({ success: true, resultado });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
 });
 
 // Arranque de Servidor

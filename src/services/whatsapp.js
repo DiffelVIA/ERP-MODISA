@@ -169,7 +169,7 @@ const verificarYNotificarContratosSinFirma = async () => {
     try {
         if (!sock) {
             console.warn('⚠️ No se ejecutó la revisión de firmas: WhatsApp no está conectado.');
-            return;
+            return { success: false, message: 'WhatsApp no está conectado.' };
         }
 
         console.log('🔍 Ejecutando revisión automática de contratos sin firma...');
@@ -193,8 +193,10 @@ const verificarYNotificarContratosSinFirma = async () => {
 
         if (contratos.length === 0) {
             console.log('✅ No hay contratos autorizados pendientes de firma el día de hoy.');
-            return;
+            return { success: true, message: 'No hay contratos pendientes de firma hoy.' };
         }
+
+        let notificacionesEnviadas = 0;
 
         for (const contrato of contratos) {
             const dias = Number(contrato.dias_transcurridos);
@@ -211,15 +213,24 @@ const verificarYNotificarContratosSinFirma = async () => {
 
                 const clave = contrato.contract_key || `ID #${contrato.id_contract}`;
                 const mensaje = `⚠️ *RECORDATORIO DE FIRMA DE CONTRATO*\n\n` +
-                                `El contrato *${clave}* del proveedor *${contrato.supplier}* lleva *${dias} días* *pendiente de firma*.\n\n` +
-                                `📌 *Por favor, se requiere la firma para proceder con las solicitudes de pago.*`;
+                                `El contrato *${clave}* del proveedor *${contrato.supplier}* lleva *${dias} días* autorizado y aún continúa *pendiente de firma*.\n\n` +
+                                `📌 *Por favor, regularizar la firma para proceder con los trámites correspondientes.*`;
 
                 await sock.sendMessage(targetJid, { text: mensaje });
+                notificacionesEnviadas++;
                 console.log(`📲 Recordatorio de firma enviado a (${targetJid}) para contrato: ${clave} (${dias} días)`);
             }
         }
+
+        return { 
+            success: true, 
+            message: `Proceso finalizado. Notificaciones enviadas: ${notificacionesEnviadas}`,
+            totalEncontrados: contratos.length 
+        };
+
     } catch (error) {
-        console.error('❌ Error en la verificación automática de firmas:', error.message);
+        console.error('❌ Error en la verificación automática de firmas:', error);
+        throw error;
     }
 };
 
