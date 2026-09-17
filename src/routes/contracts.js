@@ -19,7 +19,7 @@ router.post('/', upload.single('pdfFile'), async (req, res) => {
         }
     };
 
-    const rolesPermitidos = ['residente de obra', 'director operativo', 'compras'];
+    const rolesPermitidos = ['residente de obra', 'director operativo', 'compras', 'gerente de costos'];
     if (!rolNormalizado || !rolesPermitidos.includes(rolNormalizado)) {
         limpiarArchivoTemporal();
         return res.status(403).json({ 
