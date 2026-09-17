@@ -237,5 +237,5 @@ const verificarYNotificarContratosSinFirma = async () => {
 module.exports = {
     iniciarWhatsApp,
     notificarModificacionContrato,
-    verificarYNotificarContratosSinFirma // <-- Comentar/Agregar esta exportación
+    verificarYNotificarContratosSinFirma
 };
