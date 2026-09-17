@@ -38,6 +38,11 @@ app.use('/api/dashboardBackend', dashboardRouter);
 app.use('/api', categoriesRouter);
 app.use('/api', minutesRouter);
 
+app.get('/api/test-firmas-whatsapp', async (req, res) => {
+    await verificarYNotificarContratosSinFirma();
+    res.send(' Revisa los logs de Render y tu WhatsApp.');
+});
+
 // Arranque de Servidor
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
