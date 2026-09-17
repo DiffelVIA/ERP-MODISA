@@ -5,7 +5,7 @@ const pool = require('../config/db');
 const upload = require('../middlewares/uploads');
 const { subirArchivoADrive } = require('../services/drive');
 const { verificarToken } = require('../middlewares/authMiddleware');
-const { notificarModificacionContrato } = require('../services/whatsappService');
+const { notificarModificacionContrato } = require('../services/whatsapp');
 
 router.post('/', upload.single('pdfFile'), async (req, res) => {
     const userRol = req.headers['x-user-rol'];
