@@ -239,8 +239,3 @@ module.exports = {
     notificarModificacionContrato,
     verificarYNotificarContratosSinFirma // <-- Comentar/Agregar esta exportación
 };
-
-module.exports = {
-    iniciarWhatsApp,
-    notificarModificacionContrato
-};
