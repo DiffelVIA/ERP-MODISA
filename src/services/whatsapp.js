@@ -75,12 +75,15 @@ const iniciarWhatsApp = async () => {
         const sessionId = process.env.SESSION_ID || 'session_modisa_erp';
         const { state, saveCreds } = await useMySQLAuthState(sessionId);
 
-        // ==================== INICIO MODIFICACIÓN: Identificador oficial de navegador ====================
+        // ==================== INICIO MODIFICACIÓN: Configuración optimizada para WA Business ====================
         sock = makeWASocket({
             auth: state,
             printQRInTerminal: false,
-            browser: Browsers.macOS('Desktop'), // Firma de cliente aceptada nativamente por WhatsApp
-            syncFullHistory: false
+            browser: Browsers.windows('Desktop'), // Compatibilidad completa con WhatsApp Business
+            syncFullHistory: false,
+            connectTimeoutMs: 60000,
+            defaultQueryTimeoutMs: 60000,
+            keepAliveIntervalMs: 30000
         });
         // ==================== FIN MODIFICACIÓN ====================
 
@@ -92,7 +95,7 @@ const iniciarWhatsApp = async () => {
             if (qr) {
                 const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qr)}&size=300x300`;
                 console.log('\n======================================================');
-                console.log('🔗 ESCANEA ESTE QR EN TU NAVEGADOR:');
+                console.log('🔗 ABRE ESTE ENLACE EN TU NAVEGADOR PARA ESCANEAR EL QR:');
                 console.log(qrImageUrl);
                 console.log('======================================================\n');
             }
@@ -100,19 +103,18 @@ const iniciarWhatsApp = async () => {
             if (connection === 'close') {
                 const statusCode = lastDisconnect?.error?.output?.statusCode;
                 const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-                console.log(`🔴 Conexión cerrada (Status ${statusCode}). Reconectando: ${shouldReconnect}`);
+                console.log(`🔴 Conexión de WhatsApp cerrada (Status ${statusCode}). Reconectando: ${shouldReconnect}`);
                 
-                // Si la sesión quedó corrupta o rechazada por WhatsApp, limpia la tabla para generar QR nuevo
                 if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
-                    console.log('🧹 Limpiando credenciales obsoletas en la base de datos...');
+                    console.log('🧹 Limpiando sesión obsoleta en la base de datos...');
                     await pool.query(`DELETE FROM whatsapp_sessions WHERE session_id = ?`, [sessionId]);
                 }
-                
+
                 if (shouldReconnect) {
                     setTimeout(iniciarWhatsApp, 5000);
                 }
             } else if (connection === 'open') {
-                console.log('✅ Conexión con WhatsApp establecida exitosamente.');
+                console.log('✅ Conexión con WhatsApp Business establecida exitosamente.');
                 
                 try {
                     const groupList = await sock.groupFetchAllParticipating();
