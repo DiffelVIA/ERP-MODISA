@@ -7,7 +7,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const { iniciarWhatsApp } = require('./src/services/whatsappService');
+const { iniciarWhatsApp } = require('./src/services/whatsapp');
 const authRouter = require('./src/routes/auth');
 const projectsRouter = require('./src/routes/projects');
 const categoriesRouter = require('./src/routes/categories');
