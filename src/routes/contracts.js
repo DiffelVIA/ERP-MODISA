@@ -5,6 +5,7 @@ const pool = require('../config/db');
 const upload = require('../middlewares/uploads');
 const { subirArchivoADrive } = require('../services/drive');
 const { verificarToken } = require('../middlewares/authMiddleware');
+const { notificarModificacionContrato } = require('../services/whatsappService');
 
 router.post('/', upload.single('pdfFile'), async (req, res) => {
     const userRol = req.headers['x-user-rol'];
@@ -103,7 +104,6 @@ router.post('/', upload.single('pdfFile'), async (req, res) => {
     }
 });
 
-// ==================== INICIO MODIFICACIÓN: Incluir comentarios_costos en el SELECT ====================
 router.get('/', async (req, res) => {
     try {
         const sql = `
@@ -180,6 +180,11 @@ router.put('/:id/actualizar-control', async (req, res) => {
     let { status, estado_costos, status_direccion, firma, total_amount, comentarios_costos } = req.body;
 
     try {
+        const [contratoPrevio] = await pool.query(
+            `SELECT contract_key, total_amount FROM contracts WHERE id_contract = ?`,
+            [id]
+        );
+
         if (status_direccion === 'Rechazado') {
             estado_costos = 'Rechazado';
             firma = 'Pendiente';
@@ -216,6 +221,14 @@ router.put('/:id/actualizar-control', async (req, res) => {
             return res.status(404).json({ error: "No se encontró el contrato especificado." });
         }
 
+        if (contratoPrevio.length > 0 && nuevoTotal !== null) {
+            const montoAnterior = Number(contratoPrevio[0].total_amount);
+            if (montoAnterior !== nuevoTotal) {
+                const clave = contratoPrevio[0].contract_key || `ID #${id}`;
+                notificarModificacionContrato(clave);
+            }
+        }
+
         res.json({ success: true, message: "Control del contrato actualizado con éxito." });
     } catch (error) {
         console.error("❌ Error crítico en MySQL al auto-guardar contrato:", error);
@@ -228,11 +241,24 @@ router.put('/:id/actualizar-url', verificarToken, async (req, res) => {
     const { contract_file_url } = req.body;
 
     try {
+        const [contratoPrevio] = await pool.query(
+            `SELECT contract_key, contract_file_url FROM contracts WHERE id_contract = ?`,
+            [id]
+        );
+
         const sql = `UPDATE contracts SET contract_file_url = ? WHERE id_contract = ?`;
         const [result] = await pool.query(sql, [contract_file_url, id || null, id]);
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ success: false, error: "No se encontró el contrato especificado." });
+        }
+
+        if (contratoPrevio.length > 0) {
+            const urlAnterior = contratoPrevio[0].contract_file_url;
+            if (urlAnterior !== contract_file_url) {
+                const clave = contratoPrevio[0].contract_key || `ID #${id}`;
+                notificarModificacionContrato(clave);
+            }
         }
         
         res.json( { success: true, message: "Contrato Actualizado con éxito." });    

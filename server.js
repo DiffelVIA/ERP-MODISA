@@ -7,7 +7,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Importación de Routers
+const { iniciarWhatsApp } = require('./src/services/whatsappService');
 const authRouter = require('./src/routes/auth');
 const projectsRouter = require('./src/routes/projects');
 const categoriesRouter = require('./src/routes/categories');
@@ -42,4 +42,5 @@ app.use('/api', minutesRouter);
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
+  iniciarWhatsApp();
 });
