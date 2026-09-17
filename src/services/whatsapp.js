@@ -145,17 +145,20 @@ const iniciarWhatsApp = async () => {
     }
 };
 
-const notificarModificacionContrato = async (contractKey) => {
+const notificarModificacionContrato = async (contractKey, targetGroupJid) => {
     try {
-        const groupJid = process.env.WHATSAPP_GROUP_JID;
-        if (!sock || !groupJid) {
-            console.warn('⚠️ No se pudo enviar mensaje: WhatsApp no conectado o WHATSAPP_GROUP_JID no definido.');
+        if (!sock) {
+            console.warn('⚠️ WhatsApp no está conectado.');
+            return;
+        }
+        if (!targetGroupJid) {
+            console.warn(`⚠️ No hay un grupo de WhatsApp asociado para el contrato/proyecto: ${contractKey}`);
             return;
         }
 
         const mensaje = `El Contrato (${contractKey}) ha sido modificado, está pendiente de autorización y firma.`;
-        await sock.sendMessage(groupJid, { text: mensaje });
-        console.log(`📲 Notificación de WhatsApp enviada exitosamente para contrato: ${contractKey}`);
+        await sock.sendMessage(targetGroupJid, { text: mensaje });
+        console.log(`📲 Notificación enviada al grupo ${targetGroupJid} para contrato: ${contractKey}`);
     } catch (error) {
         console.error('❌ Error al enviar notificación por WhatsApp:', error.message);
     }

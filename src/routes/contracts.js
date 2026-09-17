@@ -181,7 +181,10 @@ router.put('/:id/actualizar-control', async (req, res) => {
 
     try {
         const [contratoPrevio] = await pool.query(
-            `SELECT contract_key, total_amount FROM contracts WHERE id_contract = ?`,
+            `SELECT c.contract_key, c.total_amount, p.whatsapp_group_jid 
+             FROM contracts c
+             LEFT JOIN projects p ON c.id_project = p.id_project
+             WHERE c.id_contract = ?`,
             [id]
         );
 
@@ -225,7 +228,8 @@ router.put('/:id/actualizar-control', async (req, res) => {
             const montoAnterior = Number(contratoPrevio[0].total_amount);
             if (montoAnterior !== nuevoTotal) {
                 const clave = contratoPrevio[0].contract_key || `ID #${id}`;
-                notificarModificacionContrato(clave);
+                const targetGroupJid = contratoPrevio[0].whatsapp_group_jid;
+                notificarModificacionContrato(clave, targetGroupJid);
             }
         }
 
@@ -242,12 +246,15 @@ router.put('/:id/actualizar-url', verificarToken, async (req, res) => {
 
     try {
         const [contratoPrevio] = await pool.query(
-            `SELECT contract_key, contract_file_url FROM contracts WHERE id_contract = ?`,
+            `SELECT c.contract_key, c.contract_file_url, p.whatsapp_group_jid 
+             FROM contracts c
+             LEFT JOIN projects p ON c.id_project = p.id_project
+             WHERE c.id_contract = ?`,
             [id]
         );
 
         const sql = `UPDATE contracts SET contract_file_url = ? WHERE id_contract = ?`;
-        const [result] = await pool.query(sql, [contract_file_url, id || null, id]);
+        const [result] = await pool.query(sql, [contract_file_url, id]);
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ success: false, error: "No se encontró el contrato especificado." });
@@ -257,14 +264,15 @@ router.put('/:id/actualizar-url', verificarToken, async (req, res) => {
             const urlAnterior = contratoPrevio[0].contract_file_url;
             if (urlAnterior !== contract_file_url) {
                 const clave = contratoPrevio[0].contract_key || `ID #${id}`;
-                notificarModificacionContrato(clave);
+                const targetGroupJid = contratoPrevio[0].whatsapp_group_jid;
+                notificarModificacionContrato(clave, targetGroupJid);
             }
         }
         
         res.json( { success: true, message: "Contrato Actualizado con éxito." });    
     } catch (error) {
         console.error("Error al actualizar la URL del contrato:", error);
-        res.status(500).json({ success: false, error: "Error intenro del servidor al actualizar la URL del contrato."});
+        res.status(500).json({ success: false, error: "Error interno del servidor al actualizar la URL del contrato."});
     }
 });
 
