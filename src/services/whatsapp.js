@@ -1,6 +1,6 @@
 const { makeWASocket, DisconnectReason, initAuthCreds, proto } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
-const pool = require('../../config/db');
+const pool = require('../config/db');
 
 let sock = null;
 
