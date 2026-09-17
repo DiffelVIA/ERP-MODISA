@@ -1,11 +1,12 @@
-const { makeWASocket, DisconnectReason, initAuthCreds, proto, Browsers } = require('@whiskeysockets/baileys');
+const { makeWASocket, DisconnectReason, initAuthCreds, proto, Browsers, BufferJSON } = require('@whiskeysockets/baileys');
 const pool = require('../config/db');
 
 let sock = null;
 
 const useMySQLAuthState = async (sessionId) => {
     const writeData = async (data, key) => {
-        const jsonStr = JSON.stringify(data);
+        // Asumiendo serialización segura con BufferJSON para preservar Buffers
+        const jsonStr = JSON.stringify(data, BufferJSON.replacer);
         const sql = `
             INSERT INTO whatsapp_sessions (session_id, key_id, data) 
             VALUES (?, ?, ?) 
@@ -19,7 +20,7 @@ const useMySQLAuthState = async (sessionId) => {
             const sql = `SELECT data FROM whatsapp_sessions WHERE session_id = ? AND key_id = ?`;
             const [rows] = await pool.query(sql, [sessionId, key]);
             if (rows.length > 0) {
-                return JSON.parse(rows[0].data);
+                return JSON.parse(rows[0].data, BufferJSON.reviver);
             }
             return null;
         } catch (error) {
@@ -75,17 +76,12 @@ const iniciarWhatsApp = async () => {
         const sessionId = process.env.SESSION_ID || 'session_modisa_erp';
         const { state, saveCreds } = await useMySQLAuthState(sessionId);
 
-        // ==================== INICIO MODIFICACIÓN: Configuración optimizada para WA Business ====================
         sock = makeWASocket({
             auth: state,
             printQRInTerminal: false,
-            browser: Browsers.windows('Desktop'), // Compatibilidad completa con WhatsApp Business
-            syncFullHistory: false,
-            connectTimeoutMs: 60000,
-            defaultQueryTimeoutMs: 60000,
-            keepAliveIntervalMs: 30000
+            browser: Browsers.ubuntu('Chrome'),
+            syncFullHistory: false
         });
-        // ==================== FIN MODIFICACIÓN ====================
 
         sock.ev.on('creds.update', saveCreds);
 
@@ -106,7 +102,6 @@ const iniciarWhatsApp = async () => {
                 console.log(`🔴 Conexión de WhatsApp cerrada (Status ${statusCode}). Reconectando: ${shouldReconnect}`);
                 
                 if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
-                    console.log('🧹 Limpiando sesión obsoleta en la base de datos...');
                     await pool.query(`DELETE FROM whatsapp_sessions WHERE session_id = ?`, [sessionId]);
                 }
 
@@ -114,7 +109,7 @@ const iniciarWhatsApp = async () => {
                     setTimeout(iniciarWhatsApp, 5000);
                 }
             } else if (connection === 'open') {
-                console.log('✅ Conexión con WhatsApp Business establecida exitosamente.');
+                console.log('✅ Conexión con WhatsApp establecida exitosamente.');
                 
                 try {
                     const groupList = await sock.groupFetchAllParticipating();
