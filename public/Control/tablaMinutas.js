@@ -592,17 +592,27 @@
       };
 
       const esResidente = origenParam === 'residentes' || obtenerRolDesdeJWT().includes('residente');
+      
       if (esResidente) {
-        const btnRegresar = document.getElementById('btnRegresarPanel') || document.querySelector('a[href="principal.html"]') || document.querySelector('.btn-regresar');
-        if (btnRegresar) {
-          if (btnRegresar.tagName === 'A') {
-            btnRegresar.setAttribute('href', '../principal.html?panel=residentes');
-          }
-          btnRegresar.addEventListener('click', (e) => {
+        document.addEventListener('click', (e) => {
+          const objetivo = e.target.closest('a, button, .btn, div[onclick]');
+          if (!objetivo) return;
+
+          const texto = (objetivo.innerText || objetivo.textContent || '').toLowerCase();
+          const href = (objetivo.getAttribute('href') || '').toLowerCase();
+
+          if (
+            texto.includes('regresar') || 
+            texto.includes('volver') || 
+            texto.includes('panel') || 
+            href.includes('principal') || 
+            href.includes('control')
+          ) {
             e.preventDefault();
+            e.stopPropagation();
             window.location.href = '../principal.html?panel=residentes';
-          });
-        }
+          }
+        }, true);
       }
       
       let estadoParam = urlParams.get('estado');
