@@ -3,43 +3,47 @@
 
     let esResidente = false;
 
-    (() => {
-        const usuarioSesion = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-        const rolUsuario = (usuarioSesion && usuarioSesion.rol) ? usuarioSesion.rol.trim() : null;
-        const token = localStorage.getItem('jwtToken') || '';
-        const sesionRaw = sessionStorage.getItem("usuarioMODISA");
-        const puestosAutorizados = [
-            "Gerente Administración",
-            "Compras",
-            "Director General",
-            "Director Operativo",
-            "Gerente de Costos",
-            "Auxiliar Costos",
-            "Residente de Obra"
-        ];
 
-        if (!token || !usuarioSesion || !rolUsuario || !puestosAutorizados.includes(rolUsuario)) {
-            document.addEventListener('DOMContentLoaded', () => {
-                const mainContent = document.querySelector('.main-tabla');
-                if (mainContent) {
-                    mainContent.innerHTML = `
-                        <div style="text-align: center; padding: 60px 20px; font-family: sans-serif;">
-                            <div style="font-size: 64px; margin-bottom: 20px;">🔒</div>
-                            <h1 style="color: #1e293b; font-size: 28px; margin-bottom: 10px; font-weight: bold;">Acceso Denegado</h1>
-                            <p style="color: #64748b; font-size: 16px; max-width: 400px; margin: 0 auto 30px auto; line-height: 1.5;">
-                                No tienes los permisos necesarios para ver esta sección.
-                            </p>
-                        </div>
-                    `;
-                }
-            });
-            throw new Error("Acceso denegado: Usuario no autorizado para ver esta sección.");
+    function obtenerRolDesdeJWT() {
+        const token = localStorage.getItem('jwtToken');
+        if (!token) return '';
+        try {
+            const base64Url = token.split('.')[1];
+            if (!base64Url) return '';
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            const payload = JSON.parse(jsonPayload);
+            return payload.rol || payload.role || payload.job_title || '';
+        } catch (e) {
+            console.error("❌ Error al decodificar JWT en materiales:", e);
+            return '';
         }
+    }
 
-        if (rolUsuario === "Residente de Obra") {
-            esResidente = true;
-        }
-    })();
+    const limpiarTexto = (texto) => {
+        if (!texto) return '';
+        return texto
+            .toString()
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9\s]/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+    };
+
+    const puestosAutorizados = [
+        "gerente administracion",
+        "gerente de administracion",
+        "compras",
+        "director general",
+        "director operativo",
+        "gerente de costos",
+        "auxiliar costos",
+        "residente de obra"
+    ];
 
     let concentradoMateriales = [];
     let materialesFiltrados = [];
@@ -54,6 +58,38 @@
     let cuerpoTabla;
 
     document.addEventListener('DOMContentLoaded', () => {
+        const usuarioSesion = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+        const ROL_RAW = (usuarioSesion && usuarioSesion.rol) 
+            ? usuarioSesion.rol 
+            : (obtenerRolDesdeJWT() || localStorage.getItem('userRol') || '');
+
+        const rolUsuarioLimpio = limpiarTexto(ROL_RAW);
+
+        const tienePermiso = puestosAutorizados.some(puesto => {
+            const puestoLimpio = limpiarTexto(puesto);
+            return rolUsuarioLimpio === puestoLimpio || (rolUsuarioLimpio.includes("gerente") && rolUsuarioLimpio.includes("administrac"));
+        });
+
+        if (!rolUsuarioLimpio || !tienePermiso) {
+            const mainContent = document.querySelector('.main-tabla') || document.body;
+            if (mainContent) {
+                mainContent.innerHTML = `
+                    <div style="text-align: center; padding: 60px 20px; font-family: sans-serif;">
+                        <div style="font-size: 64px; margin-bottom: 20px;">🔒</div>
+                        <h1 style="color: #1e293b; font-size: 28px; margin-bottom: 10px; font-weight: bold;">Acceso Denegado</h1>
+                        <p style="color: #64748b; font-size: 16px; max-width: 400px; margin: 0 auto 30px auto; line-height: 1.5;">
+                            No tienes los permisos necesarios para ver esta sección.
+                        </p>
+                    </div>
+                `;
+            }
+            return;
+        }
+
+        if (rolUsuarioLimpio.includes("residente")) {
+            esResidente = true;
+        }
+
         cuerpoTabla = document.querySelector('.cuerpoTabla');
         filtroObra = document.getElementById("filtroObra");
         filtroSolicitante = document.getElementById("filtroSolicitante");
