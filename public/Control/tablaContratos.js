@@ -24,40 +24,41 @@
 
     document.addEventListener("DOMContentLoaded", () => {
         const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-        const ROL_RAW = (userToken && (userToken.rol || userToken.job_title)) 
-            ? (userToken.rol || userToken.job_title) 
+        const ROL_RAW = (userToken && userToken.rol) 
+            ? userToken.rol 
             : (obtenerRolDesdeJWT() || localStorage.getItem('userRol') || '');
 
-        const rolUsuario = ROL_RAW.trim().toLowerCase();
+        const limpiarTexto = (texto) => {
+            if (!texto) return '';
+            return texto
+                .toString()
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9\s]/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
+        };
 
-        const rolNormalizado = rolUsuario
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/_/g, " ")
-            .replace(/\s+/g, " ");
+        const rolUsuarioLimpio = limpiarTexto(ROL_RAW);
 
         const rolesPermitidos = [
             "gerente administracion", 
-            "gerente administración",
             "gerente de administracion",
-            "gerente de administración",
             "compras", 
             "director general", 
             "director operativo", 
             "subdirector de obra", 
-            "gerente de costos"
+            "gerente de costos",
+            "costos"
         ];
 
         const tienePermiso = rolesPermitidos.some(rolPermitido => {
-            const permitidoLimpio = rolPermitido
-                .normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "")
-                .replace(/_/g, " ")
-                .replace(/\s+/g, " ");
-            return rolUsuario === rolPermitido || rolNormalizado === permitidoLimpio;
+            const permitidoLimpio = limpiarTexto(rolPermitido);
+            return rolUsuarioLimpio === permitidoLimpio || rolUsuarioLimpio.includes("gerente") && rolUsuarioLimpio.includes("administrac");
         });
 
-        if (!rolUsuario || !tienePermiso) {
+        if (!rolUsuarioLimpio || !tienePermiso) {
             const mainContent = document.querySelector('.main-tabla');
             if (mainContent) {
                 mainContent.innerHTML = `
