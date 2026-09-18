@@ -4,17 +4,58 @@
 
     let todosLosContratos = [];
 
+
+    function obtenerRolDesdeJWT() {
+        const token = localStorage.getItem('jwtToken');
+        if (!token) return '';
+        try {
+            const base64Url = token.split('.')[1];
+            if (!base64Url) return '';
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            const payload = JSON.parse(jsonPayload);
+            return payload.rol || payload.role || '';
+        } catch (e) {
+            console.error("❌ Error al decodificar JWT en contratos:", e);
+            return '';
+        }
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-        const rolUsuario = (userToken && userToken.rol) ? userToken.rol.trim().toLowerCase() : null;
+        const ROL_RAW = (userToken && userToken.rol) ? userToken.rol : (obtenerRolDesdeJWT() || localStorage.getItem('userRol') || '');
+        const rolUsuario = ROL_RAW.trim().toLowerCase();
+
+        const rolNormalizado = rolUsuario
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/_/g, " ")
+            .replace(/\s+/g, " ");
 
         const rolesPermitidos = [
-            "gerente administracion", "compras", "director general", 
-            "director operativo", "subdirector de obra", 
+            "gerente administracion", 
+            "gerente administración",
+            "gerente de administracion",
+            "gerente de administración",
+            "compras", 
+            "director general", 
+            "director operativo", 
+            "subdirector de obra", 
             "gerente de costos"
         ];
 
-        if (!rolUsuario || !rolesPermitidos.includes(rolUsuario)) {
+        const tienePermiso = rolesPermitidos.some(rolPermitido => {
+            const permitidoLimpio = rolPermitido
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/_/g, " ")
+                .replace(/\s+/g, " ");
+            return rolUsuario === rolPermitido || rolNormalizado === permitidoLimpio;
+        });
+
+        if (!rolUsuario || !tienePermiso) {
             const mainContent = document.querySelector('.main-tabla');
             if (mainContent) {
                 mainContent.innerHTML = `
