@@ -5,10 +5,7 @@ const bcrypt = require('bcrypt');
 
 const rolesPermitidos = [
     'director operativo',
-    'director_operativo',
     'gerente administración',
-    'gerente administracion',
-    'gerente_administracion',
     'compras'
 ]
 

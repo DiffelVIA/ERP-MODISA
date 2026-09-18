@@ -55,7 +55,8 @@
             
             const rolesPermitidosEmpleados = [
                 'director operativo',
-                'gerente administración',
+                'gerente de administración',
+                'compras'
             ];
 
             if (rolesPermitidosEmpleados.includes(rolLimpio)) {
