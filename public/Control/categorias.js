@@ -1,12 +1,57 @@
 (() => {
-    const ROL_AUTORIZADO = ["gerente de costos", "director operativo", "compras"];
+    function obtenerRolDesdeJWT() {
+        const token = localStorage.getItem('jwtToken');
+        if (!token) return '';
+        try {
+            const base64Url = token.split('.')[1];
+            if (!base64Url) return '';
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            const payload = JSON.parse(jsonPayload);
+            return payload.rol || payload.role || payload.job_title || '';
+        } catch (e) {
+            console.error("❌ Error al decodificar JWT en categorías:", e);
+            return '';
+        }
+    }
+
+    const limpiarTexto = (texto) => {
+        if (!texto) return '';
+        return texto
+            .toString()
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9\s]/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+    };
+
+    const ROL_AUTORIZADO = [
+        "gerente de costos", 
+        "costos", 
+        "director operativo", 
+        "compras",
+        "gerente administracion",
+        "gerente de administracion"
+    ];
 
     document.addEventListener("DOMContentLoaded", () => {
-
         const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-        const rolActual = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim().toLowerCase()  : '';
+        const ROL_RAW = (usuarioToken && usuarioToken.rol) 
+            ? usuarioToken.rol 
+            : (obtenerRolDesdeJWT() || localStorage.getItem('userRol') || '');
 
-        if (!ROL_AUTORIZADO.includes(rolActual)) {
+        const rolActualLimpio = limpiarTexto(ROL_RAW);
+
+        const tienePermiso = ROL_AUTORIZADO.some(rolPermitido => {
+            const permitidoLimpio = limpiarTexto(rolPermitido);
+            return rolActualLimpio === permitidoLimpio || (rolActualLimpio.includes("gerente") && rolActualLimpio.includes("administrac"));
+        });
+
+        if (!rolActualLimpio || !tienePermiso) {
             const contenedorPrincipal = document.querySelector('.form_main');
             if (contenedorPrincipal) {
                 window.stop();
