@@ -51,14 +51,14 @@
                     <div class="tarjeta tarjeta-master" data-target="control">
                         <img src="img/director.png" alt="Control" class="icono-tarjeta">
                         <h2>Control Operativo</h2>
-                        <p>Gestión de Minutas, Gestión de Proyectos, Gestión de Contratos</p>
+                        <p>Control de Minutas, Control de Proyectos, Supervisión, Categorización</p>
                         <button class="btn-tarjeta">Abrir Módulos</button>
                     </div>
 
                     <div class="tarjeta tarjeta-master" data-target="finanzas">
                         <img src="img/creditos.png" alt="Finanzas" class="icono-tarjeta">
-                        <h2>Administración y Finanzas</h2>
-                        <p>Gestión de materiales, pagos y créditos</p>
+                        <h2>Administración</h2>
+                        <p>Gestión de Materiales, Control de Pagos y Créditos, Control de Empleados</p>
                         <button class="btn-tarjeta">Abrir Módulos</button>
                     </div>
 
@@ -70,7 +70,7 @@
                     </div>
 
                     <!-- ==========================================
-                         NIVEL 1: SUB-PANEL DE CONTROL (Oculto al inicio)
+                         NIVEL 1: SUB-PANEL DE CONTROL
                          ========================================== -->
                     <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="control">
                         <img src="img/reg-minuta.png" alt="Registrar Minuta" class="icono-tarjeta">
@@ -129,14 +129,8 @@
                     </div>
 
                     <!-- ==========================================
-                         NIVEL 1: SUB-PANEL DE FINANZAS (Oculto al inicio)
+                         NIVEL 1: SUB-PANEL DE FINANZAS
                          ========================================== -->
-                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="finanzas">
-                        <img src="img/material.png" alt="Material" class="icono-tarjeta">
-                        <h2>Requisición de Material</h2>
-                        <p>Genera tu Requisición de Materiales</p>
-                        <a href="Finanzas/form_material.html" class="btn-tarjeta">Ir a Solicitud</a>
-                    </div>
                     <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="finanzas">
                         <img src="img/materiales-Consulta.png" alt="Material-Consulta" class="icono-tarjeta">
                         <h2>Consulta de Materiales</h2>
@@ -166,6 +160,28 @@
                         <h2>Presupuestos Autorizados</h2>
                         <p>Verifica los montos asignados y límites por categoría de obra</p>
                         <a href="Finanzas/tabla_presupuestos.html" class="btn-tarjeta">Ir a Presupuestos</a>
+                    </div>
+
+                    <!-- ==========================================
+                         NIVEL 3: SUB-PANEL DE RESIDENTES
+                         ========================================== -->
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="control">
+                        <img src="img/contratos.png" alt="Registrar Contrato" class="icono-tarjeta">
+                        <h2>Registrar Contrato</h2>
+                        <p>Captura de contratos nuevos con proveedores</p>
+                        <a href="Control/form_contratos.html" class="btn-tarjeta">Ir a Registrar Contrato</a>
+                    </div>
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="finanzas">
+                        <img src="img/material.png" alt="Material" class="icono-tarjeta">
+                        <h2>Requisición de Material</h2>
+                        <p>Genera tu Requisición de Materiales</p>
+                        <a href="Finanzas/form_material.html" class="btn-tarjeta">Ir a Solicitud</a>
+                    </div>
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="finanzas">
+                        <img src="img/pagos.png" alt="Pagos" class="icono-tarjeta">
+                        <h2>Solicitud Pagos</h2>
+                        <p>Genera tu solicitud de pago (Contrato, Raya y Caja Chica)</p>
+                        <a href="Finanzas/form_pagos.html" class="btn-tarjeta">Ir a Solicitud</a>
                     </div>
 
                 </div>
