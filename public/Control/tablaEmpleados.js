@@ -3,8 +3,25 @@
         ? 'http://localhost:3000/api' 
         : 'https://erp-modisa.onrender.com/api';
 
-    const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-    const ROL_RAW = (userToken && userToken.rol) ? userToken.rol : (localStorage.getItem('userRol') || '');
+    function obtenerRolDesdeJWT() {
+        const token = localStorage.getItem('jwtToken');
+        if (!token) return '';
+        try {
+            const base64Url = token.split('.')[1];
+            if (!base64Url) return '';
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            const payload = JSON.parse(jsonPayload);
+            return payload.rol || payload.role || '';
+        } catch (e) {
+            console.error("❌ Error al decodificar JWT en empleados:", e);
+            return '';
+        }
+    }
+
+    const ROL_RAW = obtenerRolDesdeJWT() || localStorage.getItem('userRol') || '';
     const ROL_USUARIO = ROL_RAW.trim().toLowerCase();
 
     let listaEmpleados = [];
