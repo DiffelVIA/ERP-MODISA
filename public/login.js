@@ -49,7 +49,7 @@
                 sessionStorage.setItem("usuarioMODISA", JSON.stringify({
                     id_employee: datos.id_employee,
                     nombre: datos.nombre || datos.usuario || usuarioActual,
-                    rol: datos.rol || "Director Operativo",
+                    rol: datos.rol,
                     loginTime: Date.now()
                 }));
                 window.location.href = "principal.html";
@@ -99,7 +99,7 @@
             sessionStorage.setItem("usuarioMODISA", JSON.stringify({
                 id_employee: datos.id_employee,
                 nombre: datos.nombre || datos.usuario || usuarioActual,
-                rol: datos.rol || "Director Operativo",
+                rol: datos.rol,
                 loginTime: Date.now()
             }));
 

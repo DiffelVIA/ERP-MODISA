@@ -14,20 +14,37 @@
         window.location.replace('/');
     }
 
+    function obtenerRolDesdeJWT() {
+        const token = localStorage.getItem('jwtToken');
+        if (!token) return '';
+        try {
+            const base64Url = token.split('.')[1];
+            if (!base64Url) return '';
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            const payload = JSON.parse(jsonPayload);
+            return payload.rol || payload.role || '';
+        } catch (e) {
+            console.error("❌ Error al decodificar JWT:", e);
+            return '';
+        }
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         renderizarSaludoUsuario();
         cargarNotificacionesMinutas();
         configurarEventosTarjetasKPI();
 
+        const rolDesdeJWT = obtenerRolDesdeJWT();
         const usuarioSesion = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-        const ROL_RAW = usuarioSesion && usuarioSesion.rol ? usuarioSesion.rol : '';
-        const rolUsuario = ROL_RAW || localStorage.getItem('userRol') || '';
+        const ROL_RAW = rolDesdeJWT || (usuarioSesion && usuarioSesion.rol ? usuarioSesion.rol : '');
+        const rolUsuario = (ROL_RAW || localStorage.getItem('userRol') || '').trim().toLowerCase();
         const ventana = document.querySelector('.carrusel-ventana');
         const trackContenedor = document.getElementById('carrusel-track');
-        
         const btnRegistroMinuta = document.getElementById('btn-registro-minuta');
         const btnConsultaMinuta = document.getElementById('btn-consulta-minuta');
-
         const tituloDashboard = document.getElementById('titulo-dashboard');
         const btnRegresarPanel = document.getElementById('btn-regresar-panel');
         const tarjetasMaster = document.querySelectorAll('.tarjeta-master');
@@ -85,20 +102,29 @@
             if (ventana) ventana.scrollLeft = 0;
         };
 
-        tarjetasMaster.forEach(master => {
-            const botonAbrir = master.querySelector('.btn-tarjeta');
+        const esResidente = rolUsuario.includes('residente');
 
-            if (botonAbrir) {
-                botonAbrir.addEventListener('click', () => {
-                    const seccionObjetivo = master.getAttribute('data-target');
-                    abrirSubPanel(seccionObjetivo);
-                });
-            }
-        });
+        if (esResidente) {
+            abrirSubPanel('residentes');
+            if (btnRegresarPanel) btnRegresarPanel.classList.add('panel-oculto');
+        } else {
+            tarjetasMaster.forEach(master => {
+                const botonAbrir = master.querySelector('.btn-tarjeta');
+
+                if (botonAbrir) {
+                    botonAbrir.addEventListener('click', () => {
+                        const seccionObjetivo = master.getAttribute('data-target');
+                        abrirSubPanel(seccionObjetivo);
+                    });
+                }
+            });
+        }
 
         if (btnRegresarPanel) {
             btnRegresarPanel.addEventListener('click', (e) => {
                 e.preventDefault();
+
+                if (esResidente) return;
                 
                 if (trackContenedor) trackContenedor.classList.add('vista-menu');
                 
