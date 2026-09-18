@@ -9,9 +9,9 @@
         const rolUsuario = (userToken && userToken.rol) ? userToken.rol.trim().toLowerCase() : null;
 
         const rolesPermitidos = [
-            "gerente administración", "compras", "director general", 
+            "gerente administracion", "compras", "director general", 
             "director operativo", "subdirector de obra", 
-            "gerente de costos", "auxiliar costos", "residente de obra"
+            "gerente de costos"
         ];
 
         if (!rolUsuario || !rolesPermitidos.includes(rolUsuario)) {
