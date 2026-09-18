@@ -3,19 +3,59 @@
 
     let todosLosCreditos = [];
 
+    function obtenerRolDesdeJWT() {
+        const token = localStorage.getItem('jwtToken');
+        if (!token) return '';
+        try {
+            const base64Url = token.split('.')[1];
+            if (!base64Url) return '';
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            const payload = JSON.parse(jsonPayload);
+            return payload.rol || payload.role || payload.job_title || '';
+        } catch (e) {
+            console.error("❌ Error al decodificar JWT en créditos:", e);
+            return '';
+        }
+    }
+
+    const limpiarTexto = (texto) => {
+        if (!texto) return '';
+        return texto
+            .toString()
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9\s]/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+    };
+
     document.addEventListener('DOMContentLoaded', () => {
         const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-        const rolUsuario = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim().toLowerCase() : null;
+        const ROL_RAW = (usuarioToken && usuarioToken.rol) 
+            ? usuarioToken.rol 
+            : (obtenerRolDesdeJWT() || localStorage.getItem('userRol') || '');
+
+        const rolUsuarioLimpio = limpiarTexto(ROL_RAW);
 
         const rolesPermitidosCreditos = [
-            "gerente administración", 
+            "gerente administracion", 
+            "gerente de administracion",
             "director operativo", 
             "director general", 
             "compras"
         ];
 
-        if (!rolUsuario || !rolesPermitidosCreditos.includes(rolUsuario)) {
-            const mainContent = document.querySelector('.main-tabla') || document.querySelector('.main-content');
+        const tienePermiso = rolesPermitidosCreditos.some(rolPermitido => {
+            const permitidoLimpio = limpiarTexto(rolPermitido);
+            return rolUsuarioLimpio === permitidoLimpio || (rolUsuarioLimpio.includes("gerente") && rolUsuarioLimpio.includes("administrac"));
+        });
+
+        if (!rolUsuarioLimpio || !tienePermiso) {
+            const mainContent = document.querySelector('.main-tabla') || document.querySelector('.main-content') || document.body;
             if (mainContent) {
                 mainContent.innerHTML = `
                     <div style="text-align: center; padding: 60px 20px; font-family: sans-serif;">
@@ -65,8 +105,17 @@
         }
 
         const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-        const rolUsuario = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim().toLowerCase() : "";
-        const puedeEditar = (rolUsuario === "compras" || rolUsuario === "gerente administración");
+        const ROL_RAW = (usuarioToken && usuarioToken.rol) 
+            ? usuarioToken.rol 
+            : (obtenerRolDesdeJWT() || localStorage.getItem('userRol') || '');
+
+        const rolUsuarioLimpio = limpiarTexto(ROL_RAW);
+
+        const puedeEditar = (
+            rolUsuarioLimpio === "compras" || 
+            rolUsuarioLimpio.includes("administrac") || 
+            rolUsuarioLimpio === "gerente administracion"
+        );
 
         datos.forEach(credito => {
             const tr = document.createElement('tr');
