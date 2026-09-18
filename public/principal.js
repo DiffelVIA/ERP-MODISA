@@ -55,7 +55,7 @@
             
             const rolesPermitidosEmpleados = [
                 'director operativo',
-                'gerente de administración',
+                'gerente administración',
                 'compras'
             ];
 
