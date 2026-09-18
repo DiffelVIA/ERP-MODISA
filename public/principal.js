@@ -77,6 +77,8 @@
                 tituloDashboard.textContent = "Sistema de Gestión - Control Operativo";
             } else if (seccionObjetivo === 'finanzas') {
                 tituloDashboard.textContent = "Sistema de Gestión - Administración y Finanzas";
+            } else if (seccionObjetivo === 'residentes') {
+                tituloDashboard.textContent = "Sistema de Gestión - Residentes";
             }
 
             if (btnRegresarPanel) btnRegresarPanel.classList.remove('panel-oculto');
@@ -114,7 +116,7 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const panelParam = urlParams.get('panel');
-        if (panelParam === 'control' || panelParam === 'finanzas') {
+        if (panelParam === 'control' || panelParam === 'finanzas' || panelParam === 'residentes') {
             abrirSubPanel(panelParam);
         }
     });
