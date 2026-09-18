@@ -15,8 +15,7 @@
                 return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
             }).join(''));
             const payload = JSON.parse(jsonPayload);
-            // Se añade la lectura de job_title
-            return payload.job_title || payload.rol || payload.role || '';
+            return payload.rol || payload.role || payload.job_title || '';
         } catch (e) {
             console.error("❌ Error al decodificar JWT en contratos:", e);
             return '';
@@ -25,10 +24,10 @@
 
     document.addEventListener("DOMContentLoaded", () => {
         const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-        const ROL_RAW = (userToken && (userToken.job_title || userToken.rol)) 
-            ? (userToken.job_title || userToken.rol) 
+        const ROL_RAW = (userToken && (userToken.rol || userToken.job_title)) 
+            ? (userToken.rol || userToken.job_title) 
             : (obtenerRolDesdeJWT() || localStorage.getItem('userRol') || '');
-        
+
         const rolUsuario = ROL_RAW.trim().toLowerCase();
 
         const rolNormalizado = rolUsuario
