@@ -5,6 +5,36 @@
         ? 'http://localhost:3000/api' 
         : 'https://erp-modisa.onrender.com/api';
 
+    function obtenerRolDesdeJWT() {
+        const token = localStorage.getItem('jwtToken');
+        if (!token) return '';
+        try {
+            const base64Url = token.split('.')[1];
+            if (!base64Url) return '';
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            const payload = JSON.parse(jsonPayload);
+            return payload.rol || payload.role || payload.job_title || '';
+        } catch (e) {
+            console.error("❌ Error al decodificar JWT en dashboard:", e);
+            return '';
+        }
+    }
+
+    const limpiarTexto = (texto) => {
+        if (!texto) return '';
+        return texto
+            .toString()
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9\s]/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+    };
+
     document.addEventListener('DOMContentLoaded', () => {
         const ROLES_PERMITIDOS = [
             'Director General',
@@ -12,6 +42,7 @@
             'Director de Proyectos',
             'Subdirector de Obra',
             'Gerente Administración',
+            'Gerente de Administración',
             'Compras',
             'Gerente de Costos'
         ];
@@ -29,11 +60,18 @@
             }
         }
 
-        const rawRol = (userToken && userToken.rol) ? String(userToken.rol).trim() : '';
-        const rolNormalizado = rawRol.toLowerCase().replace(/_/g, ' ');
-        const rolesPermitidosNormalizados = ROLES_PERMITIDOS.map(r => r.toLowerCase());
+        const ROL_RAW = (userToken && userToken.rol) 
+            ? userToken.rol 
+            : (obtenerRolDesdeJWT() || localStorage.getItem('userRol') || '');
 
-        if (!rolNormalizado || !rolesPermitidosNormalizados.includes(rolNormalizado)) {
+        const rolUsuarioLimpio = limpiarTexto(ROL_RAW);
+
+        const tienePermiso = ROLES_PERMITIDOS.some(rolPermitido => {
+            const permitidoLimpio = limpiarTexto(rolPermitido);
+            return rolUsuarioLimpio === permitidoLimpio || (rolUsuarioLimpio.includes("gerente") && rolUsuarioLimpio.includes("administrac"));
+        });
+
+        if (!rolUsuarioLimpio || !tienePermiso) {
             const mainContent = document.querySelector('main') || document.querySelector('.dashboard-container') || document.body;
             if (mainContent) {
                 mainContent.innerHTML = `
