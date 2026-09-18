@@ -8,7 +8,8 @@ const rolesPermitidos = [
     'director_operativo',
     'gerente administración',
     'gerente administracion',
-    'gerente_administracion'
+    'gerente_administracion',
+    'compras'
 ]
 
 const { verificarToken } = require('../middlewares/authMiddleware');

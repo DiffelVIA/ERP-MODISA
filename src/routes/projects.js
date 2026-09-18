@@ -52,7 +52,7 @@ router.get('/', async (req, res) => {
 // REGISTRO DE NUEVOS PROYECTOS
 router.post('/', async (req, res) => {
     const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim() : '';
-    const rolesPermitidos = ["Director Operativo", "Subdirector de Obra"];
+    const rolesPermitidos = ["Director Operativo", "Subdirector de Obra", "Compras", "Gerente de Costos", "Gerente de Administración", "Director General"];
 
     if (!rolesPermitidos.includes(rolUsuario)) {
         return res.status(403).json({ 
