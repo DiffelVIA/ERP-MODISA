@@ -3,45 +3,96 @@
         ? 'http://localhost:3000/api' 
         : 'https://erp-modisa.onrender.com/api';
 
-    const usuarioSesion = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-    const ROL_RAW = usuarioSesion && usuarioSesion.rol ? usuarioSesion.rol : '';
-    const ROL_USUARIO = ROL_RAW ? ROL_RAW.trim().toLowerCase() : 'residente';
+    function obtenerRolDesdeJWT() {
+        const token = localStorage.getItem('jwtToken');
+        if (!token) return '';
+        try {
+            const base64Url = token.split('.')[1];
+            if (!base64Url) return '';
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            const payload = JSON.parse(jsonPayload);
+            return payload.rol || payload.role || payload.job_title || '';
+        } catch (e) {
+            console.error("❌ Error al decodificar JWT en consulta de pagos:", e);
+            return '';
+        }
+    }
+
+    const limpiarTexto = (texto) => {
+        if (!texto) return '';
+        return texto
+            .toString()
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9\s]/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+    };
 
     const mapaTiposPago = {
-    'contratista': '👷 Contratista',
-    'maquinariaEquipo': '🚜 M. y Equipo',
-    'cajaChica': '💵 Caja Chica',
-    'caja chica': '💵 Caja Chica',
-    'maquinaria y equipo': '🚜 Maquinaria y Equipo',
-    'manoObra': '👷 Mano de Obra',
-    'mano de obra': '👷 Mano de Obra',
-    'material': '📦 Materiales',
-    'materiales': '📦 Materiales',
+        'contratista': '👷 Contratista',
+        'maquinariaEquipo': '🚜 M. y Equipo',
+        'cajaChica': '💵 Caja Chica',
+        'caja chica': '💵 Caja Chica',
+        'maquinaria y equipo': '🚜 Maquinaria y Equipo',
+        'manoObra': '👷 Mano de Obra',
+        'mano de obra': '👷 Mano de Obra',
+        'material': '📦 Materiales',
+        'materiales': '📦 Materiales',
     };
 
     let todosLosPagos = [];
     let pagosFiltradosActuales = [];
 
     document.addEventListener('DOMContentLoaded', () => {
-        verificarPermisosDeAcceso();
+        if (!verificarPermisosDeAcceso()) return;
         cargarPagosSolicitados();
         configurarDelegacionEventos();
         inicializarEventosFiltros();
         inicializarEventoExportarExcel();
     });
 
+    function obtenerRolActualLimpio() {
+        const usuarioSesion = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+        const ROL_RAW = (usuarioSesion && usuarioSesion.rol) 
+            ? usuarioSesion.rol 
+            : (obtenerRolDesdeJWT() || localStorage.getItem('userRol') || '');
+        return limpiarTexto(ROL_RAW);
+    }
+
     function verificarPermisosDeAcceso() {
+        const rolUsuarioLimpio = obtenerRolActualLimpio();
         const rolesPermitidos = [
-            'compras', 'gerente_administrativo', 'gerente administración',
-            'residente', 'residente de obra', 'director_operativo', 
-            'director operativo', 'director_general', 'director general',
-            'gerente_costos', 'gerente de costos'
+            'compras', 'gerente administrativo', 'gerente administracion',
+            'residente', 'residente de obra', 'director operativo', 
+            'director general', 'gerente costos', 'gerente de costos'
         ];
         
-        if (!rolesPermitidos.includes(ROL_USUARIO)) {
-            alert('🚫 Acceso denegado: No tienes autorización para ingresar a la Consulta de Pagos.');
-            window.location.href = '../principal.html'; 
+        const tienePermiso = rolesPermitidos.some(p => {
+            const pLimpio = limpiarTexto(p);
+            return rolUsuarioLimpio === pLimpio || (rolUsuarioLimpio.includes("gerente") && rolUsuarioLimpio.includes("administrac"));
+        });
+
+        if (!rolUsuarioLimpio || !tienePermiso) {
+            const mainContent = document.querySelector('.main-tabla') || document.querySelector('.main-content') || document.body;
+            if (mainContent) {
+                mainContent.innerHTML = `
+                    <div style="text-align: center; padding: 60px 20px; font-family: sans-serif;">
+                        <div style="font-size: 64px; margin-bottom: 20px;">🔒</div>
+                        <h1 style="color: #1e293b; font-size: 28px; margin-bottom: 10px; font-weight: bold;">Acceso Denegado</h1>
+                        <p style="color: #64748b; font-size: 16px; max-width: 400px; margin: 0 auto 30px auto; line-height: 1.5;">
+                            No tienes autorización para ingresar a la Consulta de Pagos.
+                        </p>
+                    </div>
+                `;
+            }
+            return false;
         }
+        return true;
     }
 
     async function cargarPagosSolicitados() {
@@ -299,7 +350,12 @@
             return;
         }
 
-        const puedeModificarRol = ['compras', 'gerente_administrativo', 'gerente administración'].includes(ROL_USUARIO);
+        const rolUsuarioLimpio = obtenerRolActualLimpio();
+        const puedeModificarRol = (
+            rolUsuarioLimpio === 'compras' || 
+            rolUsuarioLimpio.includes('administrac') || 
+            rolUsuarioLimpio === 'gerente administracion'
+        );
         const pagosOrdenados = [...listaPagos].sort((a, b) => (a.id_payment_detail || 0) - (b.id_payment_detail || 0));
         const acumuladosMontoTotal = {};
         const mapaColoresMontoTotal = {};
