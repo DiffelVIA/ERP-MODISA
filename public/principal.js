@@ -232,20 +232,22 @@
         const cardAtrasadas = document.querySelector('.kpi-atrasadas');
         const cardPendientes = document.querySelector('.kpi-pendientes');
         const cardAplazadas = document.querySelector('.kpi-aplazadas');
+        const rolJwt = obtenerRolDesdeJWT().toLowerCase();
+        const sufijoOrigen = rolJwt.includes('residente') ? '&origen=residentes' : '';
 
         if (cardAtrasadas) {
             cardAtrasadas.onclick = () => {
-                window.location.href = `Control/tabla_minutas.html?estado=atrasada&responsable=${nombreUsuario}`;
+                window.location.href = `Control/tabla_minutas.html?estado=atrasada&responsable=${nombreUsuario}${sufijoOrigen}`;
             };
         }
         if (cardPendientes) {
             cardPendientes.onclick = () => {
-                window.location.href = `Control/tabla_minutas.html?estado=pendiente&responsable=${nombreUsuario}`;
+                window.location.href = `Control/tabla_minutas.html?estado=pendiente&responsable=${nombreUsuario}${sufijoOrigen}`;
             };
         }
         if (cardAplazadas) {
             cardAplazadas.onclick = () => {
-                window.location.href = `Control/tabla_minutas.html?estado=aplazada&responsable=${nombreUsuario}`;
+                window.location.href = `Control/tabla_minutas.html?estado=aplazada&responsable=${nombreUsuario}${sufijoOrigen}`;
             };
         }
     }

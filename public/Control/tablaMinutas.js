@@ -571,6 +571,40 @@
   function procesarFiltrosUrl() {
     setTimeout(() => {
       const urlParams = new URLSearchParams(window.location.search);
+      const origenParam = urlParams.get('origen');
+
+      const obtenerRolDesdeJWT = () => {
+        const token = localStorage.getItem('jwtToken') || '';
+        if (!token) return '';
+        
+        try {
+          const base64Url = token.split('.')[1];
+          if (!base64Url) return '';
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join(''));
+          const payload = JSON.parse(jsonPayload);
+          return (payload.rol || payload.role || '').toLowerCase();
+        } catch (e) {
+          return '';
+        }
+      };
+
+      const esResidente = origenParam === 'residentes' || obtenerRolDesdeJWT().includes('residente');
+      if (esResidente) {
+        const btnRegresar = document.getElementById('btnRegresarPanel') || document.querySelector('a[href="principal.html"]') || document.querySelector('.btn-regresar');
+        if (btnRegresar) {
+          if (btnRegresar.tagName === 'A') {
+            btnRegresar.setAttribute('href', '../principal.html?panel=residentes');
+          }
+          btnRegresar.addEventListener('click', (e) => {
+            e.preventDefault();
+            window.location.href = '../principal.html?panel=residentes';
+          });
+        }
+      }
+      
       let estadoParam = urlParams.get('estado');
       let responsableParam = urlParams.get('responsable');
 
