@@ -11,10 +11,8 @@
     document.addEventListener('DOMContentLoaded', () => {
         const rolesPermitidos = [
             'director operativo',
-            'director_operativo',
             'gerente administración',
-            'gerente administracion',
-            'gerente_administracion'
+            'compras'
         ];
 
         if (!rolesPermitidos.includes(ROL_USUARIO)) {
