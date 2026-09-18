@@ -66,35 +66,78 @@
         }
     }
 
+    function obtenerRolDesdeJWT() {
+        const token = localStorage.getItem('jwtToken');
+        if (!token) return '';
+        try {
+            const base64Url = token.split('.')[1];
+            if (!base64Url) return '';
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            const payload = JSON.parse(jsonPayload);
+            return payload.rol || payload.role || payload.job_title || '';
+        } catch (e) {
+            console.error("❌ Error al decodificar JWT:", e);
+            return '';
+        }
+    }
+
+    function limpiarTexto(texto) {
+        if (!texto) return '';
+        return texto
+            .toString()
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9\s]/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+    }
+
+    function obtenerRolActualLimpio() {
+        const usuarioSesion = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+        const ROL_RAW = (usuarioSesion && usuarioSesion.rol) 
+            ? usuarioSesion.rol 
+            : (obtenerRolDesdeJWT() || localStorage.getItem('userRol') || '');
+        return limpiarTexto(ROL_RAW);
+    }
+
     async function cargarSelectoresIniciales() {
         try {
             const token = localStorage.getItem('jwtToken') || '';
             const usuarioSesion = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
             const idEmp = usuarioSesion ? (usuarioSesion.id_employee || usuarioSesion.id) : null;
-            const userRol = usuarioSesion ? usuarioSesion.rol : null;
+            const userRolRaw = usuarioSesion ? usuarioSesion.rol : (obtenerRolDesdeJWT() || localStorage.getItem('userRol') || '');
 
-            const rolesAdministrativos = [
+            // Roles que deben ver TODOS los proyectos de la BD
+            const rolesConAccesoGlobal = [
+                'compras',
                 'director operativo',
-                'director_operativo',
                 'subdirector de obra',
-                'subdirector_de_obra',
-                'gerente administración y compras',
-                'gerente administracion y compras',
-                'gerente_administracion_y_compras',
-                'gerente administración',
                 'gerente administracion',
-                'gerente_administracion',
-                'compras'
+                'gerente administracion y compras',
+                'gerente costos',
+                'gerente de costos'
             ];
 
-            const rolLimpio = userRol ? userRol.trim().toLowerCase() : '';
-            const esRolGlobal = rolesAdministrativos.includes(rolLimpio);
+            const rolLimpio = obtenerRolActualLimpio();
+            
+            // Evalúa si el rol coincide directamente o si contiene palabras clave (ej. "gerente" + "costos")
+            const esRolGlobal = rolesConAccesoGlobal.some(r => {
+                const rLimpio = limpiarTexto(r);
+                return rolLimpio === rLimpio || 
+                       (rolLimpio.includes('gerente') && rolLimpio.includes('costo')) ||
+                       (rolLimpio.includes('gerente') && rolLimpio.includes('administrac')) ||
+                       (rolLimpio.includes('director') && rolLimpio.includes('operativ'));
+            });
 
             const headersPeticion = {
                 'Authorization': token ? `Bearer ${token}` : ''
             };
             if (idEmp) headersPeticion['x-employee-id'] = idEmp;
-            if (userRol) headersPeticion['x-user-rol'] = userRol;
+            if (userRolRaw) headersPeticion['x-user-rol'] = userRolRaw;
 
             const resProyectos = await fetch(`${API_URL}/proyectos`, {
                 headers: headersPeticion
@@ -103,18 +146,26 @@
             if (resProyectos.ok) {
                 const proyectos = await resProyectos.json();
                 
+                // ==========================================
+                // CÓDIGO MODIFICADO: Filtrado por Rol
+                // ==========================================
                 const proyectosFiltrados = proyectos.filter(p => {
-                    if (esRolGlobal || !idEmp) return true;
+                    // Si es rol global (Gerente Admón, Director Operativo, Compras, Gerente Costos), ve TODOS
+                    if (esRolGlobal) return true;
+                    
+                    // Para otros roles (Ej. Residente), filtrar solo los vinculados a su id
+                    if (!idEmp) return true;
                     if (p.id_employee !== undefined) return String(p.id_employee) === String(idEmp);
                     if (p.id_user !== undefined) return String(p.id_user) === String(idEmp);
                     if (Array.isArray(p.empleados)) return p.empleados.includes(Number(idEmp));
-                    return true; 
+                    return true;
                 });
 
                 const lista = proyectosFiltrados.map(p => ({ 
                     id: p.id_project,
                     nombre: p.project_name
                 }));
+                
                 llenarSelect('proyecto', lista);
             }
 
@@ -125,7 +176,7 @@
                 contratosCargados = await resContratos.json();
             }
         } catch (error) {
-            console.error(" Error inicial:", error);
+            console.error("❌ Error inicial:", error);
         }
     }
 
