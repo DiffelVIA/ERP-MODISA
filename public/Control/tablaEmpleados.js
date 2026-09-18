@@ -4,18 +4,35 @@
         : 'https://erp-modisa.onrender.com/api';
 
     const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-    const ROL_USUARIO = (userToken && userToken.rol) ? userToken.rol.trim().toLowerCase() : '';
+    const ROL_RAW = (userToken && userToken.rol) ? userToken.rol : (localStorage.getItem('userRol') || '');
+    const ROL_USUARIO = ROL_RAW.trim().toLowerCase();
 
     let listaEmpleados = [];
 
     document.addEventListener('DOMContentLoaded', () => {
+        const rolNormalizado = ROL_USUARIO
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/_/g, " ")
+            .replace(/\s+/g, " ");
+
         const rolesPermitidos = [
             'director operativo',
             'gerente administración',
+            'gerente administracion',
             'compras'
         ];
 
-        if (!rolesPermitidos.includes(ROL_USUARIO)) {
+        const tienePermiso = rolesPermitidos.some(rolPermitido => {
+            const permitidoLimpio = rolPermitido
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/_/g, " ")
+                .replace(/\s+/g, " ");
+            return ROL_USUARIO === rolPermitido || rolNormalizado === permitidoLimpio;
+        });
+
+        if (!tienePermiso) {
             alert('🚫 Acceso denegado, no puedes ingresar a esta sección.');
             window.location.href = '../principal.html';
             return;
