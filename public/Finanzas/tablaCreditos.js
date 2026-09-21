@@ -113,7 +113,6 @@
 
         const puedeEditar = (
             rolUsuarioLimpio === "compras" || 
-            rolUsuarioLimpio.includes("administrac") || 
             rolUsuarioLimpio === "gerente administracion"
         );
 
