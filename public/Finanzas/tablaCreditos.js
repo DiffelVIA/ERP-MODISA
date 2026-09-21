@@ -42,10 +42,10 @@
         const rolUsuarioLimpio = limpiarTexto(ROL_RAW);
 
         const rolesPermitidosCreditos = [
-            "gerente administracion", 
-            "gerente de administracion",
+            "gerente administracion",
             "director operativo", 
-            "director general", 
+            "director general",
+            "gerente costos",
             "compras"
         ];
 
