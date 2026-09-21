@@ -44,8 +44,8 @@ app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
   iniciarWhatsApp();
 
-  const PROGRAMAR_HORA = 8;
-  const PROGRAMAR_MINUTO = 30;
+  const PROGRAMAR_HORA = 10;
+  const PROGRAMAR_MINUTO = 10;
 
   const calcularTiempoSiguienteEjecucion = () => {
       const ahora = new Date();
