@@ -7,7 +7,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const { iniciarWhatsApp } = require('./src/services/whatsapp');
+const { iniciarWhatsApp, verificarYNotificarContratosSinFirma } = require('./src/services/whatsapp');
 const authRouter = require('./src/routes/auth');
 const projectsRouter = require('./src/routes/projects');
 const categoriesRouter = require('./src/routes/categories');
@@ -45,7 +45,7 @@ app.listen(PORT, () => {
   iniciarWhatsApp();
 
   const PROGRAMAR_HORA = 10;
-  const PROGRAMAR_MINUTO = 20;
+  const PROGRAMAR_MINUTO = 23;
 
   const calcularTiempoSiguienteEjecucion = () => {
       const ahora = new Date();
