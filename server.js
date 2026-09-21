@@ -45,7 +45,7 @@ app.listen(PORT, () => {
   iniciarWhatsApp();
 
   const PROGRAMAR_HORA = 10;
-  const PROGRAMAR_MINUTO = 10;
+  const PROGRAMAR_MINUTO = 20;
 
   const calcularTiempoSiguienteEjecucion = () => {
       const ahora = new Date();
@@ -59,6 +59,11 @@ app.listen(PORT, () => {
   };
 
   const iniciarCronDiario = () => {
+      setTimeout(() => {
+          console.log('🧪 Ejecutando prueba inmediata de verificación de firmas...');
+          verificarYNotificarContratosSinFirma();
+      }, 5000);
+
       setTimeout(() => {
           verificarYNotificarContratosSinFirma();
           setInterval(verificarYNotificarContratosSinFirma, 24 * 60 * 60 * 1000);
