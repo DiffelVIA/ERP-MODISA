@@ -118,7 +118,6 @@ const iniciarWhatsApp = async () => {
             } else if (connection === 'open') {
                 console.log('✅ Conexión con WhatsApp establecida exitosamente.');
                 
-                // Espera de 4 segundos para asegurar sincronización de grupos
                 setTimeout(async () => {
                     try {
                         console.log('🔍 Obteniendo lista de grupos...');
@@ -184,9 +183,10 @@ const verificarYNotificarContratosSinFirma = async () => {
                 DATEDIFF(NOW(), c.created_at) AS dias_transcurridos
             FROM contracts c
             LEFT JOIN projects p ON c.id_project = p.id_project
-            WHERE LOWER(TRIM(IFNULL(c.firma, ''))) != 'autorizado'
-              AND LOWER(TRIM(IFNULL(c.estado_costos, ''))) = 'autorizado'
-              AND LOWER(TRIM(IFNULL(c.status_direccion, ''))) = 'autorizado'
+            WHERE LOWER(TRIM(IFNULL(c.firma, ''))) NOT IN ('firmado', 'autorizado')
+              AND LOWER(TRIM(IFNULL(c.status, ''))) != 'rechazado'
+              AND LOWER(TRIM(IFNULL(c.status_direccion, ''))) != 'rechazado'
+              AND LOWER(TRIM(IFNULL(c.estado_costos, ''))) != 'rechazado'
         `;
 
         const [contratos] = await pool.query(sql);
@@ -201,7 +201,7 @@ const verificarYNotificarContratosSinFirma = async () => {
         for (const contrato of contratos) {
             const dias = Number(contrato.dias_transcurridos);
             
-            const correspondeNotificar = (dias === 3) || (dias === 7) || (dias > 7 && (dias - 7) % 3 === 0);
+            const correspondeNotificar = dias >= 3;
 
             if (correspondeNotificar) {
                 const targetJid = contrato.whatsapp_group_jid || process.env.WHATSAPP_GROUP_JID;
