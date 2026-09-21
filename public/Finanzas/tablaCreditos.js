@@ -45,13 +45,15 @@
             "gerente administracion",
             "director operativo", 
             "director general",
-            "gerente costos",
+            "gerente de costos",
             "compras"
         ];
 
         const tienePermiso = rolesPermitidosCreditos.some(rolPermitido => {
             const permitidoLimpio = limpiarTexto(rolPermitido);
-            return rolUsuarioLimpio === permitidoLimpio || (rolUsuarioLimpio.includes("gerente") && rolUsuarioLimpio.includes("administrac"));
+            return rolUsuarioLimpio === permitidoLimpio || 
+                   (rolUsuarioLimpio.includes("gerente") && rolUsuarioLimpio.includes("administrac")) ||
+                   (rolUsuarioLimpio.includes("gerente") && rolUsuarioLimpio.includes("costo"));
         });
 
         if (!rolUsuarioLimpio || !tienePermiso) {
@@ -113,7 +115,8 @@
 
         const puedeEditar = (
             rolUsuarioLimpio === "compras" || 
-            rolUsuarioLimpio === "gerente administracion"
+            rolUsuarioLimpio.includes("administrac") ||
+            (rolUsuarioLimpio.includes("gerente") && rolUsuarioLimpio.includes("costo"))
         );
 
         datos.forEach(credito => {
