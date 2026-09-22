@@ -46,23 +46,38 @@ app.listen(PORT, () => {
 
   const PROGRAMAR_HORA = 8;
   const PROGRAMAR_MINUTO = 30;
+  const ZONA_HORARIA = 'America/Mexico_City';
 
   const calcularTiempoSiguienteEjecucion = () => {
       const ahora = new Date();
-      const siguiente = new Date();
-      siguiente.setHours(PROGRAMAR_HORA, PROGRAMAR_MINUTO, 0, 0);
 
-      if (ahora >= siguiente) {
-          siguiente.setDate(siguiente.getDate() + 1);
+      const opciones = { timeZone: ZONA_HORARIA, year: 'numeric', month: '2-digit', day: '2-digit' };
+      const partesFecha = new Intl.DateTimeFormat('en-US', opciones).formatToParts(ahora);
+      
+      let year, month, day;
+      for (const part of partesFecha) {
+          if (part.type === 'year') year = part.value;
+          if (part.type === 'month') month = part.value;
+          if (part.type === 'day') day = part.value;
       }
-      return siguiente - ahora;
+
+      let siguienteEjecucion = new Date(`${year}-${month}-${day}T${String(PROGRAMAR_HORA).padStart(2, '0')}:${String(PROGRAMAR_MINUTO).padStart(2, '0')}:00-06:00`);
+
+      if (ahora >= siguienteEjecucion) {
+          siguienteEjecucion.setDate(siguienteEjecucion.getDate() + 1);
+      }
+
+      return siguienteEjecucion.getTime() - ahora.getTime();
   };
 
   const iniciarCronDiario = () => {
+      const msFaltantes = calcularTiempoSiguienteEjecucion();
+      console.log(`⏱️ Próxima verificación de firmas programada en ${(msFaltantes / 1000 / 60 / 60).toFixed(2)} horas (8:30 AM hora México).`);
+
       setTimeout(() => {
           verificarYNotificarContratosSinFirma();
           setInterval(verificarYNotificarContratosSinFirma, 24 * 60 * 60 * 1000);
-      }, calcularTiempoSiguienteEjecucion());
+      }, msFaltantes);
   };
 
   iniciarCronDiario();
