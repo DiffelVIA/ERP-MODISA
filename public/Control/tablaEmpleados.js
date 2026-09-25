@@ -104,7 +104,6 @@
                 <td>${emp.department || '---'}</td>
                 <td>${fechaIngresoFormatted}</td>
                 <td style="text-align: center; white-space: nowrap;">
-                    <!-- MODIFICACIÓN: Se añade el botón de vacaciones -->
                     <button class="btn btn-vacaciones" data-id="${emp.id_employee}" style="padding: 3px 8px; font-size: 11px; background-color: #28a745; color: #fff;">🌴 Vacaciones</button>
                     <button class="btn btn-editar" data-id="${emp.id_employee}" style="padding: 3px 8px; font-size: 11px;">✏️ Editar</button>
                     <button class="btn btn-eliminar" data-id="${emp.id_employee}" style="padding: 3px 8px; font-size: 11px; background-color: var(--red--); color: #fff;">🗑️ Eliminar</button>
@@ -192,6 +191,19 @@
             });
         }
 
+        // Event listener para la tabla de historial (Eliminar vacaciones individualmente)
+        const tablaHistorial = document.getElementById('historialVacacionesTabla');
+        if (tablaHistorial) {
+            tablaHistorial.addEventListener('click', (e) => {
+                const btnEliminar = e.target.closest('.btn-eliminar-vac');
+                if (btnEliminar) {
+                    const idVac = btnEliminar.getAttribute('data-id');
+                    const idEmp = document.getElementById('vac-emp-id').value;
+                    window.eliminarVacacion(idVac, idEmp);
+                }
+            });
+        }
+
         if (form) {
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -245,11 +257,12 @@
             formVac.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const idEmployee = document.getElementById('vac-emp-id').value;
+                
+                // CÓDIGO MODIFICADO: Payload sin campo motivo
                 const payload = {
                     fecha_inicio: document.getElementById('vac-fecha-inicio').value,
                     fecha_fin: document.getElementById('vac-fecha-fin').value,
-                    dias_tomados: parseInt(document.getElementById('vac-dias-tomados').value),
-                    motivo: document.getElementById('vac-motivo').value.trim()
+                    dias_tomados: parseInt(document.getElementById('vac-dias-tomados').value)
                 };
 
                 try {
@@ -355,19 +368,23 @@
         tbody.innerHTML = '';
 
         if (!historial || historial.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:10px; color:#888;">Sin registros de vacaciones tomadas.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 12px; color: #888;">Sin registros de vacaciones tomadas.</td></tr>`;
             return;
         }
 
-        historial.forEach(item => {
+        historial.forEach(v => {
             const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid #eee';
+            
+            const fInicio = new Date(v.fecha_inicio).toLocaleDateString('es-MX', { timeZone: 'UTC' });
+            const fFin = new Date(v.fecha_fin).toLocaleDateString('es-MX', { timeZone: 'UTC' });
+
             tr.innerHTML = `
-                <td style="padding: 6px;">${new Date(item.fecha_inicio).toLocaleDateString('es-MX', {timeZone: 'UTC'})}</td>
-                <td style="padding: 6px;">${new Date(item.fecha_fin).toLocaleDateString('es-MX', {timeZone: 'UTC'})}</td>
-                <td style="padding: 6px;"><strong>${item.dias_tomados}</strong></td>
-                <td style="padding: 6px;">${item.motivo || '---'}</td>
-                <td style="padding: 6px; text-align: center;">
-                    <button class="btn" style="padding: 2px 5px; font-size: 10px; background: #dc3545; color: #fff;" onclick="eliminarVacacion(${item.id_vacacion}, ${idEmployee})">🗑️</button>
+                <td style="padding: 6px 8px;">${fInicio}</td>
+                <td style="padding: 6px 8px;">${fFin}</td>
+                <td style="padding: 6px 8px; text-align: center; font-weight: bold;">${v.dias_tomados}</td>
+                <td style="padding: 6px 8px; text-align: center;">
+                    <button class="btn-eliminar-vac" data-id="${v.id_vacacion}" style="background: #dc3545; color: white; border: none; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">🗑️</button>
                 </td>
             `;
             tbody.appendChild(tr);

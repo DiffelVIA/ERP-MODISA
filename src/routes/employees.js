@@ -112,19 +112,19 @@ router.get('/:id/vacaciones', verificarToken, validarRolJWT, async (req, res) =>
 
 router.post('/:id/vacaciones', verificarToken, validarRolJWT, async (req, res) => {
     const { id } = req.params;
-    const { fecha_inicio, fecha_fin, dias_tomados, motivo } = req.body;
+    const { fecha_inicio, fecha_fin, dias_tomados } = req.body;
 
     if (!fecha_inicio || !fecha_fin || !dias_tomados) {
-        return res.status(400).json({ error: "Por favor completa la fecha de inicio, fin y días a tomar." });
+        return res.status(400).json({ error: "Todos los campos de fecha y días son obligatorios." });
     }
 
     try {
-        const sql = `
-            INSERT INTO vacaciones (id_employee, fecha_inicio, fecha_fin, dias_tomados, motivo)
-            VALUES (?, ?, ?, ?, ?)
-        `;
-        await pool.query(sql, [id, fecha_inicio, fecha_fin, dias_tomados, motivo || null]);
-        res.status(201).json({ success: true, message: "Registro de vacaciones guardado correctamente." });
+        await pool.query(
+            "INSERT INTO vacaciones (id_employee, fecha_inicio, fecha_fin, dias_tomados) VALUES (?, ?, ?, ?)",
+            [id, fecha_inicio, fecha_fin, dias_tomados]
+        );
+
+        res.json({ mensaje: "Registro de vacaciones guardado correctamente." });
     } catch (error) {
         console.error('❌ Error al registrar vacaciones:', error);
         res.status(500).json({ error: "Error al guardar el registro de vacaciones." });
