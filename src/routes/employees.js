@@ -28,6 +28,92 @@ const validarRolJWT = (req, res, next) => {
     next();
 };
 
+function calcularDiasVacacionesLFT(hireDate) {
+    if (!hireDate) return 0;
+    const ingreso = new Date(hireDate);
+    const hoy = new Date();
+    
+    let anos = hoy.getFullYear() - ingreso.getFullYear();
+    const mes = hoy.getMonth() - ingreso.getMonth();
+    if (mes < 0 || (mes === 0 && hoy.getDate() < ingreso.getDate())) {
+        anos--;
+    }
+
+    if (anos < 1) return 0;
+    if (anos === 1) return 12;
+    if (anos === 2) return 14;
+    if (anos === 3) return 16;
+    if (anos === 4) return 18;
+    if (anos === 5) return 20;
+    if (anos >= 6 && anos <= 10) return 22;
+    if (anos >= 11 && anos <= 15) return 24;
+    if (anos >= 16 && anos <= 20) return 26;
+    if (anos >= 21 && anos <= 25) return 28;
+    return 30;
+}
+
+router.get('/:id/vacaciones', verificarToken, validarRolJWT, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [empRows] = await pool.query("SELECT hire_date FROM employees WHERE id_employee = ?", [id]);
+        if (empRows.length === 0) {
+            return res.status(404).json({ error: "Empleado no encontrado." });
+        }
+
+        const diasLey = calcularDiasVacacionesLFT(empRows[0].hire_date);
+
+        const [vacRows] = await pool.query(
+            "SELECT id_vacacion, fecha_inicio, fecha_fin, dias_tomados, motivo FROM vacaciones WHERE id_employee = ? ORDER BY fecha_inicio DESC", 
+            [id]
+        );
+
+        const diasTomados = vacRows.reduce((acc, curr) => acc + curr.dias_tomados, 0);
+        const diasRestantes = diasLey - diasTomados;
+
+        res.json({
+            dias_ley: diasLey,
+            dias_tomados: diasTomados,
+            dias_restantes: diasRestantes,
+            historial: vacRows
+        });
+    } catch (error) {
+        console.error('❌ Error al consultar vacaciones:', error);
+        res.status(500).json({ error: "Error al consultar las vacaciones." });
+    }
+});
+
+router.post('/:id/vacaciones', verificarToken, validarRolJWT, async (req, res) => {
+    const { id } = req.params;
+    const { fecha_inicio, fecha_fin, dias_tomados, motivo } = req.body;
+
+    if (!fecha_inicio || !fecha_fin || !dias_tomados) {
+        return res.status(400).json({ error: "Por favor completa la fecha de inicio, fin y días a tomar." });
+    }
+
+    try {
+        const sql = `
+            INSERT INTO vacaciones (id_employee, fecha_inicio, fecha_fin, dias_tomados, motivo)
+            VALUES (?, ?, ?, ?, ?)
+        `;
+        await pool.query(sql, [id, fecha_inicio, fecha_fin, dias_tomados, motivo || null]);
+        res.status(201).json({ success: true, message: "Registro de vacaciones guardado correctamente." });
+    } catch (error) {
+        console.error('❌ Error al registrar vacaciones:', error);
+        res.status(500).json({ error: "Error al guardar el registro de vacaciones." });
+    }
+});
+
+router.delete('/vacaciones/:id_vacacion', verificarToken, validarRolJWT, async (req, res) => {
+    const { id_vacacion } = req.params;
+    try {
+        await pool.query("DELETE FROM vacaciones WHERE id_vacacion = ?", [id_vacacion]);
+        res.json({ success: true, message: "Registro de vacaciones eliminado." });
+    } catch (error) {
+        console.error('❌ Error al eliminar vacación:', error);
+        res.status(500).json({ error: "Error al borrar el registro." });
+    }
+});
+
 router.get('/gestion', verificarToken, validarRolJWT, async (req, res) => {
     try {
         const sql = `
