@@ -384,7 +384,7 @@
                 <td style="padding: 6px 8px;">${fFin}</td>
                 <td style="padding: 6px 8px; text-align: center; font-weight: bold;">${v.dias_tomados}</td>
                 <td style="padding: 6px 8px; text-align: center;">
-                    <button class="btn-eliminar-vac" data-id="${v.id_vacacion}" style="background: #dc3545; color: white; border: none; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">🗑️</button>
+                    <button class="btn-eliminar-vac" data-id="${v.id_vacacion}" style="background: #dc3545; color: white; border: none; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">🗑️ Eliminar</button>
                 </td>
             `;
             tbody.appendChild(tr);
