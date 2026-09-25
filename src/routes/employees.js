@@ -29,7 +29,7 @@ const validarRolJWT = (req, res, next) => {
 };
 
 function calcularDiasVacacionesLFT(hireDate) {
-    if (!hireDate) return 12;
+    if (!hireDate) return 0;
 
     const ingreso = new Date(hireDate);
     const hoy = new Date();
@@ -40,7 +40,9 @@ function calcularDiasVacacionesLFT(hireDate) {
         anos--;
     }
 
-    if (anos <= 1) return 12;
+    if (anos < 1) return 0;
+    
+    if (anos === 1) return 12;
     if (anos === 2) return 14;
     if (anos === 3) return 16;
     if (anos === 4) return 18;
@@ -49,7 +51,8 @@ function calcularDiasVacacionesLFT(hireDate) {
     if (anos >= 11 && anos <= 15) return 24;
     if (anos >= 16 && anos <= 20) return 26;
     if (anos >= 21 && anos <= 25) return 28;
-    return 30;
+    if (anos >= 26 && anos <= 30) return 30;
+    return 32;
 }
 
 function obtenerCicloVacacional(hireDate) {
