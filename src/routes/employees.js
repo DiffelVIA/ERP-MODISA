@@ -29,7 +29,8 @@ const validarRolJWT = (req, res, next) => {
 };
 
 function calcularDiasVacacionesLFT(hireDate) {
-    if (!hireDate) return 0;
+    if (!hireDate) return 12;
+
     const ingreso = new Date(hireDate);
     const hoy = new Date();
     
@@ -39,8 +40,7 @@ function calcularDiasVacacionesLFT(hireDate) {
         anos--;
     }
 
-    if (anos < 1) return 0;
-    if (anos === 1) return 12;
+    if (anos <= 1) return 12;
     if (anos === 2) return 14;
     if (anos === 3) return 16;
     if (anos === 4) return 18;
@@ -52,6 +52,28 @@ function calcularDiasVacacionesLFT(hireDate) {
     return 30;
 }
 
+function obtenerCicloVacacional(hireDate) {
+    if (!hireDate) return { inicioCiclo: '2000-01-01', proximaRenovacion: null };
+
+    const ingreso = new Date(hireDate);
+    const hoy = new Date();
+
+    let anioInicio = hoy.getFullYear();
+    const fechaAniversarioEsteAnio = new Date(hoy.getFullYear(), ingreso.getMonth(), ingreso.getDate());
+
+    if (hoy < fechaAniversarioEsteAnio) {
+        anioInicio--;
+    }
+
+    const inicioCiclo = new Date(anioInicio, ingreso.getMonth(), ingreso.getDate());
+    const proximaRenovacion = new Date(anioInicio + 1, ingreso.getMonth(), ingreso.getDate());
+
+    return {
+        inicioCiclo: inicioCiclo.toISOString().split('T')[0],
+        proximaRenovacion: proximaRenovacion.toISOString().split('T')[0]
+    };
+}
+
 router.get('/:id/vacaciones', verificarToken, validarRolJWT, async (req, res) => {
     const { id } = req.params;
     try {
@@ -60,20 +82,26 @@ router.get('/:id/vacaciones', verificarToken, validarRolJWT, async (req, res) =>
             return res.status(404).json({ error: "Empleado no encontrado." });
         }
 
-        const diasLey = calcularDiasVacacionesLFT(empRows[0].hire_date);
+        const hireDate = empRows[0].hire_date;
+        const diasLey = calcularDiasVacacionesLFT(hireDate);
+        const { inicioCiclo, proximaRenovacion } = obtenerCicloVacacional(hireDate);
 
         const [vacRows] = await pool.query(
             "SELECT id_vacacion, fecha_inicio, fecha_fin, dias_tomados, motivo FROM vacaciones WHERE id_employee = ? ORDER BY fecha_inicio DESC", 
             [id]
         );
 
-        const diasTomados = vacRows.reduce((acc, curr) => acc + curr.dias_tomados, 0);
-        const diasRestantes = diasLey - diasTomados;
+        const diasTomadosCicloActual = vacRows
+            .filter(v => new Date(v.fecha_inicio) >= new Date(inicioCiclo))
+            .reduce((acc, curr) => acc + curr.dias_tomados, 0);
+
+        const diasRestantes = diasLey - diasTomadosCicloActual;
 
         res.json({
             dias_ley: diasLey,
-            dias_tomados: diasTomados,
+            dias_tomados: diasTomadosCicloActual,
             dias_restantes: diasRestantes,
+            proxima_renovacion: proximaRenovacion,
             historial: vacRows
         });
     } catch (error) {

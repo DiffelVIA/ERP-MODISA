@@ -297,13 +297,19 @@
 
             const data = await res.json();
             
-            // Actualizar KPIs
+            const spanRenovacion = document.getElementById('vacProximaRenovacion');
+            if (spanRenovacion) {
+                spanRenovacion.textContent = data.proxima_renovacion 
+                    ? `🔄 Próxima Renovación: ${new Date(data.proxima_renovacion).toLocaleDateString('es-MX', { timeZone: 'UTC' })}`
+                    : '🔄 Próxima Renovación: No definida (Asigna Fecha de Ingreso)';
+            }
+
             document.getElementById('kpiDiasLey').textContent = data.dias_ley;
             document.getElementById('kpiDiasTomados').textContent = data.dias_tomados;
             document.getElementById('kpiDiasRestantes').textContent = data.dias_restantes;
             document.getElementById('gaugeTextoCentral').textContent = `${data.dias_restantes} Días Restantes`;
 
-            renderizarVelocimetro(data.dias_tomados, data.dias_restantes);
+            renderizarVelocimetro(data.dias_tomados, data.dias_restantes, data.dias_ley);
 
             renderizarTablaHistorial(data.historial, idEmployee);
 
@@ -313,20 +319,21 @@
         }
     }
 
-    function renderizarVelocimetro(diasTomados, diasRestantes) {
+    function renderizarVelocimetro(diasTomados, diasRestantes, diasLey) {
         const ctx = document.getElementById('gaugeVacaciones').getContext('2d');
         if (chartGaugeVacaciones) {
             chartGaugeVacaciones.destroy();
         }
 
-        const total = diasTomados + (diasRestantes > 0 ? diasRestantes : 0);
-        
+        const tomados = diasTomados;
+        const restantes = diasRestantes > 0 ? diasRestantes : 0;
+
         chartGaugeVacaciones = new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: ['Días Tomados', 'Días Restantes'],
                 datasets: [{
-                    data: [diasTomados, diasRestantes > 0 ? diasRestantes : 0],
+                    data: [tomados, restantes],
                     backgroundColor: ['#ffc107', '#28a745'],
                     borderWidth: 0
                 }]

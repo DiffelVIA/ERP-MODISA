@@ -90,7 +90,11 @@
 
         <div id="modalVacaciones" class="contenido-dropdown" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 650px; max-height: 90vh; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border-radius: 8px; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px;">
-                <h2 id="vacNombreEmpleado" style="font-size: 18px; color: var(--primary-color); margin: 0;">🌴 Control de Vacaciones</h2>
+                <div>
+                    <h2 id="vacNombreEmpleado" style="font-size: 18px; color: var(--primary-color); margin: 0;">🌴 Control de Vacaciones</h2>
+                    <!-- CÓDIGO AGREGADO: Indicador de Fecha de Renovación -->
+                    <span id="vacProximaRenovacion" style="font-size: 11px; color: #6c757d; font-weight: 600; display: block; margin-top: 3px;">🔄 Próxima Renovación: ---</span>
+                </div>
                 <button type="button" id="btnCerrarModalVacaciones" style="background: none; border: none; font-size: 20px; cursor: pointer;">✕</button>
             </div>
 
