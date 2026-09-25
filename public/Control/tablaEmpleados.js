@@ -106,7 +106,7 @@
                 <td style="text-align: center; white-space: nowrap;">
                     <button class="btn btn-vacaciones" data-id="${emp.id_employee}" style="padding: 3px 8px; font-size: 11px; background-color: #28a745; color: #fff;">🌴 Vacaciones</button>
                     <button class="btn btn-editar" data-id="${emp.id_employee}" style="padding: 3px 8px; font-size: 11px;">✏️ Editar</button>
-                    <button class="btn btn-eliminar" data-id="${emp.id_employee}" style="padding: 3px 8px; font-size: 11px; background-color: var(--red--); color: #fff;">🗑️ Eliminar</button>
+                    <button class="btn btn-eliminar" data-id="${emp.id_employee}" style="padding: 3px 8px; font-size: 11px; background-color: #f0a351; color: #fff;">🗑️ Eliminar</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -384,7 +384,7 @@
                 <td style="padding: 6px 8px;">${fFin}</td>
                 <td style="padding: 6px 8px; text-align: center; font-weight: bold;">${v.dias_tomados}</td>
                 <td style="padding: 6px 8px; text-align: center;">
-                    <button class="btn-eliminar-vac" data-id="${v.id_vacacion}" style="background: #dc3545; color: white; border: none; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">🗑️ Eliminar</button>
+                    <button class="btn-eliminar-vac" data-id="${v.id_vacacion}" style="background: #f0a351; color: white; border: none; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">🗑️ Eliminar</button>
                 </td>
             `;
             tbody.appendChild(tr);
