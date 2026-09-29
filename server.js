@@ -18,6 +18,7 @@ const creditosRouter = require('./src/routes/credits');
 const contratosRouter = require('./src/routes/contracts');
 const pagosRouter = require('./src/routes/payments');
 const dashboardRouter = require('./src/routes/dashboardBackend');
+const supervisionRouter = require('./src/routes/supervision');
 
 // Vinculación de Rutas
 app.use('/api/auth/google', authRouter);
@@ -34,6 +35,8 @@ app.use('/api/creditos', creditosRouter);
 app.use('/api/contratos', contratosRouter);
 app.use('/api/pagos', pagosRouter);
 app.use('/api/dashboardBackend', dashboardRouter);
+
+app.use('/api/supervision', supervisionRouter);
 
 app.use('/api', categoriesRouter);
 app.use('/api', minutesRouter);

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supervisión de Obra - MODISA</title>
+    <script src="/timeout.js"></script>
+    <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+    <header id="header">
+        <div>
+            <img src="/img/logo.png" alt="logo" id="logo">
+        </div>
+        <nav>
+            <ul>
+                <li><a href="../principal.html?panel=control">Volver a Panel Control</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="form_main">
+        <h1>Evaluación de Supervisión de Obra</h1>
+        <form id="form-supervision">
+
+            <div class="contenedor-formulario">
+                <label for="id_project">Proyecto:</label>
+                <select id="id_project" name="id_project" required>
+                    <option value="">-- Selecciona --</option>
+                </select>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="id_employee">Residente / Inspector:</label>
+                <select id="id_employee" name="id_employee" required>
+                    <option value="">-- Selecciona --</option>
+                </select>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="fecha">Fecha de Evaluación:</label>
+                <input type="date" id="fecha" name="fecha" required>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="semana">Semana Fiscal:</label>
+                <input type="number" id="semana" name="semana" placeholder="Auto-calculada" readonly>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="mes">Mes:</label>
+                <input type="text" id="mes" name="mes" placeholder="Auto-calculado" readonly>
+            </div>
+
+            <h2>Criterios de Evaluación</h2>
+
+            <!-- 1. Cumplimiento de planos -->
+            <div class="contenedor-formulario">
+                <label for="cumplimiento_planos">1. Cumplimiento de planos y proyectos (25%):</label>
+                <select id="cumplimiento_planos" name="cumplimiento_planos">
+                    <option value="Excelente" selected>Excelente</option>
+                    <option value="Muy bueno">Muy bueno</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Malo">Malo</option>
+                    <option value="Muy malo">Muy malo</option>
+                    <option value="No aplica">No aplica</option>
+                </select>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="justificacion_planos">Justificación / Observación Planos:</label>
+                <input type="text" id="justificacion_planos" name="justificacion_planos" placeholder="Escribe un comentario opcional">
+            </div>
+
+            <!-- 2. Calidad de obra -->
+            <div class="contenedor-formulario">
+                <label for="calidad_obra">2. Calidad de obra (25%):</label>
+                <select id="calidad_obra" name="calidad_obra">
+                    <option value="Excelente" selected>Excelente</option>
+                    <option value="Muy bueno">Muy bueno</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Malo">Malo</option>
+                    <option value="Muy malo">Muy malo</option>
+                    <option value="No aplica">No aplica</option>
+                </select>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="justificacion_calidad">Justificación / Observación Calidad:</label>
+                <input type="text" id="justificacion_calidad" name="justificacion_calidad" placeholder="Escribe un comentario opcional">
+            </div>
+
+            <!-- 3. Personal Mano de Obra -->
+            <div class="contenedor-formulario">
+                <label for="personal_mano_obra">3. Personal Mano de Obra (20%):</label>
+                <select id="personal_mano_obra" name="personal_mano_obra">
+                    <option value="Excelente" selected>Excelente</option>
+                    <option value="Muy bueno">Muy bueno</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Malo">Malo</option>
+                    <option value="Muy malo">Muy malo</option>
+                    <option value="No aplica">No aplica</option>
+                </select>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="justificacion_personal">Justificación / Observación Personal:</label>
+                <input type="text" id="justificacion_personal" name="justificacion_personal" placeholder="Escribe un comentario opcional">
+            </div>
+
+            <!-- 4. Material, Orden y Seguridad -->
+            <div class="contenedor-formulario">
+                <label for="material_orden_seguridad">4. Material, Orden y Seguridad (15%):</label>
+                <select id="material_orden_seguridad" name="material_orden_seguridad">
+                    <option value="Excelente" selected>Excelente</option>
+                    <option value="Muy bueno">Muy bueno</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Malo">Malo</option>
+                    <option value="Muy malo">Muy malo</option>
+                    <option value="No aplica">No aplica</option>
+                </select>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="justificacion_material">Justificación / Observación Material:</label>
+                <input type="text" id="justificacion_material" name="justificacion_material" placeholder="Escribe un comentario opcional">
+            </div>
+
+            <!-- 5. Cumplimiento gestoría -->
+            <div class="contenedor-formulario">
+                <label for="cumplimiento_gestoria">5. Cumplimiento gestoría (15%):</label>
+                <select id="cumplimiento_gestoria" name="cumplimiento_gestoria">
+                    <option value="Excelente" selected>Excelente</option>
+                    <option value="Muy bueno">Muy bueno</option>
+                    <option value="Regular">Regular</option>
+                    <option value="Malo">Malo</option>
+                    <option value="Muy malo">Muy malo</option>
+                    <option value="No aplica">No aplica</option>
+                </select>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="justificacion_gestoria">Justificación / Observación Gestoría:</label>
+                <input type="text" id="justificacion_gestoria" name="justificacion_gestoria" placeholder="Escribe un comentario opcional">
+            </div>
+
+            <div class="contenedor-botones">
+                <button type="submit" id="guardar" class="btn">Guardar Supervisión</button>
+            </div>
+        </form>
+    </main>
+
+    <footer id="footer">
+        <p>Aplicación para la supervisión de obra MODISA ®</p>
+        <p>Esta aplicación web está diseñada exclusivamente para evaluar y controlar el avance, la calidad y el cumplimiento de las normas de seguridad en los proyectos en desarrollo.</p>
+    </footer>
+
+    <script src="/authClient.js"></script>
+    <script src="js/supervisionForm.js"></script>
+
+</body>
+</html>
