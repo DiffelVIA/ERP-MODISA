@@ -12,11 +12,6 @@
   document.addEventListener('DOMContentLoaded', async () => {
     configurarDropdownsUI();
     await cargarDatosSupervision();
-
-    const btnDescargar = document.getElementById('descargar');
-    if (btnDescargar) {
-      btnDescargar.addEventListener('click', descargarPDF);
-    }
   });
 
   async function cargarDatosSupervision() {
@@ -40,6 +35,7 @@
     }
   }
 
+  // Configuración de los desplegables de filtro
   function configurarDropdownsUI() {
     document.querySelectorAll('.btn-dropdown').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -55,6 +51,13 @@
       });
     });
 
+    // Evita que el dropdown se cierre si el usuario hace clic adentro de las opciones
+    document.querySelectorAll('.contenido-dropdown').forEach(d => {
+      d.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+    });
+
     document.addEventListener('click', () => {
       document.querySelectorAll('.contenido-dropdown').forEach(d => d.classList.remove('show'));
     });
@@ -67,12 +70,13 @@
 
     if (!contenedorProyectos || !contenedorResidentes || !contenedorSemanas) return;
 
-    const proyectosUnicos = [...new Set(datosSupervision.map(item => item.project_name || `Proyecto #${item.id_project}`))];
+    // INICIO MODIFICACIÓN: Mapeo correcto utilizando el alias "residente" devuelto por el backend
+    const proyectosUnicos = [...new Set(datosSupervision.map(item => item.project_name || `Proyecto #${item.id_project}`))].sort();
     contenedorProyectos.innerHTML = proyectosUnicos.map(p => `
       <label><input type="checkbox" value="${p}" class="chk-proyecto"> ${p}</label>
     `).join('');
 
-    const residentesUnicos = [...new Set(datosSupervision.map(item => item.employee_name || `Empleado #${item.id_employee}`))];
+    const residentesUnicos = [...new Set(datosSupervision.map(item => item.residente || item.employee_name || `Empleado #${item.id_employee}`))].sort();
     contenedorResidentes.innerHTML = residentesUnicos.map(r => `
       <label><input type="checkbox" value="${r}" class="chk-residente"> ${r}</label>
     `).join('');
@@ -81,6 +85,7 @@
     contenedorSemanas.innerHTML = semanasUnicas.map(s => `
       <label><input type="checkbox" value="${s}" class="chk-semana"> Semana ${s}</label>
     `).join('');
+    // FIN MODIFICACIÓN
 
     contenedorProyectos.querySelectorAll('.chk-proyecto').forEach(input => {
       input.addEventListener('change', actualizarFiltrosYTabla);
@@ -152,7 +157,8 @@
 
     const filtrados = datosSupervision.filter(item => {
       const pNombre = item.project_name || `Proyecto #${item.id_project}`;
-      const rNombre = item.employee_name || `Empleado #${item.id_employee}`;
+      // INICIO MODIFICACIÓN: Búsqueda del residente por su nombre concatenado devuelto de la BD
+      const rNombre = item.residente || item.employee_name || `Empleado #${item.id_employee}`;
       const fString = item.fecha ? item.fecha.split('T')[0] : '';
 
       const cumpleProyecto = proyectosSeleccionados.size === 0 || proyectosSeleccionados.has(pNombre);
@@ -166,20 +172,28 @@
     renderizarTabla(filtrados);
   }
 
+  // INICIO MODIFICACIÓN: Renderizado detallado con evaluaciones punto por punto y comentarios/justificaciones
   function renderizarTabla(lista) {
     const cuerpo = document.getElementById('cuerpoTablaSupervision');
     if (!cuerpo) return;
 
     if (lista.length === 0) {
-      cuerpo.innerHTML = `<tr><td colspan="6" style="text-align:center;">No hay registros de supervisión.</td></tr>`;
+      cuerpo.innerHTML = `<tr><td colspan="11" style="text-align:center;">No hay registros de supervisión.</td></tr>`;
       return;
     }
 
     cuerpo.innerHTML = lista.map(item => {
       const pNombre = item.project_name || `Proyecto #${item.id_project}`;
-      const rNombre = item.employee_name || `Empleado #${item.id_employee}`;
+      const rNombre = item.residente || item.employee_name || `Empleado #${item.id_employee}`;
       const fechaCorta = item.fecha ? item.fecha.split('T')[0] : '';
       const porcentajeText = (Number(item.evaluacion || 0) * 100).toFixed(2) + '%';
+
+      // Auxiliar para formatear opción y su justificación si existe
+      const formatRubro = (opcion, justificacion) => {
+        const op = opcion || 'N/A';
+        const just = justificacion ? `<span class="justificacion-txt"><b>Obs:</b> ${justificacion}</span>` : '';
+        return `<div><strong>${op}</strong>${just}</div>`;
+      };
 
       return `
         <tr>
@@ -187,11 +201,17 @@
           <td>${rNombre}</td>
           <td>Semana ${item.semana}</td>
           <td>${fechaCorta}</td>
+          <td>${formatRubro(item.cumplimiento_planos, item.justificacion_planos)}</td>
+          <td>${formatRubro(item.calidad_obra, item.justificacion_calidad)}</td>
+          <td>${formatRubro(item.personal_mano_obra, item.justificacion_personal)}</td>
+          <td>${formatRubro(item.material_orden_seguridad, item.justificacion_material)}</td>
+          <td>${formatRubro(item.cumplimiento_gestoria, item.justificacion_gestoria)}</td>
           <td><strong>${porcentajeText}</strong></td>
           <td>${item.resultado || 'Sin resultado'}</td>
         </tr>
       `;
     }).join('');
   }
+  // FIN MODIFICACIÓN
 
 })();
