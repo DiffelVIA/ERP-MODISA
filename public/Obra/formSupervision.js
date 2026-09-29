@@ -12,7 +12,16 @@
     // Autenticación / Roles (mismo patrón que formMinutas.js)
     const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
 
-    // Inicializar Fecha Actual
+    // INICIO MODIFICACIÓN: Bloqueo de selector de residente para autocompletado obligatorio
+    const selectResponsable = document.getElementById('id_employee');
+    if (selectResponsable) {
+      selectResponsable.style.pointerEvents = 'none';
+      selectResponsable.style.backgroundColor = '#e9ecef';
+      selectResponsable.tabIndex = -1;
+    }
+    // FIN MODIFICACIÓN
+
+    // INICIO MODIFICACIÓN: Inicializar Fecha Actual automáticamente al cargar la pantalla
     const inputFecha = document.getElementById('fecha');
     if (inputFecha) {
       const hoy = new Date().toISOString().split('T')[0];
@@ -23,6 +32,21 @@
         actualizarFechaYSemana(e.target.value);
       });
     }
+    // FIN MODIFICACIÓN
+
+    // INICIO MODIFICACIÓN: Event listener para autocompletar Residente al cambiar Proyecto
+    const selectProyecto = document.getElementById('id_project');
+    if (selectProyecto) {
+      selectProyecto.addEventListener('change', (e) => {
+        const optionSeleccionada = e.target.options[e.target.selectedIndex];
+        const idUserResidente = optionSeleccionada.getAttribute('data-id-user');
+        
+        if (selectResponsable) {
+          selectResponsable.value = idUserResidente || '';
+        }
+      });
+    }
+    // FIN MODIFICACIÓN
 
     cargarProyectosDesdeNube();
     cargarResponsablesDesdeNube();
@@ -57,6 +81,13 @@
         const option = document.createElement('option');
         option.value = p.id_project;
         option.textContent = p.project_name;
+        
+        // INICIO MODIFICACIÓN: Guardar id_user de la BD en un atributo data HTML
+        if (p.id_user) {
+          option.setAttribute('data-id-user', p.id_user);
+        }
+        // FIN MODIFICACIÓN
+
         selectProyecto.appendChild(option);
       });
 
@@ -165,17 +196,13 @@
 
         alert(`¡Evaluación guardada con éxito!\nPuntaje: ${(resultado.evaluacion * 100).toFixed(2)}%\nResultado: ${resultado.resultado}`);
 
-        // Limpieza de campos
-        document.getElementById('justificacion_planos').value = '';
-        document.getElementById('justificacion_calidad').value = '';
-        document.getElementById('justificacion_personal').value = '';
-        document.getElementById('justificacion_material').value = '';
-        document.getElementById('justificacion_gestoria').value = '';
+        // INICIO MODIFICACIÓN: Recarga limpia del formulario para realizar un nuevo llenado
+        window.location.reload();
+        // FIN MODIFICACIÓN
 
       } catch (error) {
         console.error('Error al conectar con la base de datos:', error);
         alert(`❌ Error: ${error.message}`);
-      } finally {
         if (btnGuardar) btnGuardar.disabled = false;
       }
     });
