@@ -9,19 +9,15 @@
   ];
 
   document.addEventListener('DOMContentLoaded', () => {
-    // Autenticación / Roles (mismo patrón que formMinutas.js)
     const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
 
-    // INICIO MODIFICACIÓN: Bloqueo de selector de residente para autocompletado obligatorio
     const selectResponsable = document.getElementById('id_employee');
     if (selectResponsable) {
       selectResponsable.style.pointerEvents = 'none';
       selectResponsable.style.backgroundColor = '#e9ecef';
       selectResponsable.tabIndex = -1;
     }
-    // FIN MODIFICACIÓN
 
-    // INICIO MODIFICACIÓN: Inicializar Fecha Actual automáticamente al cargar la pantalla
     const inputFecha = document.getElementById('fecha');
     if (inputFecha) {
       const hoy = new Date().toISOString().split('T')[0];
@@ -32,9 +28,7 @@
         actualizarFechaYSemana(e.target.value);
       });
     }
-    // FIN MODIFICACIÓN
 
-    // INICIO MODIFICACIÓN: Event listener para autocompletar Residente al cambiar Proyecto
     const selectProyecto = document.getElementById('id_project');
     if (selectProyecto) {
       selectProyecto.addEventListener('change', (e) => {
@@ -46,7 +40,6 @@
         }
       });
     }
-    // FIN MODIFICACIÓN
 
     cargarProyectosDesdeNube();
     cargarResponsablesDesdeNube();
@@ -59,7 +52,6 @@
     });
   });
 
-  // Carga lista de proyectos
   async function cargarProyectosDesdeNube() {
     const selectProyecto = document.getElementById('id_project');
     if (!selectProyecto) return;
@@ -82,11 +74,9 @@
         option.value = p.id_project;
         option.textContent = p.project_name;
         
-        // INICIO MODIFICACIÓN: Guardar id_user de la BD en un atributo data HTML
         if (p.id_user) {
           option.setAttribute('data-id-user', p.id_user);
         }
-        // FIN MODIFICACIÓN
 
         selectProyecto.appendChild(option);
       });
@@ -97,7 +87,6 @@
     }
   }
 
-  // Carga lista de empleados/inspectores
   async function cargarResponsablesDesdeNube() {
     const selectResponsable = document.getElementById('id_employee');
     if (!selectResponsable) return;
@@ -129,7 +118,6 @@
     }
   }
 
-  // Auto-calcula Mes y Semana Fiscal
   function actualizarFechaYSemana(fechaString) {
     if (!fechaString) return;
     const partes = fechaString.split('-');
@@ -144,7 +132,6 @@
     if (inputSemana) inputSemana.value = numSemana;
   }
 
-  // Configura el envío del formulario al Endpoint POST /api/supervision
   function configurarEnvioFormulario() {
     const formulario = document.getElementById('form-supervision');
     if (!formulario) return;
@@ -195,10 +182,21 @@
         }
 
         alert(`¡Evaluación guardada con éxito!\nPuntaje: ${(resultado.evaluacion * 100).toFixed(2)}%\nResultado: ${resultado.resultado}`);
+        formulario.reset();
+        
+        if (btnGuardar) btnGuardar.disabled = false;
 
-        // INICIO MODIFICACIÓN: Recarga limpia del formulario para realizar un nuevo llenado
-        window.location.reload();
-        // FIN MODIFICACIÓN
+        const inputFecha = document.getElementById('fecha');
+        if (inputFecha) {
+          const hoy = new Date().toISOString().split('T')[0];
+          inputFecha.value = hoy;
+          actualizarFechaYSemana(hoy);
+        }
+
+        const selectResponsable = document.getElementById('id_employee');
+        if (selectResponsable) {
+          selectResponsable.value = '';
+        }
 
       } catch (error) {
         console.error('Error al conectar con la base de datos:', error);
