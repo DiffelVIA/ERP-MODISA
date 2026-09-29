@@ -22,7 +22,7 @@
     </header>
 
     <main class="form_main">
-        <h1>Evaluación de Supervisión de Obra</h1>
+        <h1>Supervisión de Obra</h1>
         <form id="form-supervision">
 
             <div class="contenedor-formulario">
@@ -33,25 +33,25 @@
             </div>
 
             <div class="contenedor-formulario">
-                <label for="id_employee">Residente / Inspector:</label>
+                <label for="id_employee">Residente:</label>
                 <select id="id_employee" name="id_employee" required>
-                    <option value="">-- Selecciona --</option>
+                    <option value="">-- Pendiente --</option>
                 </select>
             </div>
 
             <div class="contenedor-formulario">
                 <label for="fecha">Fecha de Evaluación:</label>
-                <input type="date" id="fecha" name="fecha" required>
+                <input type="date" id="fecha" name="fecha" required readonly>
             </div>
 
             <div class="contenedor-formulario">
                 <label for="semana">Semana Fiscal:</label>
-                <input type="number" id="semana" name="semana" placeholder="Auto-calculada" readonly>
+                <input type="number" id="semana" name="semana" placeholder="Automática" readonly>
             </div>
 
             <div class="contenedor-formulario">
                 <label for="mes">Mes:</label>
-                <input type="text" id="mes" name="mes" placeholder="Auto-calculado" readonly>
+                <input type="text" id="mes" name="mes" placeholder="Automático" readonly>
             </div>
 
             <h2>Criterios de Evaluación</h2>
@@ -69,7 +69,7 @@
                 </select>
             </div>
             <div class="contenedor-formulario">
-                <label for="justificacion_planos">Justificación / Observación Planos:</label>
+                <label for="justificacion_planos">Observaciones:</label>
                 <input type="text" id="justificacion_planos" name="justificacion_planos" placeholder="Escribe un comentario opcional">
             </div>
 
@@ -86,7 +86,7 @@
                 </select>
             </div>
             <div class="contenedor-formulario">
-                <label for="justificacion_calidad">Justificación / Observación Calidad:</label>
+                <label for="justificacion_calidad">Observaciones:</label>
                 <input type="text" id="justificacion_calidad" name="justificacion_calidad" placeholder="Escribe un comentario opcional">
             </div>
 
@@ -103,7 +103,7 @@
                 </select>
             </div>
             <div class="contenedor-formulario">
-                <label for="justificacion_personal">Justificación / Observación Personal:</label>
+                <label for="justificacion_personal">Observaciones:</label>
                 <input type="text" id="justificacion_personal" name="justificacion_personal" placeholder="Escribe un comentario opcional">
             </div>
 
@@ -120,7 +120,7 @@
                 </select>
             </div>
             <div class="contenedor-formulario">
-                <label for="justificacion_material">Justificación / Observación Material:</label>
+                <label for="justificacion_material">Observaciones:</label>
                 <input type="text" id="justificacion_material" name="justificacion_material" placeholder="Escribe un comentario opcional">
             </div>
 
@@ -137,12 +137,12 @@
                 </select>
             </div>
             <div class="contenedor-formulario">
-                <label for="justificacion_gestoria">Justificación / Observación Gestoría:</label>
+                <label for="justificacion_gestoria">Observaciones:</label>
                 <input type="text" id="justificacion_gestoria" name="justificacion_gestoria" placeholder="Escribe un comentario opcional">
             </div>
 
             <div class="contenedor-botones">
-                <button type="submit" id="guardar" class="btn">Guardar Supervisión</button>
+                <button type="submit" id="guardar" class="btn">Guardar</button>
             </div>
         </form>
     </main>
