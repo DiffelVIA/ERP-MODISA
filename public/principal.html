@@ -46,7 +46,7 @@
                 <div class="contenedor-tarjetas vista-menu" id="carrusel-track">
                     
                     <!-- ==========================================
-                         NIVEL 0: LAS 2 TARJETAS MÁSTER
+                         NIVEL 0: LAS 4 TARJETAS MÁSTER
                          ========================================== -->
                     <div class="tarjeta tarjeta-master" data-target="control">
                         <img src="img/director.png" alt="Control" class="icono-tarjeta">
@@ -59,6 +59,13 @@
                         <img src="img/creditos.png" alt="Finanzas" class="icono-tarjeta">
                         <h2>Administración</h2>
                         <p>Gestión de Materiales, Control de Pagos y Créditos, Control de Empleados</p>
+                        <button class="btn-tarjeta">Abrir Módulos</button>
+                    </div>
+
+                    <div class="tarjeta tarjeta-master" data-target="obra">
+                        <img src="img/proyectos.png" alt="Obra" class="icono-tarjeta">
+                        <h2>Obra</h2>
+                        <p>Dashboard de Obra, Indicadores de Rendimiento y Reportes de Supervisión</p>
                         <button class="btn-tarjeta">Abrir Módulos</button>
                     </div>
 
@@ -150,7 +157,29 @@
                     </div>
 
                     <!-- ==========================================
-                         NIVEL 3: SUB-PANEL DE RESIDENTES
+                         NIVEL 1: SUB-PANEL DE OBRA
+                         ========================================== -->
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="obra">
+                        <img src="img/dashboard.png" alt="Dashboard Obra" class="icono-tarjeta">
+                        <h2>Dashboard Obra</h2>
+                        <p>Vista general y métricas ejecutivas de las obras activas</p>
+                        <a href="Obra/dashboard_obra.html" class="btn-tarjeta">Ir a Dashboard</a>
+                    </div>
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="obra">
+                        <img src="img/proyectos.png" alt="Indicadores de Rendimiento" class="icono-tarjeta">
+                        <h2>Indicadores de Rendimiento</h2>
+                        <p>Evaluación y auditoría semanal de KPIs por residente</p>
+                        <a href="Obra/tabla_indicadores.html" class="btn-tarjeta">Ir a Indicadores</a>
+                    </div>
+                    <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="obra">
+                        <img src="img/reg-minuta.png" alt="Supervisión de Obra" class="icono-tarjeta">
+                        <h2>Supervisión de Obra</h2>
+                        <p>Captura de bitácoras diarias y reportes de campo</p>
+                        <a href="Obra/tabla_supervision.html" class="btn-tarjeta">Ir a Supervisión</a>
+                    </div>
+
+                    <!-- ==========================================
+                         NIVEL 1: SUB-PANEL DE RESIDENTES
                          ========================================== -->
                     <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="residentes">
                         <img src="img/contratos.png" alt="Registrar Contrato" class="icono-tarjeta">
