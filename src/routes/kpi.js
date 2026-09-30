@@ -74,7 +74,7 @@ router.post('/', async (req, res) => {
     res.status(500).json({ error: 'Error al registrar los indicadores de rendimiento' });
   }
 });
-
+ 
 router.get('/', async (req, res) => {
   try {
     const query = `
