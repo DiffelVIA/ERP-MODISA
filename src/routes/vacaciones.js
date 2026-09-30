@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
-const { verificarToken, verificarRol } = require('../middlewares/authmiddlewares');
 
-// Definición centralizada de roles administrativos para módulo de vacaciones
+const { verificarToken, verificarRol } = require('../middlewares/authMiddleware');
+
 const ROLES_ADMINISTRATIVOS = [
   'Admin',
   'Administrador',
@@ -14,12 +14,6 @@ const ROLES_ADMINISTRATIVOS = [
   'Recursos Humanos'
 ];
 
-/**
- * GET /api/vacaciones
- * Consulta el historial de vacaciones.
- * Si es usuario estándar, filtra solo sus propias vacaciones.
- * Si es Admin/RH, consulta todas las solicitudes con JOIN a la tabla employees.
- */
 router.get('/', verificarToken, async (req, res) => {
   try {
     const rolUsuario = req.usuario ? req.usuario.rol : '';
@@ -48,7 +42,6 @@ router.get('/', verificarToken, async (req, res) => {
 
     const params = [];
 
-    // Si no es un usuario administrativo, restringir estrictamente a sus propios registros
     if (!esAdmin) {
       if (!idEmpleadoToken) {
         return res.status(403).json({
@@ -74,10 +67,6 @@ router.get('/', verificarToken, async (req, res) => {
   }
 });
 
-/**
- * POST /api/vacaciones
- * Registra una nueva solicitud de vacaciones.
- */
 router.post('/', verificarToken, async (req, res) => {
   const {
     id_employee,
@@ -87,7 +76,6 @@ router.post('/', verificarToken, async (req, res) => {
     motivo
   } = req.body;
 
-  // Empleado que realiza la acción o se le asigna
   const idEmpleadoFinal = id_employee || (req.usuario ? (req.usuario.id_employee || req.usuario.id) : null);
 
   if (!idEmpleadoFinal || !fecha_inicio || !fecha_fin || !dias_tomados) {
@@ -97,7 +85,6 @@ router.post('/', verificarToken, async (req, res) => {
     });
   }
 
-  // Validación de lógica de fechas
   if (new Date(fecha_inicio) > new Date(fecha_fin)) {
     return res.status(400).json({
       success: false,
@@ -140,11 +127,6 @@ router.post('/', verificarToken, async (req, res) => {
   }
 });
 
-/**
- * PATCH /api/vacaciones/:id/estado
- * Actualiza el campo 'estado' ENUM('pendiente', 'autorizada', 'rechazada').
- * Restringido exclusivamente a roles administrativos/RH.
- */
 router.patch('/:id/estado', verificarToken, verificarRol(ROLES_ADMINISTRATIVOS), async (req, res) => {
   const idVacacion = req.params.id;
   const { estado } = req.body;
@@ -183,11 +165,6 @@ router.patch('/:id/estado', verificarToken, verificarRol(ROLES_ADMINISTRATIVOS),
   }
 });
 
-/**
- * PATCH /api/vacaciones/:id/observaciones
- * Actualiza las observaciones/notas administrativas.
- * Restringido exclusivamente a roles administrativos/RH.
- */
 router.patch('/:id/observaciones', verificarToken, verificarRol(ROLES_ADMINISTRATIVOS), async (req, res) => {
   const idVacacion = req.params.id;
   const { observaciones } = req.body;
