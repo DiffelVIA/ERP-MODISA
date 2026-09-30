@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indicadores de Rendimiento - MODISA</title>
+    <script src="/timeout.js"></script>
+    <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+    <header id="header">
+        <div>
+            <img src="/img/logo.png" alt="logo" id="logo">
+        </div>
+        <nav>
+            <ul>
+                <li><a href="../principal.html?panel=obra">Volver a Panel Control</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="form_main">
+        <h1>Indicadores de Rendimiento</h1>
+        <form id="form-kpi">
+
+            <div class="contenedor-formulario">
+                <label for="id_project">Proyecto:</label>
+                <select id="id_project" name="id_project" required>
+                    <option value="">-- Selecciona --</option>
+                </select>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="id_employee">Residente:</label>
+                <select id="id_employee" name="id_employee" required>
+                    <option value="">-- Selecciona --</option>
+                </select>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="fecha">Fecha:</label>
+                <input type="date" id="fecha" name="fecha" required readonly>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="semana">Semana Fiscal:</label>
+                <input type="number" id="semana" name="semana" placeholder="Automática" readonly>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="mes">Mes:</label>
+                <input type="text" id="mes" name="mes" placeholder="Automático" readonly>
+            </div>
+
+            <h2>Rubros de Rendimiento</h2>
+
+            <!-- 1. Reporte Fotográfico -->
+            <div class="contenedor-formulario">
+                <label for="reporte_fotografico">1. Reporte Fotográfico:</label>
+                <select id="reporte_fotografico" name="reporte_fotografico" required>
+                    <option value="" selected disabled>-- Selecciona --</option>
+                    <option value="a tiempo">A tiempo</option>
+                    <option value="tarde">Tarde</option>
+                    <option value="no envio">No envió</option>
+                    <option value="no aplica">No Aplica</option>
+                </select>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="justificacion_fotografico">Observaciones:</label>
+                <input type="text" id="justificacion_fotografico" name="justificacion_fotografico" placeholder="Escribe un comentario opcional">
+            </div>
+
+            <!-- 2. Volumen de Obra -->
+            <div class="contenedor-formulario">
+                <label for="volumen_obra">2. Volumen de Obra:</label>
+                <select id="volumen_obra" name="volumen_obra" required>
+                    <option value="" selected disabled>-- Selecciona --</option>
+                    <option value="a tiempo">A tiempo</option>
+                    <option value="tarde">Tarde</option>
+                    <option value="no envio">No envió</option>
+                    <option value="no aplica">No Aplica</option>
+                </select>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="justificacion_volumen">Observaciones:</label>
+                <input type="text" id="justificacion_volumen" name="justificacion_volumen" placeholder="Escribe un comentario opcional">
+            </div>
+
+            <!-- 3. Diagrama Gantt -->
+            <div class="contenedor-formulario">
+                <label for="diagrama_gantt">3. Diagrama Gantt:</label>
+                <select id="diagrama_gantt" name="diagrama_gantt" required>
+                    <option value="" selected disabled>-- Selecciona --</option>
+                    <option value="a tiempo">A tiempo</option>
+                    <option value="tarde">Tarde</option>
+                    <option value="no envio">No envió</option>
+                    <option value="no aplica">No Aplica</option>
+                </select>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="justificacion_gantt">Observaciones:</label>
+                <input type="text" id="justificacion_gantt" name="justificacion_gantt" placeholder="Escribe un comentario opcional">
+            </div>
+
+            <!-- 4. Atención a Minutas -->
+            <div class="contenedor-formulario">
+                <label for="atencion_minutas">4. Atención a Minutas:</label>
+                <select id="atencion_minutas" name="atencion_minutas" required>
+                    <option value="" selected disabled>-- Selecciona --</option>
+                    <option value="Completas">Completas</option>
+                    <option value="Incompletas">Incompletas</option>
+                    <option value="Ninguna">Ninguna</option>
+                    <option value="No Aplica">No Aplica</option>
+                </select>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="justificacion_minutas">Observaciones:</label>
+                <input type="text" id="justificacion_minutas" name="justificacion_minutas" placeholder="Escribe un comentario opcional">
+            </div>
+
+            <!-- 5. Planificación de Actividades -->
+            <div class="contenedor-formulario">
+                <label for="planificacion_actividades">5. Planificación de Actividades:</label>
+                <select id="planificacion_actividades" name="planificacion_actividades" required>
+                    <option value="" selected disabled>-- Selecciona --</option>
+                    <option value="a tiempo">A tiempo</option>
+                    <option value="tarde">Tarde</option>
+                    <option value="no envio">No envió</option>
+                    <option value="no aplica">No Aplica</option>
+                </select>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="justificacion_planificacion">Observaciones:</label>
+                <input type="text" id="justificacion_planificacion" name="justificacion_planificacion" placeholder="Escribe un comentario opcional">
+            </div>
+
+            <!-- 6. Cumplimiento de Actividades -->
+            <div class="contenedor-formulario">
+                <label for="cumplimiento_actividades">6. Cumplimiento de Actividades:</label>
+                <select id="cumplimiento_actividades" name="cumplimiento_actividades" required>
+                    <option value="" selected disabled>-- Selecciona --</option>
+                    <option value="Completas">Completas</option>
+                    <option value="Incompletas">Incompletas</option>
+                    <option value="Ninguna">Ninguna</option>
+                    <option value="No Aplica">No Aplica</option>
+                </select>
+            </div>
+            <div class="contenedor-formulario">
+                <label for="justificacion_cumplimiento">Observaciones:</label>
+                <input type="text" id="justificacion_cumplimiento" name="justificacion_cumplimiento" placeholder="Escribe un comentario opcional">
+            </div>
+
+            <!-- Métricas cuantitativas y avance -->
+            <div class="contenedor-formulario">
+                <label for="desfase">Desfase:</label>
+                <input type="number" id="desfase" name="desfase" value="0" min="0">
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="extemporaneos">Extemporáneos:</label>
+                <input type="number" id="extemporaneos" name="extemporaneos" value="0" min="0">
+            </div>
+
+            <div> class="contenedor-formulario">
+                <label for="supervision">Supervisión:</label>
+                <select id="supervision" name="supervision" required>
+                    <option value="" selected disabled>-- Selecciona --</option>
+                    <option value="excelente">Excelente</option>
+                    <option value="buena">Buena</option>
+                    <option value="regular">Regular</option>
+                    <option value="requiere_atencion">Requiere Atención</option>
+                    <option value="no_hay_registro">No hay registro</option>
+                </select>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="avance_fisico_obra">Avance Físico de Obra (%):</label>
+                <input type="text" id="avance_fisico_obra" name="avance_fisico_obra" placeholder="Ej. 45%">
+            </div>
+
+            <div class="contenedor-botones">
+                <button type="submit" id="guardar" class="btn">Guardar KPI</button>
+            </div>
+        </form>
+    </main>
+
+    <footer id="footer">
+        <p>Aplicación para la supervisión de obra MODISA ®</p>
+        <p>Esta aplicación web está diseñada exclusivamente para evaluar y controlar el avance, la calidad y el cumplimiento de las normas de seguridad en los proyectos en desarrollo.</p>
+    </footer>
+
+    <script src="/authClient.js"></script>
+    <script src="formKpi.js"></script>
+
+</body>
+</html>
