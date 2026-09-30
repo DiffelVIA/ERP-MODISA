@@ -50,12 +50,9 @@
   function configurarDropdownsUI() {
     document.querySelectorAll('.btn-dropdown').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        // MODIFICACIÓN: Alerta interactiva cuando se intenta filtrar fecha sin seleccionar semana
-        if (btn.id === 'btnFiltroFecha' && semanasSeleccionadas.size === 0) {
-          alert('Primero selecciona una semana');
-          return;
-        }
-        // FIN MODIFICACIÓN
+        // MODIFICACIÓN SOLUCIÓN: Se retira el alert() y el return para permitir la apertura
+        // del menú desplegable y mostrar el mensaje dentro del contenedor #filtroFecha
+        // FIN MODIFICACIÓN SOLUCIÓN
 
         e.stopPropagation();
         const contenedor = btn.nextElementSibling;
@@ -114,6 +111,10 @@
       contenedorFechas.addEventListener('change', actualizarFiltrosYTabla);
     }
     // FIN MODIFICACIÓN
+
+    // MODIFICACIÓN SOLUCIÓN: Renderizar mensaje inicial en filtro de fecha al construir filtros
+    actualizarFiltroFechaPorSemana();
+    // FIN MODIFICACIÓN SOLUCIÓN
   }
 
   function actualizarFiltroFechaPorSemana() {
@@ -125,10 +126,12 @@
       Array.from(document.querySelectorAll('.chk-semana:checked')).map(cb => cb.value)
     );
 
+    // MODIFICACIÓN SOLUCIÓN: Habilitar clic en el botón HTML y renderizar el mensaje interno
     if (semanasSeleccionadas.size === 0) {
       if (btnFecha) {
-        btnFecha.disabled = true;
+        btnFecha.disabled = false;
         btnFecha.title = "Selecciona primero una semana";
+        btnFecha.classList.add('deshabilitado');
       }
       
       // Mismo diseño y texto que en la tabla de pagos/KPI
@@ -144,7 +147,9 @@
     if (btnFecha) {
       btnFecha.disabled = false;
       btnFecha.title = "";
+      btnFecha.classList.remove('deshabilitado');
     }
+    // FIN MODIFICACIÓN SOLUCIÓN
 
     const fechasFiltradas = [...new Set(
       datosSupervision
