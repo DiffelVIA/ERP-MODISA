@@ -208,7 +208,7 @@
           <td><strong>Desfase:</strong> ${item.desfase || 0}d<br><strong>Extemp:</strong> ${item.extemporaneos || 0}</td>
           <td>${formatRubro(item.supervision, item.justificacion_supervision)}</td>
           <td><strong>${item.avance_fisico_obra || '0%'}</strong></td>
-        </tr>
+        </tr> 
       `;
     }).join('');
   }
