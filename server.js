@@ -21,6 +21,10 @@ const dashboardRouter = require('./src/routes/dashboardBackend');
 const supervisionRouter = require('./src/routes/supervision');
 const kpiRouter = require('./src/routes/kpi');
 
+// MODIFICACIÓN SOLUCIÓN: Importación del enrutador de vacaciones
+const vacacionesRouter = require('./src/routes/vacaciones');
+// FIN MODIFICACIÓN SOLUCIÓN
+
 // Vinculación de Rutas
 app.use('/api/auth/google', authRouter);
 app.use('/api/auth', authRouter);
@@ -39,6 +43,10 @@ app.use('/api/dashboardBackend', dashboardRouter);
 
 app.use('/api/supervision', supervisionRouter);
 app.use('/api/kpi', kpiRouter);
+
+// MODIFICACIÓN SOLUCIÓN: Montaje de la ruta /api/vacaciones en Express
+app.use('/api/vacaciones', vacacionesRouter);
+// FIN MODIFICACIÓN SOLUCIÓN
 
 app.use('/api', categoriesRouter);
 app.use('/api', minutesRouter);
