@@ -16,7 +16,7 @@
         </div>
         <nav>
             <ul>
-                <li><a href="../principal.html?panel=control">Volver a Panel Control</a></li>
+                <li><a href="../principal.html?panel=residentes">Volver a Panel Control</a></li>
             </ul>
         </nav>
     </header>
@@ -25,34 +25,25 @@
         <h1>🌴 Solicitud de Vacaciones</h1>
         <form id="form-vacaciones">
 
-            <!-- MODIFICACIÓN SOLUCIÓN: Identificación automática del solicitante mediante JWT -->
             <input type="hidden" id="id_employee" name="id_employee">
             <div class="contenedor-formulario">
-                <label for="nombre_solicitante">Empleado Solicitante:</label>
-                <input type="text" id="nombre_solicitante" name="nombre_solicitante" readonly style="background-color: #e9ecef; cursor: not-allowed;" placeholder="Cargando usuario...">
+                <label for="nombre_solicitante">Empleado</label>
+                <input type="text" id="nombre_solicitante" name="nombre_solicitante" readonly style="background-color: #e9ecef; cursor: not-allowed;" placeholder="Cargando datos del usuario...">
             </div>
-            <!-- FIN MODIFICACIÓN SOLUCIÓN -->
 
             <div class="contenedor-formulario">
-                <label for="fecha_inicio">Fecha de Inicio:</label>
+                <label for="fecha_inicio">Fecha de Inicio</label>
                 <input type="date" id="fecha_inicio" name="fecha_inicio" required>
             </div>
 
             <div class="contenedor-formulario">
-                <label for="fecha_fin">Fecha de Fin:</label>
+                <label for="fecha_fin">Fecha de Fin</label>
                 <input type="date" id="fecha_fin" name="fecha_fin" required>
             </div>
 
-            <!-- MODIFICACIÓN SOLUCIÓN: Campo de días calculados en solo lectura para evitar alteración manual -->
             <div class="contenedor-formulario">
-                <label for="dias_tomados">Días Hábiles Solicitados (Lun - Vie):</label>
-                <input type="number" id="dias_tomados" name="dias_tomados" readonly style="background-color: #e9ecef; cursor: not-allowed;" placeholder="Calculado automáticamente" required>
-            </div>
-            <!-- FIN MODIFICACIÓN SOLUCIÓN -->
-
-            <div class="contenedor-formulario">
-                <label for="motivo">Motivo / Observaciones:</label>
-                <input type="text" id="motivo" name="motivo" placeholder="Escribe una observación opcional">
+                <label for="dias_tomados">Días Solicitados</label>
+                <input type="number" id="dias_tomados" name="dias_tomados" readonly style="background-color: #e9ecef; cursor: not-allowed;" placeholder="Pendiente" required>
             </div>
 
             <div class="contenedor-botones">
