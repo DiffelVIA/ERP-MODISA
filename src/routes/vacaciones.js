@@ -139,18 +139,32 @@ router.patch('/:id/estado', verificarToken, verificarRol(ROLES_ADMINISTRATIVOS),
   const idVacacion = req.params.id;
   const { estado } = req.body;
 
-  const estadosValidos = ['pendiente', 'autorizada', 'rechazada'];
-
-  if (!estado || !estadosValidos.includes(estado.toLowerCase())) {
+  if (!estado) {
     return res.status(400).json({
       success: false,
-      error: `Estado inválido. Los valores permitidos son: ${estadosValidos.join(', ')}.`
+      error: 'El campo estado es requerido.'
+    });
+  }
+
+  const estadoLimpio = estado.toLowerCase().trim();
+
+  let estadoParaBD = estadoLimpio;
+  if (estadoLimpio === 'autorizada' || estadoLimpio === 'aprobada') {
+    estadoParaBD = 'aprobada';
+  } else if (estadoLimpio === 'rechazada') {
+    estadoParaBD = 'rechazada';
+  } else if (estadoLimpio === 'pendiente') {
+    estadoParaBD = 'pendiente';
+  } else {
+    return res.status(400).json({
+      success: false,
+      error: 'Estado inválido. Los valores permitidos son: pendiente, autorizada/aprobada, rechazada.'
     });
   }
 
   try {
     const sqlUpdate = `UPDATE vacaciones SET estado = ? WHERE id_vacacion = ?`;
-    const [result] = await pool.query(sqlUpdate, [estado.toLowerCase(), idVacacion]);
+    const [result] = await pool.query(sqlUpdate, [estadoParaBD, idVacacion]);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({
@@ -161,7 +175,7 @@ router.patch('/:id/estado', verificarToken, verificarRol(ROLES_ADMINISTRATIVOS),
 
     res.json({
       success: true,
-      message: `✅ Estado de vacaciones actualizado a '${estado}' con éxito.`
+      message: `✅ Estado de vacaciones actualizado a '${estadoParaBD}' con éxito.`
     });
 
   } catch (error) {

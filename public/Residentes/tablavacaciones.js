@@ -202,64 +202,62 @@
   }
 
   window.actualizarEstadoVacacion = async function(idVacacion, nuevoEstado, elementoInput) {
-    const token = localStorage.getItem('jwtToken') || '';
-    const trFila = elementoInput ? elementoInput.closest('tr') : document.querySelector(`tr[data-id="${idVacacion}"]`);
+  const token = localStorage.getItem('jwtToken') || '';
+  const trFila = elementoInput ? elementoInput.closest('tr') : document.querySelector(`tr[data-id="${idVacacion}"]`);
 
-    try {
-      const res = await fetch(`${API_URL}/vacaciones/${idVacacion}/estado`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : '',
-          'x-user-rol': localStorage.getItem('userRol') || ''
-        },
-        body: JSON.stringify({ estado: nuevoEstado })
-      });
+  try {
+    const res = await fetch(`${API_URL}/vacaciones/${idVacacion}/estado`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      body: JSON.stringify({ estado: nuevoEstado })
+    });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'No se pudo actualizar el estado.');
-      }
-
-      if (trFila) {
-        trFila.style.backgroundColor = "#eaffea";
-        setTimeout(() => { trFila.style.backgroundColor = ""; }, 600);
-      }
-    } catch (err) {
-      console.error("❌ Error al actualizar estado:", err);
-      alert(`❌ Error: ${err.message}`);
-      await cargarDatosVacaciones();
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || 'No se pudo actualizar el estado.');
     }
-  };
 
-  window.actualizarObservacionVacacion = async function(idVacacion, nuevaObservacion, elementoInput) {
-    const token = localStorage.getItem('jwtToken') || '';
-    const trFila = elementoInput ? elementoInput.closest('tr') : document.querySelector(`tr[data-id="${idVacacion}"]`);
-
-    try {
-      const res = await fetch(`${API_URL}/vacaciones/${idVacacion}/observaciones`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : '',
-          'x-user-rol': localStorage.getItem('userRol') || ''
-        },
-        body: JSON.stringify({ observaciones: nuevaObservacion })
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'No se pudo actualizar la observación.');
-      }
-
-      if (trFila) {
-        trFila.style.backgroundColor = "#eaffea";
-        setTimeout(() => { trFila.style.backgroundColor = ""; }, 600);
-      }
-    } catch (err) {
-      console.error("❌ Error al guardar observación:", err);
-      alert(`❌ Error: ${err.message}`);
+    if (trFila) {
+      trFila.style.backgroundColor = "#eaffea";
+      setTimeout(() => { trFila.style.backgroundColor = ""; }, 600);
     }
-  };
+  } catch (err) {
+    console.error("❌ Error al actualizar estado:", err);
+    alert(`❌ Error: ${err.message}`);
+    await cargarDatosVacaciones();
+  }
+};
+
+window.actualizarObservacionVacacion = async function(idVacacion, nuevaObservacion, elementoInput) {
+  const token = localStorage.getItem('jwtToken') || '';
+  const trFila = elementoInput ? elementoInput.closest('tr') : document.querySelector(`tr[data-id="${idVacacion}"]`);
+
+  try {
+    const res = await fetch(`${API_URL}/vacaciones/${idVacacion}/observaciones`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      body: JSON.stringify({ observaciones: nuevaObservacion })
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || 'No se pudo actualizar la observación.');
+    }
+
+    if (trFila) {
+      trFila.style.backgroundColor = "#eaffea";
+      setTimeout(() => { trFila.style.backgroundColor = ""; }, 600);
+    }
+  } catch (err) {
+    console.error("❌ Error al guardar observación:", err);
+    alert(`❌ Error: ${err.message}`);
+  }
+};
 
 })();
