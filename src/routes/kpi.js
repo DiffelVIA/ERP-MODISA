@@ -75,17 +75,16 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/kpi - Consultar histórico de KPIs
 router.get('/', async (req, res) => {
   try {
     const query = `
       SELECT 
         k.*,
-        p.name AS project_name,
-        CONCAT(e.first_name, ' ', e.last_name) AS employee_name
+        p.project_name AS project_name,
+        CONCAT(e.name, ' ', e.last_name) AS employee_name
       FROM kpi k
-      LEFT JOIN projects p ON k.id_project = p.id
-      LEFT JOIN employees e ON k.id_employee = e.id
+      LEFT JOIN projects p ON k.id_project = p.id_project
+      LEFT JOIN employees e ON k.id_employee = e.id_employee
       ORDER BY k.fecha DESC, k.semana DESC
     `;
     const [filas] = await db.query(query);
