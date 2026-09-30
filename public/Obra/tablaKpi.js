@@ -38,7 +38,15 @@
   function configurarDropdownsUI() {
     document.querySelectorAll('.btn-dropdown').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        if (btn.disabled) return;
+        // MODIFICACIÓN: Si el botón de filtro fecha está deshabilitado, muestra la alerta instructiva
+        if (btn.disabled) {
+          if (btn.id === 'btnFiltroFecha') {
+            alert('Primero selecciona una semana');
+          }
+          return;
+        }
+        // FIN MODIFICACIÓN
+
         e.stopPropagation();
         const contenedor = btn.nextElementSibling;
         
@@ -171,11 +179,19 @@
       const rNombre = item.employee_name || `Empleado #${item.id_employee}`;
       const fechaCorta = item.fecha ? item.fecha.split('T')[0] : '';
 
+      // MODIFICACIÓN: Ajuste en formatRubro para limpiar el texto cuando la opción es 'A tiempo' sin justificación
       const formatRubro = (opcion, justificacion) => {
         const op = opcion || 'N/A';
+        const esATiempo = String(op).trim().toLowerCase() === 'a tiempo';
+        
+        if (esATiempo && !justificacion) {
+          return `<div><strong>${op}</strong></div>`;
+        }
+
         const just = justificacion ? `<span class="justificacion-txt"><b>Obs:</b> ${justificacion}</span>` : '';
         return `<div><strong>${op}</strong>${just}</div>`;
       };
+      // FIN MODIFICACIÓN
 
       return `
         <tr>
@@ -183,7 +199,7 @@
           <td>${rNombre}</td>
           <td>Semana ${item.semana}</td>
           <td>${fechaCorta}</td>
-          <td>${formatRubro(item.reporte_fotografico, item.justificacion_fotografico)}</td>
+          <td>${formatRubro(item.reporte_fotografico, item.justificacion_fotografico)}</td> 
           <td>${formatRubro(item.volumen_obra, item.justificacion_volumen)}</td>
           <td>${formatRubro(item.diagrama_gantt, item.justificacion_gantt)}</td>
           <td>${formatRubro(item.atencion_minutas, item.justificacion_minutas)}</td>
