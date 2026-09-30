@@ -165,7 +165,7 @@
 
                 alert('🎉 Solicitud de vacaciones registrada correctamente.');
 
-                window.location.href = '../principal.html?panel=control';
+                window.location.href = '../principal.html?panel=residentes';
 
             } catch (err) {
                 console.error('❌ Error en solicitud de vacaciones:', err);

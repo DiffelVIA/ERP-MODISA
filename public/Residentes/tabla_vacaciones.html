@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Vacaciones - MODISA</title>
+    <script src="/timeout.js"></script>
+    <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+    <header id="header">
+        <div>
+            <img src="/img/logo.png" alt="logo" id="logo">
+        </div>
+        <nav>
+            <ul>
+                <li><a href="../principal.html?panel=residentes">Volver a Panel Empleados</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="form_main" style="max-width: 1200px; width: 95%;">
+        <h1>📅 Registro y Estado de Vacaciones</h1>
+
+        <div class="contenedor-tabla" style="overflow-x: auto;">
+            <table id="tabla-vacaciones" class="tabla-estandar" style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th>Empleado</th>
+                        <th>Fecha Solicitud</th>
+                        <th>Fecha Inicio</th>
+                        <th>Fecha Fin</th>
+                        <th>Días Solicitados</th>
+                        <th>Estado</th>
+                        <th>Observaciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-vacaciones">
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 20px;">Cargando solicitudes de vacaciones...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <footer id="footer">
+        <p>Aplicación para la gestión de vacaciones MODISA ®</p>
+        <p>Esta aplicación web está diseñada exclusivamente para controlar el registro, autorización y calendario de periodos vacacionales del personal.</p>
+    </footer>
+
+    <script src="/authClient.js"></script>
+    <script src="tablaVacaciones.js"></script>
+
+</body>
+</html>
