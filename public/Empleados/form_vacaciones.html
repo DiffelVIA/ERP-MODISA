@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitud de Vacaciones - MODISA</title>
+    <script src="/timeout.js"></script>
+    <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+    <header id="header">
+        <div>
+            <img src="/img/logo.png" alt="logo" id="logo">
+        </div>
+        <nav>
+            <ul>
+                <li><a href="../principal.html?panel=empleados">Volver a Panel Control</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="form_main">
+        <h1>🌴 Solicitud de Vacaciones</h1>
+        <form id="form-vacaciones">
+
+            <div class="contenedor-formulario">
+                <label for="id_employee">Empleado:</label>
+                <select id="id_employee" name="id_employee" required>
+                    <option value="">-- Selecciona un empleado --</option>
+                </select>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="fecha_inicio">Fecha de Inicio:</label>
+                <input type="date" id="fecha_inicio" name="fecha_inicio" required>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="fecha_fin">Fecha de Fin:</label>
+                <input type="date" id="fecha_fin" name="fecha_fin" required>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="dias_tomados">Días Solicitados:</label>
+                <input type="number" id="dias_tomados" name="dias_tomados" min="1" placeholder="Ej: 5" required>
+            </div>
+
+            <div class="contenedor-formulario">
+                <label for="motivo">Motivo / Observaciones:</label>
+                <input type="text" id="motivo" name="motivo" placeholder="Escribe una observación opcional">
+            </div>
+
+            <div class="contenedor-botones">
+                <button type="submit" id="guardar" class="btn">Guardar Solicitud</button>
+            </div>
+        </form>
+    </main>
+
+    <footer id="footer">
+        <p>Aplicación para la gestión de vacaciones MODISA ®</p>
+        <p>Esta aplicación web está diseñada exclusivamente para controlar el registro, autorización y calendario de periodos vacacionales del personal.</p>
+    </footer>
+
+    <script src="/authClient.js"></script>
+    <script src="formVacaciones.js"></script>
+
+</body>
+</html>
