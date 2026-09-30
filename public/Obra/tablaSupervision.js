@@ -9,6 +9,18 @@
   let proyectosSeleccionados = new Set();
   let residentesSeleccionados = new Set();
 
+  // MODIFICACIÓN: Función helper para sanitización de cadenas contra inyección XSS
+  function escapeHTML(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+  // FIN MODIFICACIÓN
+
   document.addEventListener('DOMContentLoaded', async () => {
     configurarDropdownsUI();
     await cargarDatosSupervision();
@@ -38,7 +50,13 @@
   function configurarDropdownsUI() {
     document.querySelectorAll('.btn-dropdown').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        if (btn.disabled) return;
+        // MODIFICACIÓN: Alerta interactiva cuando se intenta filtrar fecha sin seleccionar semana
+        if (btn.id === 'btnFiltroFecha' && semanasSeleccionadas.size === 0) {
+          alert('Primero selecciona una semana');
+          return;
+        }
+        // FIN MODIFICACIÓN
+
         e.stopPropagation();
         const contenedor = btn.nextElementSibling;
         
@@ -65,17 +83,18 @@
     const contenedorProyectos = document.getElementById('filtroProyecto');
     const contenedorResidentes = document.getElementById('filtroResidente');
     const contenedorSemanas = document.getElementById('filtroSemana');
+    const contenedorFechas = document.getElementById('filtroFecha');
 
     if (!contenedorProyectos || !contenedorResidentes || !contenedorSemanas) return;
 
     const proyectosUnicos = [...new Set(datosSupervision.map(item => item.project_name || `Proyecto #${item.id_project}`))].sort();
     contenedorProyectos.innerHTML = proyectosUnicos.map(p => `
-      <label class="opcion-filtro"><input type="checkbox" value="${p}" class="chk-proyecto"> ${p}</label>
+      <label class="opcion-filtro"><input type="checkbox" value="${escapeHTML(p)}" class="chk-proyecto"> ${escapeHTML(p)}</label>
     `).join('');
 
     const residentesUnicos = [...new Set(datosSupervision.map(item => item.residente || item.employee_name || `Empleado #${item.id_employee}`))].sort();
     contenedorResidentes.innerHTML = residentesUnicos.map(r => `
-      <label class="opcion-filtro"><input type="checkbox" value="${r}" class="chk-residente"> ${r}</label>
+      <label class="opcion-filtro"><input type="checkbox" value="${escapeHTML(r)}" class="chk-residente"> ${escapeHTML(r)}</label>
     `).join('');
 
     const semanasUnicas = [...new Set(datosSupervision.map(item => item.semana))].sort((a, b) => a - b);
@@ -89,6 +108,12 @@
       actualizarFiltroFechaPorSemana();
       actualizarFiltrosYTabla();
     });
+
+    // MODIFICACIÓN: Asignación única del listener en contenedor de fechas para evitar duplicados
+    if (contenedorFechas) {
+      contenedorFechas.addEventListener('change', actualizarFiltrosYTabla);
+    }
+    // FIN MODIFICACIÓN
   }
 
   function actualizarFiltroFechaPorSemana() {
@@ -100,15 +125,15 @@
     );
 
     if (semanasSeleccionadas.size === 0) {
-      btnFecha.disabled = true;
       btnFecha.title = "Selecciona primero una semana";
+      btnFecha.classList.add('deshabilitado');
       contenedorFechas.innerHTML = '';
       fechasSeleccionadas.clear();
       return;
     }
 
-    btnFecha.disabled = false;
     btnFecha.title = "";
+    btnFecha.classList.remove('deshabilitado');
 
     const fechasFiltradas = [...new Set(
       datosSupervision
@@ -118,10 +143,8 @@
     )].sort();
 
     contenedorFechas.innerHTML = fechasFiltradas.map(f => `
-      <label class="opcion-filtro"><input type="checkbox" value="${f}" class="chk-fecha"> ${f}</label>
+      <label class="opcion-filtro"><input type="checkbox" value="${escapeHTML(f)}" class="chk-fecha"> ${escapeHTML(f)}</label>
     `).join('');
-
-    contenedorFechas.addEventListener('change', actualizarFiltrosYTabla);
   }
 
   function actualizarFiltrosYTabla() {
@@ -167,16 +190,27 @@
     }
 
     cuerpo.innerHTML = lista.map(item => {
-      const pNombre = item.project_name || `Proyecto #${item.id_project}`;
-      const rNombre = item.residente || item.employee_name || `Empleado #${item.id_employee}`;
-      const fechaCorta = item.fecha ? item.fecha.split('T')[0] : '';
+      const pNombre = escapeHTML(item.project_name || `Proyecto #${item.id_project}`);
+      const rNombre = escapeHTML(item.residente || item.employee_name || `Empleado #${item.id_employee}`);
+      const fechaCorta = escapeHTML(item.fecha ? item.fecha.split('T')[0] : '');
       const porcentajeText = (Number(item.evaluacion || 0) * 100).toFixed(2) + '%';
 
+      // MODIFICACIÓN: Separación clara mediante <br> y omitido de Obs cuando la opción es limpia
       const formatRubro = (opcion, justificacion) => {
-        const op = opcion || 'N/A';
-        const just = justificacion ? `<span class="justificacion-txt"><b>Obs:</b> ${justificacion}</span>` : '';
+        const op = escapeHTML(opcion || 'N/A');
+        const esCumpleLimpio = String(opcion || '').trim().toLowerCase() === 'a tiempo' || String(opcion || '').trim().toLowerCase() === 'cumple';
+        
+        if (esCumpleLimpio && !justificacion) {
+          return `<div><strong>${op}</strong></div>`;
+        }
+
+        const just = justificacion 
+          ? `<br><span class="justificacion-txt"><b>Obs:</b> ${escapeHTML(justificacion)}</span>` 
+          : '';
+          
         return `<div><strong>${op}</strong>${just}</div>`;
       };
+      // FIN MODIFICACIÓN
 
       return `
         <tr>
@@ -190,7 +224,7 @@
           <td>${formatRubro(item.material_orden_seguridad, item.justificacion_material)}</td>
           <td>${formatRubro(item.cumplimiento_gestoria, item.justificacion_gestoria)}</td>
           <td><strong>${porcentajeText}</strong></td>
-          <td>${item.resultado || 'Sin resultado'}</td>
+          <td>${escapeHTML(item.resultado || 'Sin resultado')}</td>
         </tr>
       `;
     }).join('');
