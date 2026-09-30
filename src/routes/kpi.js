@@ -87,6 +87,8 @@ router.get('/', async (req, res) => {
       LEFT JOIN employees e ON k.id_employee = e.id_employee
       ORDER BY k.fecha DESC, k.semana DESC
     `;
+    // FIN MODIFICACIÓN
+    
     const [filas] = await db.query(query);
     res.json(filas);
   } catch (error) {
