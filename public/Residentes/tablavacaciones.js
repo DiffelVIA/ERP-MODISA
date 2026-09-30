@@ -39,12 +39,16 @@
     await cargarDatosVacaciones();
   });
 
+  // ==========================================
+  // MODIFICACIÓN: Hardening de seguridad en GET
+  // ==========================================
   async function cargarDatosVacaciones() {
     try {
       const token = localStorage.getItem('jwtToken') || '';
       const respuesta = await fetch(`${API_URL}/vacaciones`, {
         headers: {
           'Authorization': token ? `Bearer ${token}` : ''
+          // Se removió 'x-user-rol' por mejores prácticas de seguridad (OWASP)
         }
       });
 
@@ -63,7 +67,80 @@
       }
     }
   }
-  
+
+  function configurarDropdownsUI() {
+    document.querySelectorAll('.btn-dropdown').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const contenedor = btn.nextElementSibling;
+        
+        document.querySelectorAll('.contenido-dropdown').forEach(d => {
+          if (d !== contenedor) d.classList.remove('mostrar');
+        });
+
+        contenedor.classList.toggle('mostrar');
+      });
+    });
+
+    document.querySelectorAll('.contenido-dropdown').forEach(d => {
+      d.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+    });
+
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.contenido-dropdown').forEach(d => d.classList.remove('mostrar'));
+    });
+  }
+
+  function construirFiltrosIniciales() {
+    const contenedorEmpleados = document.getElementById('filtroEmpleado');
+    const contenedorEstados = document.getElementById('filtroEstado');
+
+    if (!contenedorEmpleados || !contenedorEstados) return;
+
+    const empleadosUnicos = [...new Set(datosVacaciones.map(item => item.nombre_empleado || item.empleado || `Empleado ID #${item.id_employee}`))].sort();
+    contenedorEmpleados.innerHTML = empleadosUnicos.map(emp => `
+      <label class="opcion-filtro"><input type="checkbox" value="${escapeHTML(emp)}" class="chk-empleado"> ${escapeHTML(emp)}</label>
+    `).join('');
+
+    const estadosUnicos = ['pendiente', 'autorizada', 'rechazada'];
+    contenedorEstados.innerHTML = estadosUnicos.map(est => `
+      <label class="opcion-filtro"><input type="checkbox" value="${est}" class="chk-estado"> ${est.charAt(0).toUpperCase() + est.slice(1)}</label>
+    `).join('');
+
+    contenedorEmpleados.addEventListener('change', actualizarFiltrosYTabla);
+    contenedorEstados.addEventListener('change', actualizarFiltrosYTabla);
+  }
+
+  function actualizarFiltrosYTabla() {
+    empleadosSeleccionados = new Set(
+      Array.from(document.querySelectorAll('.chk-empleado:checked')).map(cb => cb.value)
+    );
+
+    estadosSeleccionados = new Set(
+      Array.from(document.querySelectorAll('.chk-estado:checked')).map(cb => cb.value)
+    );
+
+    const filtrados = datosVacaciones.filter(item => {
+      const empNombre = item.nombre_empleado || item.empleado || `Empleado ID #${item.id_employee}`;
+      const estNombreRaw = String(item.estado || 'pendiente').toLowerCase();
+      
+      // Mapeo transparente para filtrado: 'aprobada' de BD se evalúa como 'autorizada'
+      const estNombre = (estNombreRaw === 'aprobada') ? 'autorizada' : estNombreRaw;
+
+      const cumpleEmpleado = empleadosSeleccionados.size === 0 || empleadosSeleccionados.has(empNombre);
+      const cumpleEstado = estadosSeleccionados.size === 0 || estadosSeleccionados.has(estNombre);
+
+      return cumpleEmpleado && cumpleEstado;
+    });
+
+    renderizarTabla(filtrados);
+  }
+
+  // ==========================================
+  // MODIFICACIÓN: Mapeo de persistencia visual (aprobada/autorizada)
+  // ==========================================
   function renderizarTabla(lista) {
     const cuerpo = document.getElementById('cuerpoTablaVacaciones');
     if (!cuerpo) return;
@@ -97,6 +174,7 @@
       const diasTomados = Number(item.dias_tomados || 0);
       
       const estadoRaw = String(item.estado || 'pendiente').toLowerCase();
+      
       // Mapeo bidireccional entre 'aprobada' (MySQL) y 'autorizada' (UI)
       const esAprobadaOAutorizada = (estadoRaw === 'aprobada' || estadoRaw === 'autorizada');
       const esRechazada = (estadoRaw === 'rechazada');
@@ -140,6 +218,9 @@
     }).join('');
   }
 
+  // ==========================================
+  // MODIFICACIÓN: Sincronización en memoria local
+  // ==========================================
   window.actualizarEstadoVacacion = async function(idVacacion, nuevoEstado, elementoInput) {
     const token = localStorage.getItem('jwtToken') || '';
     const trFila = elementoInput ? elementoInput.closest('tr') : document.querySelector(`tr[data-id="${idVacacion}"]`);
@@ -159,6 +240,7 @@
         throw new Error(data.error || 'No se pudo actualizar el estado.');
       }
 
+      // Sincronización local en memoria para mantener coherencia en filtros
       const itemLocal = datosVacaciones.find(item => item.id_vacacion === idVacacion);
       if (itemLocal) {
         itemLocal.estado = nuevoEstado;
@@ -175,33 +257,33 @@
     }
   };
 
-window.actualizarObservacionVacacion = async function(idVacacion, nuevaObservacion, elementoInput) {
-  const token = localStorage.getItem('jwtToken') || '';
-  const trFila = elementoInput ? elementoInput.closest('tr') : document.querySelector(`tr[data-id="${idVacacion}"]`);
+  window.actualizarObservacionVacacion = async function(idVacacion, nuevaObservacion, elementoInput) {
+    const token = localStorage.getItem('jwtToken') || '';
+    const trFila = elementoInput ? elementoInput.closest('tr') : document.querySelector(`tr[data-id="${idVacacion}"]`);
 
-  try {
-    const res = await fetch(`${API_URL}/vacaciones/${idVacacion}/observaciones`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : ''
-      },
-      body: JSON.stringify({ observaciones: nuevaObservacion })
-    });
+    try {
+      const res = await fetch(`${API_URL}/vacaciones/${idVacacion}/observaciones`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({ observaciones: nuevaObservacion })
+      });
 
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || 'No se pudo actualizar la observación.');
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'No se pudo actualizar la observación.');
+      }
+
+      if (trFila) {
+        trFila.style.backgroundColor = "#eaffea";
+        setTimeout(() => { trFila.style.backgroundColor = ""; }, 600);
+      }
+    } catch (err) {
+      console.error("❌ Error al guardar observación:", err);
+      alert(`❌ Error: ${err.message}`);
     }
-
-    if (trFila) {
-      trFila.style.backgroundColor = "#eaffea";
-      setTimeout(() => { trFila.style.backgroundColor = ""; }, 600);
-    }
-  } catch (err) {
-    console.error("❌ Error al guardar observación:", err);
-    alert(`❌ Error: ${err.message}`);
-  }
-};
+  };
 
 })();
