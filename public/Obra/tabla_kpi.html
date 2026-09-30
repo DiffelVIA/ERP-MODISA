@@ -1,86 +1,250 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Histórico de KPIs - MODISA</title>
-  <script src="/timeout.js"></script>
-  <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
-  <link rel="stylesheet" href="/styles.css">
-</head>
+(() => {
+  const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? 'http://localhost:3000/api' 
+    : 'https://erp-modisa.onrender.com/api';
 
-<body>
-  <header id="header">
-    <div>
-      <img src="/img/logo.png" alt="logo" id="logo">
-    </div>
-    <nav>
-      <ul>
-        <li><a href="../principal.html?panel=obra">Volver a Panel Obra</a></li>
-      </ul>
-    </nav>
-  </header>
+  let datosKpi = [];
+  let semanasSeleccionadas = new Set();
+  let fechasSeleccionadas = new Set();
+  let proyectosSeleccionados = new Set();
+  let residentesSeleccionados = new Set();
 
-  <main class="main-tabla">
-    <h1>Registro de Indicadores de Rendimiento (KPI)</h1>
+  // MODIFICACIÓN: Función helper para sanitización XSS
+  function escapeHTML(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+  // FIN MODIFICACIÓN
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    configurarDropdownsUI();
+    await cargarDatosKpi();
+  });
+
+  async function cargarDatosKpi() {
+    try {
+      const token = localStorage.getItem('jwtToken') || '';
+      const respuesta = await fetch(`${API_URL}/kpi`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      });
+
+      if (!respuesta.ok) throw new Error('Error al consultar el histórico de KPIs');
+
+      datosKpi = await respuesta.json();
+
+      construirFiltrosIniciales();
+      renderizarTabla(datosKpi);
+
+    } catch (error) {
+      console.error('Error al cargar datos KPI:', error);
+    }
+  }
+
+  function configurarDropdownsUI() {
+    document.querySelectorAll('.btn-dropdown').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        // MODIFICACIÓN SOLUCIÓN: Se retira el alert() y el return temprano para permitir que 
+        // el menú desplegable sí se abra y muestre el mensaje dentro del contenedor #filtroFecha
+        // FIN MODIFICACIÓN SOLUCIÓN
+
+        e.stopPropagation();
+        const contenedor = btn.nextElementSibling;
+        
+        document.querySelectorAll('.contenido-dropdown').forEach(d => {
+          if (d !== contenedor) d.classList.remove('mostrar');
+        });
+
+        contenedor.classList.toggle('mostrar');
+      });
+    });
+
+    document.querySelectorAll('.contenido-dropdown').forEach(d => {
+      d.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+    });
+
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.contenido-dropdown').forEach(d => d.classList.remove('mostrar'));
+    });
+  }
+
+  function construirFiltrosIniciales() {
+    const contenedorProyectos = document.getElementById('filtroProyecto');
+    const contenedorResidentes = document.getElementById('filtroResidente');
+    const contenedorSemanas = document.getElementById('filtroSemana');
+    const contenedorFechas = document.getElementById('filtroFecha');
+
+    if (!contenedorProyectos || !contenedorResidentes || !contenedorSemanas) return;
+
+    const proyectosUnicos = [...new Set(datosKpi.map(item => item.project_name || `Proyecto #${item.id_project}`))].sort();
+    contenedorProyectos.innerHTML = proyectosUnicos.map(p => `
+      <label class="opcion-filtro"><input type="checkbox" value="${escapeHTML(p)}" class="chk-proyecto"> ${escapeHTML(p)}</label>
+    `).join('');
+
+    const residentesUnicos = [...new Set(datosKpi.map(item => item.employee_name || `Empleado #${item.id_employee}`))].sort();
+    contenedorResidentes.innerHTML = residentesUnicos.map(r => `
+      <label class="opcion-filtro"><input type="checkbox" value="${escapeHTML(r)}" class="chk-residente"> ${escapeHTML(r)}</label>
+    `).join('');
+
+    const semanasUnicas = [...new Set(datosKpi.map(item => item.semana))].sort((a, b) => a - b);
+    contenedorSemanas.innerHTML = semanasUnicas.map(s => `
+      <label class="opcion-filtro"><input type="checkbox" value="${s}" class="chk-semana"> Semana ${s}</label>
+    `).join('');
+
+    contenedorProyectos.addEventListener('change', actualizarFiltrosYTabla);
+    contenedorResidentes.addEventListener('change', actualizarFiltrosYTabla);
+    contenedorSemanas.addEventListener('change', () => {
+      actualizarFiltroFechaPorSemana();
+      actualizarFiltrosYTabla();
+    });
+
+    // MODIFICACIÓN: Asignación única del listener para evitar acumulaciones duplicadas
+    if (contenedorFechas) {
+      contenedorFechas.addEventListener('change', actualizarFiltrosYTabla);
+    }
+    // FIN MODIFICACIÓN
+
+    // MODIFICACIÓN SOLUCIÓN: Renderizar estado inicial de filtro fecha vacia al construir filtros
+    actualizarFiltroFechaPorSemana();
+    // FIN MODIFICACIÓN SOLUCIÓN
+  }
+
+  function actualizarFiltroFechaPorSemana() {
+    const btnFecha = document.getElementById('btnFiltroFecha');
+    const contenedorFechas = document.getElementById('filtroFecha');
+    if (!contenedorFechas) return;
     
-    <div class="contenedorFiltros">
-      <!-- Filtro Proyecto -->
-      <div class="filtros" id="dropdownProyecto">
-        <button type="button" class="btn-dropdown">Filtro Proyecto ▾</button>
-        <div class="contenido-dropdown" id="filtroProyecto"></div>
-      </div>
+    semanasSeleccionadas = new Set(
+      Array.from(document.querySelectorAll('.chk-semana:checked')).map(cb => cb.value)
+    );
 
-      <!-- Filtro Residente -->
-      <div class="filtros" id="dropdownResidente">
-        <button type="button" class="btn-dropdown">Filtro Residente ▾</button>
-        <div class="contenido-dropdown" id="filtroResidente"></div>
-      </div>
+    // MODIFICACIÓN SOLUCIÓN: Deshabilitar la propiedad disabled del botón HTML para permitir la interacción del clic,
+    // y renderizar la plantilla estática exacta dentro de contenedorFechas cuando semanasSeleccionadas es 0
+    if (semanasSeleccionadas.size === 0) {
+      if (btnFecha) {
+        btnFecha.disabled = false;
+        btnFecha.title = "Selecciona primero una semana";
+        btnFecha.classList.add('deshabilitado');
+      }
+      
+      contenedorFechas.innerHTML = `
+        <div style="padding: 10px; color: #64748b; font-size: 11px; font-style: italic; text-align: center;">
+            ⚠️ Selecciona una semana primero
+        </div>
+      `;
+      fechasSeleccionadas.clear();
+      return;
+    }
 
-      <!-- Filtro Semana -->
-      <div class="filtros" id="dropdownSemana">
-        <button type="button" class="btn-dropdown">Filtro Semana ▾</button>
-        <div class="contenido-dropdown" id="filtroSemana"></div>
-      </div>
+    if (btnFecha) {
+      btnFecha.disabled = false;
+      btnFecha.title = "";
+      btnFecha.classList.remove('deshabilitado');
+    }
+    // FIN MODIFICACIÓN SOLUCIÓN
 
-      <!-- Filtro Fecha (Depende de Selección de Semana) -->
-      <div class="filtros" id="dropdownFecha">
-        <button type="button" class="btn-dropdown" id="btnFiltroFecha" disabled title="Selecciona primero una semana">Filtro Fecha ▾</button>
-        <div class="contenido-dropdown" id="filtroFecha"></div>
-      </div>
-    </div>
+    const fechasFiltradas = [...new Set(
+      datosKpi
+        .filter(item => semanasSeleccionadas.has(String(item.semana)))
+        .map(item => item.fecha ? item.fecha.split('T')[0] : '')
+        .filter(Boolean)
+    )].sort();
 
-    <div class="tabla">
-      <table>
-        <thead>
-          <tr>
-            <th>Proyecto</th>
-            <th>Residente</th>
-            <th>Semana</th>
-            <th>Fecha</th>
-            <th>Reporte Fotográfico</th>
-            <th>Volumen de Obra</th>
-            <th>Diagrama Gantt</th>
-            <th>Atención Minutas</th>
-            <th>Planificación Act.</th>
-            <th>Cumplimiento Act.</th>
-            <th>Desfase / Extemp.</th>
-            <th>Supervisión</th>
-            <th>Avance Físico</th>
-          </tr>
-        </thead>
-        <tbody class="cuerpoTabla" id="cuerpoTablaKpi">
-        </tbody>
-      </table>
-    </div>
-  </main>
+    contenedorFechas.innerHTML = fechasFiltradas.map(f => `
+      <label class="opcion-filtro"><input type="checkbox" value="${escapeHTML(f)}" class="chk-fecha"> ${escapeHTML(f)}</label>
+    `).join('');
+  }
 
-  <footer id="footer">
-    <p>Aplicación para el seguimiento de KPIs de obra MODISA ®</p>
-    <p>Esta aplicación web está diseñada exclusivamente para evaluar y controlar el avance, la calidad y el cumplimiento de las normas de seguridad en los proyectos en desarrollo.</p>
-  </footer>
-  
-  <script src="/authClient.js"></script>
-  <script src="tablaKpi.js"></script>
-</body>
-</html>
+  function actualizarFiltrosYTabla() {
+    proyectosSeleccionados = new Set(
+      Array.from(document.querySelectorAll('.chk-proyecto:checked')).map(cb => cb.value)
+    );
+
+    residentesSeleccionados = new Set(
+      Array.from(document.querySelectorAll('.chk-residente:checked')).map(cb => cb.value)
+    );
+
+    semanasSeleccionadas = new Set(
+      Array.from(document.querySelectorAll('.chk-semana:checked')).map(cb => cb.value)
+    );
+
+    fechasSeleccionadas = new Set(
+      Array.from(document.querySelectorAll('.chk-fecha:checked')).map(cb => cb.value)
+    );
+
+    const filtrados = datosKpi.filter(item => {
+      const pNombre = item.project_name || `Proyecto #${item.id_project}`;
+      const rNombre = item.employee_name || `Empleado #${item.id_employee}`;
+      const fString = item.fecha ? item.fecha.split('T')[0] : '';
+
+      const cumpleProyecto = proyectosSeleccionados.size === 0 || proyectosSeleccionados.has(pNombre);
+      const cumpleResidente = residentesSeleccionados.size === 0 || residentesSeleccionados.has(rNombre);
+      const cumpleSemana = semanasSeleccionadas.size === 0 || semanasSeleccionadas.has(String(item.semana));
+      const cumpleFecha = fechasSeleccionadas.size === 0 || fechasSeleccionadas.has(fString);
+
+      return cumpleProyecto && cumpleResidente && cumpleSemana && cumpleFecha;
+    });
+
+    renderizarTabla(filtrados);
+  }
+
+  function renderizarTabla(lista) {
+    const cuerpo = document.getElementById('cuerpoTablaKpi');
+    if (!cuerpo) return;
+
+    if (lista.length === 0) {
+      cuerpo.innerHTML = `<tr><td colspan="13" style="text-align:center;">No hay registros de indicadores de rendimiento.</td></tr>`;
+      return;
+    }
+
+    cuerpo.innerHTML = lista.map(item => {
+      const pNombre = escapeHTML(item.project_name || `Proyecto #${item.id_project}`);
+      const rNombre = escapeHTML(item.employee_name || `Empleado #${item.id_employee}`);
+      const fechaCorta = escapeHTML(item.fecha ? item.fecha.split('T')[0] : '');
+
+      // MODIFICACIÓN: Separación clara con <br> y formato condicional sin empalme de texto
+      const formatRubro = (opcion, justificacion) => {
+        const op = escapeHTML(opcion || 'N/A');
+        const esATiempo = String(opcion || '').trim().toLowerCase() === 'a tiempo';
+        
+        if (esATiempo && !justificacion) {
+          return `<div><strong>${op}</strong></div>`;
+        }
+
+        const just = justificacion 
+          ? `<br><span class="justificacion-txt"><b>Obs:</b> ${escapeHTML(justificacion)}</span>` 
+          : '';
+          
+        return `<div><strong>${op}</strong>${just}</div>`;
+      };
+      // FIN MODIFICACIÓN
+
+      return `
+        <tr>
+          <td>${pNombre}</td>
+          <td>${rNombre}</td>
+          <td>Semana ${item.semana}</td>
+          <td>${fechaCorta}</td>
+          <td>${formatRubro(item.reporte_fotografico, item.justificacion_fotografico)}</td> 
+          <td>${formatRubro(item.volumen_obra, item.justificacion_volumen)}</td>
+          <td>${formatRubro(item.diagrama_gantt, item.justificacion_gantt)}</td>
+          <td>${formatRubro(item.atencion_minutas, item.justificacion_minutas)}</td>
+          <td>${formatRubro(item.planificacion_actividades, item.justificacion_planificacion)}</td>
+          <td>${formatRubro(item.cumplimiento_actividades, item.justificacion_cumplimiento)}</td>
+          <td><strong>Desfase:</strong> ${item.desfase || 0}d<br><strong>Extemp:</strong> ${item.extemporaneos || 0}</td>
+          <td>${formatRubro(item.supervision, item.justificacion_supervision)}</td>
+          <td><strong>${escapeHTML(item.avance_fisico_obra || '0%')}</strong></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+})();

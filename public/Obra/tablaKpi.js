@@ -50,12 +50,9 @@
   function configurarDropdownsUI() {
     document.querySelectorAll('.btn-dropdown').forEach(btn => {
       btn.addEventListener('click', (e) => {
-        // MODIFICACIÓN: Detección interactiva de bloqueo sin depender del atributo nativo disabled
-        if (btn.id === 'btnFiltroFecha' && semanasSeleccionadas.size === 0) {
-          alert('Primero selecciona una semana');
-          return;
-        }
-        // FIN MODIFICACIÓN
+        // MODIFICACIÓN SOLUCIÓN: Se retira el alert() y el return temprano para permitir que 
+        // el menú desplegable sí se abra y muestre el mensaje dentro del contenedor #filtroFecha
+        // FIN MODIFICACIÓN SOLUCIÓN
 
         e.stopPropagation();
         const contenedor = btn.nextElementSibling;
@@ -113,10 +110,11 @@
     if (contenedorFechas) {
       contenedorFechas.addEventListener('change', actualizarFiltrosYTabla);
     }
-
-    // Inicializar el mensaje por defecto en el contenedor de fecha
-    actualizarFiltroFechaPorSemana();
     // FIN MODIFICACIÓN
+
+    // MODIFICACIÓN SOLUCIÓN: Renderizar estado inicial de filtro fecha vacia al construir filtros
+    actualizarFiltroFechaPorSemana();
+    // FIN MODIFICACIÓN SOLUCIÓN
   }
 
   function actualizarFiltroFechaPorSemana() {
@@ -128,9 +126,11 @@
       Array.from(document.querySelectorAll('.chk-semana:checked')).map(cb => cb.value)
     );
 
-    // MODIFICACIÓN: Homologación del contenido HTML cuando no hay semanas seleccionadas
+    // MODIFICACIÓN SOLUCIÓN: Deshabilitar la propiedad disabled del botón HTML para permitir la interacción del clic,
+    // y renderizar la plantilla estática exacta dentro de contenedorFechas cuando semanasSeleccionadas es 0
     if (semanasSeleccionadas.size === 0) {
       if (btnFecha) {
+        btnFecha.disabled = false;
         btnFecha.title = "Selecciona primero una semana";
         btnFecha.classList.add('deshabilitado');
       }
@@ -143,12 +143,13 @@
       fechasSeleccionadas.clear();
       return;
     }
-    // FIN MODIFICACIÓN
 
     if (btnFecha) {
+      btnFecha.disabled = false;
       btnFecha.title = "";
       btnFecha.classList.remove('deshabilitado');
     }
+    // FIN MODIFICACIÓN SOLUCIÓN
 
     const fechasFiltradas = [...new Set(
       datosKpi
