@@ -5,13 +5,11 @@ const pool = require('../config/db');
 const { verificarToken, verificarRol } = require('../middlewares/authMiddleware');
 
 const ROLES_ADMINISTRATIVOS = [
-  'Admin',
-  'Administrador',
   'Director Operativo',
   'Director General',
   'Gerente de Administración',
-  'RH',
-  'Recursos Humanos'
+  'Gerente administración',
+  'Gerente Administracion'
 ];
 
 router.get('/', verificarToken, async (req, res) => {
@@ -19,15 +17,25 @@ router.get('/', verificarToken, async (req, res) => {
     const rolUsuario = req.usuario ? req.usuario.rol : '';
     const idEmpleadoToken = req.usuario ? (req.usuario.id_employee || req.usuario.id) : null;
 
-    const esAdmin = ROLES_ADMINISTRATIVOS.some(
-      r => r.toLowerCase() === (rolUsuario || '').toLowerCase()
-    );
+    const rolUsuarioLimpio = (rolUsuario || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+    const esAdmin = ROLES_ADMINISTRATIVOS.some(r => {
+      const rLimpio = r.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return rLimpio === rolUsuarioLimpio;
+    });
 
     let sql = `
       SELECT 
         v.id_vacacion,
         v.id_employee,
-        CONCAT(e.name, ' ', e.last_name) AS nombre_empleado,
+        COALESCE(
+          NULLIF(TRIM(CONCAT(COALESCE(e.name, ''), ' ', COALESCE(e.last_name, ''))), ''),
+          CONCAT('Empleado ID #', v.id_employee)
+        ) AS nombre_empleado,
         v.fecha_inicio,
         v.fecha_fin,
         v.dias_tomados,
@@ -36,7 +44,7 @@ router.get('/', verificarToken, async (req, res) => {
         v.estado,
         v.observaciones
       FROM vacaciones v
-      INNER JOIN employees e ON v.id_employee = e.id_employee
+      LEFT JOIN employees e ON v.id_employee = e.id_employee
       WHERE 1=1
     `;
 

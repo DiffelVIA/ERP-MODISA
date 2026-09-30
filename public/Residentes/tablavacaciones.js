@@ -141,8 +141,10 @@
       return;
     }
 
-    const userRolRaw = localStorage.getItem('userRol') || '';
-    
+    // MODIFICACIÓN SOLUCIÓN: Fallback doble leyendo el rol desde localStorage y desde la firma decodificada del JWT
+    const jwtDatos = obtenerDatosDesdeJWT() || {};
+    const userRolRaw = localStorage.getItem('userRol') || jwtDatos.rol || jwtDatos.role || '';
+
     const userRolNormalizado = userRolRaw
       .trim()
       .toLowerCase()
@@ -153,6 +155,7 @@
       userRolNormalizado === 'gerente administracion' || 
       userRolNormalizado === 'gerente de administracion'
     );
+    // FIN MODIFICACIÓN SOLUCIÓN
 
     cuerpo.innerHTML = lista.map(item => {
       const idVacacion = item.id_vacacion;
