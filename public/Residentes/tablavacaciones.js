@@ -141,13 +141,18 @@
       return;
     }
 
-    const userRol = (localStorage.getItem('userRol') || '').toLowerCase().trim();
-    const esGerenteAdmin = [
-      'gerente administracion', 
-      'gerente de administracion', 
-      'gerente de administración',
-      'gerente administración'
-    ].includes(userRol);
+    const userRolRaw = localStorage.getItem('userRol') || '';
+    
+    const userRolNormalizado = userRolRaw
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+    const esGerenteAdmin = (
+      userRolNormalizado === 'gerente administracion' || 
+      userRolNormalizado === 'gerente de administracion'
+    );
 
     cuerpo.innerHTML = lista.map(item => {
       const idVacacion = item.id_vacacion;
