@@ -113,27 +113,42 @@
     if (contenedorFechas) {
       contenedorFechas.addEventListener('change', actualizarFiltrosYTabla);
     }
+
+    // Inicializar el mensaje por defecto en el contenedor de fecha
+    actualizarFiltroFechaPorSemana();
     // FIN MODIFICACIÓN
   }
 
   function actualizarFiltroFechaPorSemana() {
     const btnFecha = document.getElementById('btnFiltroFecha');
     const contenedorFechas = document.getElementById('filtroFecha');
+    if (!contenedorFechas) return;
     
     semanasSeleccionadas = new Set(
       Array.from(document.querySelectorAll('.chk-semana:checked')).map(cb => cb.value)
     );
 
+    // MODIFICACIÓN: Homologación del contenido HTML cuando no hay semanas seleccionadas
     if (semanasSeleccionadas.size === 0) {
-      btnFecha.title = "Selecciona primero una semana";
-      btnFecha.classList.add('deshabilitado');
-      contenedorFechas.innerHTML = '';
+      if (btnFecha) {
+        btnFecha.title = "Selecciona primero una semana";
+        btnFecha.classList.add('deshabilitado');
+      }
+      
+      contenedorFechas.innerHTML = `
+        <div style="padding: 10px; color: #64748b; font-size: 11px; font-style: italic; text-align: center;">
+            ⚠️ Selecciona una semana primero
+        </div>
+      `;
       fechasSeleccionadas.clear();
       return;
     }
+    // FIN MODIFICACIÓN
 
-    btnFecha.title = "";
-    btnFecha.classList.remove('deshabilitado');
+    if (btnFecha) {
+      btnFecha.title = "";
+      btnFecha.classList.remove('deshabilitado');
+    }
 
     const fechasFiltradas = [...new Set(
       datosKpi

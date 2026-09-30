@@ -119,21 +119,32 @@
   function actualizarFiltroFechaPorSemana() {
     const btnFecha = document.getElementById('btnFiltroFecha');
     const contenedorFechas = document.getElementById('filtroFecha');
+    if (!contenedorFechas) return;
     
     semanasSeleccionadas = new Set(
       Array.from(document.querySelectorAll('.chk-semana:checked')).map(cb => cb.value)
     );
 
     if (semanasSeleccionadas.size === 0) {
-      btnFecha.title = "Selecciona primero una semana";
-      btnFecha.classList.add('deshabilitado');
-      contenedorFechas.innerHTML = '';
+      if (btnFecha) {
+        btnFecha.disabled = true;
+        btnFecha.title = "Selecciona primero una semana";
+      }
+      
+      // Mismo diseño y texto que en la tabla de pagos/KPI
+      contenedorFechas.innerHTML = `
+        <div style="padding: 10px; color: #64748b; font-size: 11px; font-style: italic; text-align: center;">
+            ⚠️ Selecciona una semana primero
+        </div>
+      `;
       fechasSeleccionadas.clear();
       return;
     }
 
-    btnFecha.title = "";
-    btnFecha.classList.remove('deshabilitado');
+    if (btnFecha) {
+      btnFecha.disabled = false;
+      btnFecha.title = "";
+    }
 
     const fechasFiltradas = [...new Set(
       datosSupervision
@@ -143,7 +154,9 @@
     )].sort();
 
     contenedorFechas.innerHTML = fechasFiltradas.map(f => `
-      <label class="opcion-filtro"><input type="checkbox" value="${escapeHTML(f)}" class="chk-fecha"> ${escapeHTML(f)}</label>
+      <label class="opcion-filtro" style="display: block; padding: 6px 12px; cursor: pointer; font-size: 13px; color: #334155;">
+        <input type="checkbox" value="${f}" class="chk-fecha" style="margin-right: 8px;"> ${f}
+      </label>
     `).join('');
   }
 
