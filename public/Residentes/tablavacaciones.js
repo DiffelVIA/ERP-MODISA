@@ -7,9 +7,6 @@
   let empleadosSeleccionados = new Set();
   let estadosSeleccionados = new Set();
 
-  /**
-   * Helper para sanitización de cadenas contra inyección de código malicioso XSS
-   */
   function escapeHTML(str) {
     if (!str) return '';
     return String(str)
@@ -20,9 +17,6 @@
       .replace(/'/g, '&#039;');
   }
 
-  /**
-   * Decodifica el token JWT para extraer credenciales
-   */
   function obtenerDatosDesdeJWT() {
     const token = localStorage.getItem('jwtToken');
     if (!token) return null;
@@ -45,9 +39,6 @@
     await cargarDatosVacaciones();
   });
 
-  /**
-   * Carga el historial desde la API del backend dedicado de vacaciones
-   */
   async function cargarDatosVacaciones() {
     try {
       const token = localStorage.getItem('jwtToken') || '';
@@ -74,9 +65,6 @@
     }
   }
 
-  /**
-   * Configura los desplegables de filtros identicamente al modulo de supervision
-   */
   function configurarDropdownsUI() {
     document.querySelectorAll('.btn-dropdown').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -102,9 +90,6 @@
     });
   }
 
-  /**
-   * Construye dinámicamente los checkboxes de filtros
-   */
   function construirFiltrosIniciales() {
     const contenedorEmpleados = document.getElementById('filtroEmpleado');
     const contenedorEstados = document.getElementById('filtroEstado');
@@ -147,10 +132,7 @@
     renderizarTabla(filtrados);
   }
 
-  /**
-   * Renderiza las filas de la tabla con estilos CSS globales y controles por RBAC
-   */
-  function renderizarTabla(lista) {
+ function renderizarTabla(lista) {
     const cuerpo = document.getElementById('cuerpoTablaVacaciones');
     if (!cuerpo) return;
 
@@ -159,8 +141,13 @@
       return;
     }
 
-    const userRol = (localStorage.getItem('userRol') || '').toLowerCase();
-    const esAdmin = ['admin', 'administrador', 'rh', 'gerencia'].includes(userRol);
+    const userRol = (localStorage.getItem('userRol') || '').toLowerCase().trim();
+    const esGerenteAdmin = [
+      'gerente administracion', 
+      'gerente de administracion', 
+      'gerente de administración',
+      'gerente administración'
+    ].includes(userRol);
 
     cuerpo.innerHTML = lista.map(item => {
       const idVacacion = item.id_vacacion;
@@ -172,20 +159,26 @@
       const estadoActual = String(item.estado || 'pendiente').toLowerCase();
       const obsTexto = escapeHTML(item.observaciones || '');
 
-      // Generar Dropdown de Estado con control de seguridad (disabled para empleados)
-      const disabledAttr = !esAdmin ? 'disabled style="cursor: not-allowed;"' : '';
-      const selectEstadoHTML = `
-        <select class="select-estado-tabla" data-id="${idVacacion}" ${disabledAttr} onchange="window.actualizarEstadoVacacion(${idVacacion}, this.value)">
-          <option value="pendiente" ${estadoActual === 'pendiente' ? 'selected' : ''}>Pendiente</option>
-          <option value="autorizada" ${estadoActual === 'autorizada' ? 'selected' : ''}>Autorizada</option>
-          <option value="rechazada" ${estadoActual === 'rechazada' ? 'selected' : ''}>Rechazada</option>
-        </select>
-      `;
+      let selectEstadoHTML = '';
+      if (esGerenteAdmin) {
+        selectEstadoHTML = `
+          <select class="select-estado-tabla" data-id="${idVacacion}" onchange="window.actualizarEstadoVacacion(${idVacacion}, this.value)">
+            <option value="pendiente" ${estadoActual === 'pendiente' ? 'selected' : ''}>Pendiente</option>
+            <option value="autorizada" ${estadoActual === 'autorizada' ? 'selected' : ''}>Autorizada</option>
+            <option value="rechazada" ${estadoActual === 'rechazada' ? 'selected' : ''}>Rechazada</option>
+          </select>
+        `;
+      } else {
+        const textoEstadoFormateado = estadoActual.charAt(0).toUpperCase() + estadoActual.slice(1);
+        selectEstadoHTML = `<span>${textoEstadoFormateado}</span>`;
+      }
 
-      // Observaciones editables solo si es Admin/RH
-      const obsHTML = esAdmin 
-        ? `<input type="text" value="${obsTexto}" placeholder="Agregar nota..." class="input-obs-tabla" onblur="window.actualizarObservacionVacacion(${idVacacion}, this.value)" style="width: 95%; padding: 4px; font-size: 12px;">`
-        : (obsTexto || '-');
+      let obsHTML = '';
+      if (esGerenteAdmin) {
+        obsHTML = `<input type="text" value="${obsTexto}" placeholder="Agregar nota..." class="input-obs-tabla" onblur="window.actualizarObservacionVacacion(${idVacacion}, this.value)" style="width: 95%; padding: 4px; font-size: 12px;">`;
+      } else {
+        obsHTML = obsTexto || '-';
+      }
 
       return `
         <tr>
@@ -201,9 +194,6 @@
     }).join('');
   }
 
-  /**
-   * Petición PATCH para actualizar estado ENUM en MySQL
-   */
   window.actualizarEstadoVacacion = async function(idVacacion, nuevoEstado) {
     const token = localStorage.getItem('jwtToken') || '';
     try {
@@ -228,9 +218,6 @@
     }
   };
 
-  /**
-   * Petición PATCH para actualizar observaciones en MySQL
-   */
   window.actualizarObservacionVacacion = async function(idVacacion, nuevaObservacion) {
     const token = localStorage.getItem('jwtToken') || '';
     try {
