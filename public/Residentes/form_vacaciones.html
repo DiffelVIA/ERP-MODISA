@@ -16,7 +16,7 @@
         </div>
         <nav>
             <ul>
-                <li><a href="../principal.html?panel=empleados">Volver a Panel Control</a></li>
+                <li><a href="../principal.html?panel=control">Volver a Panel Control</a></li>
             </ul>
         </nav>
     </header>
@@ -25,12 +25,13 @@
         <h1>🌴 Solicitud de Vacaciones</h1>
         <form id="form-vacaciones">
 
+            <!-- MODIFICACIÓN SOLUCIÓN: Identificación automática del solicitante mediante JWT -->
+            <input type="hidden" id="id_employee" name="id_employee">
             <div class="contenedor-formulario">
-                <label for="id_employee">Empleado:</label>
-                <select id="id_employee" name="id_employee" required>
-                    <option value="">-- Selecciona un empleado --</option>
-                </select>
+                <label for="nombre_solicitante">Empleado Solicitante:</label>
+                <input type="text" id="nombre_solicitante" name="nombre_solicitante" readonly style="background-color: #e9ecef; cursor: not-allowed;" placeholder="Cargando usuario...">
             </div>
+            <!-- FIN MODIFICACIÓN SOLUCIÓN -->
 
             <div class="contenedor-formulario">
                 <label for="fecha_inicio">Fecha de Inicio:</label>
@@ -42,10 +43,12 @@
                 <input type="date" id="fecha_fin" name="fecha_fin" required>
             </div>
 
+            <!-- MODIFICACIÓN SOLUCIÓN: Campo de días calculados en solo lectura para evitar alteración manual -->
             <div class="contenedor-formulario">
-                <label for="dias_tomados">Días Solicitados:</label>
-                <input type="number" id="dias_tomados" name="dias_tomados" min="1" placeholder="Ej: 5" required>
+                <label for="dias_tomados">Días Hábiles Solicitados (Lun - Vie):</label>
+                <input type="number" id="dias_tomados" name="dias_tomados" readonly style="background-color: #e9ecef; cursor: not-allowed;" placeholder="Calculado automáticamente" required>
             </div>
+            <!-- FIN MODIFICACIÓN SOLUCIÓN -->
 
             <div class="contenedor-formulario">
                 <label for="motivo">Motivo / Observaciones:</label>

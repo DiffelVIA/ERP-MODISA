@@ -4,86 +4,109 @@
         : 'https://erp-modisa.onrender.com/api';
 
     document.addEventListener('DOMContentLoaded', () => {
-        cargarEmpleadosSelect();
-        configurarCalculoDias();
+        inicializarSolicitanteDesdeJWT();
+        configurarCalculoDiasHabiles();
         configurarEnvioFormulario();
     });
 
     /**
-     * Carga el listado de empleados activos en el campo <select id="id_employee">
+     * MODIFICACIÓN SOLUCIÓN: Decodifica de forma segura el JWT para obtener los datos del usuario logeado
      */
-    async function cargarEmpleadosSelect() {
-        const selectEmp = document.getElementById('id_employee');
-        if (!selectEmp) return;
-
+    function obtenerDatosDesdeJWT() {
+        const token = localStorage.getItem('jwtToken');
+        if (!token) return null;
         try {
-            const token = localStorage.getItem('jwtToken') || '';
-            const res = await fetch(`${API_BASE}/empleados/gestion`, {
-                headers: {
-                    'Authorization': token ? `Bearer ${token}` : '',
-                    'x-user-rol': localStorage.getItem('userRol') || ''
-                }
-            });
-
-            if (!res.ok) throw new Error('Error al cargar la lista de empleados.');
-
-            const empleados = await res.json();
-            
-            // Limpiar opciones previas manteniendo el placeholder por defecto
-            selectEmp.innerHTML = '<option value="">-- Selecciona un empleado --</option>';
-
-            empleados.forEach(emp => {
-                const option = document.createElement('option');
-                option.value = emp.id_employee;
-                option.textContent = `${emp.name} ${emp.last_name} (${emp.department || 'Sin Depto'})`;
-                selectEmp.appendChild(option);
-            });
-
-        } catch (err) {
-            console.error('❌ Error al cargar empleados:', err);
-            alert('❌ No se pudo cargar el catálogo de empleados.');
+            const base64Url = token.split('.')[1];
+            if (!base64Url) return null;
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            return JSON.parse(jsonPayload);
+        } catch (e) {
+            console.error("❌ Error al decodificar JWT en vacaciones:", e);
+            return null;
         }
     }
 
     /**
-     * Calcula los días hábiles/naturales sugeridos entre la fecha de inicio y la fecha de fin
+     * Carga el nombre e ID del solicitante logeado en la interfaz
      */
-    function configurarCalculoDias() {
+    function inicializarSolicitanteDesdeJWT() {
+        const payload = obtenerDatosDesdeJWT();
+        const inputHiddenId = document.getElementById('id_employee');
+        const inputNombre = document.getElementById('nombre_solicitante');
+
+        if (!payload || (!payload.id_employee && !payload.id)) {
+            alert('⚠️ No se pudo verificar la sesión del usuario. Por favor vuelve a iniciar sesión.');
+            window.location.href = '../login.html';
+            return;
+        }
+
+        const idEmpleado = payload.id_employee || payload.id;
+        const nombreCompleto = payload.nombre_completo 
+            || (payload.name ? `${payload.name} ${payload.last_name || ''}` : '') 
+            || payload.email 
+            || `Empleado #${idEmpleado}`;
+
+        if (inputHiddenId) inputHiddenId.value = idEmpleado;
+        if (inputNombre) inputNombre.value = nombreCompleto.trim();
+    }
+
+    /**
+     * MODIFICACIÓN SOLUCIÓN: Algoritmo para contar exclusivamente días hábiles (Lunes a Viernes)
+     */
+    function configurarCalculoDiasHabiles() {
         const inputInicio = document.getElementById('fecha_inicio');
         const inputFin = document.getElementById('fecha_fin');
         const inputDias = document.getElementById('dias_tomados');
 
         if (!inputInicio || !inputFin || !inputDias) return;
 
-        function calcularDias() {
+        function calcularDiasHabiles() {
             const fInicioVal = inputInicio.value;
             const fFinVal = inputFin.value;
 
             if (!fInicioVal || !fFinVal) return;
 
-            const inicio = new Date(fInicioVal);
-            const fin = new Date(fFinVal);
+            // Instanciar fechas evitando desfase por zona horaria UTC
+            const [yearI, monthI, dayI] = fInicioVal.split('-').map(Number);
+            const [yearF, monthF, dayF] = fFinVal.split('-').map(Number);
 
-            if (fin < inicio) {
+            const fechaActual = new Date(yearI, monthI - 1, dayI);
+            const fechaFin = new Date(yearF, monthF - 1, dayF);
+
+            if (fechaFin < fechaActual) {
                 alert('⚠️ La fecha de fin no puede ser anterior a la fecha de inicio.');
                 inputFin.value = '';
                 inputDias.value = '';
                 return;
             }
 
-            // Cálculo básico de diferencia de días inclusivo
-            const diffTime = Math.abs(fin - inicio);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-            
-            inputDias.value = diffDays;
+            let diasHabiles = 0;
+
+            // Recorrer día por día el rango seleccionado
+            while (fechaActual <= fechaFin) {
+                const diaSemana = fechaActual.getDay(); // 0: Domingo, 6: Sábado
+                
+                // Si es de Lunes (1) a Viernes (5), se contabiliza
+                if (diaSemana !== 0 && diaSemana !== 6) {
+                    diasHabiles++;
+                }
+
+                // Avanzar un día
+                fechaActual.setDate(fechaActual.getDate() + 1);
+            }
+
+            inputDias.value = diasHabiles;
         }
 
-        inputInicio.addEventListener('change', calcularDias);
-        inputFin.addEventListener('change', calcularDias);
+        inputInicio.addEventListener('change', calcularDiasHabiles);
+        inputFin.addEventListener('change', calcularDiasHabiles);
     }
 
     /**
-     * Procesa el evento submit del formulario e interactúa con el backend
+     * Procesa y envía la solicitud al backend
      */
     function configurarEnvioFormulario() {
         const form = document.getElementById('form-vacaciones');
@@ -98,8 +121,13 @@
             const diasTomados = parseInt(document.getElementById('dias_tomados').value, 10);
             const motivo = document.getElementById('motivo').value.trim();
 
-            if (!idEmployee || !fechaInicio || !fechaFin || isNaN(diasTomados)) {
-                alert('⚠️ Por favor completa todos los campos requeridos.');
+            if (!idEmployee) {
+                alert('⚠️ Identificación de usuario no válida.');
+                return;
+            }
+
+            if (!fechaInicio || !fechaFin || isNaN(diasTomados) || diasTomados <= 0) {
+                alert('⚠️ Por favor selecciona un rango de fechas válido con al menos 1 día hábil.');
                 return;
             }
 
@@ -126,7 +154,12 @@
                 if (!res.ok) throw new Error(data.error || 'Error al guardar la solicitud de vacaciones.');
 
                 alert('🎉 Solicitud de vacaciones registrada correctamente.');
-                form.reset();
+                
+                // Limpiar campos de fecha y mantener datos del solicitante
+                document.getElementById('fecha_inicio').value = '';
+                document.getElementById('fecha_fin').value = '';
+                document.getElementById('dias_tomados').value = '';
+                document.getElementById('motivo').value = '';
 
             } catch (err) {
                 console.error('❌ Error al enviar formulario:', err);
