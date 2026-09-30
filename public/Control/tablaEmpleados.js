@@ -3,8 +3,6 @@
         ? 'http://localhost:3000/api' 
         : 'https://erp-modisa.onrender.com/api';
 
-    let chartGaugeVacaciones = null;
-
     function obtenerRolDesdeJWT() {
         const token = localStorage.getItem('jwtToken');
         if (!token) return '';
@@ -104,7 +102,6 @@
                 <td>${emp.department || '---'}</td>
                 <td>${fechaIngresoFormatted}</td>
                 <td style="text-align: center; white-space: nowrap;">
-                    <button class="btn btn-vacaciones" data-id="${emp.id_employee}" style="padding: 3px 8px; font-size: 11px; background-color: #28a745; color: #fff;">🌴 Vacaciones</button>
                     <button class="btn btn-editar" data-id="${emp.id_employee}" style="padding: 3px 8px; font-size: 11px;">✏️ Editar</button>
                     <button class="btn btn-eliminar" data-id="${emp.id_employee}" style="padding: 3px 8px; font-size: 11px; background-color: #f0a351; color: #fff;">🗑️ Eliminar</button>
                 </td>
@@ -118,14 +115,6 @@
         const btnNuevo = document.getElementById('btn-nuevo-empleado');
         const btnCerrar = document.getElementById('btnCerrarModal');
         const form = document.getElementById('formEmpleado');
-
-        const modalVac = document.getElementById('modalVacaciones');
-        const btnCerrarVac = document.getElementById('btnCerrarModalVacaciones');
-        const formVac = document.getElementById('formVacaciones');
-
-        if (btnCerrarVac && modalVac) {
-            btnCerrarVac.addEventListener('click', () => modalVac.classList.remove('mostrar'));
-        }
 
         if (btnNuevo && modal) {
             btnNuevo.addEventListener('click', () => {
@@ -150,12 +139,6 @@
             cuerpoTabla.addEventListener('click', (e) => {
                 const btnEdit = e.target.closest('.btn-editar');
                 const btnDel = e.target.closest('.btn-eliminar');
-                const btnVac = e.target.closest('.btn-vacaciones');
-
-                if (btnVac) {
-                    const id = btnVac.getAttribute('data-id');
-                    abrirModalVacaciones(id);
-                }
 
                 if (btnEdit) {
                     const id = btnEdit.getAttribute('data-id');
@@ -187,19 +170,6 @@
                     if (confirm('¿Estás seguro de que deseas eliminar este empleado?')) {
                         eliminarEmpleado(id);
                     }
-                }
-            });
-        }
-
-        // Event listener para la tabla de historial (Eliminar vacaciones individualmente)
-        const tablaHistorial = document.getElementById('historialVacacionesTabla');
-        if (tablaHistorial) {
-            tablaHistorial.addEventListener('click', (e) => {
-                const btnEliminar = e.target.closest('.btn-eliminar-vac');
-                if (btnEliminar) {
-                    const idVac = btnEliminar.getAttribute('data-id');
-                    const idEmp = document.getElementById('vac-emp-id').value;
-                    window.eliminarVacacion(idVac, idEmp);
                 }
             });
         }
@@ -252,163 +222,7 @@
                 }
             });
         }
-
-        if (formVac) {
-            formVac.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const idEmployee = document.getElementById('vac-emp-id').value;
-                
-                // CÓDIGO MODIFICADO: Payload sin campo motivo
-                const payload = {
-                    fecha_inicio: document.getElementById('vac-fecha-inicio').value,
-                    fecha_fin: document.getElementById('vac-fecha-fin').value,
-                    dias_tomados: parseInt(document.getElementById('vac-dias-tomados').value)
-                };
-
-                try {
-                    const token = localStorage.getItem('jwtToken') || '';
-                    const res = await fetch(`${API_BASE}/empleados/${idEmployee}/vacaciones`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': token ? `Bearer ${token}` : '',
-                            'x-user-rol': localStorage.getItem('userRol')
-                        },
-                        body: JSON.stringify(payload)
-                    });
-
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.error || 'Error al guardar vacaciones.');
-
-                    alert('🎉 Vacaciones registradas correctamente.');
-                    formVac.reset();
-                    abrirModalVacaciones(idEmployee);
-                } catch (err) {
-                    alert(`❌ ${err.message}`);
-                }
-            });
-        }
     }
-
-    async function abrirModalVacaciones(idEmployee) {
-        const emp = listaEmpleados.find(i => String(i.id_employee) === String(idEmployee));
-        if (!emp) return;
-
-        document.getElementById('vacNombreEmpleado').textContent = `🌴 Vacaciones - ${emp.name} ${emp.last_name}`;
-        document.getElementById('vac-emp-id').value = idEmployee;
-
-        try {
-            const token = localStorage.getItem('jwtToken') || '';
-            const res = await fetch(`${API_BASE}/empleados/${idEmployee}/vacaciones`, {
-                headers: {
-                    'Authorization': token ? `Bearer ${token}` : '',
-                    'x-user-rol': localStorage.getItem('userRol')
-                }
-            });
-
-            if (!res.ok) throw new Error('Error al consultar datos de vacaciones.');
-
-            const data = await res.json();
-            
-            const spanRenovacion = document.getElementById('vacProximaRenovacion');
-            if (spanRenovacion) {
-                spanRenovacion.textContent = data.proxima_renovacion 
-                    ? `🔄 Próxima Renovación: ${new Date(data.proxima_renovacion).toLocaleDateString('es-MX', { timeZone: 'UTC' })}`
-                    : '🔄 Próxima Renovación: No definida (Asigna Fecha de Ingreso)';
-            }
-
-            document.getElementById('kpiDiasLey').textContent = data.dias_ley;
-            document.getElementById('kpiDiasTomados').textContent = data.dias_tomados;
-            document.getElementById('kpiDiasRestantes').textContent = data.dias_restantes;
-            document.getElementById('gaugeTextoCentral').textContent = `${data.dias_restantes} Días Restantes`;
-
-            renderizarVelocimetro(data.dias_tomados, data.dias_restantes, data.dias_ley);
-
-            renderizarTablaHistorial(data.historial, idEmployee);
-
-            document.getElementById('modalVacaciones').classList.add('mostrar');
-        } catch (err) {
-            alert(`❌ ${err.message}`);
-        }
-    }
-
-    function renderizarVelocimetro(diasTomados, diasRestantes, diasLey) {
-        const ctx = document.getElementById('gaugeVacaciones').getContext('2d');
-        if (chartGaugeVacaciones) {
-            chartGaugeVacaciones.destroy();
-        }
-
-        const tomados = diasTomados;
-        const restantes = diasRestantes > 0 ? diasRestantes : 0;
-
-        chartGaugeVacaciones = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Días Tomados', 'Días Restantes'],
-                datasets: [{
-                    data: [tomados, restantes],
-                    backgroundColor: ['#ffc107', '#28a745'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                rotation: -90,
-                circumference: 180,
-                cutout: '75%',
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { enabled: true }
-                }
-            }
-        });
-    }
-
-    function renderizarTablaHistorial(historial, idEmployee) {
-        const tbody = document.getElementById('historialVacacionesTabla');
-        tbody.innerHTML = '';
-
-        if (!historial || historial.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 12px; color: #888;">Sin registros de vacaciones tomadas.</td></tr>`;
-            return;
-        }
-
-        historial.forEach(v => {
-            const tr = document.createElement('tr');
-            tr.style.borderBottom = '1px solid #eee';
-            
-            const fInicio = new Date(v.fecha_inicio).toLocaleDateString('es-MX', { timeZone: 'UTC' });
-            const fFin = new Date(v.fecha_fin).toLocaleDateString('es-MX', { timeZone: 'UTC' });
-
-            tr.innerHTML = `
-                <td style="padding: 6px 8px;">${fInicio}</td>
-                <td style="padding: 6px 8px;">${fFin}</td>
-                <td style="padding: 6px 8px; text-align: center; font-weight: bold;">${v.dias_tomados}</td>
-                <td style="padding: 6px 8px; text-align: center;">
-                    <button class="btn-eliminar-vac" data-id="${v.id_vacacion}" style="background: #f0a351; color: white; border: none; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">🗑️ Eliminar</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-    }
-
-    window.eliminarVacacion = async function(idVacacion, idEmployee) {
-        if (!confirm('¿Deseas eliminar este registro de vacaciones?')) return;
-        try {
-            const token = localStorage.getItem('jwtToken') || '';
-            const res = await fetch(`${API_BASE}/empleados/vacaciones/${idVacacion}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': token ? `Bearer ${token}` : '',
-                    'x-user-rol': localStorage.getItem('userRol')
-                }
-            });
-
-            if (!res.ok) throw new Error('Error al eliminar registro.');
-            abrirModalVacaciones(idEmployee);
-        } catch (err) {
-            alert(`❌ ${err.message}`);
-        }
-    };
 
     async function eliminarEmpleado(id) {
         try {
