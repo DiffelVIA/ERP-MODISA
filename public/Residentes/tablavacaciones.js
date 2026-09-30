@@ -44,8 +44,7 @@
       const token = localStorage.getItem('jwtToken') || '';
       const respuesta = await fetch(`${API_URL}/vacaciones`, {
         headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'x-user-rol': localStorage.getItem('userRol') || ''
+          'Authorization': token ? `Bearer ${token}` : ''
         }
       });
 
@@ -64,74 +63,7 @@
       }
     }
   }
-
-  function configurarDropdownsUI() {
-    document.querySelectorAll('.btn-dropdown').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const contenedor = btn.nextElementSibling;
-        
-        document.querySelectorAll('.contenido-dropdown').forEach(d => {
-          if (d !== contenedor) d.classList.remove('mostrar');
-        });
-
-        contenedor.classList.toggle('mostrar');
-      });
-    });
-
-    document.querySelectorAll('.contenido-dropdown').forEach(d => {
-      d.addEventListener('click', (e) => {
-        e.stopPropagation();
-      });
-    });
-
-    document.addEventListener('click', () => {
-      document.querySelectorAll('.contenido-dropdown').forEach(d => d.classList.remove('mostrar'));
-    });
-  }
-
-  function construirFiltrosIniciales() {
-    const contenedorEmpleados = document.getElementById('filtroEmpleado');
-    const contenedorEstados = document.getElementById('filtroEstado');
-
-    if (!contenedorEmpleados || !contenedorEstados) return;
-
-    const empleadosUnicos = [...new Set(datosVacaciones.map(item => item.nombre_empleado || item.empleado || `Empleado ID #${item.id_employee}`))].sort();
-    contenedorEmpleados.innerHTML = empleadosUnicos.map(emp => `
-      <label class="opcion-filtro"><input type="checkbox" value="${escapeHTML(emp)}" class="chk-empleado"> ${escapeHTML(emp)}</label>
-    `).join('');
-
-    const estadosUnicos = ['pendiente', 'autorizada', 'rechazada'];
-    contenedorEstados.innerHTML = estadosUnicos.map(est => `
-      <label class="opcion-filtro"><input type="checkbox" value="${est}" class="chk-estado"> ${est.charAt(0).toUpperCase() + est.slice(1)}</label>
-    `).join('');
-
-    contenedorEmpleados.addEventListener('change', actualizarFiltrosYTabla);
-    contenedorEstados.addEventListener('change', actualizarFiltrosYTabla);
-  }
-
-  function actualizarFiltrosYTabla() {
-    empleadosSeleccionados = new Set(
-      Array.from(document.querySelectorAll('.chk-empleado:checked')).map(cb => cb.value)
-    );
-
-    estadosSeleccionados = new Set(
-      Array.from(document.querySelectorAll('.chk-estado:checked')).map(cb => cb.value)
-    );
-
-    const filtrados = datosVacaciones.filter(item => {
-      const empNombre = item.nombre_empleado || item.empleado || `Empleado ID #${item.id_employee}`;
-      const estNombre = String(item.estado || 'pendiente').toLowerCase();
-
-      const cumpleEmpleado = empleadosSeleccionados.size === 0 || empleadosSeleccionados.has(empNombre);
-      const cumpleEstado = estadosSeleccionados.size === 0 || estadosSeleccionados.has(estNombre);
-
-      return cumpleEmpleado && cumpleEstado;
-    });
-
-    renderizarTabla(filtrados);
-  }
-
+  
   function renderizarTabla(lista) {
     const cuerpo = document.getElementById('cuerpoTablaVacaciones');
     if (!cuerpo) return;
@@ -163,21 +95,28 @@
       const fechaInicio = escapeHTML(item.fecha_inicio ? item.fecha_inicio.split('T')[0] : '-');
       const fechaFin = escapeHTML(item.fecha_fin ? item.fecha_fin.split('T')[0] : '-');
       const diasTomados = Number(item.dias_tomados || 0);
-      const estadoActual = String(item.estado || 'pendiente').toLowerCase();
+      
+      const estadoRaw = String(item.estado || 'pendiente').toLowerCase();
+      // Mapeo bidireccional entre 'aprobada' (MySQL) y 'autorizada' (UI)
+      const esAprobadaOAutorizada = (estadoRaw === 'aprobada' || estadoRaw === 'autorizada');
+      const esRechazada = (estadoRaw === 'rechazada');
+      const esPendiente = (!esAprobadaOAutorizada && !esRechazada);
+
       const obsTexto = escapeHTML(item.observaciones || '');
 
       let selectEstadoHTML = '';
       if (esGerenteAdmin) {
         selectEstadoHTML = `
           <select class="select-estado-tabla" data-id="${idVacacion}" onchange="window.actualizarEstadoVacacion(${idVacacion}, this.value, this)" style="padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 13px; color: #334155; font-weight: 500;">
-            <option value="pendiente" ${estadoActual === 'pendiente' ? 'selected' : ''}>Pendiente</option>
-            <option value="autorizada" ${estadoActual === 'autorizada' ? 'selected' : ''}>Autorizada</option>
-            <option value="rechazada" ${estadoActual === 'rechazada' ? 'selected' : ''}>Rechazada</option>
+            <option value="pendiente" ${esPendiente ? 'selected' : ''}>Pendiente</option>
+            <option value="autorizada" ${esAprobadaOAutorizada ? 'selected' : ''}>Autorizada</option>
+            <option value="rechazada" ${esRechazada ? 'selected' : ''}>Rechazada</option>
           </select>
         `;
       } else {
-        const textoEstadoFormateado = estadoActual.charAt(0).toUpperCase() + estadoActual.slice(1);
-        selectEstadoHTML = `<span class="badge-status-pago" style="padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #fff; background-color: ${estadoActual === 'autorizada' ? '#16a34a' : (estadoActual === 'rechazada' ? '#dc2626' : '#eab308')}">${textoEstadoFormateado}</span>`;
+        const textoEstadoFormateado = esAprobadaOAutorizada ? 'Autorizada' : (esRechazada ? 'Rechazada' : 'Pendiente');
+        const colorFondo = esAprobadaOAutorizada ? '#16a34a' : (esRechazada ? '#dc2626' : '#eab308');
+        selectEstadoHTML = `<span class="badge-status-pago" style="padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #fff; background-color: ${colorFondo}">${textoEstadoFormateado}</span>`;
       }
 
       let obsHTML = '';
@@ -202,34 +141,39 @@
   }
 
   window.actualizarEstadoVacacion = async function(idVacacion, nuevoEstado, elementoInput) {
-  const token = localStorage.getItem('jwtToken') || '';
-  const trFila = elementoInput ? elementoInput.closest('tr') : document.querySelector(`tr[data-id="${idVacacion}"]`);
+    const token = localStorage.getItem('jwtToken') || '';
+    const trFila = elementoInput ? elementoInput.closest('tr') : document.querySelector(`tr[data-id="${idVacacion}"]`);
 
-  try {
-    const res = await fetch(`${API_URL}/vacaciones/${idVacacion}/estado`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : ''
-      },
-      body: JSON.stringify({ estado: nuevoEstado })
-    });
+    try {
+      const res = await fetch(`${API_URL}/vacaciones/${idVacacion}/estado`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify({ estado: nuevoEstado })
+      });
 
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || 'No se pudo actualizar el estado.');
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'No se pudo actualizar el estado.');
+      }
+
+      const itemLocal = datosVacaciones.find(item => item.id_vacacion === idVacacion);
+      if (itemLocal) {
+        itemLocal.estado = nuevoEstado;
+      }
+
+      if (trFila) {
+        trFila.style.backgroundColor = "#eaffea";
+        setTimeout(() => { trFila.style.backgroundColor = ""; }, 600);
+      }
+    } catch (err) {
+      console.error("❌ Error al actualizar estado:", err);
+      alert(`❌ Error: ${err.message}`);
+      await cargarDatosVacaciones();
     }
-
-    if (trFila) {
-      trFila.style.backgroundColor = "#eaffea";
-      setTimeout(() => { trFila.style.backgroundColor = ""; }, 600);
-    }
-  } catch (err) {
-    console.error("❌ Error al actualizar estado:", err);
-    alert(`❌ Error: ${err.message}`);
-    await cargarDatosVacaciones();
-  }
-};
+  };
 
 window.actualizarObservacionVacacion = async function(idVacacion, nuevaObservacion, elementoInput) {
   const token = localStorage.getItem('jwtToken') || '';
