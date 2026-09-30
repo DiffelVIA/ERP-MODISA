@@ -25,7 +25,7 @@ router.get('/', verificarToken, async (req, res) => {
 
     const esAdmin = ROLES_ADMINISTRATIVOS.some(r => {
       const rLimpio = r.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      return rLimpio === rolUsuarioLimpio;
+      return rLimpio === rolUsuarioLimpio || (rolUsuarioLimpio.includes('gerente') && rolUsuarioLimpio.includes('administrac'));
     });
 
     let sql = `

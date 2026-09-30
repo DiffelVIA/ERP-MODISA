@@ -132,7 +132,7 @@
     renderizarTabla(filtrados);
   }
 
- function renderizarTabla(lista) {
+  function renderizarTabla(lista) {
     const cuerpo = document.getElementById('cuerpoTablaVacaciones');
     if (!cuerpo) return;
 
@@ -141,9 +141,8 @@
       return;
     }
 
-    // MODIFICACIÓN SOLUCIÓN: Fallback doble leyendo el rol desde localStorage y desde la firma decodificada del JWT
     const jwtDatos = obtenerDatosDesdeJWT() || {};
-    const userRolRaw = localStorage.getItem('userRol') || jwtDatos.rol || jwtDatos.role || '';
+    const userRolRaw = localStorage.getItem('userRol') || jwtDatos.rol || jwtDatos.role || jwtDatos.job_title || '';
 
     const userRolNormalizado = userRolRaw
       .trim()
@@ -153,9 +152,9 @@
 
     const esGerenteAdmin = (
       userRolNormalizado === 'gerente administracion' || 
-      userRolNormalizado === 'gerente de administracion'
+      userRolNormalizado === 'gerente de administracion' ||
+      (userRolNormalizado.includes('gerente') && userRolNormalizado.includes('administrac'))
     );
-    // FIN MODIFICACIÓN SOLUCIÓN
 
     cuerpo.innerHTML = lista.map(item => {
       const idVacacion = item.id_vacacion;
@@ -170,7 +169,7 @@
       let selectEstadoHTML = '';
       if (esGerenteAdmin) {
         selectEstadoHTML = `
-          <select class="select-estado-tabla" data-id="${idVacacion}" onchange="window.actualizarEstadoVacacion(${idVacacion}, this.value)">
+          <select class="select-estado-tabla" data-id="${idVacacion}" onchange="window.actualizarEstadoVacacion(${idVacacion}, this.value, this)" style="padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 13px; color: #334155; font-weight: 500;">
             <option value="pendiente" ${estadoActual === 'pendiente' ? 'selected' : ''}>Pendiente</option>
             <option value="autorizada" ${estadoActual === 'autorizada' ? 'selected' : ''}>Autorizada</option>
             <option value="rechazada" ${estadoActual === 'rechazada' ? 'selected' : ''}>Rechazada</option>
@@ -178,32 +177,34 @@
         `;
       } else {
         const textoEstadoFormateado = estadoActual.charAt(0).toUpperCase() + estadoActual.slice(1);
-        selectEstadoHTML = `<span>${textoEstadoFormateado}</span>`;
+        selectEstadoHTML = `<span class="badge-status-pago" style="padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #fff; background-color: ${estadoActual === 'autorizada' ? '#16a34a' : (estadoActual === 'rechazada' ? '#dc2626' : '#eab308')}">${textoEstadoFormateado}</span>`;
       }
 
       let obsHTML = '';
       if (esGerenteAdmin) {
-        obsHTML = `<input type="text" value="${obsTexto}" placeholder="Agregar nota..." class="input-obs-tabla" onblur="window.actualizarObservacionVacacion(${idVacacion}, this.value)" style="width: 95%; padding: 4px; font-size: 12px;">`;
+        obsHTML = `<input type="text" value="${obsTexto}" placeholder="Agregar nota..." class="input-obs-tabla" onblur="window.actualizarObservacionVacacion(${idVacacion}, this.value, this)" style="width: 95%; padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 12px; color: #334155;">`;
       } else {
-        obsHTML = obsTexto || '-';
+        obsHTML = `<span style="color: #475569; font-style: italic; font-size: 12px;">${obsTexto || '-'}</span>`;
       }
 
       return `
-        <tr>
+        <tr data-id="${idVacacion}">
           <td><strong>${empNombre}</strong></td>
-          <td>${fechaSolicitud}</td>
-          <td>${fechaInicio}</td>
-          <td>${fechaFin}</td>
+          <td style="text-align: center;">${fechaSolicitud}</td>
+          <td style="text-align: center;">${fechaInicio}</td>
+          <td style="text-align: center;">${fechaFin}</td>
           <td style="text-align: center;"><strong>${diasTomados}</strong></td>
-          <td>${selectEstadoHTML}</td>
+          <td style="text-align: center;">${selectEstadoHTML}</td>
           <td>${obsHTML}</td>
         </tr>
       `;
     }).join('');
   }
 
-  window.actualizarEstadoVacacion = async function(idVacacion, nuevoEstado) {
+  window.actualizarEstadoVacacion = async function(idVacacion, nuevoEstado, elementoInput) {
     const token = localStorage.getItem('jwtToken') || '';
+    const trFila = elementoInput ? elementoInput.closest('tr') : document.querySelector(`tr[data-id="${idVacacion}"]`);
+
     try {
       const res = await fetch(`${API_URL}/vacaciones/${idVacacion}/estado`, {
         method: 'PATCH',
@@ -219,6 +220,11 @@
         const data = await res.json();
         throw new Error(data.error || 'No se pudo actualizar el estado.');
       }
+
+      if (trFila) {
+        trFila.style.backgroundColor = "#eaffea";
+        setTimeout(() => { trFila.style.backgroundColor = ""; }, 600);
+      }
     } catch (err) {
       console.error("❌ Error al actualizar estado:", err);
       alert(`❌ Error: ${err.message}`);
@@ -226,10 +232,12 @@
     }
   };
 
-  window.actualizarObservacionVacacion = async function(idVacacion, nuevaObservacion) {
+  window.actualizarObservacionVacacion = async function(idVacacion, nuevaObservacion, elementoInput) {
     const token = localStorage.getItem('jwtToken') || '';
+    const trFila = elementoInput ? elementoInput.closest('tr') : document.querySelector(`tr[data-id="${idVacacion}"]`);
+
     try {
-      await fetch(`${API_URL}/vacaciones/${idVacacion}/observaciones`, {
+      const res = await fetch(`${API_URL}/vacaciones/${idVacacion}/observaciones`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -238,8 +246,19 @@
         },
         body: JSON.stringify({ observaciones: nuevaObservacion })
       });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'No se pudo actualizar la observación.');
+      }
+
+      if (trFila) {
+        trFila.style.backgroundColor = "#eaffea";
+        setTimeout(() => { trFila.style.backgroundColor = ""; }, 600);
+      }
     } catch (err) {
       console.error("❌ Error al guardar observación:", err);
+      alert(`❌ Error: ${err.message}`);
     }
   };
 

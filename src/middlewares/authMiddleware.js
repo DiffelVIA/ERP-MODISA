@@ -30,12 +30,30 @@ const verificarToken = (req, res, next) => {
   next();
 };
 
+// Funcionalidad auxiliar interna para insensibilidad a tildes/mayúsculas
+const normalizarTexto = (texto) => {
+  if (!texto) return '';
+  return String(texto)
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+};
+
 const verificarRol = (rolesPermitidos = []) => {
   return (req, res, next) => {
     const roles = Array.isArray(rolesPermitidos) ? rolesPermitidos : [rolesPermitidos];
 
     if (req.usuario && req.usuario.rol) {
-      if (roles.includes(req.usuario.rol)) {
+      const rolUsuarioNormalizado = normalizarTexto(req.usuario.rol);
+      
+      const tienePermiso = roles.some(rolPermitido => {
+        const rolPermitidoNormalizado = normalizarTexto(rolPermitido);
+        return rolUsuarioNormalizado === rolPermitidoNormalizado ||
+               (rolUsuarioNormalizado.includes('gerente') && rolUsuarioNormalizado.includes('administrac'));
+      });
+
+      if (tienePermiso) {
         return next();
       }
       return res.status(403).json({ error: '⛔ Acceso denegado. Permisos insuficientes.' });
