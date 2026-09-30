@@ -1,5 +1,4 @@
 (() => {
-    // MODIFICACIÓN: Configuración de la URL base alineada con el entorno
     const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
         ? 'http://localhost:3000/api' 
         : 'https://erp-modisa.onrender.com/api';
@@ -15,7 +14,6 @@
         const selectResidente = document.getElementById('id_employee');
         const inputFecha = document.getElementById('fecha');
 
-        // Inicializar fecha, semana y mes
         if (inputFecha) {
             const hoy = new Date().toISOString().split('T')[0];
             inputFecha.value = hoy;
@@ -26,11 +24,17 @@
             });
         }
 
-        // Cargar catálogos desde el servidor
-        await cargarProyectosDesdeNube();
-        await cargarEmpleadosDesdeNube();
+        // 1. Cargar proyectos primero
+        const proyectosCargados = await cargarProyectosDesdeNube();
+        
+        // 2. Intentar cargar empleados desde la API de gestión
+        const exitoEmpleados = await cargarEmpleadosDesdeNube();
 
-        // MODIFICACIÓN: Sincronización automática de residente al seleccionar un proyecto usando atributos data-*
+        // MODIFICACIÓN: Si el usuario recibe 403 en empleados, usamos de respaldo los residentes de los proyectos
+        if (!exitoEmpleados && proyectosCargados && proyectosCargados.length > 0) {
+            poblarResidenteDesdeProyectos(proyectosCargados);
+        }
+
         if (selectProyecto) {
             selectProyecto.addEventListener('change', (e) => {
                 const optionSeleccionada = e.target.options[e.target.selectedIndex];
@@ -42,7 +46,6 @@
             });
         }
 
-        // Configuración del envío del formulario KPI
         if (formKPI) {
             formKPI.addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -90,10 +93,9 @@
         }
     });
 
-    // MODIFICACIÓN: Función alineada al endpoint real /proyectos y estructura de campos de la BD (id_project, project_name, id_user)
     async function cargarProyectosDesdeNube() {
         const selectProyecto = document.getElementById('id_project');
-        if (!selectProyecto) return;
+        if (!selectProyecto) return [];
 
         try {
             const token = localStorage.getItem('jwtToken') || '';
@@ -119,15 +121,17 @@
 
                 selectProyecto.appendChild(option);
             });
+
+            return proyectos;
         } catch (error) {
             console.error('Error al cargar proyectos:', error);
+            return [];
         }
     }
 
-    // MODIFICACIÓN: Función alineada al endpoint real /empleados/gestion y campos de la tabla MySQL (id_employee, name, last_name)
     async function cargarEmpleadosDesdeNube() {
         const selectResidente = document.getElementById('id_employee');
-        if (!selectResidente) return;
+        if (!selectResidente) return false;
 
         try {
             const token = localStorage.getItem('jwtToken') || '';
@@ -137,7 +141,7 @@
                 }
             });
 
-            if (!respuesta.ok) throw new Error('Error al obtener la lista de empleados');
+            if (!respuesta.ok) return false;
 
             const empleados = await respuesta.json();
             selectResidente.innerHTML = '<option value="">-- Selecciona --</option>';
@@ -148,9 +152,31 @@
                 option.textContent = `${empleado.name} ${empleado.last_name}`.trim();
                 selectResidente.appendChild(option);
             });
+
+            return true;
         } catch (error) {
             console.error('Error al cargar residentes/empleados:', error);
+            return false;
         }
+    }
+
+    // MODIFICACIÓN: Función auxiliar para extraer los residentes únicos de los proyectos cargados
+    function poblarResidenteDesdeProyectos(proyectos) {
+        const selectResidente = document.getElementById('id_employee');
+        if (!selectResidente) return;
+
+        selectResidente.innerHTML = '<option value="">-- Selecciona --</option>';
+        const agregados = new Set();
+
+        proyectos.forEach(p => {
+            if (p.id_user && p.residente && !agregados.has(p.id_user)) {
+                agregados.add(p.id_user);
+                const option = document.createElement('option');
+                option.value = p.id_user;
+                option.textContent = p.residente;
+                selectResidente.appendChild(option);
+            }
+        });
     }
 
     function actualizarFechaYSemana(fechaString) {
