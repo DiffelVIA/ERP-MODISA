@@ -6,6 +6,7 @@
   let datosVacaciones = [];
   let empleadosSeleccionados = new Set();
   let estadosSeleccionados = new Set();
+  let anioGanttSeleccionado = new Date().getFullYear(); // MODIFICACIÓN SOLUCIÓN: Año activo por defecto
 
   function escapeHTML(str) {
     if (!str) return '';
@@ -36,12 +37,56 @@
 
   document.addEventListener('DOMContentLoaded', async () => {
     configurarDropdownsUI();
+    configurarAlternadorVistasUI(); // MODIFICACIÓN SOLUCIÓN: Inicializar tabs UX
     await cargarDatosVacaciones();
   });
 
   // ==========================================
-  // MODIFICACIÓN SOLUCIÓN: Carga inicial respetando filtros (sin renderizar datos sin filtrar)
+  // MODIFICACIÓN SOLUCIÓN (UX): Alternador de Pestañas Tabla / Gantt
   // ==========================================
+  function configurarAlternadorVistasUI() {
+    const btnTabla = document.getElementById('btnVistaTabla');
+    const btnGantt = document.getElementById('btnVistaGantt');
+    const vistaTabla = document.getElementById('contenedorVistaTabla');
+    const vistaGantt = document.getElementById('contenedorVistaGantt');
+    const selectAnio = document.getElementById('selectAnioGantt');
+
+    if (!btnTabla || !btnGantt || !vistaTabla || !vistaGantt) return;
+
+    btnTabla.addEventListener('click', () => {
+      btnTabla.classList.add('activa');
+      btnTabla.style.background = '#2563eb';
+      btnTabla.style.color = '#ffffff';
+
+      btnGantt.classList.remove('activa');
+      btnGantt.style.background = 'transparent';
+      btnGantt.style.color = '#475569';
+
+      vistaTabla.style.display = 'block';
+      vistaGantt.style.display = 'none';
+    });
+
+    btnGantt.addEventListener('click', () => {
+      btnGantt.classList.add('activa');
+      btnGantt.style.background = '#2563eb';
+      btnGantt.style.color = '#ffffff';
+
+      btnTabla.classList.remove('activa');
+      btnTabla.style.background = 'transparent';
+      btnTabla.style.color = '#475569';
+
+      vistaTabla.style.display = 'none';
+      vistaGantt.style.display = 'block';
+    });
+
+    if (selectAnio) {
+      selectAnio.addEventListener('change', (e) => {
+        anioGanttSeleccionado = parseInt(e.target.value, 10);
+        actualizarFiltrosYTabla();
+      });
+    }
+  }
+
   async function cargarDatosVacaciones() {
     try {
       const token = localStorage.getItem('jwtToken') || '';
@@ -55,8 +100,6 @@
 
       datosVacaciones = await respuesta.json();
 
-      // Al ejecutar construirFiltrosIniciales(), este invoca a actualizarFiltrosYTabla()
-      // asegurando que la primera renderización aplique la casilla 'pendiente' activada.
       construirFiltrosIniciales();
 
     } catch (error) {
@@ -96,6 +139,7 @@
   function construirFiltrosIniciales() {
     const contenedorEmpleados = document.getElementById('filtroEmpleado');
     const contenedorEstados = document.getElementById('filtroEstado');
+    const selectAnio = document.getElementById('selectAnioGantt');
 
     if (!contenedorEmpleados || !contenedorEstados) return;
 
@@ -112,10 +156,22 @@
       </label>
     `).join('');
 
+    // MODIFICACIÓN SOLUCIÓN: Llenar opciones de año dinámicamente
+    if (selectAnio) {
+      const aniosExtraidos = datosVacaciones
+        .map(v => v.fecha_inicio ? new Date(v.fecha_inicio).getFullYear() : null)
+        .filter(a => a !== null);
+      
+      const aniosUnicos = [...new Set([new Date().getFullYear(), ...aniosExtraidos])].sort((a, b) => b - a);
+      
+      selectAnio.innerHTML = aniosUnicos.map(a => `
+        <option value="${a}" ${a === anioGanttSeleccionado ? 'selected' : ''}>Año ${a}</option>
+      `).join('');
+    }
+
     contenedorEmpleados.addEventListener('change', actualizarFiltrosYTabla);
     contenedorEstados.addEventListener('change', actualizarFiltrosYTabla);
     
-    // Aplicar filtrado automático al construir las opciones
     actualizarFiltrosYTabla();
   }
 
@@ -141,7 +197,7 @@
     });
 
     renderizarTabla(filtrados);
-    renderizarGanttVacaciones(filtrados); // SOLUCIÓN: Invocación del Gantt
+    renderizarGanttVacaciones(filtrados);
   }
 
   function renderizarTabla(lista) {
@@ -226,28 +282,41 @@
   }
 
   // ==========================================
-  // SOLUCIÓN: LÓGICA COMPLETA DE RENDERIZADO DE GANTT
+  // MODIFICACIÓN SOLUCIÓN: GANTT ANUAL PANORÁMICO COMPLETO (12 MESES)
   // ==========================================
   function renderizarGanttVacaciones(lista) {
     const contenedorGrid = document.getElementById('ganttGrid');
     if (!contenedorGrid) return;
 
+    const nombresMeses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const anio = anioGanttSeleccionado;
+
+    // Calcular días exactos de cada mes en el año
+    const diasPorMes = nombresMeses.map((_, idx) => new Date(anio, idx + 1, 0).getDate());
+    const totalDiasAnio = diasPorMes.reduce((acc, d) => acc + d, 0);
+
+    // 1. Construir Encabezado de Meses
+    let htmlHeaderMeses = `<div class="gantt-header-meses"><div class="gantt-col-emp-header">Empleado</div>`;
+    diasPorMes.forEach((dias, mIdx) => {
+      htmlHeaderMeses += `<div class="gantt-mes-title" style="grid-column: span ${dias};">${nombresMeses[mIdx]}</div>`;
+    });
+    htmlHeaderMeses += `</div>`;
+
+    // 2. Construir Encabezado de Días del Mes (1..N)
+    let htmlHeaderDias = `<div class="gantt-header-dias"><div class="gantt-col-emp-header"></div>`;
+    diasPorMes.forEach((dias) => {
+      for (let d = 1; d <= dias; d++) {
+        htmlHeaderDias += `<div class="gantt-dia-num">${d}</div>`;
+      }
+    });
+    htmlHeaderDias += `</div>`;
+
     if (!lista || lista.length === 0) {
-      contenedorGrid.innerHTML = '<div style="padding: 20px; text-align: center; color: #64748b;">No hay programaciones de vacaciones para mostrar.</div>';
+      contenedorGrid.innerHTML = htmlHeaderMeses + htmlHeaderDias + `<div style="padding: 20px; text-align: center; color: #64748b; grid-column: 1 / -1;">No hay vacaciones programadas para el filtro seleccionado en el año ${anio}.</div>`;
       return;
     }
 
-    const hoy = new Date();
-    const anioActual = hoy.getFullYear();
-    const mesActual = hoy.getMonth();
-    const diasEnMes = new Date(anioActual, mesActual + 1, 0).getDate();
-
-    let htmlEncabezadoDias = '<div class="gantt-fila-dias"><div class="gantt-col-header">Empleado</div>';
-    for (let dia = 1; dia <= diasEnMes; dia++) {
-      htmlEncabezadoDias += `<div class="gantt-col-header">${dia}</div>`;
-    }
-    htmlEncabezadoDias += '</div>';
-
+    // Agrupar vacaciones por empleado
     const vacacionesPorEmpleado = {};
     lista.forEach(item => {
       const empNombre = item.nombre_empleado || item.empleado || `Empleado ID #${item.id_employee}`;
@@ -257,41 +326,54 @@
       vacacionesPorEmpleado[empNombre].push(item);
     });
 
+    // Helper para convertir fecha a índice del día del año (0 .. totalDiasAnio-1)
+    function fechaADiaAnual(fStr) {
+      if (!fStr) return null;
+      const f = new Date(fStr);
+      if (f.getFullYear() !== anio) return null;
+      
+      let diaAcumulado = 0;
+      for (let m = 0; m < f.getMonth(); m++) {
+        diaAcumulado += diasPorMes[m];
+      }
+      return diaAcumulado + (f.getDate() - 1);
+    }
+
+    // 3. Generar Filas de Empleados
     let htmlFilasEmpleados = '';
     Object.keys(vacacionesPorEmpleado).sort().forEach(empNombre => {
       htmlFilasEmpleados += `<div class="gantt-fila-emp"><div class="gantt-emp-nombre" title="${escapeHTML(empNombre)}">${escapeHTML(empNombre)}</div>`;
 
-      const mapaCeldas = {};
+      // Crear matriz de celdas para los días del año
+      const mapaCeldasAnual = {};
+
       vacacionesPorEmpleado[empNombre].forEach(v => {
         if (!v.fecha_inicio || !v.fecha_fin) return;
 
-        const fInicio = new Date(v.fecha_inicio);
-        const fFin = new Date(v.fecha_fin);
+        const idxInicio = fechaADiaAnual(v.fecha_inicio);
+        const idxFin = fechaADiaAnual(v.fecha_fin);
 
-        const idInicio = fInicio.getFullYear() === anioActual && fInicio.getMonth() === mesActual ? fInicio.getDate() : (fInicio < new Date(anioActual, mesActual, 1) ? 1 : null);
-        const idFin = fFin.getFullYear() === anioActual && fFin.getMonth() === mesActual ? fFin.getDate() : (fFin > new Date(anioActual, mesActual, diasEnMes) ? diasEnMes : null);
-
-        if (idInicio !== null && idFin !== null) {
-          const duracion = (idFin - idInicio) + 1;
+        if (idxInicio !== null && idxFin !== null && idxFin >= idxInicio) {
+          const duracion = (idxFin - idxInicio) + 1;
           const estClase = String(v.estado || 'pendiente').toLowerCase();
-          mapaCeldas[idInicio] = {
+          
+          mapaCeldasAnual[idxInicio] = {
             duracion: duracion,
-            estado: estClase,
+            estado: (estClase === 'aprobada' || estClase === 'autorizada') ? 'autorizada' : 'pendiente',
             dias: v.dias_tomados
           };
         }
       });
 
-      let d = 1;
-      while (d <= diasEnMes) {
-        if (mapaCeldas[d]) {
-          const infoBarra = mapaCeldas[d];
+      let d = 0;
+      while (d < totalDiasAnio) {
+        if (mapaCeldasAnual[d]) {
+          const infoBarra = mapaCeldasAnual[d];
           const span = infoBarra.duracion;
-          const porcentajeAncho = (span * 100) - 4;
           
           htmlFilasEmpleados += `
-            <div class="gantt-celda-dia">
-              <div class="gantt-barra ${infoBarra.estado}" style="width: ${porcentajeAncho}%;" title="Vacaciones: ${infoBarra.dias} días">
+            <div class="gantt-celda-dia" style="grid-column: span ${span}; position: relative;">
+              <div class="gantt-barra ${infoBarra.estado}" title="${escapeHTML(empNombre)}: ${infoBarra.dias} días de vacaciones (${infoBarra.estado.toUpperCase()})">
                 ${infoBarra.dias}d
               </div>
             </div>
@@ -306,15 +388,11 @@
       htmlFilasEmpleados += '</div>';
     });
 
-    contenedorGrid.innerHTML = htmlEncabezadoDias + htmlFilasEmpleados;
+    contenedorGrid.innerHTML = `<div class="gantt-wrapper-anual" style="--total-dias-anio: ${totalDiasAnio};">` + htmlHeaderMeses + htmlHeaderDias + htmlFilasEmpleados + `</div>`;
   }
 
-  // ==========================================
-  // MODIFICACIÓN SOLUCIÓN: Recálculo local de días restantes y actualización reactiva
-  // ==========================================
   window.actualizarEstadoVacacion = async function(idVacacion, nuevoEstado, elementoInput) {
     const token = localStorage.getItem('jwtToken') || '';
-    const trFila = elementoInput ? elementoInput.closest('tr') : document.querySelector(`tr[data-id="${idVacacion}"]`);
 
     try {
       const res = await fetch(`${API_URL}/vacaciones/${idVacacion}/estado`, {
@@ -335,7 +413,6 @@
       if (itemLocal) {
         itemLocal.estado = nuevoEstado;
 
-        // Recalcular saldo acumulado localmente para el empleado
         const idEmp = itemLocal.id_employee;
         const totalGozados = datosVacaciones
           .filter(v => v.id_employee === idEmp && (v.estado === 'aprobada' || v.estado === 'autorizada'))
@@ -349,7 +426,6 @@
         });
       }
 
-      // Re-filtrar para ocultar automáticamente la fila recién autorizada o rechazada si el filtro es 'pendiente'
       actualizarFiltrosYTabla();
 
     } catch (err) {

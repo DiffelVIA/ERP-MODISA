@@ -25,48 +25,37 @@
   <main class="main-tabla">
     <h1>Control de Vacaciones</h1>
     
-    <!-- Filtros de Navegación e Interacción -->
-    <div class="contenedorFiltros">
+    <!-- Filtros de Navegación e Interacción y Alternador de Vistas (UX) -->
+    <div class="contenedorFiltros" style="display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;">
 
-      <!-- Filtro Empleado -->
-      <div class="filtros" id="dropdownEmpleado">
-        <button type="button" class="btn-dropdown">Filtro Empleado ▾</button>
-        <div class="contenido-dropdown" id="filtroEmpleado"></div>
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <!-- Filtro Empleado -->
+        <div class="filtros" id="dropdownEmpleado">
+          <button type="button" class="btn-dropdown">Filtro Empleado ▾</button>
+          <div class="contenido-dropdown" id="filtroEmpleado"></div>
+        </div>
+
+        <!-- Filtro Estado -->
+        <div class="filtros" id="dropdownEstado">
+          <button type="button" class="btn-dropdown">Filtro Estado ▾</button>
+          <div class="contenido-dropdown" id="filtroEstado"></div>
+        </div>
       </div>
 
-      <!-- Filtro Estado -->
-      <div class="filtros" id="dropdownEstado">
-        <button type="button" class="btn-dropdown">Filtro Estado ▾</button>
-        <div class="contenido-dropdown" id="filtroEstado"></div>
+      <!-- MODIFICACIÓN SOLUCIÓN (UX): Alternador de Vista Pestañas Tabla / Gantt -->
+      <div class="contenedor-alternador-vistas" style="display: flex; background: #e2e8f0; padding: 4px; border-radius: 8px; gap: 4px;">
+        <button type="button" id="btnVistaTabla" class="btn-tab-vista activa" style="padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; background: #2563eb; color: #ffffff; font-size: 13px; transition: all 0.2s;">
+          📋 Vista Tabla
+        </button>
+        <button type="button" id="btnVistaGantt" class="btn-tab-vista" style="padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; background: transparent; color: #475569; font-size: 13px; transition: all 0.2s;">
+          📅 Vista Gantt Anual
+        </button>
       </div>
 
     </div>
 
-    <!-- ========================================== -->
-    <!-- SOLUCIÓN: SECCIÓN Y CONTENEDOR DEL DIAGRAMA GANTT -->
-    <!-- ========================================== -->
-    <section class="seccion-gantt" style="margin-bottom: 25px;">
-      <div class="gantt-header-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <h2 style="font-size: 18px; color: #1e293b; margin: 0;">Calendario de Vacaciones (Gantt)</h2>
-        <div class="gantt-leyenda" style="display: flex; gap: 15px; font-size: 13px;">
-          <div class="leyenda-item" style="display: flex; align-items: center; gap: 5px;">
-            <div class="leyenda-box pendiente" style="width: 14px; height: 14px; background-color: #eab308; border-radius: 3px;"></div>
-            <span>Pendiente</span>
-          </div>
-          <div class="leyenda-item" style="display: flex; align-items: center; gap: 5px;">
-            <div class="leyenda-box autorizada" style="width: 14px; height: 14px; background-color: #16a34a; border-radius: 3px;"></div>
-            <span>Autorizada</span>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Contenedor donde tablavacaciones.js renderiza el Gantt -->
-      <div id="ganttGrid" class="gantt-grid">
-        <div style="padding: 15px; text-align: center; color: #64748b;">Cargando calendario...</div>
-      </div>
-    </section>
-
-    <div class="tabla">
+    <!-- MODIFICACIÓN SOLUCIÓN: VISTA 1 - TABLA PRINCIPAL (LIMPIA) -->
+    <div id="contenedorVistaTabla" class="tabla">
       <table>
         <thead>
           <tr>
@@ -88,6 +77,33 @@
         </tbody>
       </table>
     </div>
+
+    <!-- MODIFICACIÓN SOLUCIÓN: VISTA 2 - PANORÁMICA DE GANTT ANUAL (12 MESES) -->
+    <section id="contenedorVistaGantt" class="seccion-gantt" style="display: none; margin-bottom: 25px;">
+      <div class="gantt-header-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <h2 style="font-size: 18px; color: #1e293b; margin: 0;">Calendario Anual de Vacaciones</h2>
+          <select id="selectAnioGantt" style="padding: 5px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; color: #1e293b; background: #fff; cursor: pointer;">
+            <!-- Opciones generadas dinámicamente por JS -->
+          </select>
+        </div>
+        <div class="gantt-leyenda" style="display: flex; gap: 15px; font-size: 13px;">
+          <div class="leyenda-item" style="display: flex; align-items: center; gap: 5px;">
+            <div class="leyenda-box pendiente" style="width: 14px; height: 14px; background-color: #f59e0b; border-radius: 3px;"></div>
+            <span>Pendiente</span>
+          </div>
+          <div class="leyenda-item" style="display: flex; align-items: center; gap: 5px;">
+            <div class="leyenda-box autorizada" style="width: 14px; height: 14px; background-color: #10b981; border-radius: 3px;"></div>
+            <span>Autorizada</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Contenedor dinámico del Grid Anual -->
+      <div id="ganttGrid" class="gantt-grid">
+        <div style="padding: 20px; text-align: center; color: #64748b;">Cargando calendario anual...</div>
+      </div>
+    </section>
   </main>
 
   <footer id="footer">
@@ -96,7 +112,6 @@
   </footer>
   
   <script src="/authClient.js"></script>
-
   <script src="tablavacaciones.js"></script>
 
 </body>

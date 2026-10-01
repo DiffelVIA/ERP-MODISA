@@ -1,164 +1,141 @@
 /* ==========================================================================
-   VARIABLES GLOBALES DEL GANTT
+   VARIABLES GLOBALES DEL GANTT ANUAL
    ========================================================================== */
 :root {
-  /* Paleta de Colores Básica */
   --gantt-bg-card: #ffffff;
   --gantt-bg-header: #f8fafc;
   --gantt-bg-hover: #f1f5f9;
   
-  /* Colores de Texto */
   --gantt-text-primary: #0f172a;
   --gantt-text-secondary: #1e293b;
   --gantt-text-muted: #64748b;
   --gantt-text-light: #ffffff;
 
-  /* Estados de Vacaciones */
   --gantt-color-pendiente: #f59e0b;
   --gantt-color-aprobada: #10b981;
 
-  /* Bordes y Sombras */
   --gantt-border-color: #e2e8f0;
   --gantt-border-divider: #cbd5e1;
   --gantt-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  --gantt-barra-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 
-  /* Dimensiones y Espaciados */
-  --gantt-card-padding: 18px;
-  --gantt-radius: 8px;
-  --gantt-col-emp-width: 220px;
-  --gantt-col-day-min-width: 26px;
+  --gantt-col-emp-width: 200px;
+  --gantt-col-day-min-width: 22px;
   --gantt-row-height: 38px;
-  --gantt-font-size-sm: 10px;
-  --gantt-font-size-md: 12px;
-  --gantt-font-size-lg: 13px;
-  --gantt-font-size-title: 16px;
 }
-
-/* ==========================================================================
-   ESTILOS Y ESTRUCTURA DEL COMPONENTE
-   ========================================================================== */
 
 .seccion-gantt {
   margin: 20px 0;
   background: var(--gantt-bg-card);
-  padding: var(--gantt-card-padding);
-  border-radius: var(--gantt-radius);
+  padding: 18px;
+  border-radius: 8px;
   box-shadow: var(--gantt-shadow);
   overflow-x: auto;
 }
 
-.gantt-header-title {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.gantt-header-title h2 {
-  font-size: var(--gantt-font-size-title);
-  color: var(--gantt-text-primary);
-  margin: 0;
-}
-
-.gantt-leyenda {
-  display: flex;
-  gap: 15px;
-  font-size: var(--gantt-font-size-lg);
-  color: var(--gantt-text-secondary);
-}
-
-.leyenda-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.leyenda-box {
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
-}
-
-.leyenda-box.pendiente {
-  background-color: var(--gantt-color-pendiente);
-}
-
-.leyenda-box.autorizada {
-  background-color: var(--gantt-color-aprobada);
-}
-
 .gantt-grid {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--gantt-border-color);
+  border-radius: 6px;
+}
+
+.gantt-wrapper-anual {
   display: flex;
   flex-direction: column;
-  min-width: 850px;
-  border: 1px solid var(--gantt-border-color);
-  border-radius: calc(var(--gantt-radius) - 2px);
+  min-width: 1800px; /* Ancho cómodo para desplazar 365 días sin apretarse */
 }
 
-.gantt-fila-dias {
+/* MODIFICACIÓN SOLUCIÓN (UX): Encabezados y columnas fijas (Sticky) */
+.gantt-header-meses, .gantt-header-dias, .gantt-fila-emp {
   display: grid;
-  grid-template-columns: var(--gantt-col-emp-width) repeat(31, minmax(var(--gantt-col-day-min-width), 1fr));
-  background-color: var(--gantt-bg-header);
-  border-bottom: 2px solid var(--gantt-border-divider);
+  grid-template-columns: var(--gantt-col-emp-width) repeat(var(--total-dias-anio, 365), minmax(var(--gantt-col-day-min-width), 1fr));
+  align-items: center;
+}
+
+.gantt-header-meses {
+  background-color: #0f172a;
+  color: #ffffff;
   font-weight: bold;
-  font-size: var(--gantt-font-size-md);
+  font-size: 12px;
   text-align: center;
 }
 
-.gantt-col-header {
-  padding: 8px 2px;
+.gantt-mes-title {
+  padding: 6px 0;
+  border-right: 1px solid #334155;
+  text-transform: uppercase;
+}
+
+.gantt-header-dias {
+  background-color: var(--gantt-bg-header);
+  border-bottom: 2px solid var(--gantt-border-divider);
+  font-size: 10px;
+  text-align: center;
+  color: var(--gantt-text-muted);
+}
+
+.gantt-dia-num {
+  padding: 4px 0;
   border-right: 1px solid var(--gantt-border-color);
 }
 
-.gantt-fila-emp {
-  display: grid;
-  grid-template-columns: var(--gantt-col-emp-width) repeat(31, minmax(var(--gantt-col-day-min-width), 1fr));
-  border-bottom: 1px solid var(--gantt-bg-hover);
-  align-items: center;
-  height: var(--gantt-row-height);
-}
-
-.gantt-emp-nombre {
+.gantt-col-emp-header, .gantt-emp-nombre {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background: #ffffff;
+  border-right: 2px solid var(--gantt-border-divider);
   padding: 0 10px;
-  font-size: var(--gantt-font-size-lg);
+  font-size: 12px;
   font-weight: 600;
   color: var(--gantt-text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  border-right: 1px solid var(--gantt-border-color);
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.gantt-header-meses .gantt-col-emp-header {
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.gantt-header-dias .gantt-col-emp-header {
+  background: var(--gantt-bg-header);
+}
+
+.gantt-fila-emp {
+  border-bottom: 1px solid var(--gantt-bg-hover);
+  height: var(--gantt-row-height);
 }
 
 .gantt-celda-dia {
   height: 100%;
-  border-right: 1px solid var(--gantt-bg-hover);
-  position: relative;
+  border-right: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
 }
 
 .gantt-barra {
-  position: absolute;
-  top: 5px;
-  bottom: 5px;
-  left: 1px;
-  right: 1px;
-  border-radius: 3px;
-  font-size: var(--gantt-font-size-sm);
-  color: var(--gantt-text-light);
+  width: 100%;
+  height: 24px;
+  border-radius: 4px;
+  font-size: 10px;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  box-shadow: var(--gantt-barra-shadow);
-  z-index: 2;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  margin: 0 1px;
 }
 
-/* Modificadores de Estado mediante Variables */
 .gantt-barra.pendiente {
   background-color: var(--gantt-color-pendiente);
 }
 
-.gantt-barra.autorizada, 
-.gantt-barra.aprobada {
+.gantt-barra.autorizada {
   background-color: var(--gantt-color-aprobada);
 }
