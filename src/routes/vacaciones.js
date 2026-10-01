@@ -66,6 +66,9 @@ async function depurarVacacionesRechazadas() {
 setInterval(depurarVacacionesRechazadas, 24 * 60 * 60 * 1000);
 setTimeout(depurarVacacionesRechazadas, 5000);
 
+// ==========================================
+// INICIO MODIFICACIÓN: CONSULTA SQL SIN COLUMNA MOTIVO (GET /)
+// ==========================================
 router.get('/', verificarToken, async (req, res) => {
   try {
     const rolUsuario = req.usuario ? req.usuario.rol : '';
@@ -82,7 +85,7 @@ router.get('/', verificarToken, async (req, res) => {
       return rLimpio === rolUsuarioLimpio || (rolUsuarioLimpio.includes('gerente') && rolUsuarioLimpio.includes('administrac'));
     });
 
-    // Subconsulta parametrizada con operaciones de fechas estándar válidas en MySQL
+    // Consulta SQL ajustada: sin la columna 'v.motivo' para evitar ER_BAD_FIELD_ERROR
     let sql = `
       SELECT 
         v.id_vacacion,
@@ -94,7 +97,6 @@ router.get('/', verificarToken, async (req, res) => {
         v.fecha_inicio,
         v.fecha_fin,
         v.dias_tomados,
-        v.motivo,
         v.created_at,
         v.estado,
         v.observaciones,
@@ -128,12 +130,13 @@ router.get('/', verificarToken, async (req, res) => {
 
     const [rows] = await pool.query(sql, params);
 
-    // Mapeo defensivo para asegurar tipos de datos numéricos
+    // Mapeo defensivo: incluye 'motivo' como string vacío para evitar errores undefined en el frontend
     const resultadosEnriquecidos = rows.map(r => {
       const diasLey = Number(r.dias_vacaciones_ley || 0);
       const diasGozados = Number(r.dias_gozados || 0);
       return {
         ...r,
+        motivo: '',
         dias_gozados: diasGozados,
         dias_restantes: Math.max(0, diasLey - diasGozados)
       };
@@ -149,6 +152,9 @@ router.get('/', verificarToken, async (req, res) => {
     });
   }
 });
+// ==========================================
+// FIN MODIFICACIÓN
+// ==========================================
 
 // =========================================================================
 // CORRECCIÓN POST: Validación robusta contra NaN y coerción de tipos
