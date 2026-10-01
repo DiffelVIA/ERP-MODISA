@@ -42,6 +42,30 @@
 
     </div>
 
+    <!-- ========================================== -->
+    <!-- SOLUCIÓN: SECCIÓN Y CONTENEDOR DEL DIAGRAMA GANTT -->
+    <!-- ========================================== -->
+    <section class="seccion-gantt" style="margin-bottom: 25px;">
+      <div class="gantt-header-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h2 style="font-size: 18px; color: #1e293b; margin: 0;">Calendario de Vacaciones (Gantt)</h2>
+        <div class="gantt-leyenda" style="display: flex; gap: 15px; font-size: 13px;">
+          <div class="leyenda-item" style="display: flex; align-items: center; gap: 5px;">
+            <div class="leyenda-box pendiente" style="width: 14px; height: 14px; background-color: #eab308; border-radius: 3px;"></div>
+            <span>Pendiente</span>
+          </div>
+          <div class="leyenda-item" style="display: flex; align-items: center; gap: 5px;">
+            <div class="leyenda-box autorizada" style="width: 14px; height: 14px; background-color: #16a34a; border-radius: 3px;"></div>
+            <span>Autorizada</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Contenedor donde tablavacaciones.js renderiza el Gantt -->
+      <div id="ganttGrid" class="gantt-grid">
+        <div style="padding: 15px; text-align: center; color: #64748b;">Cargando calendario...</div>
+      </div>
+    </section>
+
     <div class="tabla">
       <table>
         <thead>
