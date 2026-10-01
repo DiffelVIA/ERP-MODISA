@@ -288,21 +288,21 @@
     const contenedorGrid = document.getElementById('ganttGrid');
     if (!contenedorGrid) return;
 
-    const nombresMeses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const nombresMeses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     const anio = anioGanttSeleccionado;
 
-    // Calcular días exactos de cada mes en el año
+    // Calcular días exactos por mes para el año seleccionado
     const diasPorMes = nombresMeses.map((_, idx) => new Date(anio, idx + 1, 0).getDate());
     const totalDiasAnio = diasPorMes.reduce((acc, d) => acc + d, 0);
 
-    // 1. Construir Encabezado de Meses
+    // 1. Cabecera de Meses (Ene-Dic)
     let htmlHeaderMeses = `<div class="gantt-header-meses"><div class="gantt-col-emp-header">Empleado</div>`;
     diasPorMes.forEach((dias, mIdx) => {
       htmlHeaderMeses += `<div class="gantt-mes-title" style="grid-column: span ${dias};">${nombresMeses[mIdx]}</div>`;
     });
     htmlHeaderMeses += `</div>`;
 
-    // 2. Construir Encabezado de Días del Mes (1..N)
+    // 2. Cabecera de Días (1..N por mes)
     let htmlHeaderDias = `<div class="gantt-header-dias"><div class="gantt-col-emp-header"></div>`;
     diasPorMes.forEach((dias) => {
       for (let d = 1; d <= dias; d++) {
@@ -326,7 +326,7 @@
       vacacionesPorEmpleado[empNombre].push(item);
     });
 
-    // Helper para convertir fecha a índice del día del año (0 .. totalDiasAnio-1)
+    // Helper para convertir fecha a índice acumulado del año (0 .. totalDiasAnio-1)
     function fechaADiaAnual(fStr) {
       if (!fStr) return null;
       const f = new Date(fStr);
@@ -339,12 +339,12 @@
       return diaAcumulado + (f.getDate() - 1);
     }
 
-    // 3. Generar Filas de Empleados
+    // 3. Filas por Empleado
     let htmlFilasEmpleados = '';
     Object.keys(vacacionesPorEmpleado).sort().forEach(empNombre => {
-      htmlFilasEmpleados += `<div class="gantt-fila-emp"><div class="gantt-emp-nombre" title="${escapeHTML(empNombre)}">${escapeHTML(empNombre)}</div>`;
+      const empNombreEscaped = escapeHTML(empNombre);
+      htmlFilasEmpleados += `<div class="gantt-fila-emp"><div class="gantt-emp-nombre" title="${empNombreEscaped}">${empNombreEscaped}</div>`;
 
-      // Crear matriz de celdas para los días del año
       const mapaCeldasAnual = {};
 
       vacacionesPorEmpleado[empNombre].forEach(v => {
@@ -360,7 +360,9 @@
           mapaCeldasAnual[idxInicio] = {
             duracion: duracion,
             estado: (estClase === 'aprobada' || estClase === 'autorizada') ? 'autorizada' : 'pendiente',
-            dias: v.dias_tomados
+            diasTomados: Number(v.dias_tomados || 0),
+            diasLey: Number(v.dias_vacaciones_ley || 0),
+            diasRestantes: Number(v.dias_restantes || 0)
           };
         }
       });
@@ -368,13 +370,22 @@
       let d = 0;
       while (d < totalDiasAnio) {
         if (mapaCeldasAnual[d]) {
-          const infoBarra = mapaCeldasAnual[d];
-          const span = infoBarra.duracion;
+          const info = mapaCeldasAnual[d];
+          const span = info.duracion;
           
+          // Inyección del Tooltip con Tarjeta Informativa
           htmlFilasEmpleados += `
-            <div class="gantt-celda-dia" style="grid-column: span ${span}; position: relative;">
-              <div class="gantt-barra ${infoBarra.estado}" title="${escapeHTML(empNombre)}: ${infoBarra.dias} días de vacaciones (${infoBarra.estado.toUpperCase()})">
-                ${infoBarra.dias}d
+            <div class="gantt-celda-dia" style="grid-column: span ${span};">
+              <div class="gantt-barra-container">
+                <div class="gantt-barra ${info.estado}">
+                  ${info.diasTomados}d
+                </div>
+                <div class="gantt-tooltip">
+                  <strong style="color: #60a5fa; font-size: 12px;">${empNombreEscaped}</strong><br/>
+                  <span>📜 Días por Ley: <strong>${info.diasLey}</strong></span><br/>
+                  <span>🏖️ Días Tomados: <strong>${info.diasTomados}</strong></span><br/>
+                  <span>⏳ Días Pendientes: <strong>${info.diasRestantes}</strong></span>
+                </div>
               </div>
             </div>
           `;
