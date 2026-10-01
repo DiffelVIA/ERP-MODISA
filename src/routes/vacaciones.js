@@ -3,7 +3,7 @@ const router = express.Router();
 const pool = require('../config/db');
 
 // Importación directa del cliente Gmail desde tu modulo de Google
-const { gmail } = require('./google'); 
+const { gmail } = require('../google'); 
 
 const { verificarToken, verificarRol } = require('../middlewares/authMiddleware');
 
