@@ -82,7 +82,7 @@ router.get('/', verificarToken, async (req, res) => {
       return rLimpio === rolUsuarioLimpio || (rolUsuarioLimpio.includes('gerente') && rolUsuarioLimpio.includes('administrac'));
     });
 
-    // Consulta SQL optimizada sin STR_TO_DATE ni CONCAT para evitar excepciones por 29 de Febrero (Bisiestos) o NULLs
+    // Subconsulta parametrizada con operaciones de fechas estándar válidas en MySQL
     let sql = `
       SELECT 
         v.id_vacacion,
@@ -104,11 +104,7 @@ router.get('/', verificarToken, async (req, res) => {
           FROM vacaciones v2 
           WHERE v2.id_employee = v.id_employee 
             AND v2.estado IN ('aprobada', 'autorizada')
-            AND v2.fecha_inicio >= CASE 
-              WHEN DATE_FORMAT(CURRENT_DATE, '%m-%d') >= DATE_FORMAT(COALESCE(ve.hire_date, CURRENT_DATE), '%m-%d')
-              THEN DATE_ADD(COALESCE(ve.hire_date, CURRENT_DATE), INTERVAL TIMESTAMPDIFF(YEAR, COALESCE(ve.hire_date, CURRENT_DATE), CURRENT_DATE) YEAR)
-              ELSE DATE_ADD(COALESCE(ve.hire_date, CURRENT_DATE), INTERVAL (TIMESTAMPDIFF(YEAR, COALESCE(ve.hire_date, CURRENT_DATE), CURRENT_DATE) - 1) YEAR)
-            END
+            AND v2.fecha_inicio >= DATE_SUB(CURRENT_DATE, INTERVAL 1 YEAR)
         ), 0) AS dias_gozados
       FROM vacaciones v
       LEFT JOIN vista_empleados_vacaciones ve ON v.id_employee = ve.id_employee
@@ -132,6 +128,7 @@ router.get('/', verificarToken, async (req, res) => {
 
     const [rows] = await pool.query(sql, params);
 
+    // Mapeo defensivo para asegurar tipos de datos numéricos
     const resultadosEnriquecidos = rows.map(r => {
       const diasLey = Number(r.dias_vacaciones_ley || 0);
       const diasGozados = Number(r.dias_gozados || 0);
