@@ -20,16 +20,13 @@
   --gantt-row-height: 38px;
 }
 
-/* ==========================================================================
-   CONFIGURACIÓN Y TOOLTIP DEL GANTT ANUAL PANORÁMICO (CORREGIDO Y ALINEADO)
-   ========================================================================== */
 .seccion-gantt {
   margin: 20px 0;
   background: #ffffff;
-  padding: 25px 18px 18px 18px; /* Aire superior para tooltip sin recorte */
+  padding: 25px 18px 18px 18px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  overflow-x: auto;
+  overflow-x: visible;
 }
 
 .gantt-grid {
@@ -38,16 +35,16 @@
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   background-color: #ffffff;
-  overflow-y: visible; /* Evita recortar tooltips verticales */
+  overflow-y: visible;
 }
 
 .gantt-wrapper-anual {
   display: flex;
   flex-direction: column;
-  min-width: 2600px;
+  min-width: calc(200px + (var(--total-dias-anio, 365) * 20px));
+  padding-bottom: 20px;
 }
 
-/* MODIFICACIÓN SOLUCIÓN: Cabecera de Meses con CSS Grid idéntico al de los Días */
 .gantt-header-meses {
   display: grid;
   grid-template-columns: 200px repeat(var(--total-dias-anio, 365), minmax(20px, 1fr));
