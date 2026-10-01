@@ -20,10 +20,13 @@
   --gantt-row-height: 38px;
 }
 
+/* ==========================================================================
+   CONFIGURACIÓN Y TOOLTIP DEL GANTT ANUAL PANORÁMICO (CORREGIDO)
+   ========================================================================== */
 .seccion-gantt {
   margin: 20px 0;
   background: #ffffff;
-  padding: 18px;
+  padding: 25px 18px 18px 18px; /* MODIFICACIÓN: Aire superior para tooltip sin recorte */
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   overflow-x: auto;
@@ -35,6 +38,7 @@
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   background-color: #ffffff;
+  overflow-y: visible; /* MODIFICACIÓN: Evita recortar tooltips verticales */
 }
 
 .gantt-wrapper-anual {
@@ -43,25 +47,30 @@
   min-width: 2600px;
 }
 
-.gantt-header-meses, .gantt-header-dias, .gantt-fila-emp {
-  display: grid;
-  grid-template-columns: 200px repeat(var(--total-dias-anio, 365), minmax(20px, 1fr));
-  align-items: center;
-}
-
+/* MODIFICACIÓN SOLUCIÓN: Cabecera de Meses continua (Enero - Diciembre sin huecos blancos) */
 .gantt-header-meses {
+  display: flex;
   background-color: #0f172a;
   color: #ffffff;
   font-weight: bold;
   font-size: 11px;
   text-align: center;
+  width: 100%;
 }
 
 .gantt-mes-title {
-  padding: 6px 0;
+  padding: 8px 0;
   border-right: 1px solid #334155;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  box-sizing: border-box;
+}
+
+/* Filas con grid de días */
+.gantt-header-dias, .gantt-fila-emp {
+  display: grid;
+  grid-template-columns: 200px repeat(var(--total-dias-anio, 365), minmax(20px, 1fr));
+  align-items: center;
 }
 
 .gantt-header-dias {
@@ -77,10 +86,11 @@
   border-right: 1px solid #e2e8f0;
 }
 
+/* Columna de Empleado Fija al Scroll (Sticky) */
 .gantt-col-emp-header, .gantt-emp-nombre {
   position: sticky;
   left: 0;
-  z-index: 10;
+  z-index: 20;
   background: #ffffff;
   border-right: 2px solid #cbd5e1;
   padding: 0 12px;
@@ -94,6 +104,9 @@
   display: flex;
   align-items: center;
   box-shadow: 2px 0 5px rgba(0,0,0,0.03);
+  width: 200px;
+  min-width: 200px;
+  box-sizing: border-border-box;
 }
 
 .gantt-header-meses .gantt-col-emp-header {
@@ -108,6 +121,7 @@
 .gantt-fila-emp {
   border-bottom: 1px solid #f1f5f9;
   height: 40px;
+  position: relative;
 }
 
 .gantt-celda-dia {
@@ -117,12 +131,17 @@
   align-items: center;
 }
 
+/* Modificación Barritas y Tarjeta Informativa (Tooltip UX) */
 .gantt-barra-container {
   width: 100%;
   height: 26px;
   position: relative;
   display: flex;
   align-items: center;
+}
+
+.gantt-barra-container:hover {
+  z-index: 50; /* Eleva la fila al hacer hover para sobreponer el tooltip */
 }
 
 .gantt-barra {
@@ -153,22 +172,22 @@
   background-color: #10b981;
 }
 
-/* Tarjeta Informativa Flotante (Tooltip UX) */
+/* MODIFICACIÓN SOLUCIÓN: Tarjeta Informativa Flotante (Tooltip que no se corta arriba) */
 .gantt-tooltip {
   visibility: hidden;
   opacity: 0;
   position: absolute;
-  bottom: 125%;
+  bottom: 125%; /* Por defecto arriba */
   left: 50%;
   transform: translateX(-50%);
   background-color: #0f172a;
   color: #ffffff;
-  padding: 10px 12px;
+  padding: 8px 12px;
   border-radius: 6px;
   font-size: 11px;
   white-space: nowrap;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-  z-index: 99;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+  z-index: 100;
   pointer-events: none;
   transition: opacity 0.2s ease, visibility 0.2s ease;
   line-height: 1.5;
@@ -184,6 +203,18 @@
   border-width: 5px;
   border-style: solid;
   border-color: #0f172a transparent transparent transparent;
+}
+
+/* MODIFICACIÓN SOLUCIÓN: Clase alternativa para Tooltip hacia abajo en las primeras filas */
+.gantt-tooltip.tooltip-abajo {
+  bottom: auto;
+  top: 125%;
+}
+
+.gantt-tooltip.tooltip-abajo::after {
+  top: auto;
+  bottom: 100%;
+  border-color: transparent transparent #0f172a transparent;
 }
 
 .gantt-barra-container:hover .gantt-tooltip {

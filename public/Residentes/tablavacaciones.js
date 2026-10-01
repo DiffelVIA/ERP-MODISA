@@ -295,12 +295,13 @@
     const diasPorMes = nombresMeses.map((_, idx) => new Date(anio, idx + 1, 0).getDate());
     const totalDiasAnio = diasPorMes.reduce((acc, d) => acc + d, 0);
 
-    // 1. Cabecera de Meses (Ene-Dic)
-    let htmlHeaderMeses = `<div class="gantt-header-meses"><div class="gantt-col-emp-header">Empleado</div>`;
+    // 1. Cabecera de Meses con Cálculo Porcentual Exacto (Elimina franja blanca)
+    let htmlHeaderMeses = `<div class="gantt-header-meses"><div class="gantt-col-emp-header">Empleado</div><div style="display:flex; flex-grow:1;">`;
     diasPorMes.forEach((dias, mIdx) => {
-      htmlHeaderMeses += `<div class="gantt-mes-title" style="grid-column: span ${dias};">${nombresMeses[mIdx]}</div>`;
+      const porcentajeAncho = (dias / totalDiasAnio) * 100;
+      htmlHeaderMeses += `<div class="gantt-mes-title" style="width: ${porcentajeAncho}%;">${nombresMeses[mIdx]}</div>`;
     });
-    htmlHeaderMeses += `</div>`;
+    htmlHeaderMeses += `</div></div>`;
 
     // 2. Cabecera de Días (1..N por mes)
     let htmlHeaderDias = `<div class="gantt-header-dias"><div class="gantt-col-emp-header"></div>`;
@@ -341,7 +342,9 @@
 
     // 3. Filas por Empleado
     let htmlFilasEmpleados = '';
-    Object.keys(vacacionesPorEmpleado).sort().forEach(empNombre => {
+    const listaEmpleadosClaves = Object.keys(vacacionesPorEmpleado).sort();
+
+    listaEmpleadosClaves.forEach((empNombre, filaIdx) => {
       const empNombreEscaped = escapeHTML(empNombre);
       htmlFilasEmpleados += `<div class="gantt-fila-emp"><div class="gantt-emp-nombre" title="${empNombreEscaped}">${empNombreEscaped}</div>`;
 
@@ -367,23 +370,25 @@
         }
       });
 
+      // Si es la primera fila (o segunda), el tooltip se despliega hacia abajo para no cortarse arriba
+      const claseTooltipPosicion = filaIdx < 2 ? 'tooltip-abajo' : '';
+
       let d = 0;
       while (d < totalDiasAnio) {
         if (mapaCeldasAnual[d]) {
           const info = mapaCeldasAnual[d];
           const span = info.duracion;
           
-          // Inyección del Tooltip con Tarjeta Informativa
           htmlFilasEmpleados += `
             <div class="gantt-celda-dia" style="grid-column: span ${span};">
               <div class="gantt-barra-container">
                 <div class="gantt-barra ${info.estado}">
                   ${info.diasTomados}d
                 </div>
-                <div class="gantt-tooltip">
+                <div class="gantt-tooltip ${claseTooltipPosicion}">
                   <strong style="color: #60a5fa; font-size: 12px;">${empNombreEscaped}</strong><br/>
                   <span>📜 Días por Ley: <strong>${info.diasLey}</strong></span><br/>
-                  <span>🏖️ Días Tomados: <strong>${info.diasTomados}</strong></span><br/>
+                  <span>🏖️️ Días Tomados: <strong>${info.diasTomados}</strong></span><br/>
                   <span>⏳ Días Pendientes: <strong>${info.diasRestantes}</strong></span>
                 </div>
               </div>
