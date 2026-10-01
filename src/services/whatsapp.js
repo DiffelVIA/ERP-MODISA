@@ -2,6 +2,8 @@ const { makeWASocket, DisconnectReason, initAuthCreds, proto, Browsers, BufferJS
 const pool = require('../config/db');
 
 let sock = null;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
 
 const useMySQLAuthState = async (sessionId) => {
     const writeData = async (data, key) => {
@@ -70,6 +72,9 @@ const useMySQLAuthState = async (sessionId) => {
     };
 };
 
+// ==========================================
+// INICIO MODIFICACIÓN: MANEJO SEGURO DE CONEXIÓN Y BACKOFF EXPONENCIAL
+// ==========================================
 const iniciarWhatsApp = async () => {
     try {
         const sessionId = process.env.SESSION_ID || 'session_modisa_erp';
@@ -105,44 +110,48 @@ const iniciarWhatsApp = async () => {
 
             if (connection === 'close') {
                 const statusCode = lastDisconnect?.error?.output?.statusCode;
-                const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-                console.log(`🔴 Conexión de WhatsApp cerrada (Status ${statusCode}). Reconectando: ${shouldReconnect}`);
                 
-                if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
+                // Si el status es 440 (Conflict) o 401/loggedOut, detener el bucle automático inmediato
+                const esConflictoSesion = statusCode === 440 || statusCode === 405;
+                const esCierreSesion = statusCode === DisconnectReason.loggedOut || statusCode === 401;
+
+                console.log(`🔴 Conexión de WhatsApp cerrada (Status ${statusCode}).`);
+
+                if (esCierreSesion) {
+                    console.log('🧹 Eliminando credenciales inválidas de WhatsApp en MySQL...');
                     await pool.query(`DELETE FROM whatsapp_sessions WHERE session_id = ?`, [sessionId]);
+                    reconnectAttempts = 0;
+                    return;
                 }
 
-                if (shouldReconnect) {
-                    setTimeout(iniciarWhatsApp, 5000);
+                if (esConflictoSesion) {
+                    console.warn('⚠️ Conflict 440 detectado: Otra instancia activa con esta sesión. Se detiene la reconexión cíclica.');
+                    reconnectAttempts = 0;
+                    return;
                 }
+
+                if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    reconnectAttempts++;
+                    const delayMs = Math.min(30000, 5000 * reconnectAttempts); // Backoff progresivo
+                    console.log(`🔄 Reintentando conexión de WhatsApp en ${delayMs / 1000} segundos (Intento ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+                    setTimeout(iniciarWhatsApp, delayMs);
+                } else {
+                    console.error('❌ Límite máximo de reintentos alcanzado para WhatsApp. Proceso pausado.');
+                }
+
             } else if (connection === 'open') {
+                reconnectAttempts = 0;
                 console.log('✅ Conexión con WhatsApp establecida exitosamente.');
-                
-                setTimeout(async () => {
-                    try {
-                        console.log('🔍 Obteniendo lista de grupos...');
-                        const groupList = await sock.groupFetchAllParticipating();
-                        const groupKeys = Object.keys(groupList);
-
-                        if (groupKeys.length === 0) {
-                            console.log('⚠️ No se encontraron grupos asociados.');
-                        } else {
-                            console.log('📋 --- LISTA DE GRUPOS DE WHATSAPP DISPONIBLES ---');
-                            for (const jid of groupKeys) {
-                                console.log(`📌 Grupo: "${groupList[jid].subject}" | JID: ${jid}`);
-                            }
-                            console.log('--------------------------------------------------');
-                        }
-                    } catch (err) {
-                        console.error('Error al listar grupos:', err.message);
-                    }
-                }, 4000);
+                // Nota: Se eliminó la llamada masiva automática groupFetchAllParticipating() para prevenir rate-overlimit y saturación de CPU
             }
         });
     } catch (err) {
         console.error('❌ Error al inicializar servicio de WhatsApp:', err.message);
     }
 };
+// ==========================================
+// FIN MODIFICACIÓN
+// ==========================================
 
 const notificarModificacionContrato = async (contractKey, targetGroupJid) => {
     try {
@@ -162,7 +171,6 @@ const notificarModificacionContrato = async (contractKey, targetGroupJid) => {
         console.error('❌ Error al enviar notificación por WhatsApp:', error.message);
     }
 };
-
 
 const verificarYNotificarContratosSinFirma = async () => {
     try {
