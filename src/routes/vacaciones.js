@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 
+// Importación directa del cliente Gmail desde tu modulo de Google
+const { gmail } = require('./google'); 
+
 const { verificarToken, verificarRol } = require('../middlewares/authMiddleware');
 
 const ROLES_ADMINISTRATIVOS = [
@@ -11,6 +14,60 @@ const ROLES_ADMINISTRATIVOS = [
   'Gerente administración',
   'Gerente Administracion'
 ];
+
+// =========================================================================
+// FUNCIÓN AUXILIAR: Enviar correo seguro mediante API de Gmail (MIME Base64)
+// =========================================================================
+async function enviarCorreoGmail({ to, subject, html }) {
+  try {
+    const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
+    const messageParts = [
+      `To: ${to}`,
+      'Content-Type: text/html; charset=utf-8',
+      'MIME-Version: 1.0',
+      `Subject: ${utf8Subject}`,
+      '',
+      html
+    ];
+    const message = messageParts.join('\r\n');
+    const encodedMessage = Buffer.from(message)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+
+    await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: { raw: encodedMessage }
+    });
+    console.log(`✉️ Correo enviado exitosamente vía Gmail a: ${to}`);
+  } catch (err) {
+    console.error('❌ Error al enviar correo mediante Gmail API:', err);
+  }
+}
+
+// =========================================================================
+// NUEVA LÓGICA: Depuración automática de solicitudes rechazadas tras 10 días
+// =========================================================================
+async function depurarVacacionesRechazadas() {
+  try {
+    const sqlDelete = `
+      DELETE FROM vacaciones 
+      WHERE estado = 'rechazada' 
+        AND updated_at <= NOW() - INTERVAL 10 DAY
+    `;
+    const [result] = await pool.query(sqlDelete);
+    if (result.affectedRows > 0) {
+      console.log(`🧹 Depuración de vacaciones: ${result.affectedRows} registro(s) rechazados antiguos eliminados.`);
+    }
+  } catch (error) {
+    console.error('❌ Error durante la depuración de vacaciones rechazadas:', error);
+  }
+}
+
+// Ejecutar depuración cada 24 horas y al iniciar
+setInterval(depurarVacacionesRechazadas, 24 * 60 * 60 * 1000);
+setTimeout(depurarVacacionesRechazadas, 5000);
 
 router.get('/', verificarToken, async (req, res) => {
   try {
@@ -44,7 +101,6 @@ router.get('/', verificarToken, async (req, res) => {
         v.estado,
         v.observaciones,
         COALESCE(ve.dias_vacaciones_ley, 0) AS dias_vacaciones_ley,
-        -- Sumatoria de días gozados SOLO del ciclo anual laboral vigente (desde el último aniversario)
         COALESCE((
           SELECT SUM(v2.dias_tomados) 
           FROM vacaciones v2 
@@ -159,6 +215,9 @@ router.post('/', verificarToken, async (req, res) => {
   }
 });
 
+// =========================================================================
+// MODIFICACIÓN: Envío de correo mediante Gmail API al rechazar
+// =========================================================================
 router.patch('/:id/estado', verificarToken, verificarRol(ROLES_ADMINISTRATIVOS), async (req, res) => {
   const idVacacion = req.params.id;
   const { estado } = req.body;
@@ -195,6 +254,46 @@ router.patch('/:id/estado', verificarToken, verificarRol(ROLES_ADMINISTRATIVOS),
         success: false,
         error: 'No se encontró la solicitud de vacaciones especificada.'
       });
+    }
+
+    // Si fue RECHAZADA, notificar por correo al empleado
+    if (estadoParaBD === 'rechazada') {
+      try {
+        const sqlQuery = `
+          SELECT 
+            v.fecha_inicio, 
+            v.fecha_fin, 
+            v.observaciones,
+            COALESCE(ve.email, ve.correo) AS correo,
+            CONCAT(COALESCE(ve.name, ''), ' ', COALESCE(ve.last_name, '')) AS nombre
+          FROM vacaciones v
+          LEFT JOIN vista_empleados_vacaciones ve ON v.id_employee = ve.id_employee
+          WHERE v.id_vacacion = ?
+        `;
+        const [filasInfo] = await pool.query(sqlQuery, [idVacacion]);
+
+        if (filasInfo.length > 0 && filasInfo[0].correo) {
+          const info = filasInfo[0];
+          const plantillaHtml = `
+            <div style="font-family: Arial, sans-serif; padding: 15px; color: #333;">
+              <h2 style="color: #dc2626;">Notificación de Solicitud de Vacaciones - MODISA</h2>
+              <p>Hola <strong>${info.nombre || 'Empleado'}</strong>,</p>
+              <p>Te informamos que tu solicitud de vacaciones programada del <strong>${info.fecha_inicio}</strong> al <strong>${info.fecha_fin}</strong> ha sido <span style="color: #dc2626; font-weight: bold;">RECHAZADA</span>.</p>
+              ${info.observaciones ? `<p><strong>Observaciones:</strong> ${info.observaciones}</p>` : ''}
+              <hr style="border: 0; border-top: 1px solid #ccc; margin: 20px 0;">
+              <p style="font-size: 12px; color: #777;">Este es un mensaje automático generado por el Sistema ERP MODISA.</p>
+            </div>
+          `;
+
+          await enviarCorreoGmail({
+            to: info.correo,
+            subject: 'Estatus de Solicitud de Vacaciones - MODISA',
+            html: plantillaHtml
+          });
+        }
+      } catch (errEmail) {
+        console.error('⚠️ Solicitud rechazada pero falló la notificación de correo:', errEmail.message);
+      }
     }
 
     res.json({

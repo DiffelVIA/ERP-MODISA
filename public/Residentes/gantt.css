@@ -1,0 +1,164 @@
+/* ==========================================================================
+   VARIABLES GLOBALES DEL GANTT
+   ========================================================================== */
+:root {
+  /* Paleta de Colores Básica */
+  --gantt-bg-card: #ffffff;
+  --gantt-bg-header: #f8fafc;
+  --gantt-bg-hover: #f1f5f9;
+  
+  /* Colores de Texto */
+  --gantt-text-primary: #0f172a;
+  --gantt-text-secondary: #1e293b;
+  --gantt-text-muted: #64748b;
+  --gantt-text-light: #ffffff;
+
+  /* Estados de Vacaciones */
+  --gantt-color-pendiente: #f59e0b;
+  --gantt-color-aprobada: #10b981;
+
+  /* Bordes y Sombras */
+  --gantt-border-color: #e2e8f0;
+  --gantt-border-divider: #cbd5e1;
+  --gantt-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --gantt-barra-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+
+  /* Dimensiones y Espaciados */
+  --gantt-card-padding: 18px;
+  --gantt-radius: 8px;
+  --gantt-col-emp-width: 220px;
+  --gantt-col-day-min-width: 26px;
+  --gantt-row-height: 38px;
+  --gantt-font-size-sm: 10px;
+  --gantt-font-size-md: 12px;
+  --gantt-font-size-lg: 13px;
+  --gantt-font-size-title: 16px;
+}
+
+/* ==========================================================================
+   ESTILOS Y ESTRUCTURA DEL COMPONENTE
+   ========================================================================== */
+
+.seccion-gantt {
+  margin: 20px 0;
+  background: var(--gantt-bg-card);
+  padding: var(--gantt-card-padding);
+  border-radius: var(--gantt-radius);
+  box-shadow: var(--gantt-shadow);
+  overflow-x: auto;
+}
+
+.gantt-header-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.gantt-header-title h2 {
+  font-size: var(--gantt-font-size-title);
+  color: var(--gantt-text-primary);
+  margin: 0;
+}
+
+.gantt-leyenda {
+  display: flex;
+  gap: 15px;
+  font-size: var(--gantt-font-size-lg);
+  color: var(--gantt-text-secondary);
+}
+
+.leyenda-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.leyenda-box {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+.leyenda-box.pendiente {
+  background-color: var(--gantt-color-pendiente);
+}
+
+.leyenda-box.autorizada {
+  background-color: var(--gantt-color-aprobada);
+}
+
+.gantt-grid {
+  display: flex;
+  flex-direction: column;
+  min-width: 850px;
+  border: 1px solid var(--gantt-border-color);
+  border-radius: calc(var(--gantt-radius) - 2px);
+}
+
+.gantt-fila-dias {
+  display: grid;
+  grid-template-columns: var(--gantt-col-emp-width) repeat(31, minmax(var(--gantt-col-day-min-width), 1fr));
+  background-color: var(--gantt-bg-header);
+  border-bottom: 2px solid var(--gantt-border-divider);
+  font-weight: bold;
+  font-size: var(--gantt-font-size-md);
+  text-align: center;
+}
+
+.gantt-col-header {
+  padding: 8px 2px;
+  border-right: 1px solid var(--gantt-border-color);
+}
+
+.gantt-fila-emp {
+  display: grid;
+  grid-template-columns: var(--gantt-col-emp-width) repeat(31, minmax(var(--gantt-col-day-min-width), 1fr));
+  border-bottom: 1px solid var(--gantt-bg-hover);
+  align-items: center;
+  height: var(--gantt-row-height);
+}
+
+.gantt-emp-nombre {
+  padding: 0 10px;
+  font-size: var(--gantt-font-size-lg);
+  font-weight: 600;
+  color: var(--gantt-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-right: 1px solid var(--gantt-border-color);
+}
+
+.gantt-celda-dia {
+  height: 100%;
+  border-right: 1px solid var(--gantt-bg-hover);
+  position: relative;
+}
+
+.gantt-barra {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 1px;
+  right: 1px;
+  border-radius: 3px;
+  font-size: var(--gantt-font-size-sm);
+  color: var(--gantt-text-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  box-shadow: var(--gantt-barra-shadow);
+  z-index: 2;
+}
+
+/* Modificadores de Estado mediante Variables */
+.gantt-barra.pendiente {
+  background-color: var(--gantt-color-pendiente);
+}
+
+.gantt-barra.autorizada, 
+.gantt-barra.aprobada {
+  background-color: var(--gantt-color-aprobada);
+}
