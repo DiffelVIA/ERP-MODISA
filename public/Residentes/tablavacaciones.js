@@ -42,7 +42,7 @@
   });
 
   // ==========================================
-  // ALTERNADOR DE PESTAÑAS (TABLA / GANTT)
+  // INICIO MODIFICACIÓN: ALTERNADOR DE PESTAÑAS Y CONTROL DE VISIBILIDAD GANTT
   // ==========================================
   function configurarAlternadorVistasUI() {
     const btnTabla = document.getElementById('btnVistaTabla');
@@ -52,6 +52,35 @@
     const selectAnio = document.getElementById('selectAnioGantt');
 
     if (!btnTabla || !btnGantt || !vistaTabla || !vistaGantt) return;
+
+    // Obtención y normalización del rol del usuario autenticado
+    const jwtDatos = obtenerDatosDesdeJWT() || {};
+    const userRolRaw = localStorage.getItem('userRol') || jwtDatos.rol || jwtDatos.role || jwtDatos.job_title || '';
+
+    const userRolNormalizado = userRolRaw
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+    // Evaluación explícita de Laura y Luis
+    const esLaura = (
+      userRolNormalizado === 'gerente administracion' || 
+      userRolNormalizado === 'gerente de administracion' ||
+      (userRolNormalizado.includes('gerente') && userRolNormalizado.includes('administrac'))
+    );
+
+    const esLuis = (
+      userRolNormalizado === 'director operativo' ||
+      (userRolNormalizado.includes('director') && userRolNormalizado.includes('operativ'))
+    );
+
+    const puedeVerGantt = esLaura || esLuis;
+
+    // UX / Ciberseguridad: Ocultar botón Gantt si el usuario no es Laura ni Luis
+    if (!puedeVerGantt) {
+      btnGantt.style.display = 'none';
+    }
 
     btnTabla.addEventListener('click', () => {
       btnTabla.classList.add('activa');
@@ -66,18 +95,20 @@
       vistaGantt.style.display = 'none';
     });
 
-    btnGantt.addEventListener('click', () => {
-      btnGantt.classList.add('activa');
-      btnGantt.style.background = '#2563eb';
-      btnGantt.style.color = '#ffffff';
+    if (puedeVerGantt) {
+      btnGantt.addEventListener('click', () => {
+        btnGantt.classList.add('activa');
+        btnGantt.style.background = '#2563eb';
+        btnGantt.style.color = '#ffffff';
 
-      btnTabla.classList.remove('activa');
-      btnTabla.style.background = 'transparent';
-      btnTabla.style.color = '#475569';
+        btnTabla.classList.remove('activa');
+        btnTabla.style.background = 'transparent';
+        btnTabla.style.color = '#475569';
 
-      vistaTabla.style.display = 'none';
-      vistaGantt.style.display = 'block';
-    });
+        vistaTabla.style.display = 'none';
+        vistaGantt.style.display = 'block';
+      });
+    }
 
     if (selectAnio) {
       selectAnio.addEventListener('change', (e) => {
@@ -86,6 +117,9 @@
       });
     }
   }
+  // ==========================================
+  // FIN MODIFICACIÓN
+  // ==========================================
 
   async function cargarDatosVacaciones() {
     try {
@@ -202,6 +236,9 @@
     renderizarGanttVacaciones(filtrados);
   }
 
+  // ==========================================
+  // INICIO MODIFICACIÓN: RENDERIZADO DE TABLA Y PERMISOS EXCLUSIVOS DE EDICIÓN
+  // ==========================================
   function renderizarTabla(lista) {
     const cuerpo = document.getElementById('cuerpoTablaVacaciones');
     if (!cuerpo) return;
@@ -220,7 +257,8 @@
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
 
-    const esGerenteAdmin = (
+    // REGLA ESTRICTA: Únicamente Laura (Gerente Administración) puede cambiar estado e ingresar observaciones
+    const esLaura = (
       userRolNormalizado === 'gerente administracion' || 
       userRolNormalizado === 'gerente de administracion' ||
       (userRolNormalizado.includes('gerente') && userRolNormalizado.includes('administrac'))
@@ -246,7 +284,8 @@
       const obsTexto = escapeHTML(item.observaciones || '');
 
       let selectEstadoHTML = '';
-      if (esGerenteAdmin) {
+      if (esLaura) {
+        // Laura: Selector interactivo
         selectEstadoHTML = `
           <select class="select-estado-tabla" data-id="${idVacacion}" onchange="window.actualizarEstadoVacacion(${idVacacion}, this.value, this)" style="padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 13px; color: #334155; font-weight: 500;">
             <option value="pendiente" ${esPendiente ? 'selected' : ''}>Pendiente</option>
@@ -255,15 +294,18 @@
           </select>
         `;
       } else {
+        // Luis y demás roles: Texto plano estilizado (badge)
         const textoEstadoFormateado = esAprobadaOAutorizada ? 'Autorizada' : (esRechazada ? 'Rechazada' : 'Pendiente');
         const colorFondo = esAprobadaOAutorizada ? '#16a34a' : (esRechazada ? '#dc2626' : '#eab308');
         selectEstadoHTML = `<span class="badge-status-pago" style="padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #fff; background-color: ${colorFondo}">${textoEstadoFormateado}</span>`;
       }
 
       let obsHTML = '';
-      if (esGerenteAdmin) {
+      if (esLaura) {
+        // Laura: Campo editable para observaciones
         obsHTML = `<input type="text" value="${obsTexto}" placeholder="Agregar nota..." class="input-obs-tabla" onblur="window.actualizarObservacionVacacion(${idVacacion}, this.value, this)" style="width: 95%; padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 12px; color: #334155;">`;
       } else {
+        // Luis y demás roles: Observación en texto plano de solo lectura
         obsHTML = `<span style="color: #475569; font-style: italic; font-size: 12px;">${obsTexto || '-'}</span>`;
       }
 
@@ -282,6 +324,9 @@
       `;
     }).join('');
   }
+  // ==========================================
+  // FIN MODIFICACIÓN
+  // ==========================================
 
   // ==========================================
   // RENDERIZADO DEL DIAGRAMA GANTT ANUAL (ALINEACIÓN PERFECTA DE MESES Y DÍAS)
@@ -377,28 +422,19 @@
         }
       });
 
-      // ==========================================================================
-      // INICIO MODIFICACIÓN: POSICIONAMIENTO DINÁMICO DE TOOLTIP SEGÚN FILTRADO
-      // ==========================================================================
+      // POSICIONAMIENTO DINÁMICO DE TOOLTIP SEGÚN FILTRADO
       const totalEmpleados = listaEmpleadosClaves.length;
       let claseTooltipPosicion = '';
 
       if (totalEmpleados === 1) {
-        // Un solo registro visible: siempre hacia arriba para no salirse del contenedor
         claseTooltipPosicion = 'tooltip-arriba';
       } else if (filaIdx === 0) {
-        // Primera fila de un grupo: desplegar hacia abajo
         claseTooltipPosicion = 'tooltip-abajo';
       } else if (filaIdx === totalEmpleados - 1) {
-        // Última fila del grupo filtrado: desplegar hacia arriba
         claseTooltipPosicion = 'tooltip-arriba';
       } else {
-        // Filas intermedias: despliegue superior por defecto
         claseTooltipPosicion = 'tooltip-arriba';
       }
-      // ==========================================================================
-      // FIN MODIFICACIÓN
-      // ==========================================================================
 
       let d = 0;
       while (d < totalDiasAnio) {
