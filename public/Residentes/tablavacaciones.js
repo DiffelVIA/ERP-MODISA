@@ -122,43 +122,61 @@
   // ==========================================
 
   // ==========================================
-  // INICIO SOLUCIÓN PROPUESTA: LECTURA DE ERROR DETALLADO DESDE API REST
+  // MEJORA SOLUCIÓN: GESTIÓN DE ERRORES HTTP 500 Y TIMEOUT DE RED
   // ==========================================
   async function cargarDatosVacaciones() {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // Timeout a los 15s (Render spin-up)
+
     try {
       const token = localStorage.getItem('jwtToken') || '';
       const respuesta = await fetch(`${API_URL}/vacaciones`, {
+        signal: controller.signal,
         headers: {
-          'Authorization': token ? `Bearer ${token}` : ''
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Accept': 'application/json'
         }
       });
 
+      clearTimeout(timeoutId);
+
       if (!respuesta.ok) {
-        let mensajeError = 'Error al consultar el histórico de vacaciones.';
+        let mensajeServidor = 'Error al consultar el histórico de vacaciones.';
         try {
-          const errorData = await respuesta.json();
-          if (errorData && errorData.error) {
-            mensajeError = errorData.error;
+          const errorJson = await respuesta.json();
+          if (errorJson && errorJson.error) {
+            mensajeServidor = errorJson.error;
           }
         } catch (_) {
-          // Si la respuesta no contiene un JSON estructurado, se mantiene el mensaje por defecto
+          mensajeServidor = `Error ${respuesta.status}: ${respuesta.statusText || 'Error interno del servidor'}`;
         }
-        throw new Error(mensajeError);
+        throw new Error(mensajeServidor);
       }
 
       datosVacaciones = await respuesta.json();
       construirFiltrosIniciales();
 
     } catch (error) {
+      clearTimeout(timeoutId);
       console.error('❌ Error al cargar vacaciones:', error);
+
       const cuerpo = document.getElementById('cuerpoTablaVacaciones');
       if (cuerpo) {
-        cuerpo.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #dc2626; padding: 20px; font-weight: 500;">❌ ${escapeHTML(error.message)}</td></tr>`;
+        const msg = error.name === 'AbortError' 
+          ? 'La solicitud ha superado el tiempo de espera. Por favor, reintente.' 
+          : error.message;
+
+        cuerpo.innerHTML = `
+          <tr>
+            <td colspan="9" style="text-align: center; color: #dc2626; padding: 24px; font-weight: 500;">
+              ❌ ${escapeHTML(msg)}
+            </td>
+          </tr>`;
       }
     }
   }
   // ==========================================
-  // FIN SOLUCIÓN PROPUESTA
+  // FIN MEJORA SOLUCIÓN
   // ==========================================
 
   function configurarDropdownsUI() {
