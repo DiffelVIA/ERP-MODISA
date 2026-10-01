@@ -141,6 +141,7 @@
     });
 
     renderizarTabla(filtrados);
+    renderizarGanttVacaciones(filtrados); // SOLUCIÓN: Invocación del Gantt
   }
 
   function renderizarTabla(lista) {
@@ -222,6 +223,90 @@
         </tr>
       `;
     }).join('');
+  }
+
+  // ==========================================
+  // SOLUCIÓN: LÓGICA COMPLETA DE RENDERIZADO DE GANTT
+  // ==========================================
+  function renderizarGanttVacaciones(lista) {
+    const contenedorGrid = document.getElementById('ganttGrid');
+    if (!contenedorGrid) return;
+
+    if (!lista || lista.length === 0) {
+      contenedorGrid.innerHTML = '<div style="padding: 20px; text-align: center; color: #64748b;">No hay programaciones de vacaciones para mostrar.</div>';
+      return;
+    }
+
+    const hoy = new Date();
+    const anioActual = hoy.getFullYear();
+    const mesActual = hoy.getMonth();
+    const diasEnMes = new Date(anioActual, mesActual + 1, 0).getDate();
+
+    let htmlEncabezadoDias = '<div class="gantt-fila-dias"><div class="gantt-col-header">Empleado</div>';
+    for (let dia = 1; dia <= diasEnMes; dia++) {
+      htmlEncabezadoDias += `<div class="gantt-col-header">${dia}</div>`;
+    }
+    htmlEncabezadoDias += '</div>';
+
+    const vacacionesPorEmpleado = {};
+    lista.forEach(item => {
+      const empNombre = item.nombre_empleado || item.empleado || `Empleado ID #${item.id_employee}`;
+      if (!vacacionesPorEmpleado[empNombre]) {
+        vacacionesPorEmpleado[empNombre] = [];
+      }
+      vacacionesPorEmpleado[empNombre].push(item);
+    });
+
+    let htmlFilasEmpleados = '';
+    Object.keys(vacacionesPorEmpleado).sort().forEach(empNombre => {
+      htmlFilasEmpleados += `<div class="gantt-fila-emp"><div class="gantt-emp-nombre" title="${escapeHTML(empNombre)}">${escapeHTML(empNombre)}</div>`;
+
+      const mapaCeldas = {};
+      vacacionesPorEmpleado[empNombre].forEach(v => {
+        if (!v.fecha_inicio || !v.fecha_fin) return;
+
+        const fInicio = new Date(v.fecha_inicio);
+        const fFin = new Date(v.fecha_fin);
+
+        const idInicio = fInicio.getFullYear() === anioActual && fInicio.getMonth() === mesActual ? fInicio.getDate() : (fInicio < new Date(anioActual, mesActual, 1) ? 1 : null);
+        const idFin = fFin.getFullYear() === anioActual && fFin.getMonth() === mesActual ? fFin.getDate() : (fFin > new Date(anioActual, mesActual, diasEnMes) ? diasEnMes : null);
+
+        if (idInicio !== null && idFin !== null) {
+          const duracion = (idFin - idInicio) + 1;
+          const estClase = String(v.estado || 'pendiente').toLowerCase();
+          mapaCeldas[idInicio] = {
+            duracion: duracion,
+            estado: estClase,
+            dias: v.dias_tomados
+          };
+        }
+      });
+
+      let d = 1;
+      while (d <= diasEnMes) {
+        if (mapaCeldas[d]) {
+          const infoBarra = mapaCeldas[d];
+          const span = infoBarra.duracion;
+          const porcentajeAncho = (span * 100) - 4;
+          
+          htmlFilasEmpleados += `
+            <div class="gantt-celda-dia">
+              <div class="gantt-barra ${infoBarra.estado}" style="width: ${porcentajeAncho}%;" title="Vacaciones: ${infoBarra.dias} días">
+                ${infoBarra.dias}d
+              </div>
+            </div>
+          `;
+          d += span;
+        } else {
+          htmlFilasEmpleados += `<div class="gantt-celda-dia"></div>`;
+          d++;
+        }
+      }
+
+      htmlFilasEmpleados += '</div>';
+    });
+
+    contenedorGrid.innerHTML = htmlEncabezadoDias + htmlFilasEmpleados;
   }
 
   // ==========================================

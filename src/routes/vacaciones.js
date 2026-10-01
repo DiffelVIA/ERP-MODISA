@@ -15,9 +15,6 @@ const ROLES_ADMINISTRATIVOS = [
   'Gerente Administracion'
 ];
 
-// =========================================================================
-// FUNCIÓN AUXILIAR: Enviar correo seguro mediante API de Gmail (MIME Base64)
-// =========================================================================
 async function enviarCorreoGmail({ to, subject, html }) {
   try {
     const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
