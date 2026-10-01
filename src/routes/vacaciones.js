@@ -82,7 +82,7 @@ router.get('/', verificarToken, async (req, res) => {
       return rLimpio === rolUsuarioLimpio || (rolUsuarioLimpio.includes('gerente') && rolUsuarioLimpio.includes('administrac'));
     });
 
-    // Consulta con protecciones COALESCE para evitar errores 500 por nulos o fechas invalidas
+    // Consulta SQL optimizada sin STR_TO_DATE ni CONCAT para evitar excepciones por 29 de Febrero (Bisiestos) o NULLs
     let sql = `
       SELECT 
         v.id_vacacion,
@@ -106,8 +106,8 @@ router.get('/', verificarToken, async (req, res) => {
             AND v2.estado IN ('aprobada', 'autorizada')
             AND v2.fecha_inicio >= CASE 
               WHEN DATE_FORMAT(CURRENT_DATE, '%m-%d') >= DATE_FORMAT(COALESCE(ve.hire_date, CURRENT_DATE), '%m-%d')
-              THEN STR_TO_DATE(CONCAT(YEAR(CURRENT_DATE), '-', DATE_FORMAT(COALESCE(ve.hire_date, CURRENT_DATE), '%m-%d')), '%Y-%m-%d')
-              ELSE STR_TO_DATE(CONCAT(YEAR(CURRENT_DATE) - 1, '-', DATE_FORMAT(COALESCE(ve.hire_date, CURRENT_DATE), '%m-%d')), '%Y-%m-%d')
+              THEN DATE_ADD(COALESCE(ve.hire_date, CURRENT_DATE), INTERVAL TIMESTAMPDIFF(YEAR, COALESCE(ve.hire_date, CURRENT_DATE), CURRENT_DATE) YEAR)
+              ELSE DATE_ADD(COALESCE(ve.hire_date, CURRENT_DATE), INTERVAL (TIMESTAMPDIFF(YEAR, COALESCE(ve.hire_date, CURRENT_DATE), CURRENT_DATE) - 1) YEAR)
             END
         ), 0) AS dias_gozados
       FROM vacaciones v
@@ -132,7 +132,6 @@ router.get('/', verificarToken, async (req, res) => {
 
     const [rows] = await pool.query(sql, params);
 
-    // Mapeo seguro con saneamiento numérico
     const resultadosEnriquecidos = rows.map(r => {
       const diasLey = Number(r.dias_vacaciones_ley || 0);
       const diasGozados = Number(r.dias_gozados || 0);
