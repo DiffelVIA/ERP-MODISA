@@ -187,12 +187,11 @@
   background-color: #10b981;
 }
 
-/* Tarjeta Informativa Flotante (Tooltip que no se corta arriba) */
+/* Tarjeta Informativa Flotante Base */
 .gantt-tooltip {
   visibility: hidden;
   opacity: 0;
   position: absolute;
-  bottom: 125%; /* Por defecto arriba */
   left: 50%;
   transform: translateX(-50%);
   background-color: #0f172a;
@@ -212,15 +211,27 @@
 .gantt-tooltip::after {
   content: "";
   position: absolute;
-  top: 100%;
   left: 50%;
   margin-left: -5px;
   border-width: 5px;
   border-style: solid;
+}
+
+/* Orientación Hacia Arriba (Predeterminada y por Clase Explicitada) */
+.gantt-tooltip,
+.gantt-tooltip.tooltip-arriba {
+  bottom: 125%;
+  top: auto;
+}
+
+.gantt-tooltip::after,
+.gantt-tooltip.tooltip-arriba::after {
+  top: 100%;
+  bottom: auto;
   border-color: #0f172a transparent transparent transparent;
 }
 
-/* Clase alternativa para Tooltip hacia abajo en las primeras filas */
+/* Orientación Hacia Abajo (Para primeras filas o cuando sólo hay un registro) */
 .gantt-tooltip.tooltip-abajo {
   bottom: auto;
   top: 125%;

@@ -284,7 +284,7 @@
   }
 
   // ==========================================
-  // RENDERIZADO DEL DIAGRAMA GANTT ANUAL (ALINEACIÓN PERFECTA DE MESE Y DÍAS)
+  // RENDERIZADO DEL DIAGRAMA GANTT ANUAL (ALINEACIÓN PERFECTA DE MESES Y DÍAS)
   // ==========================================
   function renderizarGanttVacaciones(lista) {
     const contenedorGrid = document.getElementById('ganttGrid');
@@ -377,7 +377,28 @@
         }
       });
 
-      const claseTooltipPosicion = filaIdx < 2 ? 'tooltip-abajo' : '';
+      // ==========================================================================
+      // INICIO MODIFICACIÓN: POSICIONAMIENTO DINÁMICO DE TOOLTIP SEGÚN FILTRADO
+      // ==========================================================================
+      const totalEmpleados = listaEmpleadosClaves.length;
+      let claseTooltipPosicion = '';
+
+      if (totalEmpleados === 1) {
+        // Un solo registro visible: siempre hacia arriba para no salirse del contenedor
+        claseTooltipPosicion = 'tooltip-arriba';
+      } else if (filaIdx === 0) {
+        // Primera fila de un grupo: desplegar hacia abajo
+        claseTooltipPosicion = 'tooltip-abajo';
+      } else if (filaIdx === totalEmpleados - 1) {
+        // Última fila del grupo filtrado: desplegar hacia arriba
+        claseTooltipPosicion = 'tooltip-arriba';
+      } else {
+        // Filas intermedias: despliegue superior por defecto
+        claseTooltipPosicion = 'tooltip-arriba';
+      }
+      // ==========================================================================
+      // FIN MODIFICACIÓN
+      // ==========================================================================
 
       let d = 0;
       while (d < totalDiasAnio) {
@@ -413,9 +434,6 @@
     contenedorGrid.innerHTML = `<div class="gantt-wrapper-anual" style="--total-dias-anio: ${totalDiasAnio};">` + htmlHeaderMeses + htmlHeaderDias + htmlFilasEmpleados + `</div>`;
   }
 
-  // ==========================================
-  // METODOS GLOBALES DE ACTUALIZACION DE ESTADO Y NOTAS
-  // ==========================================
   window.actualizarEstadoVacacion = async function(idVacacion, nuevoEstado, elementoInput) {
     const token = localStorage.getItem('jwtToken') || '';
 
