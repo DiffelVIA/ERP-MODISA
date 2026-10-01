@@ -69,7 +69,7 @@ setTimeout(depurarVacacionesRechazadas, 5000);
 router.get('/', verificarToken, async (req, res) => {
   try {
     const rolUsuario = req.usuario ? req.usuario.rol : '';
-    const idEmpleadoToken = req.usuario ? (req.usuario.id_employee || req.usuario.id) : null;
+    const idEmpleadoToken = req.usuario ? (req.usuario.id_employee || req.usuario.id || req.usuario.userId) : null;
 
     const rolUsuarioLimpio = (rolUsuario || '')
       .trim()
@@ -104,9 +104,9 @@ router.get('/', verificarToken, async (req, res) => {
           WHERE v2.id_employee = v.id_employee 
             AND v2.estado IN ('aprobada', 'autorizada')
             AND v2.fecha_inicio >= CASE 
-              WHEN DATE_FORMAT(CURRENT_DATE, '%m-%d') >= DATE_FORMAT(ve.hire_date, '%m-%d')
-              THEN STR_TO_DATE(CONCAT(YEAR(CURRENT_DATE), '-', DATE_FORMAT(ve.hire_date, '%m-%d')), '%Y-%m-%d')
-              ELSE STR_TO_DATE(CONCAT(YEAR(CURRENT_DATE) - 1, '-', DATE_FORMAT(ve.hire_date, '%m-%d')), '%Y-%m-%d')
+              WHEN DATE_FORMAT(CURRENT_DATE, '%m-%d') >= DATE_FORMAT(COALESCE(ve.hire_date, CURRENT_DATE), '%m-%d')
+              THEN STR_TO_DATE(CONCAT(YEAR(CURRENT_DATE), '-', DATE_FORMAT(COALESCE(ve.hire_date, CURRENT_DATE), '%m-%d')), '%Y-%m-%d')
+              ELSE STR_TO_DATE(CONCAT(YEAR(CURRENT_DATE) - 1, '-', DATE_FORMAT(COALESCE(ve.hire_date, CURRENT_DATE), '%m-%d')), '%Y-%m-%d')
             END
         ), 0) AS dias_gozados
       FROM vacaciones v
@@ -152,8 +152,10 @@ router.get('/', verificarToken, async (req, res) => {
   }
 });
 
+// =========================================================================
+// CORRECCIÓN POST: Validación robusta contra NaN y coerción de tipos
+// =========================================================================
 router.post('/', verificarToken, async (req, res) => {
-  // Verificación de autenticación estricta (Evita req.usuario nulo)
   if (!req.usuario) {
     return res.status(401).json({
       success: false,
@@ -169,13 +171,15 @@ router.post('/', verificarToken, async (req, res) => {
     motivo
   } = req.body;
 
-  // CIBERSEGURIDAD: Prevalecer la identidad del JWT para impedir suplantación (ID IDOR Prevent)
-  const idEmpleadoFinal = req.usuario.id_employee || req.usuario.id || id_employee;
+  // CIBERSEGURIDAD IDOR: Identidad primaria del JWT
+  const idEmpleadoBruto = req.usuario.id_employee || req.usuario.id || req.usuario.userId || id_employee;
+  const idEmpleadoFinal = parseInt(idEmpleadoBruto, 10);
+  const diasTomadosFinal = parseInt(dias_tomados, 10);
 
-  if (!idEmpleadoFinal || !fecha_inicio || !fecha_fin || !dias_tomados) {
+  if (isNaN(idEmpleadoFinal) || !fecha_inicio || !fecha_fin || isNaN(diasTomadosFinal) || diasTomadosFinal <= 0) {
     return res.status(400).json({
       success: false,
-      error: 'Campos obligatorios faltantes: fecha_inicio, fecha_fin y dias_tomados son requeridos.'
+      error: 'Campos obligatorios faltantes o inválidos: ID de empleado, fecha_inicio, fecha_fin y dias_tomados son requeridos.'
     });
   }
 
@@ -199,10 +203,10 @@ router.post('/', verificarToken, async (req, res) => {
     `;
 
     const [insertResult] = await pool.query(sqlInsert, [
-      parseInt(idEmpleadoFinal, 10),
+      idEmpleadoFinal,
       fecha_inicio,
       fecha_fin,
-      parseInt(dias_tomados, 10),
+      diasTomadosFinal,
       motivo ? motivo.trim() : null
     ]);
 
