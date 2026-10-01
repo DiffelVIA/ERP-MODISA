@@ -121,6 +121,9 @@
   // FIN MODIFICACIÓN
   // ==========================================
 
+  // ==========================================
+  // INICIO SOLUCIÓN PROPUESTA: LECTURA DE ERROR DETALLADO DESDE API REST
+  // ==========================================
   async function cargarDatosVacaciones() {
     try {
       const token = localStorage.getItem('jwtToken') || '';
@@ -130,7 +133,18 @@
         }
       });
 
-      if (!respuesta.ok) throw new Error('Error al consultar el histórico de vacaciones.');
+      if (!respuesta.ok) {
+        let mensajeError = 'Error al consultar el histórico de vacaciones.';
+        try {
+          const errorData = await respuesta.json();
+          if (errorData && errorData.error) {
+            mensajeError = errorData.error;
+          }
+        } catch (_) {
+          // Si la respuesta no contiene un JSON estructurado, se mantiene el mensaje por defecto
+        }
+        throw new Error(mensajeError);
+      }
 
       datosVacaciones = await respuesta.json();
       construirFiltrosIniciales();
@@ -139,10 +153,13 @@
       console.error('❌ Error al cargar vacaciones:', error);
       const cuerpo = document.getElementById('cuerpoTablaVacaciones');
       if (cuerpo) {
-        cuerpo.innerHTML = `<tr><td colspan="9" style="text-align: center; color: red; padding: 20px;">❌ ${escapeHTML(error.message)}</td></tr>`;
+        cuerpo.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #dc2626; padding: 20px; font-weight: 500;">❌ ${escapeHTML(error.message)}</td></tr>`;
       }
     }
   }
+  // ==========================================
+  // FIN SOLUCIÓN PROPUESTA
+  // ==========================================
 
   function configurarDropdownsUI() {
     document.querySelectorAll('.btn-dropdown').forEach(btn => {
