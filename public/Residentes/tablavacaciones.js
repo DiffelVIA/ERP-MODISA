@@ -284,7 +284,7 @@
   }
 
   // ==========================================
-  // RENDERIZADO DEL DIAGRAMA GANTT ANUAL
+  // RENDERIZADO DEL DIAGRAMA GANTT ANUAL (ALINEACIÓN PERFECTA DE MESE Y DÍAS)
   // ==========================================
   function renderizarGanttVacaciones(lista) {
     const contenedorGrid = document.getElementById('ganttGrid');
@@ -297,15 +297,14 @@
     const diasPorMes = nombresMeses.map((_, idx) => new Date(anio, idx + 1, 0).getDate());
     const totalDiasAnio = diasPorMes.reduce((acc, d) => acc + d, 0);
 
-    // 1. Cabecera de Meses
-    let htmlHeaderMeses = `<div class="gantt-header-meses"><div class="gantt-col-emp-header">Empleado</div><div style="display:flex; flex-grow:1;">`;
+    // 1. Cabecera de Meses alineada mediante grid-column span exacto por mes
+    let htmlHeaderMeses = `<div class="gantt-header-meses"><div class="gantt-col-emp-header">Empleado</div>`;
     diasPorMes.forEach((dias, mIdx) => {
-      const porcentajeAncho = (dias / totalDiasAnio) * 100;
-      htmlHeaderMeses += `<div class="gantt-mes-title" style="width: ${porcentajeAncho}%;">${nombresMeses[mIdx]}</div>`;
+      htmlHeaderMeses += `<div class="gantt-mes-title" style="grid-column: span ${dias};">${nombresMeses[mIdx]}</div>`;
     });
-    htmlHeaderMeses += `</div></div>`;
+    htmlHeaderMeses += `</div>`;
 
-    // 2. Cabecera de Días (1..N)
+    // 2. Cabecera de Días (1..N por mes)
     let htmlHeaderDias = `<div class="gantt-header-dias"><div class="gantt-col-emp-header"></div>`;
     diasPorMes.forEach((dias) => {
       for (let d = 1; d <= dias; d++) {

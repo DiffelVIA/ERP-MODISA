@@ -21,12 +21,12 @@
 }
 
 /* ==========================================================================
-   CONFIGURACIÓN Y TOOLTIP DEL GANTT ANUAL PANORÁMICO (CORREGIDO)
+   CONFIGURACIÓN Y TOOLTIP DEL GANTT ANUAL PANORÁMICO (CORREGIDO Y ALINEADO)
    ========================================================================== */
 .seccion-gantt {
   margin: 20px 0;
   background: #ffffff;
-  padding: 25px 18px 18px 18px; /* MODIFICACIÓN: Aire superior para tooltip sin recorte */
+  padding: 25px 18px 18px 18px; /* Aire superior para tooltip sin recorte */
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   overflow-x: auto;
@@ -38,7 +38,7 @@
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   background-color: #ffffff;
-  overflow-y: visible; /* MODIFICACIÓN: Evita recortar tooltips verticales */
+  overflow-y: visible; /* Evita recortar tooltips verticales */
 }
 
 .gantt-wrapper-anual {
@@ -47,15 +47,19 @@
   min-width: 2600px;
 }
 
-/* MODIFICACIÓN SOLUCIÓN: Cabecera de Meses continua (Enero - Diciembre sin huecos blancos) */
+/* MODIFICACIÓN SOLUCIÓN: Cabecera de Meses con CSS Grid idéntico al de los Días */
 .gantt-header-meses {
-  display: flex;
+  display: grid;
+  grid-template-columns: 200px repeat(var(--total-dias-anio, 365), minmax(20px, 1fr));
   background-color: #0f172a;
   color: #ffffff;
   font-weight: bold;
   font-size: 11px;
   text-align: center;
   width: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 25; /* Capa superior sobre los meses */
 }
 
 .gantt-mes-title {
@@ -64,6 +68,12 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Filas con grid de días */
@@ -79,6 +89,9 @@
   font-size: 10px;
   text-align: center;
   color: #64748b;
+  position: sticky;
+  top: 33px; /* Posicionamiento pegajoso continuo debajo de los meses */
+  z-index: 22;
 }
 
 .gantt-dia-num {
@@ -90,7 +103,7 @@
 .gantt-col-emp-header, .gantt-emp-nombre {
   position: sticky;
   left: 0;
-  z-index: 20;
+  z-index: 30; /* Z-Index alto para impedir que meses o días pasen por encima */
   background: #ffffff;
   border-right: 2px solid #cbd5e1;
   padding: 0 12px;
@@ -106,16 +119,18 @@
   box-shadow: 2px 0 5px rgba(0,0,0,0.03);
   width: 200px;
   min-width: 200px;
-  box-sizing: border-border-box;
+  box-sizing: border-box;
 }
 
 .gantt-header-meses .gantt-col-emp-header {
   background: #0f172a;
   color: #ffffff;
+  z-index: 35; /* Encabezado principal siempre arriba */
 }
 
 .gantt-header-dias .gantt-col-emp-header {
   background: #f8fafc;
+  z-index: 30;
 }
 
 .gantt-fila-emp {
@@ -172,7 +187,7 @@
   background-color: #10b981;
 }
 
-/* MODIFICACIÓN SOLUCIÓN: Tarjeta Informativa Flotante (Tooltip que no se corta arriba) */
+/* Tarjeta Informativa Flotante (Tooltip que no se corta arriba) */
 .gantt-tooltip {
   visibility: hidden;
   opacity: 0;
@@ -205,7 +220,7 @@
   border-color: #0f172a transparent transparent transparent;
 }
 
-/* MODIFICACIÓN SOLUCIÓN: Clase alternativa para Tooltip hacia abajo en las primeras filas */
+/* Clase alternativa para Tooltip hacia abajo en las primeras filas */
 .gantt-tooltip.tooltip-abajo {
   bottom: auto;
   top: 125%;
