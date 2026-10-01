@@ -39,6 +39,9 @@
     await cargarDatosVacaciones();
   });
 
+  // ==========================================
+  // MODIFICACIÓN SOLUCIÓN: Carga inicial respetando filtros (sin renderizar datos sin filtrar)
+  // ==========================================
   async function cargarDatosVacaciones() {
     try {
       const token = localStorage.getItem('jwtToken') || '';
@@ -52,14 +55,15 @@
 
       datosVacaciones = await respuesta.json();
 
+      // Al ejecutar construirFiltrosIniciales(), este invoca a actualizarFiltrosYTabla()
+      // asegurando que la primera renderización aplique la casilla 'pendiente' activada.
       construirFiltrosIniciales();
-      renderizarTabla(datosVacaciones);
 
     } catch (error) {
       console.error('❌ Error al cargar vacaciones:', error);
       const cuerpo = document.getElementById('cuerpoTablaVacaciones');
       if (cuerpo) {
-        cuerpo.innerHTML = `<tr><td colspan="7" style="text-align: center; color: red; padding: 20px;">❌ ${escapeHTML(error.message)}</td></tr>`;
+        cuerpo.innerHTML = `<tr><td colspan="9" style="text-align: center; color: red; padding: 20px;">❌ ${escapeHTML(error.message)}</td></tr>`;
       }
     }
   }
@@ -110,6 +114,8 @@
 
     contenedorEmpleados.addEventListener('change', actualizarFiltrosYTabla);
     contenedorEstados.addEventListener('change', actualizarFiltrosYTabla);
+    
+    // Aplicar filtrado automático al construir las opciones
     actualizarFiltrosYTabla();
   }
 
@@ -218,6 +224,9 @@
     }).join('');
   }
 
+  // ==========================================
+  // MODIFICACIÓN SOLUCIÓN: Recálculo local de días restantes y actualización reactiva
+  // ==========================================
   window.actualizarEstadoVacacion = async function(idVacacion, nuevoEstado, elementoInput) {
     const token = localStorage.getItem('jwtToken') || '';
     const trFila = elementoInput ? elementoInput.closest('tr') : document.querySelector(`tr[data-id="${idVacacion}"]`);
@@ -241,6 +250,7 @@
       if (itemLocal) {
         itemLocal.estado = nuevoEstado;
 
+        // Recalcular saldo acumulado localmente para el empleado
         const idEmp = itemLocal.id_employee;
         const totalGozados = datosVacaciones
           .filter(v => v.id_employee === idEmp && (v.estado === 'aprobada' || v.estado === 'autorizada'))
@@ -253,6 +263,8 @@
           }
         });
       }
+
+      // Re-filtrar para ocultar automáticamente la fila recién autorizada o rechazada si el filtro es 'pendiente'
       actualizarFiltrosYTabla();
 
     } catch (err) {
