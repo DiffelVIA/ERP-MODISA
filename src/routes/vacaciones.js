@@ -153,6 +153,14 @@ router.get('/', verificarToken, async (req, res) => {
 });
 
 router.post('/', verificarToken, async (req, res) => {
+  // Verificación de autenticación estricta (Evita req.usuario nulo)
+  if (!req.usuario) {
+    return res.status(401).json({
+      success: false,
+      error: '⛔ Se requiere sesión activa para enviar una solicitud de vacaciones.'
+    });
+  }
+
   const {
     id_employee,
     fecha_inicio,
@@ -161,12 +169,13 @@ router.post('/', verificarToken, async (req, res) => {
     motivo
   } = req.body;
 
-  const idEmpleadoFinal = id_employee || (req.usuario ? (req.usuario.id_employee || req.usuario.id) : null);
+  // CIBERSEGURIDAD: Prevalecer la identidad del JWT para impedir suplantación (ID IDOR Prevent)
+  const idEmpleadoFinal = req.usuario.id_employee || req.usuario.id || id_employee;
 
   if (!idEmpleadoFinal || !fecha_inicio || !fecha_fin || !dias_tomados) {
     return res.status(400).json({
       success: false,
-      error: 'Campos obligatorios faltantes: id_employee, fecha_inicio, fecha_fin y dias_tomados son requeridos.'
+      error: 'Campos obligatorios faltantes: fecha_inicio, fecha_fin y dias_tomados son requeridos.'
     });
   }
 
@@ -190,10 +199,10 @@ router.post('/', verificarToken, async (req, res) => {
     `;
 
     const [insertResult] = await pool.query(sqlInsert, [
-      parseInt(idEmpleadoFinal),
+      parseInt(idEmpleadoFinal, 10),
       fecha_inicio,
       fecha_fin,
-      parseInt(dias_tomados),
+      parseInt(dias_tomados, 10),
       motivo ? motivo.trim() : null
     ]);
 

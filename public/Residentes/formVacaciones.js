@@ -40,27 +40,28 @@
         const idEmpleado = payload.id_employee || payload.id || payload.userId;
         if (inputHiddenId) inputHiddenId.value = idEmpleado;
 
-        const nombreJWT = payload.nombre_completo || (payload.name ? `${payload.name} ${payload.last_name || ''}` : null);
-        
-        if (nombreJWT) {
-            if (inputNombre) inputNombre.value = nombreJWT.trim();
+        const nombreJWT = payload.nombre_completo || 
+                        payload.nombre || 
+                        (payload.name ? `${payload.name} ${payload.last_name || payload.apellidos || ''}` : null) ||
+                        payload.usuario;
+
+        if (nombreJWT && String(nombreJWT).trim() !== '') {
+            if (inputNombre) inputNombre.value = String(nombreJWT).trim();
             return;
         }
 
         try {
             const token = localStorage.getItem('jwtToken') || '';
-            const res = await fetch(`${API_BASE}/empleados/gestion`, {
+            const res = await fetch(`${API_BASE}/vacaciones`, {
                 headers: {
-                    'Authorization': token ? `Bearer ${token}` : '',
-                    'x-user-rol': localStorage.getItem('userRol') || ''
+                    'Authorization': token ? `Bearer ${token}` : ''
                 }
             });
 
             if (res.ok) {
-                const empleados = await res.json();
-                const empActual = empleados.find(e => String(e.id_employee) === String(idEmpleado));
-                if (empActual) {
-                    if (inputNombre) inputNombre.value = `${empActual.name} ${empActual.last_name}`.trim();
+                const solicitudes = await res.json();
+                if (Array.isArray(solicitudes) && solicitudes.length > 0 && solicitudes[0].nombre_empleado) {
+                    if (inputNombre) inputNombre.value = solicitudes[0].nombre_empleado;
                     return;
                 }
             }
@@ -143,6 +144,7 @@
             btnGuardar.style.cursor = 'not-allowed';
 
             const payload = {
+                id_employee: parseInt(idEmployee, 10),
                 fecha_inicio: fechaInicio,
                 fecha_fin: fechaFin,
                 dias_tomados: diasTomados
@@ -150,12 +152,12 @@
 
             try {
                 const token = localStorage.getItem('jwtToken') || '';
-                const res = await fetch(`${API_BASE}/empleados/${idEmployee}/vacaciones`, {
+                // CORRECCIÓN DE SEGURIDAD Y RUTA: Apunta directamente al endpoint universal /vacaciones
+                const res = await fetch(`${API_BASE}/vacaciones`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': token ? `Bearer ${token}` : '',
-                        'x-user-rol': localStorage.getItem('userRol') || ''
+                        'Authorization': token ? `Bearer ${token}` : ''
                     },
                     body: JSON.stringify(payload)
                 });
@@ -176,5 +178,5 @@
                 btnGuardar.style.cursor = 'pointer';
             }
         });
-    }
+}
 })();
