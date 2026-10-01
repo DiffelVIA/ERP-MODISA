@@ -44,11 +44,17 @@ router.get('/', verificarToken, async (req, res) => {
         v.estado,
         v.observaciones,
         COALESCE(ve.dias_vacaciones_ley, 0) AS dias_vacaciones_ley,
+        -- Sumatoria de días gozados SOLO del ciclo anual laboral vigente (desde el último aniversario)
         COALESCE((
           SELECT SUM(v2.dias_tomados) 
           FROM vacaciones v2 
           WHERE v2.id_employee = v.id_employee 
             AND v2.estado IN ('aprobada', 'autorizada')
+            AND v2.fecha_inicio >= CASE 
+              WHEN DATE_FORMAT(CURRENT_DATE, '%m-%d') >= DATE_FORMAT(ve.hire_date, '%m-%d')
+              THEN STR_TO_DATE(CONCAT(YEAR(CURRENT_DATE), '-', DATE_FORMAT(ve.hire_date, '%m-%d')), '%Y-%m-%d')
+              ELSE STR_TO_DATE(CONCAT(YEAR(CURRENT_DATE) - 1, '-', DATE_FORMAT(ve.hire_date, '%m-%d')), '%Y-%m-%d')
+            END
         ), 0) AS dias_gozados
       FROM vacaciones v
       LEFT JOIN vista_empleados_vacaciones ve ON v.id_employee = ve.id_employee
@@ -72,12 +78,12 @@ router.get('/', verificarToken, async (req, res) => {
 
     const [rows] = await pool.query(sql, params);
 
-    // Mapeo dinámico para obtener la diferencia de días faltantes por gozar
     const resultadosEnriquecidos = rows.map(r => {
       const diasLey = Number(r.dias_vacaciones_ley || 0);
       const diasGozados = Number(r.dias_gozados || 0);
       return {
         ...r,
+        dias_gozados: diasGozados,
         dias_restantes: Math.max(0, diasLey - diasGozados)
       };
     });
