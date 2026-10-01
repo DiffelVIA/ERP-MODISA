@@ -33,7 +33,7 @@ router.get('/', verificarToken, async (req, res) => {
         v.id_vacacion,
         v.id_employee,
         COALESCE(
-          NULLIF(TRIM(CONCAT(COALESCE(e.name, ''), ' ', COALESCE(e.last_name, ''))), ''),
+          NULLIF(TRIM(CONCAT(COALESCE(ve.name, ''), ' ', COALESCE(ve.last_name, ''))), ''),
           CONCAT('Empleado ID #', v.id_employee)
         ) AS nombre_empleado,
         v.fecha_inicio,
@@ -42,9 +42,16 @@ router.get('/', verificarToken, async (req, res) => {
         v.motivo,
         v.created_at,
         v.estado,
-        v.observaciones
+        v.observaciones,
+        COALESCE(ve.dias_vacaciones_ley, 0) AS dias_vacaciones_ley,
+        COALESCE((
+          SELECT SUM(v2.dias_tomados) 
+          FROM vacaciones v2 
+          WHERE v2.id_employee = v.id_employee 
+            AND v2.estado IN ('aprobada', 'autorizada')
+        ), 0) AS dias_gozados
       FROM vacaciones v
-      LEFT JOIN employees e ON v.id_employee = e.id_employee
+      LEFT JOIN vista_empleados_vacaciones ve ON v.id_employee = ve.id_employee
       WHERE 1=1
     `;
 
@@ -64,7 +71,18 @@ router.get('/', verificarToken, async (req, res) => {
     sql += ` ORDER BY v.created_at DESC, v.id_vacacion DESC;`;
 
     const [rows] = await pool.query(sql, params);
-    res.json(rows);
+
+    // Mapeo dinámico para obtener la diferencia de días faltantes por gozar
+    const resultadosEnriquecidos = rows.map(r => {
+      const diasLey = Number(r.dias_vacaciones_ley || 0);
+      const diasGozados = Number(r.dias_gozados || 0);
+      return {
+        ...r,
+        dias_restantes: Math.max(0, diasLey - diasGozados)
+      };
+    });
+
+    res.json(resultadosEnriquecidos);
 
   } catch (error) {
     console.error('❌ Error al consultar la tabla vacaciones:', error);

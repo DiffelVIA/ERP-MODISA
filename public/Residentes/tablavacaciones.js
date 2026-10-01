@@ -106,11 +106,15 @@
 
     const estadosUnicos = ['pendiente', 'autorizada', 'rechazada'];
     contenedorEstados.innerHTML = estadosUnicos.map(est => `
-      <label class="opcion-filtro"><input type="checkbox" value="${est}" class="chk-estado"> ${est.charAt(0).toUpperCase() + est.slice(1)}</label>
+      <label class="opcion-filtro">
+        <input type="checkbox" value="${est}" class="chk-estado" ${est === 'pendiente' ? 'checked' : ''}> 
+        ${est.charAt(0).toUpperCase() + est.slice(1)}
+      </label>
     `).join('');
 
     contenedorEmpleados.addEventListener('change', actualizarFiltrosYTabla);
     contenedorEstados.addEventListener('change', actualizarFiltrosYTabla);
+    actualizarFiltrosYTabla();
   }
 
   function actualizarFiltrosYTabla() {
@@ -126,7 +130,6 @@
       const empNombre = item.nombre_empleado || item.empleado || `Empleado ID #${item.id_employee}`;
       const estNombreRaw = String(item.estado || 'pendiente').toLowerCase();
       
-      // Mapeo transparente para filtrado: 'aprobada' de BD se evalúa como 'autorizada'
       const estNombre = (estNombreRaw === 'aprobada') ? 'autorizada' : estNombreRaw;
 
       const cumpleEmpleado = empleadosSeleccionados.size === 0 || empleadosSeleccionados.has(empNombre);
@@ -138,15 +141,12 @@
     renderizarTabla(filtrados);
   }
 
-  // ==========================================
-  // MODIFICACIÓN: Mapeo de persistencia visual (aprobada/autorizada)
-  // ==========================================
   function renderizarTabla(lista) {
     const cuerpo = document.getElementById('cuerpoTablaVacaciones');
     if (!cuerpo) return;
 
     if (lista.length === 0) {
-      cuerpo.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 20px;">No hay registros de vacaciones.</td></tr>`;
+      cuerpo.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 20px;">No hay registros de vacaciones con el filtro seleccionado.</td></tr>`;
       return;
     }
 
@@ -172,10 +172,13 @@
       const fechaInicio = escapeHTML(item.fecha_inicio ? item.fecha_inicio.split('T')[0] : '-');
       const fechaFin = escapeHTML(item.fecha_fin ? item.fecha_fin.split('T')[0] : '-');
       const diasTomados = Number(item.dias_tomados || 0);
+
+      // Valores tomados de la vista_empleados_vacaciones
+      const diasLey = Number(item.dias_vacaciones_ley || 0);
+      const diasRestantes = Number(item.dias_restantes || 0);
       
       const estadoRaw = String(item.estado || 'pendiente').toLowerCase();
       
-      // Mapeo bidireccional entre 'aprobada' (MySQL) y 'autorizada' (UI)
       const esAprobadaOAutorizada = (estadoRaw === 'aprobada' || estadoRaw === 'autorizada');
       const esRechazada = (estadoRaw === 'rechazada');
       const esPendiente = (!esAprobadaOAutorizada && !esRechazada);
@@ -208,6 +211,8 @@
         <tr data-id="${idVacacion}">
           <td><strong>${empNombre}</strong></td>
           <td style="text-align: center;">${fechaSolicitud}</td>
+          <td style="text-align: center; color: #2563eb; font-weight: bold;">${diasLey}</td>
+          <td style="text-align: center; color: #059669; font-weight: bold;">${diasRestantes}</td>
           <td style="text-align: center;">${fechaInicio}</td>
           <td style="text-align: center;">${fechaFin}</td>
           <td style="text-align: center;"><strong>${diasTomados}</strong></td>
