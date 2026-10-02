@@ -171,8 +171,7 @@ router.post('/', verificarToken, async (req, res) => {
     id_employee,
     fecha_inicio,
     fecha_fin,
-    dias_tomados,
-    motivo
+    dias_tomados
   } = req.body;
 
   // CIBERSEGURIDAD IDOR: Identidad primaria del JWT
@@ -201,17 +200,15 @@ router.post('/', verificarToken, async (req, res) => {
         fecha_inicio,
         fecha_fin,
         dias_tomados,
-        motivo,
         estado
-      ) VALUES (?, ?, ?, ?, ?, 'pendiente')
+      ) VALUES (?, ?, ?, ?, 'pendiente')
     `;
 
     const [insertResult] = await pool.query(sqlInsert, [
       idEmpleadoFinal,
       fecha_inicio,
       fecha_fin,
-      diasTomadosFinal,
-      motivo ? motivo.trim() : null
+      diasTomadosFinal
     ]);
 
     res.status(201).json({
