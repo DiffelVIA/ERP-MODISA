@@ -114,6 +114,49 @@ router.get('/:id/vacaciones', verificarToken, validarRolJWT, async (req, res) =>
     }
 });
 
+router.get('/exportar-excel', verificarToken, validarRolJWT, async (req, res) => {
+    try {
+        const sql = `
+            SELECT name, last_name, hire_date, sueldo 
+            FROM employees 
+            ORDER BY name ASC
+        `;
+        const [rows] = await pool.query(sql);
+
+        // Cabeceras del archivo Excel
+        let csvData = 'Nombre,Apellido,Fecha de Ingreso,Sueldo\n';
+
+        rows.forEach(emp => {
+            const nombre = `"${(emp.name || '').replace(/"/g, '""')}"`;
+            const apellido = `"${(emp.last_name || '').replace(/"/g, '""')}"`;
+            
+            let fechaIngreso = '---';
+            if (emp.hire_date) {
+                const f = new Date(emp.hire_date);
+                fechaIngreso = f.toISOString().split('T')[0];
+            }
+
+            const sueldo = Number(emp.sueldo || 0).toFixed(2);
+
+            csvData += `${nombre},${apellido},${fechaIngreso},${sueldo}\n`;
+        });
+
+        // BOM UTF-8 (\uFEFF) para que Excel reconozca tildes y caracteres especiales correctamente
+        const buffer = Buffer.from('\uFEFF' + csvData, 'utf-8');
+
+        const fechaHoy = new Date().toISOString().split('T')[0];
+        const nombreArchivo = `Reporte_Empleados_${fechaHoy}.csv`;
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}"`);
+        res.status(200).send(buffer);
+
+    } catch (error) {
+        console.error('❌ Error al exportar empleados a Excel:', error);
+        res.status(500).json({ error: "Error interno al generar el reporte en Excel." });
+    }
+});
+
 router.post('/:id/vacaciones', verificarToken, validarRolJWT, async (req, res) => {
     const { id } = req.params;
     const { fecha_inicio, fecha_fin, dias_tomados } = req.body;

@@ -115,6 +115,11 @@
         const btnNuevo = document.getElementById('btn-nuevo-empleado');
         const btnCerrar = document.getElementById('btnCerrarModal');
         const form = document.getElementById('formEmpleado');
+        const btnExcel = document.getElementById('btn-descargar-excel');
+
+        if (btnExcel) {
+            btnExcel.addEventListener('click', descargarExcel);
+        }
 
         if (btnNuevo && modal) {
             btnNuevo.addEventListener('click', () => {
@@ -246,4 +251,58 @@
             alert(`❌ ${err.message}`);
         }
     }
+
+    async function descargarExcel() {
+        const btnExcel = document.getElementById('btn-descargar-excel');
+        if (!btnExcel) return;
+
+        const textoOriginal = btnExcel.innerHTML;
+        btnExcel.disabled = true;
+        btnExcel.style.opacity = '0.7';
+        btnExcel.style.cursor = 'not-allowed';
+        btnExcel.innerHTML = '⏳ Descargando...';
+
+        try {
+            const token = localStorage.getItem('jwtToken') || '';
+            const res = await fetch(`${API_BASE}/empleados/exportar-excel`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': token ? `Bearer ${token}` : '',
+                    'x-user-rol': localStorage.getItem('userRol') || ''
+                }
+            });
+
+            if (!res.ok) {
+                let errorMsg = 'No se pudo descargar el archivo.';
+                try {
+                    const errData = await res.json();
+                    if (errData && errData.error) errorMsg = errData.error;
+                } catch (_) {}
+                throw new Error(errorMsg);
+            }
+
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            const fechaHoy = new Date().toISOString().split('T')[0];
+            a.download = `Reporte_Empleados_${fechaHoy}.csv`;
+            
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+
+        } catch (err) {
+            console.error('❌ Error al descargar Excel:', err);
+            alert(`❌ Error al descargar Excel: ${err.message}`);
+        } finally {
+            btnExcel.disabled = false;
+            btnExcel.style.opacity = '1';
+            btnExcel.style.cursor = 'pointer';
+            btnExcel.innerHTML = textoOriginal;
+        }
+    }
+
 })();
