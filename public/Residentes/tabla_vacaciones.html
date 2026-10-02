@@ -25,7 +25,6 @@
   <main class="main-tabla">
     <h1>Control de Vacaciones</h1>
     
-    <!-- Filtros de Navegación e Interacción y Alternador de Vistas (UX) -->
     <div class="contenedorFiltros" style="display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;">
 
       <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
@@ -35,14 +34,12 @@
           <div class="contenido-dropdown" id="filtroEmpleado"></div>
         </div>
 
-        <!-- Filtro Estado -->
         <div class="filtros" id="dropdownEstado">
           <button type="button" class="btn-dropdown">Filtro Estado ▾</button>
           <div class="contenido-dropdown" id="filtroEstado"></div>
         </div>
       </div>
 
-      <!-- MODIFICACIÓN SOLUCIÓN (UX): Alternador de Vista Pestañas Tabla / Gantt -->
       <div class="contenedor-alternador-vistas" style="display: flex; background: #e2e8f0; padding: 4px; border-radius: 8px; gap: 4px;">
         <button type="button" id="btnVistaTabla" class="btn-tab-vista activa" style="padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; background: #2563eb; color: #ffffff; font-size: 13px; transition: all 0.2s;">
           📋 Vista Tabla
@@ -50,11 +47,13 @@
         <button type="button" id="btnVistaGantt" class="btn-tab-vista" style="padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; background: transparent; color: #475569; font-size: 13px; transition: all 0.2s;">
           📅 Vista Gantt Anual
         </button>
+        <button type="button" id="btnVistaEstatus" class="btn-tab-vista" style="padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; background: transparent; color: #475569; font-size: 13px; transition: all 0.2s;">
+          📊 Vista Estatus
+        </button>
       </div>
 
     </div>
 
-    <!-- MODIFICACIÓN SOLUCIÓN: VISTA 1 - TABLA PRINCIPAL (LIMPIA) -->
     <div id="contenedorVistaTabla" class="tabla">
       <table>
         <thead>
@@ -78,13 +77,11 @@
       </table>
     </div>
 
-    <!-- MODIFICACIÓN SOLUCIÓN: VISTA 2 - PANORÁMICA DE GANTT ANUAL (12 MESES) -->
     <section id="contenedorVistaGantt" class="seccion-gantt" style="display: none; margin-bottom: 25px;">
       <div class="gantt-header-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
         <div style="display: flex; align-items: center; gap: 15px;">
           <h2 style="font-size: 18px; color: #1e293b; margin: 0;">Calendario Anual de Vacaciones</h2>
           <select id="selectAnioGantt" style="padding: 5px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; color: #1e293b; background: #fff; cursor: pointer;">
-            <!-- Opciones generadas dinámicamente por JS -->
           </select>
         </div>
         <div class="gantt-leyenda" style="display: flex; gap: 15px; font-size: 13px;">
@@ -99,9 +96,47 @@
         </div>
       </div>
       
-      <!-- Contenedor dinámico del Grid Anual -->
       <div id="ganttGrid" class="gantt-grid">
         <div style="padding: 20px; text-align: center; color: #64748b;">Cargando calendario anual...</div>
+      </div>
+    </section>
+    
+    <section id="contenedorVistaEstatus" class="tabla" style="display: none; margin-bottom: 25px; position: relative;">
+      <div style="margin-bottom: 15px;">
+        <h2 style="font-size: 18px; color: #1e293b; margin: 0;">Estatus General de Vacaciones</h2>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th style="text-align: center;">Días Ley</th>
+            <th style="text-align: center;">Días Tomados</th>
+            <th style="text-align: center;">Días Restantes</th>
+            <th id="thAccionesEstatus" style="text-align: center; display: none;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody class="cuerpoTabla" id="cuerpoTablaEstatus">
+          <tr>
+            <td colspan="5" style="text-align: center; padding: 20px;">Cargando estatus de vacaciones...</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Tooltip Emergente del Velocímetro Vectorial (SVG Gauge) -->
+      <div id="gaugeTooltip" style="display: none; position: absolute; z-index: 1000; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); pointer-events: none; width: 220px; text-align: center;">
+        <div id="gaugeTooltipTitle" style="font-size: 12px; font-weight: bold; color: #1e293b; margin-bottom: 8px;"></div>
+        <svg id="gaugeSvg" width="180" height="110" viewBox="0 0 180 110" style="overflow: visible;">
+          <!-- Arco de Fondo -->
+          <path d="M 20 90 A 70 70 0 0 1 160 90" fill="none" stroke="#e2e8f0" stroke-width="14" stroke-linecap="round" />
+          <!-- Arco de Progreso (Consumo de Días) -->
+          <path id="gaugeProgress" d="M 20 90 A 70 70 0 0 1 160 90" fill="none" stroke="#3b82f6" stroke-width="14" stroke-linecap="round" stroke-dasharray="220" stroke-dashoffset="220" style="transition: stroke-dashoffset 0.5s ease-in-out, stroke 0.3s;" />
+          <!-- Aguja Indicadora -->
+          <g id="gaugeNeedleGroup" style="transform-origin: 90px 90px; transition: transform 0.5s ease-in-out;">
+            <line x1="90" y1="90" x2="90" y2="30" stroke="#0f172a" stroke-width="3" stroke-linecap="round" />
+            <circle cx="90" cy="90" r="6" fill="#0f172a" />
+          </g>
+        </svg>
+        <div id="gaugeTooltipDetails" style="font-size: 11px; color: #475569; margin-top: 5px;"></div>
       </div>
     </section>
   </main>

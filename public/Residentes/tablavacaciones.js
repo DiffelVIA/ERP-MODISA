@@ -4,6 +4,7 @@
     : 'https://erp-modisa.onrender.com/api';
 
   let datosVacaciones = [];
+  let datosEstatusVacaciones = [];
   let empleadosSeleccionados = new Set();
   let estadosSeleccionados = new Set();
   let anioGanttSeleccionado = new Date().getFullYear();
@@ -39,21 +40,22 @@
     configurarDropdownsUI();
     configurarAlternadorVistasUI();
     await cargarDatosVacaciones();
+    await cargarDatosEstatus();
   });
 
-  // ==========================================
-  // INICIO MODIFICACIÓN: ALTERNADOR DE PESTAÑAS Y CONTROL DE VISIBILIDAD GANTT
-  // ==========================================
   function configurarAlternadorVistasUI() {
     const btnTabla = document.getElementById('btnVistaTabla');
     const btnGantt = document.getElementById('btnVistaGantt');
+    const btnEstatus = document.getElementById('btnVistaEstatus');
+
     const vistaTabla = document.getElementById('contenedorVistaTabla');
     const vistaGantt = document.getElementById('contenedorVistaGantt');
+    const vistaEstatus = document.getElementById('contenedorVistaEstatus');
+
     const selectAnio = document.getElementById('selectAnioGantt');
 
     if (!btnTabla || !btnGantt || !vistaTabla || !vistaGantt) return;
 
-    // Obtención y normalización del rol del usuario autenticado
     const jwtDatos = obtenerDatosDesdeJWT() || {};
     const userRolRaw = localStorage.getItem('userRol') || jwtDatos.rol || jwtDatos.role || jwtDatos.job_title || '';
 
@@ -63,7 +65,6 @@
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
 
-    // Evaluación explícita de Laura y Luis
     const esLaura = (
       userRolNormalizado === 'gerente administracion' || 
       userRolNormalizado === 'gerente de administracion' ||
@@ -77,36 +78,49 @@
 
     const puedeVerGantt = esLaura || esLuis;
 
-    // UX / Ciberseguridad: Ocultar botón Gantt si el usuario no es Laura ni Luis
     if (!puedeVerGantt) {
       btnGantt.style.display = 'none';
     }
 
+    function resetearBotones() {
+      [btnTabla, btnGantt, btnEstatus].forEach(btn => {
+        if (btn) {
+          btn.classList.remove('activa');
+          btn.style.background = 'transparent';
+          btn.style.color = '#475569';
+        }
+      });
+      if (vistaTabla) vistaTabla.style.display = 'none';
+      if (vistaGantt) vistaGantt.style.display = 'none';
+      if (vistaEstatus) vistaEstatus.style.display = 'none';
+    }
+
     btnTabla.addEventListener('click', () => {
+      resetearBotones();
       btnTabla.classList.add('activa');
       btnTabla.style.background = '#2563eb';
       btnTabla.style.color = '#ffffff';
-
-      btnGantt.classList.remove('activa');
-      btnGantt.style.background = 'transparent';
-      btnGantt.style.color = '#475569';
-
       vistaTabla.style.display = 'block';
-      vistaGantt.style.display = 'none';
     });
 
     if (puedeVerGantt) {
       btnGantt.addEventListener('click', () => {
+        resetearBotones();
         btnGantt.classList.add('activa');
         btnGantt.style.background = '#2563eb';
         btnGantt.style.color = '#ffffff';
-
-        btnTabla.classList.remove('activa');
-        btnTabla.style.background = 'transparent';
-        btnTabla.style.color = '#475569';
-
-        vistaTabla.style.display = 'none';
         vistaGantt.style.display = 'block';
+      });
+    }
+
+    if (btnEstatus && vistaEstatus) {
+      btnEstatus.addEventListener('click', () => {
+        resetearBotones();
+        btnEstatus.classList.add('activa');
+        btnEstatus.style.background = '#2563eb';
+        btnEstatus.style.color = '#ffffff';
+        vistaEstatus.style.display = 'block';
+        renderizarVistaEstatus();
       });
     }
 
@@ -117,16 +131,10 @@
       });
     }
   }
-  // ==========================================
-  // FIN MODIFICACIÓN
-  // ==========================================
 
-  // ==========================================
-  // MEJORA SOLUCIÓN: GESTIÓN DE ERRORES HTTP 500 Y TIMEOUT DE RED
-  // ==========================================
   async function cargarDatosVacaciones() {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // Timeout a los 15s (Render spin-up)
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
       const token = localStorage.getItem('jwtToken') || '';
@@ -175,9 +183,23 @@
       }
     }
   }
-  // ==========================================
-  // FIN MEJORA SOLUCIÓN
-  // ==========================================
+
+  async function cargarDatosEstatus() {
+    try {
+      const token = localStorage.getItem('jwtToken') || '';
+      const res = await fetch(`${API_URL}/vacaciones/estatus`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Accept': 'application/json'
+        }
+      });
+      if (res.ok) {
+        datosEstatusVacaciones = await res.json();
+      }
+    } catch (err) {
+      console.error('❌ Error al cargar estatus de vacaciones:', err);
+    }
+  }
 
   function configurarDropdownsUI() {
     document.querySelectorAll('.btn-dropdown').forEach(btn => {
@@ -242,9 +264,6 @@
     actualizarFiltrosYTabla();
   }
 
-  // ==========================================
-  // FILTRADO MULTISELECTIVO (CORRECCIÓN ACUMULATIVA)
-  // ==========================================
   function actualizarFiltrosYTabla() {
     empleadosSeleccionados = new Set(
       Array.from(document.querySelectorAll('.chk-empleado:checked')).map(cb => cb.value)
@@ -258,7 +277,6 @@
       const empNombre = item.nombre_empleado || item.empleado || `Empleado ID #${item.id_employee}`;
       const estNombreRaw = String(item.estado || 'pendiente').toLowerCase();
       
-      // Normalización estandarizada de sinónimos de estado
       const estNombre = (estNombreRaw === 'aprobada') ? 'autorizada' : estNombreRaw;
 
       const cumpleEmpleado = empleadosSeleccionados.size === 0 || empleadosSeleccionados.has(empNombre);
@@ -271,9 +289,6 @@
     renderizarGanttVacaciones(filtrados);
   }
 
-  // ==========================================
-  // INICIO MODIFICACIÓN: RENDERIZADO DE TABLA Y PERMISOS EXCLUSIVOS DE EDICIÓN
-  // ==========================================
   function renderizarTabla(lista) {
     const cuerpo = document.getElementById('cuerpoTablaVacaciones');
     if (!cuerpo) return;
@@ -292,7 +307,6 @@
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
 
-    // REGLA ESTRICTA: Únicamente Laura (Gerente Administración) puede cambiar estado e ingresar observaciones
     const esLaura = (
       userRolNormalizado === 'gerente administracion' || 
       userRolNormalizado === 'gerente de administracion' ||
@@ -320,7 +334,6 @@
 
       let selectEstadoHTML = '';
       if (esLaura) {
-        // Laura: Selector interactivo
         selectEstadoHTML = `
           <select class="select-estado-tabla" data-id="${idVacacion}" onchange="window.actualizarEstadoVacacion(${idVacacion}, this.value, this)" style="padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 13px; color: #334155; font-weight: 500;">
             <option value="pendiente" ${esPendiente ? 'selected' : ''}>Pendiente</option>
@@ -329,7 +342,6 @@
           </select>
         `;
       } else {
-        // Luis y demás roles: Texto plano estilizado (badge)
         const textoEstadoFormateado = esAprobadaOAutorizada ? 'Autorizada' : (esRechazada ? 'Rechazada' : 'Pendiente');
         const colorFondo = esAprobadaOAutorizada ? '#16a34a' : (esRechazada ? '#dc2626' : '#eab308');
         selectEstadoHTML = `<span class="badge-status-pago" style="padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #fff; background-color: ${colorFondo}">${textoEstadoFormateado}</span>`;
@@ -337,10 +349,8 @@
 
       let obsHTML = '';
       if (esLaura) {
-        // Laura: Campo editable para observaciones
         obsHTML = `<input type="text" value="${obsTexto}" placeholder="Agregar nota..." class="input-obs-tabla" onblur="window.actualizarObservacionVacacion(${idVacacion}, this.value, this)" style="width: 95%; padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 12px; color: #334155;">`;
       } else {
-        // Luis y demás roles: Observación en texto plano de solo lectura
         obsHTML = `<span style="color: #475569; font-style: italic; font-size: 12px;">${obsTexto || '-'}</span>`;
       }
 
@@ -359,13 +369,118 @@
       `;
     }).join('');
   }
-  // ==========================================
-  // FIN MODIFICACIÓN
-  // ==========================================
 
-  // ==========================================
-  // RENDERIZADO DEL DIAGRAMA GANTT ANUAL (ALINEACIÓN PERFECTA DE MESES Y DÍAS)
-  // ==========================================
+  function renderizarVistaEstatus() {
+    const contenedor = document.getElementById('contenedorVistaEstatus');
+    if (!contenedor) return;
+
+    if (!datosEstatusVacaciones || datosEstatusVacaciones.length === 0) {
+      contenedor.innerHTML = `<div style="text-align: center; padding: 40px; color: #64748b;">No hay datos de estatus de vacaciones disponibles.</div>`;
+      return;
+    }
+
+    const jwtDatos = obtenerDatosDesdeJWT() || {};
+    const userRolRaw = localStorage.getItem('userRol') || jwtDatos.rol || jwtDatos.role || jwtDatos.job_title || '';
+    const userRolNormalizado = userRolRaw.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    const esLaura = (
+      userRolNormalizado === 'gerente administracion' || 
+      userRolNormalizado === 'gerente de administracion' ||
+      (userRolNormalizado.includes('gerente') && userRolNormalizado.includes('administrac'))
+    );
+
+    let html = `
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding: 10px 0;">
+    `;
+
+    datosEstatusVacaciones.forEach(emp => {
+      const diasLey = Number(emp.dias_ley || 0);
+      const diasTomados = Number(emp.dias_tomados || 0);
+      const diasRestantes = Math.max(0, diasLey - diasTomados);
+
+      const porcentaje = diasLey > 0 ? Math.min(100, Math.max(0, (diasTomados / diasLey) * 100)) : 0;
+      const anguloRotacion = (porcentaje / 100) * 180;
+
+      html += `
+        <div style="background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); text-align: center;">
+          <h3 style="margin: 0 0 15px 0; font-size: 16px; color: #1e293b; font-weight: 600;">${escapeHTML(emp.nombre_empleado)}</h3>
+          
+          <!-- Tacómetro SVG de Semi-círculo -->
+          <div style="position: relative; width: 160px; height: 95px; margin: 0 auto;">
+            <svg width="160" height="90" viewBox="0 0 160 90">
+              <path d="M 10 80 A 70 70 0 0 1 150 80" fill="none" stroke="#e2e8f0" stroke-width="14" stroke-linecap="round" />
+              <path d="M 10 80 A 70 70 0 0 1 150 80" fill="none" stroke="#2563eb" stroke-width="14" stroke-linecap="round" 
+                stroke-dasharray="220" stroke-dashoffset="${220 - (220 * porcentaje) / 100}" />
+            </svg>
+            <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); font-size: 20px; font-weight: bold; color: #1e293b;">
+              ${diasRestantes} <span style="font-size: 11px; color: #64748b; font-weight: normal;">días rest.</span>
+            </div>
+          </div>
+
+          <!-- Métricas -->
+          <div style="display: flex; justify-content: space-around; margin-top: 15px; border-top: 1px solid #f1f5f9; padding-top: 12px; font-size: 13px;">
+            <div>
+              <span style="color: #64748b; display: block; font-size: 11px;">Por Ley</span>
+              <strong style="color: #2563eb; font-size: 15px;">${diasLey}</strong>
+            </div>
+            <div>
+              <span style="color: #64748b; display: block; font-size: 11px;">Gozados</span>
+              <strong style="color: #dc2626; font-size: 15px;">${diasTomados}</strong>
+            </div>
+            <div>
+              <span style="color: #64748b; display: block; font-size: 11px;">Disponibles</span>
+              <strong style="color: #16a34a; font-size: 15px;">${diasRestantes}</strong>
+            </div>
+          </div>
+
+          ${esLaura ? `
+            <button onclick="window.forzarRenovacionDias(${emp.id_employee}, '${escapeHTML(emp.nombre_empleado)}')" 
+              style="margin-top: 15px; width: 100%; background: #f8fafc; border: 1px solid #cbd5e1; color: #475569; padding: 7px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;"
+              onmouseover="this.style.background='#ef4444'; this.style.color='#fff';"
+              onmouseout="this.style.background='#f8fafc'; this.style.color='#475569';">
+              🔄 Forzar Renovación de Días
+            </button>
+          ` : ''}
+        </div>
+      `;
+    });
+
+    html += `</div>`;
+    contenedor.innerHTML = html;
+  }
+
+  window.forzarRenovacionDias = async function(idEmployee, nombreEmpleado) {
+    if (!confirm(`⚠️ ¿Estás segura de forzar la renovación de días para "${nombreEmpleado}"?\n\nEsto restablecerá sus días gozados eliminando las solicitudes registradas del periodo.`)) {
+      return;
+    }
+
+    const token = localStorage.getItem('jwtToken') || '';
+
+    try {
+      const res = await fetch(`${API_URL}/vacaciones/renovar/${idEmployee}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'No se pudo realizar la renovación.');
+      }
+
+      alert(`✅ ${data.message}`);
+      await cargarDatosVacaciones();
+      await cargarDatosEstatus();
+      renderizarVistaEstatus();
+
+    } catch (err) {
+      console.error("❌ Error al renovar días:", err);
+      alert(`❌ Error: ${escapeHTML(err.message)}`);
+    }
+  };
+
   function renderizarGanttVacaciones(lista) {
     const contenedorGrid = document.getElementById('ganttGrid');
     if (!contenedorGrid) return;
@@ -373,18 +488,15 @@
     const nombresMeses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     const anio = anioGanttSeleccionado;
 
-    // Cálculo exacto de días por mes (soporta bisiestos)
     const diasPorMes = nombresMeses.map((_, idx) => new Date(anio, idx + 1, 0).getDate());
     const totalDiasAnio = diasPorMes.reduce((acc, d) => acc + d, 0);
 
-    // 1. Cabecera de Meses alineada mediante grid-column span exacto por mes
     let htmlHeaderMeses = `<div class="gantt-header-meses"><div class="gantt-col-emp-header">Empleado</div>`;
     diasPorMes.forEach((dias, mIdx) => {
       htmlHeaderMeses += `<div class="gantt-mes-title" style="grid-column: span ${dias};">${nombresMeses[mIdx]}</div>`;
     });
     htmlHeaderMeses += `</div>`;
 
-    // 2. Cabecera de Días (1..N por mes)
     let htmlHeaderDias = `<div class="gantt-header-dias"><div class="gantt-col-emp-header"></div>`;
     diasPorMes.forEach((dias) => {
       for (let d = 1; d <= dias; d++) {
@@ -398,7 +510,6 @@
       return;
     }
 
-    // Agrupación de vacaciones por empleado
     const vacacionesPorEmpleado = {};
     lista.forEach(item => {
       const empNombre = item.nombre_empleado || item.empleado || `Empleado ID #${item.id_employee}`;
@@ -408,7 +519,6 @@
       vacacionesPorEmpleado[empNombre].push(item);
     });
 
-    // Convierte fecha ISO a índice absoluto (0 .. totalDiasAnio-1)
     function fechaADiaAnual(fStr) {
       if (!fStr) return null;
       const partes = fStr.split('T')[0].split('-');
@@ -427,7 +537,6 @@
       return diaAcumulado + (fDia - 1);
     }
 
-    // 3. Renderizado de filas por empleado
     let htmlFilasEmpleados = '';
     const listaEmpleadosClaves = Object.keys(vacacionesPorEmpleado).sort();
 
@@ -457,7 +566,6 @@
         }
       });
 
-      // POSICIONAMIENTO DINÁMICO DE TOOLTIP SEGÚN FILTRADO
       const totalEmpleados = listaEmpleadosClaves.length;
       let claseTooltipPosicion = '';
 
@@ -541,6 +649,7 @@
       }
 
       actualizarFiltrosYTabla();
+      await cargarDatosEstatus();
 
     } catch (err) {
       console.error("❌ Error al actualizar estado:", err);

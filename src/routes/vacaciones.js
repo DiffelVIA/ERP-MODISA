@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 
-// Importación directa del cliente Gmail desde tu modulo de Google
 const { gmail } = require('../config/google');
 
 const { verificarToken, verificarRol } = require('../middlewares/authMiddleware');
@@ -43,9 +42,6 @@ async function enviarCorreoGmail({ to, subject, html }) {
   }
 }
 
-// =========================================================================
-// NUEVA LÓGICA: Depuración automática de solicitudes rechazadas tras 10 días
-// =========================================================================
 async function depurarVacacionesRechazadas() {
   try {
     const sqlDelete = `
@@ -62,13 +58,9 @@ async function depurarVacacionesRechazadas() {
   }
 }
 
-// Ejecutar depuración cada 24 horas y al iniciar
 setInterval(depurarVacacionesRechazadas, 24 * 60 * 60 * 1000);
 setTimeout(depurarVacacionesRechazadas, 5000);
 
-// ==========================================
-// INICIO MODIFICACIÓN: CONSULTA SQL SIN COLUMNA MOTIVO (GET /)
-// ==========================================
 router.get('/', verificarToken, async (req, res) => {
   try {
     const rolUsuario = req.usuario ? req.usuario.rol : '';
@@ -85,7 +77,6 @@ router.get('/', verificarToken, async (req, res) => {
       return rLimpio === rolUsuarioLimpio || (rolUsuarioLimpio.includes('gerente') && rolUsuarioLimpio.includes('administrac'));
     });
 
-    // Consulta SQL ajustada: sin la columna 'v.motivo' para evitar ER_BAD_FIELD_ERROR
     let sql = `
       SELECT 
         v.id_vacacion,
@@ -130,7 +121,6 @@ router.get('/', verificarToken, async (req, res) => {
 
     const [rows] = await pool.query(sql, params);
 
-    // Mapeo defensivo: incluye 'motivo' como string vacío para evitar errores undefined en el frontend
     const resultadosEnriquecidos = rows.map(r => {
       const diasLey = Number(r.dias_vacaciones_ley || 0);
       const diasGozados = Number(r.dias_gozados || 0);
@@ -152,13 +142,125 @@ router.get('/', verificarToken, async (req, res) => {
     });
   }
 });
-// ==========================================
-// FIN MODIFICACIÓN
-// ==========================================
 
-// =========================================================================
-// CORRECCIÓN POST: Validación robusta contra NaN y coerción de tipos
-// =========================================================================
+/**
+ * @route   GET /api/vacaciones/estatus
+ * @desc    Obtiene el resumen de días por ley, tomados y restantes por empleado.
+ * @access  Privado (Seguridad RBAC: Empleados ven solo su perfil, Gerencia ve todos)
+ */
+router.get('/estatus', verificarToken, async (req, res) => {
+  try {
+    const rolUsuario = req.usuario ? req.usuario.rol : '';
+    const idEmpleadoToken = req.usuario ? (req.usuario.id_employee || req.usuario.id || req.usuario.userId) : null;
+
+    const rolUsuarioLimpio = (rolUsuario || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+    const esAdmin = ROLES_ADMINISTRATIVOS.some(r => {
+      const rLimpio = r.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return rLimpio === rolUsuarioLimpio || (rolUsuarioLimpio.includes('gerente') && rolUsuarioLimpio.includes('administrac'));
+    });
+
+    let sql = `
+      SELECT 
+        ve.id_employee,
+        COALESCE(
+          NULLIF(TRIM(CONCAT(COALESCE(ve.name, ''), ' ', COALESCE(ve.last_name, ''))), ''),
+          CONCAT('Empleado ID #', ve.id_employee)
+        ) AS nombre_empleado,
+        COALESCE(ve.dias_vacaciones_ley, 0) AS dias_ley,
+        COALESCE((
+          SELECT SUM(v.dias_tomados) 
+          FROM vacaciones v 
+          WHERE v.id_employee = ve.id_employee 
+            AND v.estado IN ('aprobada', 'autorizada')
+            AND v.fecha_inicio >= DATE_SUB(CURRENT_DATE, INTERVAL 1 YEAR)
+        ), 0) AS dias_tomados
+      FROM vista_empleados_vacaciones ve
+      WHERE 1=1
+    `;
+
+    const params = [];
+
+    if (!esAdmin) {
+      if (!idEmpleadoToken) {
+        return res.status(403).json({
+          success: false,
+          error: '⛔ No se pudo identificar la credencial del empleado en la sesión.'
+        });
+      }
+      sql += ` AND ve.id_employee = ?`;
+      params.push(idEmpleadoToken);
+    }
+
+    sql += ` ORDER BY nombre_empleado ASC;`;
+
+    const [rows] = await pool.query(sql, params);
+
+    const resultado = rows.map(r => {
+      const diasLey = Number(r.dias_ley || 0);
+      const diasTomados = Number(r.dias_tomados || 0);
+      return {
+        id_employee: r.id_employee,
+        nombre_empleado: r.nombre_empleado,
+        dias_ley: diasLey,
+        dias_tomados: diasTomados,
+        dias_restantes: Math.max(0, diasLey - diasTomados)
+      };
+    });
+
+    res.json(resultado);
+
+  } catch (error) {
+    console.error('❌ Error al consultar estatus de vacaciones:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error interno del servidor al obtener el estatus de vacaciones.'
+    });
+  }
+});
+
+/**
+ * @route   DELETE /api/vacaciones/renovar/:id_employee
+ * @desc    Limpia (elimina) los días tomados registrados para el periodo actual sin alterar fechas ni perfiles.
+ * @access  Privado (Exclusivo Gerente de Administración / ROLES_ADMINISTRATIVOS)
+ */
+router.delete('/renovar/:id_employee', verificarToken, verificarRol(ROLES_ADMINISTRATIVOS), async (req, res) => {
+  const idEmpleadoParam = parseInt(req.params.id_employee, 10);
+
+  if (isNaN(idEmpleadoParam) || idEmpleadoParam <= 0) {
+    return res.status(400).json({
+      success: false,
+      error: 'ID de empleado inválido.'
+    });
+  }
+
+  try {
+    const sqlDelete = `
+      DELETE FROM vacaciones 
+      WHERE id_employee = ? 
+        AND fecha_inicio >= DATE_SUB(CURRENT_DATE, INTERVAL 1 YEAR)
+    `;
+
+    const [result] = await pool.query(sqlDelete, [idEmpleadoParam]);
+
+    res.json({
+      success: true,
+      message: `🎉 Renovación de días completada. Se eliminaron ${result.affectedRows} registro(s) de vacaciones del periodo.`
+    });
+
+  } catch (error) {
+    console.error('❌ Error al forzar renovación de vacaciones:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error interno del servidor al renovar días de vacaciones.'
+    });
+  }
+});
+
 router.post('/', verificarToken, async (req, res) => {
   if (!req.usuario) {
     return res.status(401).json({
@@ -174,7 +276,6 @@ router.post('/', verificarToken, async (req, res) => {
     dias_tomados
   } = req.body;
 
-  // CIBERSEGURIDAD IDOR: Identidad primaria del JWT
   const idEmpleadoBruto = req.usuario.id_employee || req.usuario.id || req.usuario.userId || id_employee;
   const idEmpleadoFinal = parseInt(idEmpleadoBruto, 10);
   const diasTomadosFinal = parseInt(dias_tomados, 10);
@@ -226,9 +327,6 @@ router.post('/', verificarToken, async (req, res) => {
   }
 });
 
-// =========================================================================
-// MODIFICACIÓN: Envío de correo mediante Gmail API al rechazar
-// =========================================================================
 router.patch('/:id/estado', verificarToken, verificarRol(ROLES_ADMINISTRATIVOS), async (req, res) => {
   const idVacacion = req.params.id;
   const { estado } = req.body;
@@ -267,7 +365,6 @@ router.patch('/:id/estado', verificarToken, verificarRol(ROLES_ADMINISTRATIVOS),
       });
     }
 
-    // Si fue RECHAZADA, notificar por correo al empleado
     if (estadoParaBD === 'rechazada') {
       try {
         const sqlQuery = `
