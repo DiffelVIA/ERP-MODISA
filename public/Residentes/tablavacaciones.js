@@ -436,7 +436,7 @@
         // Estado informativo cuando hay 0 o más de 1 empleados seleccionados
         contenedor.innerHTML = `
           <div style="text-align: center; padding: 40px; color: #64748b; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">
-            👆 Por favor, selecciona <strong>1 solo empleado</strong> en el menú superior <strong>"Filtro Empleado"</strong> para visualizar su tacómetro y balance de días.
+            👆 Por favor, selecciona un empleado para visualizar su estado.
           </div>`;
       }
 
@@ -456,7 +456,6 @@
     }
   }
 
-  // Generador de Tarjeta con Tacómetro SVG e integración de reglas CSS globales (.btn y [data-action])
   function generarHTMLTacometroIndividual(emp, esLaura) {
     const diasLey = Number(emp.dias_ley || 0);
     const diasTomados = Number(emp.dias_tomados || 0);
@@ -507,9 +506,6 @@
       </div>
     `;
   }
-  // ==========================================
-  // FIN PARTE MODIFICADA
-  // ==========================================
 
   window.forzarRenovacionDias = async function(idEmployee, nombreEmpleado) {
     if (!confirm(`⚠️ ¿Estás segura de forzar la renovación de días para "${nombreEmpleado}"?\n\nEsto restablecerá sus días gozados eliminando las solicitudes registradas del periodo.`)) {
