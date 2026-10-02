@@ -195,6 +195,8 @@
       });
       if (res.ok) {
         datosEstatusVacaciones = await res.json();
+        // MEJORA: Reconstruir filtros iniciales al cargar estatus para incluir plantilla completa
+        construirFiltrosIniciales();
       }
     } catch (err) {
       console.error('❌ Error al cargar estatus de vacaciones:', err);
@@ -226,6 +228,11 @@
     });
   }
 
+  // ==========================================
+  // INICIO PARTE MODIFICADA: OPCIÓN 1 (FILTRO UNIFICADO GLOBAL)
+  // ==========================================
+
+  // Modificación en construirFiltrosIniciales para combinar empleados de solicitudes y plantilla completa
   function construirFiltrosIniciales() {
     const contenedorEmpleados = document.getElementById('filtroEmpleado');
     const contenedorEstados = document.getElementById('filtroEstado');
@@ -233,7 +240,16 @@
 
     if (!contenedorEmpleados || !contenedorEstados) return;
 
-    const empleadosUnicos = [...new Set(datosVacaciones.map(item => item.nombre_empleado || item.empleado || `Empleado ID #${item.id_employee}`))].sort();
+    // MEJORA UX Y DATOS: Obtener empleados de las solicitudes
+    const empleadosDesdeVacaciones = datosVacaciones.map(item => item.nombre_empleado || item.empleado || `Empleado ID #${item.id_employee}`);
+    
+    // MEJORA UX Y DATOS: Obtener empleados de la plantilla completa (estatus) para no omitir a quienes no han solicitado vacaciones
+    const empleadosDesdeEstatus = datosEstatusVacaciones.map(item => item.nombre_empleado);
+
+    // Unificación y eliminación de duplicados de forma segura
+    const empleadosUnicos = [...new Set([...empleadosDesdeVacaciones, ...empleadosDesdeEstatus])].filter(Boolean).sort();
+
+    // Renderizado seguro con escapeHTML para prevención de vulnerabilidades XSS
     contenedorEmpleados.innerHTML = empleadosUnicos.map(emp => `
       <label class="opcion-filtro"><input type="checkbox" value="${escapeHTML(emp)}" class="chk-empleado"> ${escapeHTML(emp)}</label>
     `).join('');
@@ -258,7 +274,15 @@
       `).join('');
     }
 
-    contenedorEmpleados.addEventListener('change', actualizarFiltrosYTabla);
+    contenedorEmpleados.addEventListener('change', () => {
+      actualizarFiltrosYTabla();
+      // MEJORA UX: Sincronización en tiempo real de la vista Estatus si está activa
+      const vistaEstatus = document.getElementById('contenedorVistaEstatus');
+      if (vistaEstatus && vistaEstatus.style.display !== 'none') {
+        renderizarVistaEstatus();
+      }
+    });
+    
     contenedorEstados.addEventListener('change', actualizarFiltrosYTabla);
     
     actualizarFiltrosYTabla();
@@ -370,9 +394,7 @@
     }).join('');
   }
 
-  // ==========================================
-  // INICIO PARTE MODIFICADA: VISTA ESTATUS CON SELECTOR FORZOSO Y BOTÓN CON CLASES CSS GLOBALES
-  // ==========================================
+  // Modificación en renderizarVistaEstatus para acoplarse directamente al "Filtro Empleado" superior
   function renderizarVistaEstatus() {
     const contenedor = document.getElementById('contenedorVistaEstatus');
     if (!contenedor) return;
@@ -395,52 +417,31 @@
     const idUsuarioLogueado = jwtDatos.id_employee || jwtDatos.id || jwtDatos.userId;
 
     if (esLaura) {
-      // UX LAURA: Selector dinámico forzoso. No se muestran todos los gráficos de golpe.
-      let htmlControl = `
-        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-          <label for="selectEmpleadoEstatus" style="font-weight: 600; font-size: 14px; color: #334155;">
-            👤 Seleccionar Empleado a consultar:
-          </label>
-          <select id="selectEmpleadoEstatus" class="select-estado-tabla" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 14px; min-width: 250px; background-color: #fff; color: #1e293b;">
-            <option value="">-- Selecciona un empleado --</option>
-            ${datosEstatusVacaciones.map(emp => `
-              <option value="${emp.id_employee}">${escapeHTML(emp.nombre_empleado)}</option>
-            `).join('')}
-          </select>
-        </div>
-        <div id="contenedorTacometroIndividual">
+      const arrSeleccionados = Array.from(empleadosSeleccionados);
+
+      // MEJORA UX: Renderizado dinámico directo desde el filtro superior
+      if (arrSeleccionados.length === 1) {
+        const nombreBuscado = arrSeleccionados[0];
+        const empDatos = datosEstatusVacaciones.find(emp => emp.nombre_empleado === nombreBuscado);
+
+        if (empDatos) {
+          contenedor.innerHTML = generarHTMLTacometroIndividual(empDatos, true);
+        } else {
+          contenedor.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #64748b; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">
+              ⚠️ No se encontraron acumulados de días para el empleado seleccionado.
+            </div>`;
+        }
+      } else {
+        // Estado informativo cuando hay 0 o más de 1 empleados seleccionados
+        contenedor.innerHTML = `
           <div style="text-align: center; padding: 40px; color: #64748b; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">
-            👆 Por favor, selecciona un empleado en el menú superior para visualizar su tacómetro y balance de días.
-          </div>
-        </div>
-      `;
-
-      contenedor.innerHTML = htmlControl;
-
-      // Event Listener para dibujar exclusivamente el gráfico del empleado seleccionado
-      const selector = document.getElementById('selectEmpleadoEstatus');
-      if (selector) {
-        selector.addEventListener('change', (e) => {
-          const idEmpSeleccionado = Number(e.target.value);
-          const contenedorGrafico = document.getElementById('contenedorTacometroIndividual');
-
-          if (!idEmpSeleccionado) {
-            contenedorGrafico.innerHTML = `
-              <div style="text-align: center; padding: 40px; color: #64748b; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">
-                👆 Por favor, selecciona un empleado en el menú superior para visualizar su tacómetro y balance de días.
-              </div>`;
-            return;
-          }
-
-          const empDatos = datosEstatusVacaciones.find(emp => Number(emp.id_employee) === idEmpSeleccionado);
-          if (empDatos && contenedorGrafico) {
-            contenedorGrafico.innerHTML = generarHTMLTacometroIndividual(empDatos, true);
-          }
-        });
+            👆 Por favor, selecciona <strong>1 solo empleado</strong> en el menú superior <strong>"Filtro Empleado"</strong> para visualizar su tacómetro y balance de días.
+          </div>`;
       }
 
     } else {
-      // UX ROLES DIVERGENTES: Renderizado automático exclusivo de su propio gráfico
+      // UX ROLES REGULARES: Renderizado automático exclusivo de sus propios datos
       const empDatosPropio = datosEstatusVacaciones.find(emp => Number(emp.id_employee) === Number(idUsuarioLogueado)) || datosEstatusVacaciones[0];
       
       if (empDatosPropio) {
