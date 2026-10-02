@@ -370,6 +370,9 @@
     }).join('');
   }
 
+  // ==========================================
+  // INICIO PARTE MODIFICADA: VISTA ESTATUS CON SELECTOR FORZOSO Y BOTÓN CON CLASES CSS GLOBALES
+  // ==========================================
   function renderizarVistaEstatus() {
     const contenedor = document.getElementById('contenedorVistaEstatus');
     if (!contenedor) return;
@@ -389,65 +392,123 @@
       (userRolNormalizado.includes('gerente') && userRolNormalizado.includes('administrac'))
     );
 
-    let html = `
-      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; padding: 10px 0;">
-    `;
+    const idUsuarioLogueado = jwtDatos.id_employee || jwtDatos.id || jwtDatos.userId;
 
-    datosEstatusVacaciones.forEach(emp => {
-      const diasLey = Number(emp.dias_ley || 0);
-      const diasTomados = Number(emp.dias_tomados || 0);
-      const diasRestantes = Math.max(0, diasLey - diasTomados);
-
-      const porcentaje = diasLey > 0 ? Math.min(100, Math.max(0, (diasTomados / diasLey) * 100)) : 0;
-      const anguloRotacion = (porcentaje / 100) * 180;
-
-      html += `
-        <div style="background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); text-align: center;">
-          <h3 style="margin: 0 0 15px 0; font-size: 16px; color: #1e293b; font-weight: 600;">${escapeHTML(emp.nombre_empleado)}</h3>
-          
-          <!-- Tacómetro SVG de Semi-círculo -->
-          <div style="position: relative; width: 160px; height: 95px; margin: 0 auto;">
-            <svg width="160" height="90" viewBox="0 0 160 90">
-              <path d="M 10 80 A 70 70 0 0 1 150 80" fill="none" stroke="#e2e8f0" stroke-width="14" stroke-linecap="round" />
-              <path d="M 10 80 A 70 70 0 0 1 150 80" fill="none" stroke="#2563eb" stroke-width="14" stroke-linecap="round" 
-                stroke-dasharray="220" stroke-dashoffset="${220 - (220 * porcentaje) / 100}" />
-            </svg>
-            <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); font-size: 20px; font-weight: bold; color: #1e293b;">
-              ${diasRestantes} <span style="font-size: 11px; color: #64748b; font-weight: normal;">días rest.</span>
-            </div>
+    if (esLaura) {
+      // UX LAURA: Selector dinámico forzoso. No se muestran todos los gráficos de golpe.
+      let htmlControl = `
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          <label for="selectEmpleadoEstatus" style="font-weight: 600; font-size: 14px; color: #334155;">
+            👤 Seleccionar Empleado a consultar:
+          </label>
+          <select id="selectEmpleadoEstatus" class="select-estado-tabla" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 14px; min-width: 250px; background-color: #fff; color: #1e293b;">
+            <option value="">-- Selecciona un empleado --</option>
+            ${datosEstatusVacaciones.map(emp => `
+              <option value="${emp.id_employee}">${escapeHTML(emp.nombre_empleado)}</option>
+            `).join('')}
+          </select>
+        </div>
+        <div id="contenedorTacometroIndividual">
+          <div style="text-align: center; padding: 40px; color: #64748b; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">
+            👆 Por favor, selecciona un empleado en el menú superior para visualizar su tacómetro y balance de días.
           </div>
-
-          <!-- Métricas -->
-          <div style="display: flex; justify-content: space-around; margin-top: 15px; border-top: 1px solid #f1f5f9; padding-top: 12px; font-size: 13px;">
-            <div>
-              <span style="color: #64748b; display: block; font-size: 11px;">Por Ley</span>
-              <strong style="color: #2563eb; font-size: 15px;">${diasLey}</strong>
-            </div>
-            <div>
-              <span style="color: #64748b; display: block; font-size: 11px;">Gozados</span>
-              <strong style="color: #dc2626; font-size: 15px;">${diasTomados}</strong>
-            </div>
-            <div>
-              <span style="color: #64748b; display: block; font-size: 11px;">Disponibles</span>
-              <strong style="color: #16a34a; font-size: 15px;">${diasRestantes}</strong>
-            </div>
-          </div>
-
-          ${esLaura ? `
-            <button onclick="window.forzarRenovacionDias(${emp.id_employee}, '${escapeHTML(emp.nombre_empleado)}')" 
-              style="margin-top: 15px; width: 100%; background: #f8fafc; border: 1px solid #cbd5e1; color: #475569; padding: 7px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;"
-              onmouseover="this.style.background='#ef4444'; this.style.color='#fff';"
-              onmouseout="this.style.background='#f8fafc'; this.style.color='#475569';">
-              🔄 Forzar Renovación de Días
-            </button>
-          ` : ''}
         </div>
       `;
-    });
 
-    html += `</div>`;
-    contenedor.innerHTML = html;
+      contenedor.innerHTML = htmlControl;
+
+      // Event Listener para dibujar exclusivamente el gráfico del empleado seleccionado
+      const selector = document.getElementById('selectEmpleadoEstatus');
+      if (selector) {
+        selector.addEventListener('change', (e) => {
+          const idEmpSeleccionado = Number(e.target.value);
+          const contenedorGrafico = document.getElementById('contenedorTacometroIndividual');
+
+          if (!idEmpSeleccionado) {
+            contenedorGrafico.innerHTML = `
+              <div style="text-align: center; padding: 40px; color: #64748b; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">
+                👆 Por favor, selecciona un empleado en el menú superior para visualizar su tacómetro y balance de días.
+              </div>`;
+            return;
+          }
+
+          const empDatos = datosEstatusVacaciones.find(emp => Number(emp.id_employee) === idEmpSeleccionado);
+          if (empDatos && contenedorGrafico) {
+            contenedorGrafico.innerHTML = generarHTMLTacometroIndividual(empDatos, true);
+          }
+        });
+      }
+
+    } else {
+      // UX ROLES DIVERGENTES: Renderizado automático exclusivo de su propio gráfico
+      const empDatosPropio = datosEstatusVacaciones.find(emp => Number(emp.id_employee) === Number(idUsuarioLogueado)) || datosEstatusVacaciones[0];
+      
+      if (empDatosPropio) {
+        contenedor.innerHTML = `
+          <div style="max-width: 450px; margin: 0 auto;">
+            ${generarHTMLTacometroIndividual(empDatosPropio, false)}
+          </div>
+        `;
+      } else {
+        contenedor.innerHTML = `<div style="text-align: center; padding: 40px; color: #64748b;">No se encontraron registros de vacaciones para su usuario.</div>`;
+      }
+    }
   }
+
+  // Generador de Tarjeta con Tacómetro SVG e integración de reglas CSS globales (.btn y [data-action])
+  function generarHTMLTacometroIndividual(emp, esLaura) {
+    const diasLey = Number(emp.dias_ley || 0);
+    const diasTomados = Number(emp.dias_tomados || 0);
+    const diasRestantes = Math.max(0, diasLey - diasTomados);
+
+    const porcentaje = diasLey > 0 ? Math.min(100, Math.max(0, (diasTomados / diasLey) * 100)) : 0;
+
+    return `
+      <div style="background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); text-align: center; max-width: 450px; margin: 0 auto;">
+        <h3 style="margin: 0 0 15px 0; font-size: 18px; color: #1e293b; font-weight: 600;">${escapeHTML(emp.nombre_empleado)}</h3>
+        
+        <!-- Tacómetro SVG Semi-circular -->
+        <div style="position: relative; width: 180px; height: 105px; margin: 0 auto;">
+          <svg width="180" height="100" viewBox="0 0 160 90">
+            <path d="M 10 80 A 70 70 0 0 1 150 80" fill="none" stroke="#e2e8f0" stroke-width="14" stroke-linecap="round" />
+            <path d="M 10 80 A 70 70 0 0 1 150 80" fill="none" stroke="#2563eb" stroke-width="14" stroke-linecap="round" 
+              stroke-dasharray="220" stroke-dashoffset="${220 - (220 * porcentaje) / 100}" />
+          </svg>
+          <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: bold; color: #1e293b;">
+            ${diasRestantes} <span style="font-size: 11px; color: #64748b; font-weight: normal;">días rest.</span>
+          </div>
+        </div>
+
+        <!-- Métricas -->
+        <div style="display: flex; justify-content: space-around; margin-top: 20px; border-top: 1px solid #f1f5f9; padding-top: 15px; font-size: 13px;">
+          <div>
+            <span style="color: #64748b; display: block; font-size: 11px;">Por Ley</span>
+            <strong style="color: #2563eb; font-size: 16px;">${diasLey}</strong>
+          </div>
+          <div>
+            <span style="color: #64748b; display: block; font-size: 11px;">Gozados</span>
+            <strong style="color: #dc2626; font-size: 16px;">${diasTomados}</strong>
+          </div>
+          <div>
+            <span style="color: #64748b; display: block; font-size: 11px;">Disponibles</span>
+            <strong style="color: #16a34a; font-size: 16px;">${diasRestantes}</strong>
+          </div>
+        </div>
+
+        ${esLaura ? `
+          <!-- Botón unificado utilizando las reglas CSS globales (.btn y [data-action]) -->
+          <div style="margin-top: 20px;">
+            <button type="button" class="btn" data-action="renovar" onclick="window.forzarRenovacionDias(${emp.id_employee}, '${escapeHTML(emp.nombre_empleado)}')">
+              🔄 Forzar Renovación de Días
+            </button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+  // ==========================================
+  // FIN PARTE MODIFICADA
+  // ==========================================
 
   window.forzarRenovacionDias = async function(idEmployee, nombreEmpleado) {
     if (!confirm(`⚠️ ¿Estás segura de forzar la renovación de días para "${nombreEmpleado}"?\n\nEsto restablecerá sus días gozados eliminando las solicitudes registradas del periodo.`)) {
