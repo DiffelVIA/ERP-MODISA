@@ -114,6 +114,9 @@ router.get('/:id/vacaciones', verificarToken, validarRolJWT, async (req, res) =>
     }
 });
 
+// ==========================================
+// INICIO MODIFICACIÓN: EXPORTACIÓN A EXCEL (.XLS) SIN LIBRERÍAS NPM
+// ==========================================
 router.get('/exportar-excel', verificarToken, validarRolJWT, async (req, res) => {
     try {
         const sql = `
@@ -123,39 +126,85 @@ router.get('/exportar-excel', verificarToken, validarRolJWT, async (req, res) =>
         `;
         const [rows] = await pool.query(sql);
 
-        // Cabeceras del archivo Excel
-        let csvData = 'Nombre,Apellido,Fecha de Ingreso,Sueldo\n';
+        let excelContent = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+                <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+                <!--[if gte mso 9]>
+                <xml>
+                    <x:ExcelWorkbook>
+                        <x:ExcelWorksheets>
+                            <x:ExcelWorksheet>
+                                <x:Name>Empleados</x:Name>
+                                <x:WorksheetOptions>
+                                    <x:DisplayGridlines/>
+                                </x:WorksheetOptions>
+                            </x:ExcelWorksheet>
+                        </x:ExcelWorksheets>
+                    </x:ExcelWorkbook>
+                </xml>
+                <![endif]-->
+                <style>
+                    th { background-color: #21a366; color: white; font-weight: bold; border: 0.5pt solid #cccccc; }
+                    td { border: 0.5pt solid #cccccc; }
+                    .monto { mso-number-format:"\\$#,##0.00"; text-align: right; }
+                </style>
+            </head>
+            <body>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Apellido</th>
+                            <th>Fecha de Ingreso</th>
+                            <th>Sueldo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
 
         rows.forEach(emp => {
-            const nombre = `"${(emp.name || '').replace(/"/g, '""')}"`;
-            const apellido = `"${(emp.last_name || '').replace(/"/g, '""')}"`;
-            
-            let fechaIngreso = '---';
+            let fechaFormatted = '---';
             if (emp.hire_date) {
                 const f = new Date(emp.hire_date);
-                fechaIngreso = f.toISOString().split('T')[0];
+                fechaFormatted = f.toISOString().split('T')[0];
             }
 
-            const sueldo = Number(emp.sueldo || 0).toFixed(2);
+            const sueldoNum = Number(emp.sueldo || 0);
 
-            csvData += `${nombre},${apellido},${fechaIngreso},${sueldo}\n`;
+            excelContent += `
+                <tr>
+                    <td>${emp.name || ''}</td>
+                    <td>${emp.last_name || ''}</td>
+                    <td>${fechaFormatted}</td>
+                    <td class="monto">${sueldoNum}</td>
+                </tr>
+            `;
         });
 
-        // BOM UTF-8 (\uFEFF) para que Excel reconozca tildes y caracteres especiales correctamente
-        const buffer = Buffer.from('\uFEFF' + csvData, 'utf-8');
+        excelContent += `
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
 
         const fechaHoy = new Date().toISOString().split('T')[0];
-        const nombreArchivo = `Reporte_Empleados_${fechaHoy}.csv`;
+        const nombreArchivo = `Reporte_Empleados_${fechaHoy}.xls`;
 
-        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Type', 'application/vnd.ms-excel; charset=utf-8');
         res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}"`);
-        res.status(200).send(buffer);
+        
+        res.status(200).send(Buffer.from('\uFEFF' + excelContent, 'utf-8'));
 
     } catch (error) {
         console.error('❌ Error al exportar empleados a Excel:', error);
         res.status(500).json({ error: "Error interno al generar el reporte en Excel." });
     }
 });
+// ==========================================
+// FIN MODIFICACIÓN: EXPORTACIÓN A EXCEL (.XLS)
+// ==========================================
 
 router.post('/:id/vacaciones', verificarToken, validarRolJWT, async (req, res) => {
     const { id } = req.params;
