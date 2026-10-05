@@ -217,6 +217,7 @@
         const op = escapeHTML(opcion || 'N/A');
         const esCumpleLimpio = String(opcion || '').trim().toLowerCase() === 'a tiempo' || String(opcion || '').trim().toLowerCase() === 'cumple';
         
+        // Si no hay justificación o la opción no requiere mostrarla
         if (!justificacion || (esCumpleLimpio && !justificacion.trim())) {
           return `<div class="celda-rubro-centrada"><strong>${op}</strong></div>`;
         }

@@ -1027,27 +1027,29 @@ footer #btn-logout:hover {
 }
 
 /* ==========================================
-   INICIO MODIFICACIÓN: ALINEACIÓN Y TARJETAS HOVER CON NUBECITA DISCRETA
+   INICIO MODIFICACIÓN: ALINEACIÓN GENERAL DE TABLA Y TOOLTIPS HOVER
    ========================================== */
 
-/* Permitir que los tooltips flotantes sobrepasen los límites de la tabla sin cortarse */
+/* Permitir que los tooltips flotantes sobrepasen los límites visuales de la tabla */
 .tabla {
   overflow-x: auto;
   overflow-y: visible !important;
 }
 
-/* Centrado explícito de los encabezados de evaluación en la tabla */
-.tabla th:nth-child(5),
-.tabla th:nth-child(6),
-.tabla th:nth-child(7),
-.tabla th:nth-child(8),
-.tabla th:nth-child(9),
-.tabla th:nth-child(10),
-.tabla th:nth-child(11) {
+/* 1. Alineación a la izquierda para información de texto largo */
+.tabla th:nth-child(1), .tabla td:nth-child(1),
+.tabla th:nth-child(2), .tabla td:nth-child(2) {
+  text-align: left !important;
+  padding-left: 10px !important;
+}
+
+/* 2. Alineación perfectamente centrada para Semana, Fecha, Rúbricas, Puntaje y Resultado */
+.tabla th:nth-child(n+3),
+.tabla td:nth-child(n+3) {
   text-align: center !important;
 }
 
-/* Celda contenedora con alineación centrada perfecta */
+/* Contenedor flexible centrado para el texto de las evaluaciones */
 .celda-rubro-centrada {
   position: relative;
   display: flex;
@@ -1063,13 +1065,13 @@ footer #btn-logout:hover {
   cursor: pointer;
 }
 
-/* Nubecita flotante pequeña en la esquina derecha sin empujar el texto central */
+/* Icono de nubecita flotante a la derecha sin alterar el centro del texto */
 .icono-nubecita {
   position: absolute;
-  right: 2px;
+  right: 4px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 11px;
+  font-size: 12px;
   opacity: 0.75;
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
@@ -1079,7 +1081,7 @@ footer #btn-logout:hover {
   transform: translateY(-50%) scale(1.25);
 }
 
-/* Tarjeta flotante emergente */
+/* Tarjeta flotante emergente al hacer hover */
 .tarjeta-obs {
   display: none;
   position: absolute;
@@ -1100,7 +1102,7 @@ footer #btn-logout:hover {
   text-align: left;
 }
 
-/* Flecha apuntando a la celda */
+/* Flechita inferior del tooltip */
 .tarjeta-obs::after {
   content: "";
   position: absolute;
@@ -1112,7 +1114,7 @@ footer #btn-logout:hover {
   border-color: #ffffff transparent transparent transparent;
 }
 
-/* Encabezado interno del tooltip */
+/* Título interno de la tarjeta */
 .tarjeta-obs-titulo {
   font-weight: 700;
   color: var(--primary-color, #0a2540);
@@ -1122,7 +1124,7 @@ footer #btn-logout:hover {
   padding-bottom: 3px;
 }
 
-/* Contenido de texto */
+/* Contenido de la observación con salto de línea respetado */
 .tarjeta-obs-contenido {
   white-space: pre-wrap;
   word-break: break-word;
@@ -1130,7 +1132,7 @@ footer #btn-logout:hover {
   font-weight: 400;
 }
 
-/* Mostrar únicamente al hacer hover sobre la celda específica */
+/* Mostrar tooltip únicamente en hover de la celda con observación */
 .celda-con-obs:hover .tarjeta-obs {
   display: block;
   animation: fadeInHover 0.18s ease-in-out forwards;
@@ -1147,5 +1149,5 @@ footer #btn-logout:hover {
   }
 }
 /* ==========================================
-   FIN MODIFICACIÓN: ALINEACIÓN Y TARJETAS HOVER CON NUBECITA DISCRETA
+   FIN MODIFICACIÓN: ALINEACIÓN GENERAL DE TABLA Y TOOLTIPS HOVER
    ========================================== */
