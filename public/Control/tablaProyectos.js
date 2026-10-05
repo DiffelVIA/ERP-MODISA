@@ -2,63 +2,11 @@
     const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
 
     let proyectosOriginales = [];
-    // ==========================================
-    // INICIO MODIFICACIÓN: CATALOGO DE EMPLEADOS
-    // ==========================================
-    let listaEmpleados = [];
-    // ==========================================
-    // FIN MODIFICACIÓN: CATALOGO DE EMPLEADOS
-    // ==========================================
 
-    // ==========================================
-    // INICIO MODIFICACIÓN: HELPER SANITIZACION XSS
-    // ==========================================
-    function escapeHTML(str) {
-        if (!str) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-    }
-    // ==========================================
-    // FIN MODIFICACIÓN: HELPER SANITIZACION XSS
-    // ==========================================
-
-    document.addEventListener("DOMContentLoaded", async () => {
-        // ==========================================
-        // INICIO MODIFICACIÓN: CARGAR EMPLEADOS AL INICIO
-        // ==========================================
-        await cargarEmpleados();
-        // ==========================================
-        // FIN MODIFICACIÓN: CARGAR EMPLEADOS AL INICIO
-        // ==========================================
+    document.addEventListener("DOMContentLoaded", () => {
         obtenerYRenderizarProyectos();
         configurarDropdowns();
     });
-
-    // ==========================================
-    // INICIO MODIFICACIÓN: PETICION A EMPLOYEES
-    // ==========================================
-    async function cargarEmpleados() {
-        try {
-            const token = localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
-            const response = await fetch(`${API_BASE_URL}/employees`, {
-                headers: {
-                    'Authorization': token ? `Bearer ${token}` : ''
-                }
-            });
-            if (response.ok) {
-                listaEmpleados = await response.json();
-            }
-        } catch (error) {
-            console.error("❌ Error al cargar lista de empleados:", error);
-        }
-    }
-    // ==========================================
-    // FIN MODIFICACIÓN: PETICION A EMPLOYEES
-    // ==========================================
 
     async function obtenerYRenderizarProyectos() {
         const cuerpoTabla = document.querySelector(".cuerpoTabla");
@@ -130,10 +78,10 @@
 
             if (!esDirector) {
                 fila.innerHTML = `
-                    <td><strong>${escapeHTML(proy.project_name)}</strong></td>
-                    <td>${escapeHTML(proy.responsable_name) || "<i>Sin asignar</i>"}</td>
-                    <td>${escapeHTML(proy.location) || "N/A"}</td>
-                    <td><span class="badge-status status-${escapeHTML(proy.status).toLowerCase().replace(/\s+/g, '')}">${escapeHTML(estadoEspañol)}</span></td>
+                    <td><strong>${proy.project_name}</strong></td>
+                    <td>${proy.responsable_name || "<i>Sin asignar</i>"}</td>
+                    <td>${proy.location || "N/A"}</td>
+                    <td><span class="badge-status status-${proy.status.toLowerCase().replace(/\s+/g, '')}">${estadoEspañol}</span></td>
                     <td>${fInicioFormateada}</td>
                     <td>${fFinFormateada}</td>
                     <td>
@@ -146,26 +94,10 @@
                     </td>
                 `;
             } else {
-                // ==========================================
-                // INICIO MODIFICACIÓN: GENERACIÓN DE OPTIONS DE RESPONSABLE
-                // ==========================================
-                const opcionesResponsables = listaEmpleados.map(emp => {
-                    const empId = emp.id_employee || emp.id;
-                    const empNombre = emp.nombre_completo || (emp.name ? `${emp.name} ${emp.last_name || ''}`.trim() : emp.nombre);
-                    
-                    const seleccionado = (proy.id_user == empId || proy.responsable_name === empNombre) ? 'selected' : '';
-                    return `<option value="${empId}" ${seleccionado}>${escapeHTML(empNombre)}</option>`;
-                }).join('');
-
                 fila.innerHTML = `
-                    <td><strong>${escapeHTML(proy.project_name)}</strong></td>
-                    <td>
-                        <select class="selector-responsable" data-id="${proy.id_project}" style="padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1; font-family: inherit;">
-                            <option value="">-- Sin Asignar --</option>
-                            ${opcionesResponsables}
-                        </select>
-                    </td>
-                    <td>${escapeHTML(proy.location) || "N/A"}</td>
+                    <td><strong>${proy.project_name}</strong></td>
+                    <td>${proy.responsable_name || "<i>Sin asignar</i>"}</td>
+                    <td>${proy.location || "N/A"}</td>
                     <td>
                         <select class="selector-estatus" data-id="${proy.id_project}" style="padding: 4px 6px; border-radius: 4px; font-family: inherit; font-weight: 600;">
                             <option value="Active" ${proy.status === 'Active' ? 'selected' : ''}>Activo</option>
@@ -187,9 +119,6 @@
                         </div>
                     </td>
                 `;
-                // ==========================================
-                // FIN MODIFICACIÓN: GENERACIÓN DE OPTIONS DE RESPONSABLE
-                // ==========================================
             }
 
             cuerpoTabla.appendChild(fila);
@@ -201,28 +130,6 @@
     }
 
     function asignarEventosInteractivos() {
-        // ==========================================
-        // INICIO MODIFICACIÓN: EVENT LISTENER DE CAMBIO DE RESPONSABLE
-        // ==========================================
-        document.querySelectorAll(".selector-responsable").forEach(select => {
-            select.addEventListener("change", async (e) => {
-                const idProject = e.target.dataset.id;
-                const idEmployee = e.target.value;
-                const fila = e.target.closest("tr");
-                
-                const selectorEstatus = fila.querySelector(".selector-estatus");
-                const inputFecha = fila.querySelector(".input-fecha-fin");
-
-                const statusActual = selectorEstatus ? selectorEstatus.value : 'Active';
-                const fechaFinActual = inputFecha ? inputFecha.value : new Date().toISOString().split('T')[0];
-
-                await procesarActualizacionRenglon(idProject, statusActual, fechaFinActual, idEmployee);
-            });
-        });
-        // ==========================================
-        // FIN MODIFICACIÓN: EVENT LISTENER DE CAMBIO DE RESPONSABLE
-        // ==========================================
-
         document.querySelectorAll(".selector-estatus").forEach(select => {
             select.addEventListener("change", async (e) => {
                 const idProject = e.target.dataset.id;
@@ -230,18 +137,9 @@
                 const fila = e.target.closest("tr");
                 
                 const inputFecha = fila.querySelector(".input-fecha-fin");
-                // ==========================================
-                // INICIO MODIFICACIÓN: MANTENER RESPONSABLE EN CAMBIO DE ESTATUS
-                // ==========================================
-                const selectorResponsable = fila.querySelector(".selector-responsable");
-                const idEmployeeActual = selectorResponsable ? selectorResponsable.value : null;
-                // ==========================================
-                // FIN MODIFICACIÓN: MANTENER RESPONSABLE EN CAMBIO DE ESTATUS
-                // ==========================================
-
                 const fechaFinActual = inputFecha ? inputFecha.value : new Date().toISOString().split('T')[0];
 
-                await procesarActualizacionRenglon(idProject, nuevoEstado, fechaFinActual, idEmployeeActual);
+                await procesarActualizacionRenglon(idProject, nuevoEstado, fechaFinActual);
             });
         });
 
@@ -251,14 +149,6 @@
                 const nuevaFechaFin = e.target.value;
                 const fila = e.target.closest("tr");
                 const selector = fila.querySelector(".selector-estatus");
-                // ==========================================
-                // INICIO MODIFICACIÓN: MANTENER RESPONSABLE EN CAMBIO DE FECHA
-                // ==========================================
-                const selectorResponsable = fila.querySelector(".selector-responsable");
-                const idEmployeeActual = selectorResponsable ? selectorResponsable.value : null;
-                // ==========================================
-                // FIN MODIFICACIÓN: MANTENER RESPONSABLE EN CAMBIO DE FECHA
-                // ==========================================
 
                 const hoyLocal = new Date().toLocaleDateString('fr-CA', { timeZone: 'America/Mexico_City' });
                 const nuevaFechaClean = nuevaFechaFin.split('T')[0];
@@ -270,25 +160,16 @@
 
                 if (selector) selector.value = estadoAutomatico;
 
-                await procesarActualizacionRenglon(idProject, estadoAutomatico, nuevaFechaFin, idEmployeeActual);
+                await procesarActualizacionRenglon(idProject, estadoAutomatico, nuevaFechaFin);
             });
         });
     }
 
-    // ==========================================
-    // INICIO MODIFICACIÓN: FIRMA CON IDEMPLOYEE (ID_USER)
-    // ==========================================
-    async function procesarActualizacionRenglon(id, status, finishDate, idEmployee) {
+    async function procesarActualizacionRenglon(id, status, finishDate) {
         try {
             const token = localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
             const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
             const rolActual = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
-
-            const payload = {
-                status,
-                finish_date: finishDate,
-                id_user: idEmployee ? parseInt(idEmployee, 10) : null
-            };
 
             const response = await fetch(`${API_BASE_URL}/projects/${id}`, {
                 method: "PUT",
@@ -297,7 +178,7 @@
                     "Authorization": token ? `Bearer ${token}` : '',
                     "x-user-rol": rolActual 
                 },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ status, finish_date: finishDate })
             });
 
             if (!response.ok) throw new Error("Fallo al actualizar el registro en el servidor.");
@@ -309,9 +190,6 @@
             alert("No se pudieron guardar las modificaciones del proyecto o no cuentas con los permisos de edición.");
         }
     }
-    // ==========================================
-    // FIN MODIFICACIÓN: FIRMA CON IDEMPLOYEE (ID_USER)
-    // ==========================================
 
     function generarOpcionesFiltros(datos) {
         const filtroProyecto = document.getElementById("filtroProyecto");
@@ -324,7 +202,7 @@
         if (filtroProyecto) {
             filtroProyecto.innerHTML = proyectosUnicos.map(p => `
                 <label class="opcion-filtro" style="display: block; padding: 4px 12px; cursor: pointer;">
-                    <input type="checkbox" value="${escapeHTML(p)}" class="chk-proyecto"> ${escapeHTML(p)}
+                    <input type="checkbox" value="${p}" class="chk-proyecto"> ${p}
                 </label>
             `).join('');
         }
@@ -346,7 +224,7 @@
         if (filtroResponsable) {
             filtroResponsable.innerHTML = responsablesUnicos.map(r => `
                 <label class="opcion-filtro" style="display: block; padding: 4px 12px; cursor: pointer;">
-                    <input type="checkbox" value="${escapeHTML(r)}" class="chk-responsable"> ${escapeHTML(r)}
+                    <input type="checkbox" value="${r}" class="chk-responsable"> ${r}
                 </label>
             `).join('');
         }
