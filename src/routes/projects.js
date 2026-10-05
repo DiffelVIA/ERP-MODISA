@@ -113,10 +113,11 @@ router.get('/report', async (req, res) => {
             SELECT 
                 p.id_project,
                 p.project_name,
+                p.id_user, -- Se agrega id_user para mantener el ID del responsable asignado
                 p.location,
                 p.start_date,
                 p.finish_date,
-                p.status, -- Leemos directamente el ENUM de la base de datos, sin maquillar
+                p.status,
                 CONCAT(e.name, ' ', e.last_name) AS responsable_name
             FROM projects p
             LEFT JOIN employees e ON p.id_user = e.id_employee
@@ -140,13 +141,14 @@ router.put('/:id', async (req, res) => {
         });
     }
     const { id } = req.params;
-    let { status, finish_date } = req.body;
+    let { status, finish_date, id_user } = req.body;
+
     if (!finish_date) {
         return res.status(400).json({ success: false, error: "La fecha de finalización es obligatoria." });
     }
     try {
         const [proyectoActual] = await pool.query(
-            'SELECT status, finish_date FROM projects WHERE id_project = ?', 
+            'SELECT status, finish_date, id_user FROM projects WHERE id_project = ?', 
             [id]
         );
         if (proyectoActual.length === 0) {
@@ -160,6 +162,7 @@ router.put('/:id', async (req, res) => {
             ? new Date(datosBD.finish_date).toLocaleDateString('fr-CA', { timeZone: 'America/Mexico_City' })
             : '';
         const cambioLaFecha = (nuevaFechaFinClean !== fechaFinViejaClean);
+
         if (cambioLaFecha) {
             if (nuevaFechaFinClean >= formatoHoyLocal) {
                 status = 'Active';
@@ -169,15 +172,18 @@ router.put('/:id', async (req, res) => {
         } else {
             status = req.body.status || datosBD.status;
         }
+
+        const nuevoResponsableId = (id_user !== undefined && id_user !== '') ? parseInt(id_user, 10) : datosBD.id_user;
+
         const sqlUpdate = `
             UPDATE projects 
-            SET status = ?, finish_date = ? 
+            SET status = ?, finish_date = ?, id_user = ? 
             WHERE id_project = ?
         `;
-        await pool.query(sqlUpdate, [status, nuevaFechaFinClean, id]);
+        await pool.query(sqlUpdate, [status, nuevaFechaFinClean, nuevoResponsableId, id]);
         res.json({ 
             success: true, 
-            message: "🔄 Proyecto e inteligencia de estados sincronizados con MySQL bajo firma autorizada." 
+            message: "🔄 Proyecto, fecha y responsable actualizados con éxito en MySQL." 
         });
     } catch (error) {
         console.error("❌ Error crítico en la actualización automática:", error);
