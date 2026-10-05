@@ -3,6 +3,8 @@ const router = express.Router();
 const pool = require('../config/db');
 const bcrypt = require('bcrypt');
 
+const ExcelJS = require('exceljs');
+
 const rolesPermitidos = [
     'director operativo',
     'gerente administración',
@@ -114,9 +116,6 @@ router.get('/:id/vacaciones', verificarToken, validarRolJWT, async (req, res) =>
     }
 });
 
-// ==========================================
-// INICIO MODIFICACIÓN: EXPORTACIÓN A EXCEL (.XLS) SIN LIBRERÍAS NPM
-// ==========================================
 router.get('/exportar-excel', verificarToken, validarRolJWT, async (req, res) => {
     try {
         const sql = `
@@ -126,42 +125,23 @@ router.get('/exportar-excel', verificarToken, validarRolJWT, async (req, res) =>
         `;
         const [rows] = await pool.query(sql);
 
-        let excelContent = `
-            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-            <head>
-                <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-                <!--[if gte mso 9]>
-                <xml>
-                    <x:ExcelWorkbook>
-                        <x:ExcelWorksheets>
-                            <x:ExcelWorksheet>
-                                <x:Name>Empleados</x:Name>
-                                <x:WorksheetOptions>
-                                    <x:DisplayGridlines/>
-                                </x:WorksheetOptions>
-                            </x:ExcelWorksheet>
-                        </x:ExcelWorksheets>
-                    </x:ExcelWorkbook>
-                </xml>
-                <![endif]-->
-                <style>
-                    th { background-color: #21a366; color: white; font-weight: bold; border: 0.5pt solid #cccccc; }
-                    td { border: 0.5pt solid #cccccc; }
-                    .monto { mso-number-format:"\\$#,##0.00"; text-align: right; }
-                </style>
-            </head>
-            <body>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Nombre</th>
-                            <th>Apellido</th>
-                            <th>Fecha de Ingreso</th>
-                            <th>Sueldo</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Empleados');
+
+        worksheet.columns = [
+            { header: 'Nombre', key: 'name', width: 25 },
+            { header: 'Apellido', key: 'last_name', width: 25 },
+            { header: 'Fecha de Ingreso', key: 'hire_date', width: 20 },
+            { header: 'Sueldo', key: 'sueldo', width: 18 }
+        ];
+
+        const headerRow = worksheet.getRow(1);
+        headerRow.font = { bold: true, color: { argb: 'FFFFFF' }, size: 11 };
+        headerRow.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: '21A366' }
+        };
 
         rows.forEach(emp => {
             let fechaFormatted = '---';
@@ -170,41 +150,36 @@ router.get('/exportar-excel', verificarToken, validarRolJWT, async (req, res) =>
                 fechaFormatted = f.toISOString().split('T')[0];
             }
 
-            const sueldoNum = Number(emp.sueldo || 0);
+            const row = worksheet.addRow({
+                name: emp.name || '',
+                last_name: emp.last_name || '',
+                hire_date: fechaFormatted,
+                sueldo: Number(emp.sueldo || 0)
+            });
 
-            excelContent += `
-                <tr>
-                    <td>${emp.name || ''}</td>
-                    <td>${emp.last_name || ''}</td>
-                    <td>${fechaFormatted}</td>
-                    <td class="monto">${sueldoNum}</td>
-                </tr>
-            `;
+            row.getCell('sueldo').numFmt = '"$"#,##0.00';
         });
 
-        excelContent += `
-                    </tbody>
-                </table>
-            </body>
-            </html>
-        `;
-
         const fechaHoy = new Date().toISOString().split('T')[0];
-        const nombreArchivo = `Reporte_Empleados_${fechaHoy}.xls`;
+        const nombreArchivo = `Reporte_Empleados_${fechaHoy}.xlsx`;
 
-        res.setHeader('Content-Type', 'application/vnd.ms-excel; charset=utf-8');
-        res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}"`);
-        
-        res.status(200).send(Buffer.from('\uFEFF' + excelContent, 'utf-8'));
+        res.setHeader(
+            'Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        );
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="${nombreArchivo}"`
+        );
+
+        await workbook.xlsx.write(res);
+        res.end();
 
     } catch (error) {
-        console.error('❌ Error al exportar empleados a Excel:', error);
+        console.error('❌ Error al exportar empleados a Excel (.xlsx):', error);
         res.status(500).json({ error: "Error interno al generar el reporte en Excel." });
     }
 });
-// ==========================================
-// FIN MODIFICACIÓN: EXPORTACIÓN A EXCEL (.XLS)
-// ==========================================
 
 router.post('/:id/vacaciones', verificarToken, validarRolJWT, async (req, res) => {
     const { id } = req.params;

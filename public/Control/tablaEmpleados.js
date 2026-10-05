@@ -252,9 +252,6 @@
         }
     }
 
-    // ==========================================
-    // INICIO MODIFICACIÓN: DESCARGA A EXCEL (.XLS)
-    // ==========================================
     async function descargarExcel() {
         const btnExcel = document.getElementById('btn-descargar-excel');
         if (!btnExcel) return;
@@ -290,8 +287,7 @@
             a.href = url;
             
             const fechaHoy = new Date().toISOString().split('T')[0];
-            // Configurado para descargar como .xls nativo de Excel
-            a.download = `Reporte_Empleados_${fechaHoy}.xls`;
+            a.download = `Reporte_Empleados_${fechaHoy}.xlsx`;
             
             document.body.appendChild(a);
             a.click();
@@ -308,8 +304,5 @@
             btnExcel.innerHTML = textoOriginal;
         }
     }
-    // ==========================================
-    // FIN MODIFICACIÓN: DESCARGA A EXCEL (.XLS)
-    // ==========================================
 
 })();
