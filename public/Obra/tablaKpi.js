@@ -210,22 +210,27 @@
       const rNombre = escapeHTML(item.employee_name || `Empleado #${item.id_employee}`);
       const fechaCorta = escapeHTML(item.fecha ? item.fecha.split('T')[0] : '');
 
-      // MODIFICACIÓN: Separación clara con <br> y formato condicional sin empalme de texto
       const formatRubro = (opcion, justificacion) => {
         const op = escapeHTML(opcion || 'N/A');
         const esATiempo = String(opcion || '').trim().toLowerCase() === 'a tiempo';
         
-        if (esATiempo && !justificacion) {
-          return `<div><strong>${op}</strong></div>`;
+        if (!justificacion || (esATiempo && !justificacion.trim())) {
+          return `<div class="celda-rubro-centrada"><strong>${op}</strong></div>`;
         }
 
-        const just = justificacion 
-          ? `<br><span class="justificacion-txt"><b>Obs:</b> ${escapeHTML(justificacion)}</span>` 
-          : '';
-          
-        return `<div><strong>${op}</strong>${just}</div>`;
+        const justSanitizada = escapeHTML(justificacion);
+
+        return `
+          <div class="celda-rubro-centrada celda-con-obs">
+            <strong>${op}</strong>
+            <span class="icono-nubecita" title="Pasa el cursor para ver la observación">💬</span>
+            <div class="tarjeta-obs">
+              <div class="tarjeta-obs-titulo">Observación:</div>
+              <div class="tarjeta-obs-contenido">${justSanitizada}</div>
+            </div>
+          </div>
+        `;
       };
-      // FIN MODIFICACIÓN
 
       return `
         <tr>
