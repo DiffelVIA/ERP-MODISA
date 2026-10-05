@@ -136,12 +136,7 @@ router.get('/exportar-excel', verificarToken, validarRolJWT, async (req, res) =>
         ];
 
         const headerRow = worksheet.getRow(1);
-        headerRow.font = { bold: true, color: { argb: 'FFFFFF' }, size: 11 };
-        headerRow.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: '21A366' }
-        };
+        headerRow.font = { bold: true, size: 11 };
 
         rows.forEach(emp => {
             let fechaFormatted = '---';
