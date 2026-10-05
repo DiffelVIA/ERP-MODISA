@@ -213,22 +213,28 @@
       const fechaCorta = escapeHTML(item.fecha ? item.fecha.split('T')[0] : '');
       const porcentajeText = (Number(item.evaluacion || 0) * 100).toFixed(2) + '%';
 
-      // MODIFICACIÓN: Separación clara mediante <br> y omitido de Obs cuando la opción es limpia
       const formatRubro = (opcion, justificacion) => {
         const op = escapeHTML(opcion || 'N/A');
         const esCumpleLimpio = String(opcion || '').trim().toLowerCase() === 'a tiempo' || String(opcion || '').trim().toLowerCase() === 'cumple';
-        
-        if (esCumpleLimpio && !justificacion) {
-          return `<div><strong>${op}</strong></div>`;
+        if (!justificacion || (esCumpleLimpio && !justificacion.trim())) {
+          return `<div class="celda-rubro"><strong>${op}</strong></div>`;
         }
 
-        const just = justificacion 
-          ? `<br><span class="justificacion-txt"><b>Obs:</b> ${escapeHTML(justificacion)}</span>` 
-          : '';
+        const justSanitizada = escapeHTML(justificacion);
           
-        return `<div><strong>${op}</strong>${just}</div>`;
+        return `
+          <div class="celda-rubro celda-con-obs">
+            <div class="rubro-header">
+              <strong>${op}</strong>
+              <span class="tag-obs" title="Pasa el cursor para ver las observaciones">💬 Obs</span>
+            </div>
+            <div class="tarjeta-obs">
+              <div class="tarjeta-obs-titulo">Observaciones:</div>
+              <div class="tarjeta-obs-contenido">${justSanitizada}</div>
+            </div>
+          </div>
+        `;
       };
-      // FIN MODIFICACIÓN
 
       return `
         <tr>
