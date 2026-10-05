@@ -215,10 +215,9 @@
 
       const formatRubro = (opcion, justificacion) => {
         const op = escapeHTML(opcion || 'N/A');
-        const esCumpleLimpio = String(opcion || '').trim().toLowerCase() === 'a tiempo' || String(opcion || '').trim().toLowerCase() === 'cumple';
+        const esLimpio = String(opcion || '').trim().toLowerCase() === 'a tiempo' || String(opcion || '').trim().toLowerCase() === 'cumple';
         
-        // Si no hay justificación o la opción no requiere mostrarla
-        if (!justificacion || (esCumpleLimpio && !justificacion.trim())) {
+        if (!justificacion || (esLimpio && !justificacion.trim())) {
           return `<div class="celda-rubro-centrada"><strong>${op}</strong></div>`;
         }
 
@@ -227,7 +226,7 @@
         return `
           <div class="celda-rubro-centrada celda-con-obs">
             <strong>${op}</strong>
-            <span class="icono-nubecita" title="Pasa el cursor para ver la observación">💬</span>
+            <span class="icono-nubecita">💬</span>
             <div class="tarjeta-obs">
               <div class="tarjeta-obs-titulo">Observación:</div>
               <div class="tarjeta-obs-contenido">${justSanitizada}</div>

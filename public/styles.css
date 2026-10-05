@@ -1027,121 +1027,58 @@ footer #btn-logout:hover {
 }
 
 /* ==========================================
-   INICIO MODIFICACIÓN: ALINEACIÓN GENERAL DE TABLA Y TOOLTIPS HOVER
+   INICIO MODIFICACIÓN: TARJETA DE OBSERVACIONES ORIENTADA HACIA ABAJO
    ========================================== */
 
-/* Permitir que los tooltips flotantes sobrepasen los límites visuales de la tabla */
-.tabla {
-  overflow-x: auto;
-  overflow-y: visible !important;
-}
-
-/* 1. Alineación a la izquierda para información de texto largo */
-.tabla th:nth-child(1), .tabla td:nth-child(1),
-.tabla th:nth-child(2), .tabla td:nth-child(2) {
-  text-align: left !important;
-  padding-left: 10px !important;
-}
-
-/* 2. Alineación perfectamente centrada para Semana, Fecha, Rúbricas, Puntaje y Resultado */
-.tabla th:nth-child(n+3),
-.tabla td:nth-child(n+3) {
-  text-align: center !important;
-}
-
-/* Contenedor flexible centrado para el texto de las evaluaciones */
-.celda-rubro-centrada {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-height: 28px;
-  text-align: center;
-  box-sizing: border-box;
-}
-
 .celda-con-obs {
+  position: relative;
   cursor: pointer;
 }
 
-/* Icono de nubecita flotante a la derecha sin alterar el centro del texto */
-.icono-nubecita {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 12px;
-  opacity: 0.75;
-  transition: transform 0.2s ease, opacity 0.2s ease;
-}
-
-.celda-con-obs:hover .icono-nubecita {
-  opacity: 1;
-  transform: translateY(-50%) scale(1.25);
-}
-
-/* Tarjeta flotante emergente al hacer hover */
+/* Tarjeta flotante emergente que abre hacia abajo */
 .tarjeta-obs {
   display: none;
   position: absolute;
-  bottom: 120%;
+  top: calc(100% + 6px); /* Se despliega debajo de la celda */
   left: 50%;
   transform: translateX(-50%);
-  width: 220px;
+  width: 280px; /* Ancho ampliado para evitar textos apretados */
+  max-width: 90vw;
   background-color: #ffffff;
   color: #1e293b;
   padding: 10px 12px;
-  border-radius: 6px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25), 0 3px 8px rgba(0, 0, 0, 0.12);
   border: 1px solid #cbd5e1;
-  z-index: 999;
+  z-index: 1000;
   pointer-events: none;
-  font-size: 11px;
-  line-height: 1.4;
+  font-size: 12px;
+  line-height: 1.45;
   text-align: left;
 }
 
-/* Flechita inferior del tooltip */
+/* Flechita superior orientada hacia arriba apuntando a la celda */
 .tarjeta-obs::after {
   content: "";
   position: absolute;
-  top: 100%;
+  bottom: 100%; /* Ubicada en el borde superior de la tarjeta */
   left: 50%;
   transform: translateX(-50%);
   border-width: 6px;
   border-style: solid;
-  border-color: #ffffff transparent transparent transparent;
+  border-color: transparent transparent #ffffff transparent;
 }
 
-/* Título interno de la tarjeta */
-.tarjeta-obs-titulo {
-  font-weight: 700;
-  color: var(--primary-color, #0a2540);
-  margin-bottom: 4px;
-  font-size: 11px;
-  border-bottom: 1px solid #f1f5f9;
-  padding-bottom: 3px;
-}
-
-/* Contenido de la observación con salto de línea respetado */
-.tarjeta-obs-contenido {
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: #334155;
-  font-weight: 400;
-}
-
-/* Mostrar tooltip únicamente en hover de la celda con observación */
+/* Mostrar tooltip únicamente en hover */
 .celda-con-obs:hover .tarjeta-obs {
   display: block;
-  animation: fadeInHover 0.18s ease-in-out forwards;
+  animation: fadeInHoverDown 0.18s ease-in-out forwards;
 }
 
-@keyframes fadeInHover {
+@keyframes fadeInHoverDown {
   from {
     opacity: 0;
-    transform: translate(-50%, 6px);
+    transform: translate(-50%, -6px);
   }
   to {
     opacity: 1;
@@ -1149,5 +1086,5 @@ footer #btn-logout:hover {
   }
 }
 /* ==========================================
-   FIN MODIFICACIÓN: ALINEACIÓN GENERAL DE TABLA Y TOOLTIPS HOVER
+   FIN MODIFICACIÓN: TARJETA DE OBSERVACIONES ORIENTADA HACIA ABAJO
    ========================================== */
