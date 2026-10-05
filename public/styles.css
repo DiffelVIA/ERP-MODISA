@@ -1027,22 +1027,35 @@ footer #btn-logout:hover {
 }
 
 /* ==========================================
-   INICIO MODIFICACIÓN: TARJETAS FLOTANTES DE OBSERVACIONES AL HOVER
+   INICIO MODIFICACIÓN: ALINEACIÓN Y TARJETAS HOVER CON NUBECITA DISCRETA
    ========================================== */
 
-/* Permitir que los tooltips flotantes sobrepasen los límites de la tabla */
+/* Permitir que los tooltips flotantes sobrepasen los límites de la tabla sin cortarse */
 .tabla {
   overflow-x: auto;
   overflow-y: visible !important;
 }
 
-/* Celda contenedora del rubro */
-.celda-rubro {
+/* Centrado explícito de los encabezados de evaluación en la tabla */
+.tabla th:nth-child(5),
+.tabla th:nth-child(6),
+.tabla th:nth-child(7),
+.tabla th:nth-child(8),
+.tabla th:nth-child(9),
+.tabla th:nth-child(10),
+.tabla th:nth-child(11) {
+  text-align: center !important;
+}
+
+/* Celda contenedora con alineación centrada perfecta */
+.celda-rubro-centrada {
   position: relative;
   display: flex;
-  flex-direction: column;
+  align-items: center;
   justify-content: center;
   width: 100%;
+  min-height: 28px;
+  text-align: center;
   box-sizing: border-box;
 }
 
@@ -1050,39 +1063,27 @@ footer #btn-logout:hover {
   cursor: pointer;
 }
 
-.rubro-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
+/* Nubecita flotante pequeña en la esquina derecha sin empujar el texto central */
+.icono-nubecita {
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  opacity: 0.75;
+  transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
-/* Badge o etiqueta indicadora */
-.tag-obs {
-  background-color: #e2e8f0;
-  color: #1e293b;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 5px;
-  border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  border: 1px solid #cbd5e1;
-  transition: all 0.2s ease;
-}
-
-.celda-con-obs:hover .tag-obs {
-  background-color: #0066cc;
-  color: #ffffff;
-  border-color: #0066cc;
+.celda-con-obs:hover .icono-nubecita {
+  opacity: 1;
+  transform: translateY(-50%) scale(1.25);
 }
 
 /* Tarjeta flotante emergente */
 .tarjeta-obs {
   display: none;
   position: absolute;
-  bottom: 115%;
+  bottom: 120%;
   left: 50%;
   transform: translateX(-50%);
   width: 220px;
@@ -1099,7 +1100,7 @@ footer #btn-logout:hover {
   text-align: left;
 }
 
-/* Flechita apuntando hacia la celda */
+/* Flecha apuntando a la celda */
 .tarjeta-obs::after {
   content: "";
   position: absolute;
@@ -1111,7 +1112,7 @@ footer #btn-logout:hover {
   border-color: #ffffff transparent transparent transparent;
 }
 
-/* Título de la tarjeta */
+/* Encabezado interno del tooltip */
 .tarjeta-obs-titulo {
   font-weight: 700;
   color: var(--primary-color, #0a2540);
@@ -1121,17 +1122,18 @@ footer #btn-logout:hover {
   padding-bottom: 3px;
 }
 
-/* Contenido de texto con salto de línea respetado */
+/* Contenido de texto */
 .tarjeta-obs-contenido {
   white-space: pre-wrap;
   word-break: break-word;
   color: #334155;
+  font-weight: 400;
 }
 
-/* Mostrar únicamente al hacer hover en la sección del elemento */
+/* Mostrar únicamente al hacer hover sobre la celda específica */
 .celda-con-obs:hover .tarjeta-obs {
   display: block;
-  animation: fadeInHover 0.2s ease-in-out forwards;
+  animation: fadeInHover 0.18s ease-in-out forwards;
 }
 
 @keyframes fadeInHover {
@@ -1145,5 +1147,5 @@ footer #btn-logout:hover {
   }
 }
 /* ==========================================
-   FIN MODIFICACIÓN: TARJETAS FLOTANTES DE OBSERVACIONES AL HOVER
+   FIN MODIFICACIÓN: ALINEACIÓN Y TARJETAS HOVER CON NUBECITA DISCRETA
    ========================================== */

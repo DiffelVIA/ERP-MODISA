@@ -216,20 +216,19 @@
       const formatRubro = (opcion, justificacion) => {
         const op = escapeHTML(opcion || 'N/A');
         const esCumpleLimpio = String(opcion || '').trim().toLowerCase() === 'a tiempo' || String(opcion || '').trim().toLowerCase() === 'cumple';
+        
         if (!justificacion || (esCumpleLimpio && !justificacion.trim())) {
-          return `<div class="celda-rubro"><strong>${op}</strong></div>`;
+          return `<div class="celda-rubro-centrada"><strong>${op}</strong></div>`;
         }
 
         const justSanitizada = escapeHTML(justificacion);
-          
+
         return `
-          <div class="celda-rubro celda-con-obs">
-            <div class="rubro-header">
-              <strong>${op}</strong>
-              <span class="tag-obs" title="Pasa el cursor para ver las observaciones">💬 Obs</span>
-            </div>
+          <div class="celda-rubro-centrada celda-con-obs">
+            <strong>${op}</strong>
+            <span class="icono-nubecita" title="Pasa el cursor para ver la observación">💬</span>
             <div class="tarjeta-obs">
-              <div class="tarjeta-obs-titulo">Observaciones:</div>
+              <div class="tarjeta-obs-titulo">Observación:</div>
               <div class="tarjeta-obs-contenido">${justSanitizada}</div>
             </div>
           </div>
