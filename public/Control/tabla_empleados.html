@@ -32,15 +32,14 @@
             <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
                 <thead>
                     <tr>
-                        <!-- MODIFICACIÓN SOLUCIÓN: Reajuste de anchos de columna al quitar botón de vacaciones -->
-                        <th style="width: 18%; padding: 10px 6px; text-align: left; font-size: 12px;">Nombre</th>
-                        <th style="width: 20%; padding: 10px 6px; text-align: left; font-size: 12px;">Correo (Usuario)</th>
-                        <th style="width: 12%; padding: 10px 6px; text-align: center; font-size: 12px;">Teléfono</th>
-                        <th style="width: 15%; padding: 10px 6px; text-align: left; font-size: 12px;">Rol (Puesto)</th>
-                        <th style="width: 13%; padding: 10px 6px; text-align: left; font-size: 12px;">Departamento</th>
-                        <th style="width: 12%; padding: 10px 6px; text-align: center; font-size: 12px;">Fecha Ingreso</th>
+                        <th style="width: 16%; padding: 10px 6px; text-align: left; font-size: 12px;">Nombre</th>
+                        <th style="width: 18%; padding: 10px 6px; text-align: left; font-size: 12px;">Correo (Usuario)</th>
+                        <th style="width: 11%; padding: 10px 6px; text-align: center; font-size: 12px;">Teléfono</th>
+                        <th style="width: 14%; padding: 10px 6px; text-align: left; font-size: 12px;">Rol (Puesto)</th>
+                        <th style="width: 12%; padding: 10px 6px; text-align: left; font-size: 12px;">Departamento</th>
+                        <th style="width: 10%; padding: 10px 6px; text-align: center; font-size: 12px;">Fecha Ingreso</th>
+                        <th style="width: 9%; padding: 10px 6px; text-align: right; font-size: 12px;">Sueldo</th>
                         <th style="width: 10%; padding: 10px 6px; text-align: center; font-size: 12px;">Acciones</th>
-                        <!-- FIN MODIFICACIÓN SOLUCIÓN -->
                     </tr>
                 </thead>
                 <tbody id="cuerpoTablaEmpleados">
@@ -81,6 +80,12 @@
                     <label style="font-weight: 600; font-size: 12px;">Fecha de Ingreso:</label>
                     <input type="date" id="emp-hire-date">
                 </div>
+                
+                <div class="contenedor-formulario">
+                    <label style="font-weight: 600; font-size: 12px;">Sueldo Mensual ($):</label>
+                    <input type="number" id="emp-sueldo" step="0.01" min="0" placeholder="0.00">
+                </div>
+
                 <div class="contenedor-formulario" id="grupo-pass">
                     <label style="font-weight: 600; font-size: 12px;">Contraseña Inicial:</label>
                     <input type="password" id="emp-pass">

@@ -82,9 +82,15 @@
         tbody.innerHTML = '';
 
         if (listaEmpleados.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" class="tabla-vacia">No hay empleados registrados.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" class="tabla-vacia">No hay empleados registrados.</td></tr>`;
             return;
         }
+
+        const formatoMoneda = new Intl.NumberFormat('es-MX', {
+            style: 'currency',
+            currency: 'MXN',
+            minimumFractionDigits: 2
+        });
 
         listaEmpleados.forEach(emp => {
             let fechaIngresoFormatted = '---';
@@ -92,6 +98,9 @@
                 const f = new Date(emp.hire_date);
                 fechaIngresoFormatted = f.toLocaleDateString('es-MX', { timeZone: 'UTC' });
             }
+
+            const sueldoNum = Number(emp.sueldo || 0);
+            const sueldoFormatted = formatoMoneda.format(sueldoNum);
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -101,6 +110,7 @@
                 <td><strong>${emp.job_title || '---'}</strong></td>
                 <td>${emp.department || '---'}</td>
                 <td>${fechaIngresoFormatted}</td>
+                <td style="text-align: right; font-weight: 600; color: #2e7d32;">${sueldoFormatted}</td>
                 <td style="text-align: center; white-space: nowrap;">
                     <button class="btn btn-editar" data-id="${emp.id_employee}" style="padding: 3px 8px; font-size: 11px;">✏️ Editar</button>
                     <button class="btn btn-eliminar" data-id="${emp.id_employee}" style="padding: 3px 8px; font-size: 11px; background-color: #f0a351; color: #fff;">🗑️ Eliminar</button>
@@ -127,6 +137,9 @@
                 document.getElementById('emp-id').value = '';
                 const inputFecha = document.getElementById('emp-hire-date');
                 if (inputFecha) inputFecha.value = '';
+
+                const inputSueldo = document.getElementById('emp-sueldo');
+                if (inputSueldo) inputSueldo.value = '';
 
                 document.getElementById('modalTitulo').textContent = '➕ Agregar Empleado';
                 document.getElementById('grupo-pass').style.display = 'block';
@@ -161,6 +174,11 @@
                         if (inputFecha) {
                             inputFecha.value = emp.hire_date ? emp.hire_date.substring(0, 10) : '';
                         }
+
+                        const inputSueldo = document.getElementById('emp-sueldo');
+                        if (inputSueldo) {
+                            inputSueldo.value = emp.sueldo !== undefined && emp.sueldo !== null ? emp.sueldo : '';
+                        }
                         
                         document.getElementById('grupo-pass').style.display = 'none';
                         document.getElementById('emp-pass').removeAttribute('required');
@@ -185,6 +203,9 @@
                 const id = document.getElementById('emp-id').value;
                 const esEdicion = Boolean(id);
 
+
+                const valSueldo = document.getElementById('emp-sueldo') ? document.getElementById('emp-sueldo').value : '0';
+
                 const payload = {
                     name: document.getElementById('emp-nombre').value.trim(),
                     last_name: document.getElementById('emp-apellido').value.trim(),
@@ -192,7 +213,8 @@
                     phone: document.getElementById('emp-telefono').value.trim(),
                     job_title: document.getElementById('emp-puesto').value.trim(),
                     department: document.getElementById('emp-depto').value.trim(),
-                    hire_date: document.getElementById('emp-hire-date').value || null
+                    hire_date: document.getElementById('emp-hire-date').value || null,
+                    sueldo: valSueldo !== '' ? parseFloat(valSueldo) : 0
                 };
 
                 if (!esEdicion) {

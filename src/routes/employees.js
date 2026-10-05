@@ -208,10 +208,11 @@ router.delete('/vacaciones/:id_vacacion', verificarToken, validarRolJWT, async (
     }
 });
 
+
 router.get('/gestion', verificarToken, validarRolJWT, async (req, res) => {
     try {
         const sql = `
-            SELECT id_employee, name, last_name, email, phone, job_title, department, hire_date, first_entry 
+            SELECT id_employee, name, last_name, email, phone, job_title, department, hire_date, sueldo, first_entry 
             FROM employees 
             ORDER BY name ASC
         `;
@@ -224,7 +225,7 @@ router.get('/gestion', verificarToken, validarRolJWT, async (req, res) => {
 });
 
 router.post('/', verificarToken, validarRolJWT, async (req, res) => {
-    const { name, last_name, email, phone, job_title, department, password, hire_date } = req.body;
+    const { name, last_name, email, phone, job_title, department, password, hire_date, sueldo } = req.body;
 
     if (!name || !last_name || !email || !password || !job_title) {
         return res.status(400).json({ error: "⚠️ Por favor completa todos los campos obligatorios." });
@@ -234,9 +235,11 @@ router.post('/', verificarToken, validarRolJWT, async (req, res) => {
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password.trim(), saltRounds);
 
+        const sueldoParseado = sueldo !== undefined && sueldo !== null && sueldo !== '' ? parseFloat(sueldo) : 0;
+
         const sql = `
-            INSERT INTO employees (name, last_name, email, phone, job_title, department, hire_date, password, first_entry)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+            INSERT INTO employees (name, last_name, email, phone, job_title, department, hire_date, sueldo, password, first_entry)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
         `;
         const [result] = await pool.query(sql, [
             name.trim(), 
@@ -246,6 +249,7 @@ router.post('/', verificarToken, validarRolJWT, async (req, res) => {
             job_title.trim(), 
             department ? department.trim() : null, 
             hire_date || null,
+            isNaN(sueldoParseado) ? 0 : sueldoParseado,
             hashedPassword
         ]);
 
@@ -261,12 +265,14 @@ router.post('/', verificarToken, validarRolJWT, async (req, res) => {
 
 router.put('/:id', verificarToken, validarRolJWT, async (req, res) => {
     const { id } = req.params;
-    const { name, last_name, email, phone, job_title, department, hire_date } = req.body;
+    const { name, last_name, email, phone, job_title, department, hire_date, sueldo } = req.body;
 
     try {
+        const sueldoParseado = sueldo !== undefined && sueldo !== null && sueldo !== '' ? parseFloat(sueldo) : 0;
+
         const sql = `
             UPDATE employees 
-            SET name = ?, last_name = ?, email = ?, phone = ?, job_title = ?, department = ?, hire_date = ?
+            SET name = ?, last_name = ?, email = ?, phone = ?, job_title = ?, department = ?, hire_date = ?, sueldo = ?
             WHERE id_employee = ?
         `;
         const [result] = await pool.query(sql, [
@@ -277,6 +283,7 @@ router.put('/:id', verificarToken, validarRolJWT, async (req, res) => {
             job_title, 
             department || null, 
             hire_date || null, 
+            isNaN(sueldoParseado) ? 0 : sueldoParseado,
             id
         ]);
 
