@@ -104,17 +104,25 @@ router.post('/', upload.single('pdfFile'), async (req, res) => {
     }
 });
 
-// MODIFICACIÓN SOLUCIÓN: Aplicar verificarToken para filtrado seguro según el rol e ID del residente
+// MODIFICACIÓN SOLUCIÓN: Usar req.usuario (JWT) con filtrado estricto por id_user en projects e id_employee en contracts
 router.get('/', verificarToken, async (req, res) => {
     try {
-        const userRol = req.user && req.user.rol ? req.user.rol.trim().toLowerCase() : (req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim().toLowerCase() : '');
-        const employeeId = req.user ? req.user.id_employee : req.headers['x-employee-id'];
+        // Se extrae primero del token verificado (req.usuario) y como respaldo de los encabezados
+        const usuarioSesion = req.usuario;
+        
+        const userRol = usuarioSesion && usuarioSesion.rol 
+            ? usuarioSesion.rol.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') 
+            : (req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim().toLowerCase() : '');
+
+        const employeeId = usuarioSesion 
+            ? (usuarioSesion.id_employee || usuarioSesion.id_user) 
+            : req.headers['x-employee-id'];
 
         const rolesGlobales = [
             'director operativo',
             'subdirector de obra',
-            'gerente administración',
-            'gerente de administración',
+            'gerente administracion',
+            'gerente de administracion',
             'compras',
             'gerente de costos',
             'costos',
@@ -184,7 +192,7 @@ router.get('/', verificarToken, async (req, res) => {
         
         const queryParams = [];
 
-        // Si no es un rol global/administrativo, se filtra por el ID del residente asignado al proyecto o creador del contrato
+        // Si no es un rol global/administrativo y contamos con id_employee/id_user, se filtra por obras asignadas (p.id_user) o contratos creados (c.id_employee)
         if (!esRolGlobal && employeeId) {
             sql += ` WHERE (p.id_user = ? OR c.id_employee = ?)`;
             queryParams.push(employeeId, employeeId);
@@ -200,6 +208,7 @@ router.get('/', verificarToken, async (req, res) => {
         res.status(500).json({ error: "Error en la base de datos al realizar los cruces de contratos." });
     }
 });
+// FIN MODIFICACIÓN SOLUCIÓN
 
 router.put('/:id/actualizar-control', async (req, res) => {
     const { id } = req.params;
