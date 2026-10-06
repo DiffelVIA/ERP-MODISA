@@ -104,9 +104,26 @@ router.post('/', upload.single('pdfFile'), async (req, res) => {
     }
 });
 
-router.get('/', async (req, res) => {
+// MODIFICACIÓN SOLUCIÓN: Aplicar verificarToken para filtrado seguro según el rol e ID del residente
+router.get('/', verificarToken, async (req, res) => {
     try {
-        const sql = `
+        const userRol = req.user && req.user.rol ? req.user.rol.trim().toLowerCase() : (req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim().toLowerCase() : '');
+        const employeeId = req.user ? req.user.id_employee : req.headers['x-employee-id'];
+
+        const rolesGlobales = [
+            'director operativo',
+            'subdirector de obra',
+            'gerente administración',
+            'gerente de administración',
+            'compras',
+            'gerente de costos',
+            'costos',
+            'director general'
+        ];
+
+        const esRolGlobal = rolesGlobales.includes(userRol);
+
+        let sql = `
             SELECT 
                 c.id_contract,
                 c.contract_key,
@@ -163,10 +180,19 @@ router.get('/', async (req, res) => {
             FROM contracts c
             LEFT JOIN projects p ON c.id_project = p.id_project
             LEFT JOIN project_categories pc ON c.id_project_category = pc.id_project_category
-            ORDER BY c.id_contract DESC
         `;
         
-        const [rows] = await pool.query(sql);
+        const queryParams = [];
+
+        // Si no es un rol global/administrativo, se filtra por el ID del residente asignado al proyecto o creador del contrato
+        if (!esRolGlobal && employeeId) {
+            sql += ` WHERE (p.id_user = ? OR c.id_employee = ?)`;
+            queryParams.push(employeeId, employeeId);
+        }
+
+        sql += ` ORDER BY c.id_contract DESC`;
+
+        const [rows] = await pool.query(sql, queryParams);
         res.json(rows); 
 
     } catch (error) {

@@ -44,13 +44,12 @@
 
         const rolesPermitidos = [
             "gerente administracion", 
-            "gerente de administracion",
             "compras", 
             "director general", 
             "director operativo", 
-            "subdirector de obra", 
+            "subdirector de obra",
             "gerente de costos",
-            "costos"
+            "residente de obra"
         ];
 
         const tienePermiso = rolesPermitidos.some(rolPermitido => {
