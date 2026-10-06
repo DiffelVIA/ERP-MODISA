@@ -73,7 +73,7 @@ const useMySQLAuthState = async (sessionId) => {
 };
 
 // ==========================================
-// INICIO MODIFICACIÓN: MANEJO SEGURO DE CONEXIÓN Y BACKOFF EXPONENCIAL
+// INICIO MODIFICACIÓN: MANEJO SEGURO DE CONEXIÓN, BACKOFF EXPONENCIAL IMPRESIÓN DE JIDS DE GRUPOS
 // ==========================================
 const iniciarWhatsApp = async () => {
     try {
@@ -125,7 +125,7 @@ const iniciarWhatsApp = async () => {
                 }
 
                 if (esConflictoSesion) {
-                    console.warn('⚠️ Conflict 440 detectado: Otra instancia activa con esta sesión. Se detiene la reconexión cíclica.');
+                    console.warn('⚠️️ Conflict 440 detectado: Otra instancia activa con esta sesión. Se detiene la reconexión cíclica.');
                     reconnectAttempts = 0;
                     return;
                 }
@@ -142,7 +142,19 @@ const iniciarWhatsApp = async () => {
             } else if (connection === 'open') {
                 reconnectAttempts = 0;
                 console.log('✅ Conexión con WhatsApp establecida exitosamente.');
-                // Nota: Se eliminó la llamada masiva automática groupFetchAllParticipating() para prevenir rate-overlimit y saturación de CPU
+                
+                // MODIFICACIÓN SOLUCIÓN: Imprimir la lista de grupos y sus JIDs al conectar
+                try {
+                    const grupos = await sock.groupFetchAllParticipating();
+                    console.log('\n======================================================');
+                    console.log('📋 --- LISTA DE GRUPOS DISPONIBLES Y SUS JIDs ---');
+                    for (const id in grupos) {
+                        console.log(`📌 Grupo: "${grupos[id].subject}" | JID: ${id}`);
+                    }
+                    console.log('======================================================\n');
+                } catch (errGrupos) {
+                    console.error('❌ Error al obtener el listado de grupos de WhatsApp:', errGrupos.message);
+                }
             }
         });
     } catch (err) {
