@@ -1,5 +1,5 @@
 (() => {
-    const TIEMPO_LIMITE_INACTIVIDAD = 45 * 60 * 1000;
+    const TIEMPO_LIMITE_INACTIVIDAD = 5 * 60 * 1000; // 45 * 60 * 1000/;
     const LLAVE_ULTIMA_ACTIVIDAD = 'modisa_last_activity';
 
     function obtenerPayloadJWT(token) {
