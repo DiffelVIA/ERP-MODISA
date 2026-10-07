@@ -11,26 +11,24 @@ const verificarToken = (req, res, next) => {
     ? authHeader.split(' ')[1] 
     : null;
 
-  if (token) {
-    try {
-      const decodificado = jwt.verify(
-        token, 
-        process.env.JWT_SECRET
-      );
-      
-      req.usuario = decodificado;
-      return next();
-    } catch (error) {
-      console.warn('⚠️ Token JWT inválido o expirado:', error.message);
-      return res.status(401).json({ error: '🔒 Token inválido o expirado.' });
-    }
+  if (!token) {
+    return res.status(401).json({ error: '🔒 Acceso denegado. Se requiere un token de sesión válido.' });
   }
 
-  req.usuario = null;
-  next();
+  try {
+    const decodificado = jwt.verify(
+      token, 
+      process.env.JWT_SECRET
+    );
+    
+    req.usuario = decodificado;
+    return next();
+  } catch (error) {
+    console.warn('⚠️ Token JWT inválido o expirado:', error.message);
+    return res.status(401).json({ error: '🔒 Token inválido o expirado. Por favor, reinicia sesión.' });
+  }
 };
 
-// Funcionalidad auxiliar interna para insensibilidad a tildes/mayúsculas
 const normalizarTexto = (texto) => {
   if (!texto) return '';
   return String(texto)
