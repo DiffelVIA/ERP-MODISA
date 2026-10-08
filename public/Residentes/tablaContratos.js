@@ -133,6 +133,7 @@
 
         listaContratos.forEach(c => {
             const tr = document.createElement("tr");
+            tr.id = `fila-contrato-${c.id_contract}`;
 
             const total = Number(c.total_amount || 0);
             const pagado = Number(c.monto_pagado || 0);
@@ -149,16 +150,23 @@
             const numeroSemana = Math.ceil((diasPasados + inicioAño.getDay() + 1) / 7);
 
             const esCostos = (rolUsuario === 'gerente de costos' || rolUsuario === 'costos');
+            const esResidente = (rolUsuario === 'residente de obra' || rolUsuario === 'residente');
+            
+            const puedeEliminar = esCostos || esResidente;
 
             const botonEditarUrl = esCostos 
                 ? `<button type="button" onclick="editarUrlContrato(${c.id_contract}, '${c.contract_file_url || ''}')" title="Editar enlace de contrato" style="background:none; border:none; cursor:pointer; font-size:14px; margin-left:4px;">✏️</button>`
+                : '';
+
+            const botonEliminar = puedeEliminar 
+                ? `<button type="button" onclick="eliminarContrato(${c.id_contract}, '${c.contract_key}')" title="Eliminar contrato" style="background:none; border:none; cursor:pointer; font-size:13px; margin-left:6px; color:#ef4444; font-weight:bold;">❌</button>`
                 : '';
 
             const enlaceTexto = c.contract_file_url
                 ? `<a href="${c.contract_file_url}" target="_blank" style="color: #007bff; text-decoration: underline;"><strong>${c.contract_key}</strong></a>`
                 : `<strong>${c.contract_key}</strong>`;
             
-            const celdaClave = `${enlaceTexto}${botonEditarUrl}`;
+            const celdaClave = `${enlaceTexto}${botonEditarUrl}${botonEliminar}`;
 
             const currentStatus = c.status || "Pendiente";
             const currentCostos = c.estado_costos || "Pendiente";
@@ -232,6 +240,45 @@
             tbody.appendChild(tr);
         });
     }
+
+    window.eliminarContrato = async function(idContract, claveContrato) {
+        const confirmacion = confirm(`⚠️ ¿Estás seguro de que deseas eliminar permanentemente el contrato "${claveContrato}"?\n\nEsta acción no se puede deshacer.`);
+        
+        if (!confirmacion) return;
+
+        const token = localStorage.getItem('jwtToken') || '';
+
+        try {
+            const response = await fetch(`${API_BASE}/contratos/${idContract}`, {
+                method: "DELETE",
+                headers: {
+                    "Authorization": token ? `Bearer ${token}` : '',
+                    "Content-Type": "application/json"
+                }
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                alert(`✅ ${data.message}`);
+                
+                // Eliminar dinámicamente la fila HTML sin recargar toda la vista
+                const trFila = document.getElementById(`fila-contrato-${idContract}`);
+                if (trFila) {
+                    trFila.style.transition = "all 0.4s ease";
+                    trFila.style.opacity = "0";
+                    setTimeout(() => trFila.remove(), 400);
+                } else {
+                    cargarContratos();
+                }
+            } else {
+                alert(`⛔ No se pudo eliminar: ${data.error || "Ocurrió un error inesperado."}`);
+            }
+        } catch (error) {
+            console.error("❌ Error en la petición DELETE de contrato:", error);
+            alert("❌ Error de red al intentar eliminar el contrato.");
+        }
+    };
 
     function generarOpcionesFiltros(contratos) {
         const contenedorObra = document.getElementById("filtroObra");

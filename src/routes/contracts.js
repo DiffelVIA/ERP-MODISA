@@ -321,4 +321,57 @@ router.get('/:id/saldo', async (req, res) => {
     }
 });
 
+router.delete('/:id', verificarToken, async (req, res) => {
+    const { id } = req.params;
+    const usuarioSesion = req.usuario;
+
+    const userRol = usuarioSesion && usuarioSesion.rol 
+        ? usuarioSesion.rol.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') 
+        : '';
+
+    const rolesAutorizados = ['gerente de costos', 'costos', 'residente de obra', 'residente'];
+
+    if (!rolesAutorizados.includes(userRol)) {
+        return res.status(403).json({ 
+            success: false, 
+            error: "⛔ Acceso denegado: Solo el Gerente de Costos y el Residente de Obra pueden eliminar contratos." 
+        });
+    }
+
+    try {
+        const [pagosActivos] = await pool.query(
+            `SELECT COUNT(*) AS total_pagos 
+             FROM payment_order_details 
+             WHERE id_contract = ? AND LOWER(TRIM(IFNULL(status, ''))) != 'rechazado'`,
+            [id]
+        );
+
+        if (pagosActivos[0].total_pagos > 0) {
+            return res.status(400).json({
+                success: false,
+                error: `🔒 Bloqueo Financiero: No se puede eliminar el contrato ID #${id} porque ya cuenta con ${pagosActivos[0].total_pagos} solicitud(es) de pago registrada(s).`
+            });
+        }
+
+        const [resultado] = await pool.query(`DELETE FROM contracts WHERE id_contract = ?`, [id]);
+
+        if (resultado.affectedRows === 0) {
+            return res.status(404).json({ success: false, error: "El contrato no existe o ya fue eliminado previamente." });
+        }
+
+        return res.json({ 
+            success: true, 
+            message: `🗑️ Contrato ID #${id} eliminado correctamente de la base de datos.` 
+        });
+
+    } catch (error) {
+        console.error("❌ Error al eliminar contrato:", error);
+        return res.status(500).json({ 
+            success: false, 
+            error: "Error interno del servidor al intentar borrar el contrato.",
+            details: error.message 
+        });
+    }
+});
+
 module.exports = router;
