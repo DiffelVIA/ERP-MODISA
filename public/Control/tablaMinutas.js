@@ -223,7 +223,7 @@
           </td>
         `;
       }
-      // VISTA LECTURA (Otros Roles)
+      
       else {
         let estadoVisual = '⏳ Pendiente';
         if (actividad.estado === 'atrasada') estadoVisual = '🚨 Atrasada';
