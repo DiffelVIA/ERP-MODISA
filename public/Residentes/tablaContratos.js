@@ -106,7 +106,11 @@
         if (!tbody) return;
 
         const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-        const rolUsuario = (userToken && userToken.rol) ? userToken.rol.trim().toLowerCase() : "";
+        const ROL_RAW = (userToken && userToken.rol) 
+            ? userToken.rol 
+            : (obtenerRolDesdeJWT() || localStorage.getItem('userRol') || '');
+
+        const rolUsuarioLimpio = ROL_RAW.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
         tbody.innerHTML = "";
 
@@ -149,8 +153,8 @@
             const diasPasados = Math.floor((fechaRef - inicioAño) / (24 * 60 * 60 * 1000));
             const numeroSemana = Math.ceil((diasPasados + inicioAño.getDay() + 1) / 7);
 
-            const esCostos = (rolUsuario === 'gerente de costos' || rolUsuario === 'costos');
-            const esResidente = (rolUsuario === 'residente de obra' || rolUsuario === 'residente');
+            const esCostos = rolUsuarioLimpio.includes("costos");
+            const esResidente = rolUsuarioLimpio.includes("residente");
             
             const puedeEliminar = esCostos || esResidente;
 
@@ -198,7 +202,7 @@
                 ? `<textarea id="comentario-costos-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Escribe un comentario..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${currentComentarioCostos || ''}</textarea>`
                 : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155; word-break: break-word; overflow-wrap: break-word;">${currentComentarioCostos || '---'}</span>`;
 
-            const celdaDireccion = (rolUsuario === 'director operativo')
+            const celdaDireccion = (rolUsuarioLimpio.includes('director operativo'))
                 ? `<select id="direccion-${c.id_contract}" class="select-tabla" onchange="autoGuardarFila(${c.id_contract})">
                         <option value="Pendiente" ${currentDireccion === 'Pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
                         <option value="Autorizado" ${currentDireccion === 'Autorizado' ? 'selected' : ''}>✔️ Autorizado</option>
@@ -208,7 +212,7 @@
 
             const firmaDeshabilitada = (currentDireccion === 'Rechazado') ? 'disabled' : '';
 
-            const celdaFirma = (rolUsuario === 'compras')
+            const celdaFirma = (rolUsuarioLimpio.includes('compras'))
                 ? `<select id="firma-${c.id_contract}" class="select-tabla" ${firmaDeshabilitada} onchange="autoGuardarFila(${c.id_contract})">
                         <option value="Pendiente" ${currentFirma === 'Pendiente' || currentFirma === 'No' ? 'selected' : ''}>⏳ No</option>
                         <option value="Firmado" ${currentFirma === 'Firmado' || currentFirma === 'Sí' ? 'selected' : ''}>✅ Sí</option>
@@ -217,9 +221,6 @@
 
             tr.innerHTML = `
                 <td>${c.project_name || 'Sin Proyecto'}</td>
-                <!-- <td><span style="font-weight: 500; color: #475569;">${c.grupo || '---'}</span></td> -->
-                <!-- <td>${c.categoria || '---'}</td> -->
-                <!-- <td>${c.subcategoria || '---'}</td> -->
                 <td>${fechaFormateada}</td>
                 <td>Semana ${numeroSemana}</td>
                 <td>${celdaClave}</td>
@@ -262,7 +263,7 @@
             if (response.ok && data.success) {
                 alert(`✅ ${data.message}`);
                 
-                // Eliminar dinámicamente la fila HTML sin recargar toda la vista
+                // Animación y borrado dinámico en interfaz
                 const trFila = document.getElementById(`fila-contrato-${idContract}`);
                 if (trFila) {
                     trFila.style.transition = "all 0.4s ease";
