@@ -101,7 +101,7 @@
     } catch (error) {
       console.error("Error al cargar minutas desde Aiven:", error);
       if (cuerpoTabla) {
-        cuerpoTabla.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px; color:red; font-weight:bold;">Error al conectar con la base de datos en la nube. Revisa el backend.</td></tr>`;
+        cuerpoTabla.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:red; font-weight:bold;">Error al conectar con la base de datos en la nube. Revisa el backend.</td></tr>`;
       }
     }
   }
@@ -150,14 +150,14 @@
   }
 
   // ==========================================
-  // MODIFICACIÓN FRONTEND: Dos desplegables independientes (Residente y Director)
+  // MODIFICACIÓN FRONTEND: Renderizar 8 Columnas Independientes y Limpias
   // ==========================================
   function renderizarTabla(actividadesAFiltrar) {
     if (!cuerpoTabla) return;
     cuerpoTabla.innerHTML = '';
 
     if (actividadesAFiltrar.length === 0) {
-      cuerpoTabla.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px; color:#64748b;">No hay actividades registradas con estos filtros.</td></tr>`;
+      cuerpoTabla.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#64748b;">No hay actividades registradas con estos filtros.</td></tr>`;
       return;
     }
 
@@ -172,20 +172,20 @@
       const fila = document.createElement('tr');
       const fechaLimpia = actividad.fecha ? actividad.fecha.split('T')[0] : '';
 
-      // DESPLEGABLE 1: Menú interactivo exclusivo del Residente
-      const selectResidenteHTML = esResidente ? `
-        <select class="selector-residente" data-id="${actividad.id}" style="padding: 4px 6px; border-radius: 4px; font-family: inherit; font-size: 12px; border: 1px solid #94a3b8; background-color: #f8fafc;">
-          <option value="pendiente" ${actividad.estado === 'pendiente' ? 'selected' : ''}>⏳ Pendiente (Residente)</option>
-          <option value="completada" ${actividad.estado === 'completada' ? 'selected' : ''}>✅ Realizada (Reporte)</option>
+      // COLUMNA 1: Menú interactivo del Residente (Guarda en la variable/columna 'avance': 0=Pendiente, 100=Hecho)
+      const celdaReporteResidente = esResidente ? `
+        <select class="selector-residente" data-id="${actividad.id}" style="padding: 4px 6px; border-radius: 4px; font-family: inherit; font-size: 13px;">
+          <option value="0" ${actividad.avance < 100 ? 'selected' : ''}>⏳ Pendiente</option>
+          <option value="100" ${actividad.avance >= 100 ? 'selected' : ''}>✅ Concluida</option>
         </select>
-      ` : `<span style="font-size: 12px; font-weight: 600; color: #475569;">${actividad.estado === 'completada' ? '✅ Reportada' : '⏳ Pendiente'}</span>`;
+      ` : `<span style="font-size: 13px; font-weight: 600; color: ${actividad.avance >= 100 ? '#16a34a' : '#64748b'};">${actividad.avance >= 100 ? '✅ Concluida' : '⏳ Pendiente'}</span>`;
 
-      // DESPLEGABLE 2: Menú interactivo exclusivo del Director Operativo (Luis)
-      const selectDirectorHTML = esDirector ? `
-        <select class="selector-estatus selector-director" data-id="${actividad.id}" style="padding: 4px 6px; border-radius: 4px; font-family: inherit; font-size: 12px; font-weight: bold;">
+      // COLUMNA 2: Menú interactivo del Director Operativo (Luis)
+      const celdaEstadoDirector = esDirector ? `
+        <select class="selector-estatus selector-director" data-id="${actividad.id}" style="padding: 4px 6px; border-radius: 4px; font-family: inherit; font-size: 13px; font-weight: 600;">
           <option value="pendiente" ${actividad.estado === 'pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
           <option value="atrasada" ${actividad.estado === 'atrasada' ? 'selected' : ''}>🚨 Atrasada</option>
-          <option value="completada" ${actividad.estado === 'completada' ? 'selected' : ''}>✅ Completada (Validada)</option>
+          <option value="completada" ${actividad.estado === 'completada' ? 'selected' : ''}>✅ Completada</option>
           <option value="aplazada" ${actividad.estado === 'aplazada' ? 'selected' : ''}>📅 Aplazada</option>
         </select>
       ` : `
@@ -194,11 +194,12 @@
         </span>
       `;
 
-      const textareaComentarioHTML = (esDirector || esResidente) ? `
+      // COLUMNA 3: Campo de Comentarios
+      const celdaComentario = (esDirector || esResidente) ? `
         <textarea
           class="input-comentario"
           data-id="${actividad.id}"
-          placeholder="${esResidente ? 'Reporte del residente...' : 'Comentario del director...'}"
+          placeholder="${esResidente ? 'Comentario del residente...' : 'Añadir comentario...'}"
           rows="2"
           style="width: 100%; min-width: 140px; max-width: 220px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit; font-size: 12px; resize: vertical; box-sizing: border-box;"
           >${actividad.comentarioDirector || ''}</textarea>
@@ -210,13 +211,9 @@
         <td><span style="background-color: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #334155;">${actividad.semana || 'N/A'}</span></td>
         <td>${formatearFechaHTML(fechaLimpia)}</td>
         <td style="text-align: left;">${actividad.descripcion}</td>
-        <td style="text-align: center; vertical-align: middle;">
-          <div style="display: flex; flex-direction: column; gap: 4px; align-items: center;">
-            <div title="Reporte del Residente">${selectResidenteHTML}</div>
-            <div title="Validación de Dirección Operativa">${selectDirectorHTML}</div>
-          </div>
-        </td>
-        <td>${textareaComentarioHTML}</td>
+        <td style="text-align: center;">${celdaReporteResidente}</td>
+        <td style="text-align: center;">${celdaEstadoDirector}</td>
+        <td>${celdaComentario}</td>
       `;
 
       cuerpoTabla.appendChild(fila);
@@ -287,22 +284,22 @@
   }
 
   function asignarEventosInteractivos() {
-    // Escucha cambios en el menú del Residente
+    // Control del Residente: Modifica el campo 'avance' sin alterar el estado del Director
     cuerpoTabla.querySelectorAll('.selector-residente').forEach((select) => {
       select.addEventListener('change', async (e) => {
         const idActividad = e.target.getAttribute('data-id');
-        const nuevoEstado = e.target.value;
+        const nuevoAvance = Number(e.target.value);
 
         const actividad = concentradoMinutas.find(item => String(item.id) === String(idActividad));
         if (actividad) {
-          actividad.estado = nuevoEstado;
+          actividad.avance = nuevoAvance;
           await guardarEnNubeUrgente(actividad);
           aplicarFiltros();
         }
       });
     });
 
-    // Escucha cambios en el menú del Director Operativo
+    // Control del Director Operativo: Modifica el 'estado' oficial
     cuerpoTabla.querySelectorAll('.selector-director').forEach((select) => {
       select.addEventListener('change', async (e) => {
         const idActividad = e.target.getAttribute('data-id');
@@ -350,7 +347,7 @@
       const objetoFormateado = {
         id: actividadActualizada.id,
         proyecto: actividadActualizada.proyecto,
-        avance: actividadActualizada.avance || 0,
+        avance: actividadActualizada.avance !== undefined ? Number(actividadActualizada.avance) : 0,
         responsable: actividadActualizada.responsable,
         semana: isNaN(numeroSemana) ? 1 : numeroSemana,
         fecha: actividadActualizada.fecha,
@@ -364,8 +361,6 @@
       console.log("Enviando este payload corregido al servidor:", payloadParaBackend);
 
       const token = localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
-      const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-      const rolActual = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
       const respuesta = await fetch(url, {
         method: 'POST',
         headers: {
