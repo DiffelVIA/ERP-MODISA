@@ -159,31 +159,45 @@
     }
 
     const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-    const rolUsuario = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
-    const esDirector = (rolUsuario === "Director Operativo" || '');
+    const rolUsuarioRaw = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol : '';
+    const rolUsuarioLimpio = rolUsuarioRaw.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+    const esDirector = rolUsuarioLimpio.includes("director");
+    const esResidente = rolUsuarioLimpio.includes("residente");
 
     actividadesAFiltrar.forEach((actividad) => {
       const fila = document.createElement('tr');
       const fechaLimpia = actividad.fecha ? actividad.fecha.split('T')[0] : '';
 
-      if (!esDirector) {
-        let estadoVisual = '⏳ Pendiente';
-        if (actividad.estado === 'atrasada') estadoVisual = '🚨 Atrasada';
-        else if (actividad.estado === 'completada') estadoVisual = '✅ Completada';
-        else if (actividad.estado === 'aplazada') estadoVisual = '📅 Aplazada';
-
+      // VISTA PARA RESIDENTE
+      if (esResidente) {
         fila.innerHTML = `
           <td><strong>${actividad.proyecto}</strong></td>
           <td>${actividad.responsable}</td>
           <td><span style="background-color: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #334155;">${actividad.semana || 'N/A'}</span></td>
           <td>${formatearFechaHTML(fechaLimpia)}</td>
           <td style="text-align: left;">${actividad.descripcion}</td>
-          <td style="font-weight: 500; text-align: center;">${estadoVisual}</td>
-          <td style="color: #64748b; font-style: italic; max-width: 220px; word-wrap: break-word;">${actividad.comentarioDirector || '-'}</td>
+          <td>
+            <select class="selector-estatus" data-id="${actividad.id}" style="padding: 4px 6px; border-radius: 4px; font-family: inherit;">
+              <option value="pendiente" ${actividad.estado === 'pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
+              <option value="completada" ${actividad.estado === 'completada' ? 'selected' : ''}>✅ Completada</option>
+              ${actividad.estado === 'atrasada' ? '<option value="atrasada" selected>🚨 Atrasada</option>' : ''}
+              ${actividad.estado === 'aplazada' ? '<option value="aplazada" selected>📅 Aplazada</option>' : ''}
+            </select>
+          </td>
+          <td>
+            <textarea
+              class="input-comentario"
+              data-id="${actividad.id}"
+              placeholder="Agregar comentario de reporte..."
+              rows="2"
+              style="width: 100%; min-width: 140px; max-width: 220px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit; font-size: 13px; resize: vertical; box-sizing: border-box;"
+              >${actividad.comentarioDirector || ''}</textarea>
+          </td>
         `;
       }
-
-      else {
+      // VISTA PARA DIRECTOR OPERATIVO
+      else if (esDirector) {
         fila.innerHTML = `
           <td><strong>${actividad.proyecto}</strong></td>
           <td>${actividad.responsable}</td>
@@ -209,11 +223,28 @@
           </td>
         `;
       }
+      // VISTA LECTURA (Otros Roles)
+      else {
+        let estadoVisual = '⏳ Pendiente';
+        if (actividad.estado === 'atrasada') estadoVisual = '🚨 Atrasada';
+        else if (actividad.estado === 'completada') estadoVisual = '✅ Completada';
+        else if (actividad.estado === 'aplazada') estadoVisual = '📅 Aplazada';
+
+        fila.innerHTML = `
+          <td><strong>${actividad.proyecto}</strong></td>
+          <td>${actividad.responsable}</td>
+          <td><span style="background-color: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #334155;">${actividad.semana || 'N/A'}</span></td>
+          <td>${formatearFechaHTML(fechaLimpia)}</td>
+          <td style="text-align: left;">${actividad.descripcion}</td>
+          <td style="font-weight: 500; text-align: center;">${estadoVisual}</td>
+          <td style="color: #64748b; font-style: italic; max-width: 220px; word-wrap: break-word;">${actividad.comentarioDirector || '-'}</td>
+        `;
+      }
 
       cuerpoTabla.appendChild(fila);
     });
 
-    if (esDirector) {
+    if (esDirector || esResidente) {
       asignarEventosInteractivos();
     }
   }

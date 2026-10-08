@@ -12,10 +12,11 @@ router.get('/tabla_minutas', async (req, res) => {
     const dia = String(fechaActual.getDate()).padStart(2, '0');
     const hoyFormateado = `${anio}-${mes}-${dia}`;
 
+    // MODIFICACIÓN: Se permite que tareas 'aplazadas' cuya nueva fecha venció se marquen como 'atrasada'
     await pool.query(`
       UPDATE minutas 
       SET estado = 'atrasada' 
-      WHERE fecha < ? AND estado != 'completada' AND estado != 'atrasada' AND estado != 'aplazada'
+      WHERE fecha < ? AND estado NOT IN ('completada', 'atrasada')
     `, [hoyFormateado]);
 
     await pool.query(`
@@ -42,10 +43,20 @@ router.get('/tabla_minutas', async (req, res) => {
   }
 });
 
+// MODIFICACIÓN: Middleware ampliado para permitir la actualización por parte del Residente
 router.post('/tabla_minutas', verificarToken, (req, res, next) => {
-  const rolUsuario = req.usuario ? req.usuario.rol : (req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim() : '');
-  if (rolUsuario !== "Director Operativo") {
-    return res.status(403).json({ error: '⛔ Acceso denegado'});
+  const usuarioSesion = req.usuario;
+  const rolRaw = usuarioSesion && usuarioSesion.rol 
+    ? usuarioSesion.rol 
+    : (req.headers['x-user-rol'] ? req.headers['x-user-rol'] : '');
+
+  const rolLimpio = rolRaw.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+  const esDirector = rolLimpio.includes('director');
+  const esResidente = rolLimpio.includes('residente');
+
+  if (!esDirector && !esResidente) {
+    return res.status(403).json({ error: '⛔ Acceso denegado: No tienes permisos para actualizar minutas.'});
   }
 
   next();
@@ -90,7 +101,7 @@ router.post('/tabla_minutas', verificarToken, (req, res, next) => {
 
             if (comentarioFinal) {
               if (!comentarioFinal.includes(`con ${diasRetrasados} días retrasados`)) {
-                comentarioFinal = `${comentarioFinal} | ${prefijoRetraso}`;
+                comentarioFinal = `${comentarioFinal} \vert{}${prefijoRetraso}`;
               }
             } else {
               comentarioFinal = prefijoRetraso;
@@ -158,10 +169,11 @@ router.get('/notificaciones/minutas-resumen', async (req, res) => {
     const dia = String(fechaActual.getDate()).padStart(2, '0');
     const hoyFormateado = `${anio}-${mes}-${dia}`;
 
+    // MODIFICACIÓN: Se unifica la regla para volver a marcar 'atrasada' una tarea aplazada con fecha vencida
     await pool.query(`
       UPDATE minutas 
       SET estado = 'atrasada' 
-      WHERE fecha < ? AND estado NOT IN ('completada', 'atrasada', 'aplazada')
+      WHERE fecha < ? AND estado NOT IN ('completada', 'atrasada')
     `, [hoyFormateado]);
 
     const responsableReq = req.headers['x-usuario-nombre'] ? req.headers['x-usuario-nombre'].trim() : '';
