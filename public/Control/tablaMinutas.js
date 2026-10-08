@@ -149,8 +149,39 @@
     }
   }
 
+  // Auxiliares para separar y formatear los comentarios concatenados
+  function extraerComentarios(textoComentario) {
+    if (!textoComentario) return { residente: '', director: '' };
+    
+    let residente = '';
+    let director = '';
+
+    const matchResidente = textoComentario.match(/\[Residente:\s*([^\]]+)\]/);
+    const matchDirector = textoComentario.match(/\[Director:\s*([^\]]+)\]/);
+
+    if (matchResidente) residente = matchResidente[1].trim();
+    if (matchDirector) director = matchDirector[1].trim();
+
+    if (!matchResidente && !matchDirector) {
+      director = textoComentario.trim();
+    }
+
+    return { residente, director };
+  }
+
+  function construirComentarioFinal(comentarioResidente, comentarioDirector) {
+    const partes = [];
+    if (comentarioResidente && comentarioResidente.trim() !== '') {
+      partes.push(`[Residente: ${comentarioResidente.trim()}]`);
+    }
+    if (comentarioDirector && comentarioDirector.trim() !== '') {
+      partes.push(`[Director: ${comentarioDirector.trim()}]`);
+    }
+    return partes.join(' | ');
+  }
+
   // ==========================================
-  // MODIFICACIÓN FRONTEND: Renderizar 8 Columnas Independientes y Limpias
+  // MODIFICACIÓN FRONTEND: Layout de 8 Columnas Perfectamente Alineadas
   // ==========================================
   function renderizarTabla(actividadesAFiltrar) {
     if (!cuerpoTabla) return;
@@ -171,18 +202,19 @@
     actividadesAFiltrar.forEach((actividad) => {
       const fila = document.createElement('tr');
       const fechaLimpia = actividad.fecha ? actividad.fecha.split('T')[0] : '';
+      const { residente: comRes, director: comDir } = extraerComentarios(actividad.comentarioDirector);
 
-      // COLUMNA 1: Menú interactivo del Residente (Guarda en la variable/columna 'avance': 0=Pendiente, 100=Hecho)
+      // COLUMNA 6: Estatus del Residente (Mapeado a la columna 'avance': 0=Pendiente, 100=Concluida)
       const celdaReporteResidente = esResidente ? `
-        <select class="selector-residente" data-id="${actividad.id}" style="padding: 4px 6px; border-radius: 4px; font-family: inherit; font-size: 13px;">
+        <select class="selector-residente" data-id="${actividad.id}" style="width: 90%; padding: 4px 6px; border-radius: 4px; font-family: inherit; font-size: 13px;">
           <option value="0" ${actividad.avance < 100 ? 'selected' : ''}>⏳ Pendiente</option>
           <option value="100" ${actividad.avance >= 100 ? 'selected' : ''}>✅ Concluida</option>
         </select>
       ` : `<span style="font-size: 13px; font-weight: 600; color: ${actividad.avance >= 100 ? '#16a34a' : '#64748b'};">${actividad.avance >= 100 ? '✅ Concluida' : '⏳ Pendiente'}</span>`;
 
-      // COLUMNA 2: Menú interactivo del Director Operativo (Luis)
+      // COLUMNA 7: Estatus del Director Operativo (Luis)
       const celdaEstadoDirector = esDirector ? `
-        <select class="selector-estatus selector-director" data-id="${actividad.id}" style="padding: 4px 6px; border-radius: 4px; font-family: inherit; font-size: 13px; font-weight: 600;">
+        <select class="selector-estatus selector-director" data-id="${actividad.id}" style="width: 90%; padding: 4px 6px; border-radius: 4px; font-family: inherit; font-size: 13px; font-weight: 600;">
           <option value="pendiente" ${actividad.estado === 'pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
           <option value="atrasada" ${actividad.estado === 'atrasada' ? 'selected' : ''}>🚨 Atrasada</option>
           <option value="completada" ${actividad.estado === 'completada' ? 'selected' : ''}>✅ Completada</option>
@@ -194,26 +226,53 @@
         </span>
       `;
 
-      // COLUMNA 3: Campo de Comentarios
-      const celdaComentario = (esDirector || esResidente) ? `
-        <textarea
-          class="input-comentario"
-          data-id="${actividad.id}"
-          placeholder="${esResidente ? 'Comentario del residente...' : 'Añadir comentario...'}"
-          rows="2"
-          style="width: 100%; min-width: 140px; max-width: 220px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit; font-size: 12px; resize: vertical; box-sizing: border-box;"
-          >${actividad.comentarioDirector || ''}</textarea>
-      ` : `<span style="color: #64748b; font-style: italic; max-width: 220px; word-wrap: break-word;">${actividad.comentarioDirector || '-'}</span>`;
+      // COLUMNA 8: Comentarios Estructurados por Rol
+      let celdaComentarios = '';
+      if (esResidente) {
+        celdaComentarios = `
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <textarea
+              class="input-comentario-residente"
+              data-id="${actividad.id}"
+              placeholder="Escribe reporte de residente..."
+              rows="2"
+              style="width: 100%; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit; font-size: 12px; resize: vertical; box-sizing: border-box;"
+              >${comRes}</textarea>
+            ${comDir ? `<small style="color:#0284c7; font-style:italic;">Dir: ${comDir}</small>` : ''}
+          </div>
+        `;
+      } else if (esDirector) {
+        celdaComentarios = `
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            ${comRes ? `<small style="color:#16a34a; font-weight:600;">Res: ${comRes}</small>` : ''}
+            <textarea
+              class="input-comentario-director"
+              data-id="${actividad.id}"
+              placeholder="Añadir nota de dirección..."
+              rows="2"
+              style="width: 100%; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit; font-size: 12px; resize: vertical; box-sizing: border-box;"
+              >${comDir}</textarea>
+          </div>
+        `;
+      } else {
+        celdaComentarios = `
+          <div style="font-size: 12px; word-break: break-word;">
+            ${comRes ? `<div style="color:#16a34a; font-weight:600;">Res: ${comRes}</div>` : ''}
+            ${comDir ? `<div style="color:#334155; font-style:italic;">Dir: ${comDir}</div>` : ''}
+            ${(!comRes && !comDir) ? '<span style="color:#94a3b8;">-</span>' : ''}
+          </div>
+        `;
+      }
 
       fila.innerHTML = `
-        <td><strong>${actividad.proyecto}</strong></td>
-        <td>${actividad.responsable}</td>
-        <td><span style="background-color: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #334155;">${actividad.semana || 'N/A'}</span></td>
-        <td>${formatearFechaHTML(fechaLimpia)}</td>
-        <td style="text-align: left;">${actividad.descripcion}</td>
+        <td style="word-break: break-word;"><strong>${actividad.proyecto}</strong></td>
+        <td style="word-break: break-word;">${actividad.responsable}</td>
+        <td style="text-align: center;"><span style="background-color: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #334155;">${actividad.semana || 'N/A'}</span></td>
+        <td style="text-align: center;">${formatearFechaHTML(fechaLimpia)}</td>
+        <td style="text-align: left; word-break: break-word;">${actividad.descripcion}</td>
         <td style="text-align: center;">${celdaReporteResidente}</td>
         <td style="text-align: center;">${celdaEstadoDirector}</td>
-        <td>${celdaComentario}</td>
+        <td>${celdaComentarios}</td>
       `;
 
       cuerpoTabla.appendChild(fila);
@@ -284,7 +343,7 @@
   }
 
   function asignarEventosInteractivos() {
-    // Control del Residente: Modifica el campo 'avance' sin alterar el estado del Director
+    // Evento para estatus del Residente (Guarda en la columna 'avance')
     cuerpoTabla.querySelectorAll('.selector-residente').forEach((select) => {
       select.addEventListener('change', async (e) => {
         const idActividad = e.target.getAttribute('data-id');
@@ -299,7 +358,7 @@
       });
     });
 
-    // Control del Director Operativo: Modifica el 'estado' oficial
+    // Evento para estatus del Director Operativo
     cuerpoTabla.querySelectorAll('.selector-director').forEach((select) => {
       select.addEventListener('change', async (e) => {
         const idActividad = e.target.getAttribute('data-id');
@@ -318,16 +377,40 @@
       });
     });
 
-    cuerpoTabla.querySelectorAll('.input-comentario').forEach((input) => {
+    // Evento para comentario del Residente
+    cuerpoTabla.querySelectorAll('.input-comentario-residente').forEach((input) => {
       input.addEventListener('blur', async (e) => {
         const idActividad = e.target.getAttribute('data-id');
-        const nuevoComentario = e.target.value;
+        const nuevoComentarioRes = e.target.value;
 
         const actividad = concentradoMinutas.find(item => String(item.id) === String(idActividad));
+        if (actividad) {
+          const { director } = extraerComentarios(actividad.comentarioDirector);
+          const comentarioEnsamblado = construirComentarioFinal(nuevoComentarioRes, director);
 
-        if (actividad && actividad.comentarioDirector !== nuevoComentario) {
-          actividad.comentarioDirector = nuevoComentario;
-          await guardarEnNubeUrgente(actividad);
+          if (actividad.comentarioDirector !== comentarioEnsamblado) {
+            actividad.comentarioDirector = comentarioEnsamblado;
+            await guardarEnNubeUrgente(actividad);
+          }
+        }
+      });
+    });
+
+    // Evento para comentario del Director Operativo
+    cuerpoTabla.querySelectorAll('.input-comentario-director').forEach((input) => {
+      input.addEventListener('blur', async (e) => {
+        const idActividad = e.target.getAttribute('data-id');
+        const nuevoComentarioDir = e.target.value;
+
+        const actividad = concentradoMinutas.find(item => String(item.id) === String(idActividad));
+        if (actividad) {
+          const { residente } = extraerComentarios(actividad.comentarioDirector);
+          const comentarioEnsamblado = construirComentarioFinal(residente, nuevoComentarioDir);
+
+          if (actividad.comentarioDirector !== comentarioEnsamblado) {
+            actividad.comentarioDirector = comentarioEnsamblado;
+            await guardarEnNubeUrgente(actividad);
+          }
         }
       });
     });
