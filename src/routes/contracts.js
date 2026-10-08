@@ -104,10 +104,8 @@ router.post('/', upload.single('pdfFile'), async (req, res) => {
     }
 });
 
-// MODIFICACIÓN SOLUCIÓN: Usar req.usuario (JWT) con filtrado estricto por id_user en projects e id_employee en contracts
 router.get('/', verificarToken, async (req, res) => {
     try {
-        // Se extrae primero del token verificado (req.usuario) y como respaldo de los encabezados
         const usuarioSesion = req.usuario;
         
         const userRol = usuarioSesion && usuarioSesion.rol 
@@ -157,15 +155,7 @@ router.get('/', verificarToken, async (req, res) => {
                         SELECT IFNULL(SUM(IFNULL(pod_sub.monto_pagado, 0)), 0)
                         FROM payment_order_details pod_sub
                         INNER JOIN payment_orders po_sub ON po_sub.id_payment_order = pod_sub.id_payment_order
-                        WHERE (
-                            pod_sub.id_contract = c.id_contract 
-                            OR (
-                                pod_sub.id_contract IS NULL 
-                                AND LOWER(TRIM(pod_sub.provider)) = LOWER(TRIM(c.supplier))
-                                AND (pod_sub.id_project_category = c.id_project_category OR c.id_project_category IS NULL)
-                                AND (pod_sub.id_project = c.id_project OR c.id_project IS NULL)
-                            )
-                        )
+                        WHERE pod_sub.id_contract = c.id_contract
                     ) >= c.total_amount THEN 'Pagado'
                     
                     ELSE 'Pendiente'
@@ -175,15 +165,7 @@ router.get('/', verificarToken, async (req, res) => {
                     SELECT SUM(IFNULL(pod_sub.monto_pagado, 0))
                     FROM payment_order_details pod_sub
                     INNER JOIN payment_orders po_sub ON po_sub.id_payment_order = pod_sub.id_payment_order
-                    WHERE (
-                        pod_sub.id_contract = c.id_contract 
-                        OR (
-                            pod_sub.id_contract IS NULL 
-                            AND LOWER(TRIM(pod_sub.provider)) = LOWER(TRIM(c.supplier))
-                            AND (pod_sub.id_project_category = c.id_project_category OR c.id_project_category IS NULL)
-                            AND (pod_sub.id_project = c.id_project OR c.id_project IS NULL)
-                        )
-                    )
+                    WHERE pod_sub.id_contract = c.id_contract
                 ), 0) AS monto_pagado
             FROM contracts c
             LEFT JOIN projects p ON c.id_project = p.id_project
@@ -192,7 +174,6 @@ router.get('/', verificarToken, async (req, res) => {
         
         const queryParams = [];
 
-        // Si no es un rol global/administrativo y contamos con id_employee/id_user, se filtra por obras asignadas (p.id_user) o contratos creados (c.id_employee)
         if (!esRolGlobal && employeeId) {
             sql += ` WHERE (p.id_user = ? OR c.id_employee = ?)`;
             queryParams.push(employeeId, employeeId);
@@ -208,7 +189,6 @@ router.get('/', verificarToken, async (req, res) => {
         res.status(500).json({ error: "Error en la base de datos al realizar los cruces de contratos." });
     }
 });
-// FIN MODIFICACIÓN SOLUCIÓN
 
 router.put('/:id/actualizar-control', async (req, res) => {
     const { id } = req.params;
