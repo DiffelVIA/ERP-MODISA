@@ -6,8 +6,16 @@ const { gmail } = require('../config/google');
 
 const { verificarToken, verificarRol } = require('../middlewares/authMiddleware');
 
-// MODIFICACIÓN: Se asigna el permiso de autorización principalmente al Director Operativo / Director General
-const ROLES_ADMINISTRATIVOS = [
+// MODIFICACIÓN: Separación estricta entre roles de lectura/supervisión y roles autorizadores
+const ROLES_VISUALIZACION_GLOBAL = [
+  'Director Operativo',
+  'Director General',
+  'Gerente de Administración',
+  'Gerente administración',
+  'Gerente Administracion'
+];
+
+const ROLES_AUTORIZADORES = [
   'Director Operativo',
   'Director General'
 ];
@@ -70,10 +78,10 @@ router.get('/', verificarToken, async (req, res) => {
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
 
-    // MODIFICACIÓN: Comprobación RBAC basada en Director Operativo
-    const esAdmin = ROLES_ADMINISTRATIVOS.some(r => {
+    // MODIFICACIÓN: Permite visión completa a Dirección y Gerencia de Administración
+    const esAdmin = ROLES_VISUALIZACION_GLOBAL.some(r => {
       const rLimpio = r.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      return rLimpio === rolUsuarioLimpio || (rolUsuarioLimpio.includes('director') && rolUsuarioLimpio.includes('operativ'));
+      return rLimpio === rolUsuarioLimpio || (rolUsuarioLimpio.includes('gerente') && rolUsuarioLimpio.includes('administrac'));
     });
 
     let sql = `
@@ -153,10 +161,10 @@ router.get('/estatus', verificarToken, async (req, res) => {
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
 
-    // MODIFICACIÓN: Permisos de vista completa asignados a Director Operativo
-    const esAdmin = ROLES_ADMINISTRATIVOS.some(r => {
+    // MODIFICACIÓN: Acceso de supervisión al listado global para Gerencia y Dirección
+    const esAdmin = ROLES_VISUALIZACION_GLOBAL.some(r => {
       const rLimpio = r.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      return rLimpio === rolUsuarioLimpio || (rolUsuarioLimpio.includes('director') && rolUsuarioLimpio.includes('operativ'));
+      return rLimpio === rolUsuarioLimpio || (rolUsuarioLimpio.includes('gerente') && rolUsuarioLimpio.includes('administrac'));
     });
 
     let sql = `
@@ -218,7 +226,8 @@ router.get('/estatus', verificarToken, async (req, res) => {
   }
 });
 
-router.delete('/renovar/:id_employee', verificarToken, verificarRol(ROLES_ADMINISTRATIVOS), async (req, res) => {
+// MODIFICACIÓN: Acción crítica restringida exclusivamente a roles autorizadores (Director Operativo)
+router.delete('/renovar/:id_employee', verificarToken, verificarRol(ROLES_AUTORIZADORES), async (req, res) => {
   const idEmpleadoParam = parseInt(req.params.id_employee, 10);
 
   if (isNaN(idEmpleadoParam) || idEmpleadoParam <= 0) {
@@ -317,7 +326,8 @@ router.post('/', verificarToken, async (req, res) => {
   }
 });
 
-router.patch('/:id/estado', verificarToken, verificarRol(ROLES_ADMINISTRATIVOS), async (req, res) => {
+// MODIFICACIÓN: Cambio de estatus de autorización exclusivo para Director Operativo
+router.patch('/:id/estado', verificarToken, verificarRol(ROLES_AUTORIZADORES), async (req, res) => {
   const idVacacion = req.params.id;
   const { estado } = req.body;
 
@@ -408,7 +418,8 @@ router.patch('/:id/estado', verificarToken, verificarRol(ROLES_ADMINISTRATIVOS),
   }
 });
 
-router.patch('/:id/observaciones', verificarToken, verificarRol(ROLES_ADMINISTRATIVOS), async (req, res) => {
+// MODIFICACIÓN: Edición de notas/observaciones exclusiva para Director Operativo
+router.patch('/:id/observaciones', verificarToken, verificarRol(ROLES_AUTORIZADORES), async (req, res) => {
   const idVacacion = req.params.id;
   const { observaciones } = req.body;
 

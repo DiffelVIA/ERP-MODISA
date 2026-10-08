@@ -65,15 +65,20 @@
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
 
-    // MODIFICACIÓN: Permiso de vista e interacción asignado a Director Operativo / Director General
-    const esDirectorOperativo = (
-      userRolNormalizado === 'director operativo' || 
-      userRolNormalizado === 'director_operativo' ||
+    const esLaura = (
+      userRolNormalizado === 'gerente administracion' || 
+      userRolNormalizado === 'gerente de administracion' ||
+      (userRolNormalizado.includes('gerente') && userRolNormalizado.includes('administrac'))
+    );
+
+    const esLuis = (
+      userRolNormalizado === 'director operativo' ||
       userRolNormalizado === 'director general' ||
       (userRolNormalizado.includes('director') && userRolNormalizado.includes('operativ'))
     );
 
-    const puedeVerGantt = esDirectorOperativo;
+    // MODIFICACIÓN: Ambas figuras de supervisión tienen acceso total de visualización al diagrama Gantt
+    const puedeVerGantt = esLaura || esLuis;
 
     if (!puedeVerGantt) {
       btnGantt.style.display = 'none';
@@ -316,7 +321,7 @@
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
 
-    // MODIFICACIÓN: Controles de edición de la tabla asignados a Director Operativo
+    // MODIFICACIÓN: Solamente el Director Operativo tiene controles de edición activos
     const esDirectorOperativo = (
       userRolNormalizado === 'director operativo' || 
       userRolNormalizado === 'director_operativo' ||
@@ -394,7 +399,12 @@
     const userRolRaw = localStorage.getItem('userRol') || jwtDatos.rol || jwtDatos.role || jwtDatos.job_title || '';
     const userRolNormalizado = userRolRaw.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-    // MODIFICACIÓN: Evaluador del tacómetro de estatus para Director Operativo
+    const esLaura = (
+      userRolNormalizado === 'gerente administracion' || 
+      userRolNormalizado === 'gerente de administracion' ||
+      (userRolNormalizado.includes('gerente') && userRolNormalizado.includes('administrac'))
+    );
+
     const esDirectorOperativo = (
       userRolNormalizado === 'director operativo' || 
       userRolNormalizado === 'director_operativo' ||
@@ -402,9 +412,11 @@
       (userRolNormalizado.includes('director') && userRolNormalizado.includes('operativ'))
     );
 
+    // MODIFICACIÓN: Ambos roles (Gerente de Administración y Director Operativo) pueden consultar el estatus global
+    const puedeVerEstatusGlobal = esLaura || esDirectorOperativo;
     const idUsuarioLogueado = jwtDatos.id_employee || jwtDatos.id || jwtDatos.userId;
 
-    if (esDirectorOperativo) {
+    if (puedeVerEstatusGlobal) {
       const arrSeleccionados = Array.from(empleadosSeleccionados);
 
       if (arrSeleccionados.length === 1) {
@@ -412,7 +424,8 @@
         const empDatos = datosEstatusVacaciones.find(emp => emp.nombre_empleado === nombreBuscado);
 
         if (empDatos) {
-          contenedor.innerHTML = generarHTMLTacometroIndividual(empDatos, true);
+          // MODIFICACIÓN: Pasa esDirectorOperativo para otorgar o restringir el botón de renovación de días
+          contenedor.innerHTML = generarHTMLTacometroIndividual(empDatos, esDirectorOperativo);
         } else {
           contenedor.innerHTML = `
             <div style="text-align: center; padding: 40px; color: #64748b; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">
@@ -481,7 +494,7 @@
         </div>
 
         ${esDirectorOperativo ? `
-          <!-- Botón unificado utilizando las reglas CSS globales (.btn y [data-action]) -->
+          <!-- Botón unificado utilizando las reglas CSS globales (.btn y [data-action]) Exclusivo Director -->
           <div style="margin-top: 20px;">
             <button type="button" class="btn" data-action="renovar" onclick="window.forzarRenovacionDias(${emp.id_employee}, '${escapeHTML(emp.nombre_empleado)}')">
               🔄 Forzar Renovación de Días
@@ -706,7 +719,7 @@
     const trFila = elementoInput ? elementoInput.closest('tr') : document.querySelector(`tr[data-id="${idVacacion}"]`);
 
     try {
-      const res = await fetch(`${API_URL}/vacaciones/${idVacacion}/observaciones`, {
+      const res = await fetch(`${API_URL}/vacaciones/observaciones/${idVacacion}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
