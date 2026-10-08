@@ -171,66 +171,87 @@
     }
 
     function configurarEnvioFormulario() {
-        document.getElementById("form-contratos").addEventListener("submit", async (e) => {
-            e.preventDefault();
+    const formContratos = document.getElementById("form-contratos");
+    if (!formContratos) return;
 
-            const inputFecha = document.getElementById("fecha");
-            const fechaSeleccionada = inputFecha ? inputFecha.value : null;
+    formContratos.addEventListener("submit", async (e) => {
+      e.preventDefault();
 
-            const inputPdf = document.getElementById("pdf-file");
-            const pdfFile = inputPdf && inputPdf.files ? inputPdf.files[0] : null;
+      const btnSubmit = formContratos.querySelector('button[type="submit"]') || formContratos.querySelector('.btn-submit');
+      
+      const inputFecha = document.getElementById("fecha");
+      const fechaSeleccionada = inputFecha ? inputFecha.value : null;
 
-            if (!pdfFile) {
-                alert("⚠️ Por favor selecciona un archivo PDF para el contrato.");
-                return;
-            }
+      const inputPdf = document.getElementById("pdf-file");
+      const pdfFile = inputPdf && inputPdf.files ? inputPdf.files[0] : null;
 
-            if (pdfFile.type !== "application/pdf") {
-                alert("⚠️ Solo se permiten archivos en formato PDF.");
-                return;
-            }
+      if (!pdfFile) {
+        alert("⚠️ Por favor selecciona un archivo PDF para el contrato.");
+        return;
+      }
 
-            const formData = new FormData();
-            formData.append("pdfFile", pdfFile);
-            formData.append("id_project", document.getElementById("proyecto").value);
-            const subcategoriaValue = document.getElementById("subcategoria").value;
-            formData.append("id_project_category", subcategoriaValue || "");
-            formData.append("contract_key", document.getElementById("clave").value);
-            formData.append("Concept", document.getElementById("concepto").value);
-            formData.append("supplier", document.getElementById("proveedor").value);
-            formData.append("id_employee", sesionUsuario ? (sesionUsuario.id || "") : "");
-            formData.append("start_date", fechaSeleccionada || "");
-            formData.append("end_date", fechaSeleccionada || "");
-            formData.append("total_amount", document.getElementById("monto").value);
+      if (pdfFile.type !== "application/pdf") {
+        alert("⚠️ Solo se permiten archivos en formato PDF.");
+        return;
+      }
 
-            try {
-                const token = localStorage.getItem('jwtToken') || '';
-                const response = await fetch(`${API_BASE}/contratos`, {
-                    method: "POST",
-                    headers: { 
-                        'Authorization': token ? `Bearer ${token}` : '',
-                        "x-user-rol": sesionUsuario ? sesionUsuario.rol : ""
-                    },
-                    body: formData
-                });
+      const formData = new FormData();
+      formData.append("pdfFile", pdfFile);
+      formData.append("id_project", document.getElementById("proyecto").value);
+      const subcategoriaValue = document.getElementById("subcategoria").value;
+      formData.append("id_project_category", subcategoriaValue || "");
+      formData.append("contract_key", document.getElementById("clave").value);
+      formData.append("Concept", document.getElementById("concepto").value);
+      formData.append("supplier", document.getElementById("proveedor").value);
+      formData.append("id_employee", sesionUsuario ? (sesionUsuario.id || "") : "");
+      formData.append("start_date", fechaSeleccionada || "");
+      formData.append("end_date", fechaSeleccionada || "");
+      formData.append("total_amount", document.getElementById("monto").value);
 
-                if (response.ok) {
-                    alert("🎉 ¡Contrato y PDF registrados con éxito en MODISA!");
-                    e.target.reset();
-                    resetSelect(document.getElementById("grupo"), "-- Selecciona Proyecto Primero --", true);
-                    resetSelect(document.getElementById("categoria"), "-- Selecciona Grupo Primero --", true);
-                    resetSelect(document.getElementById("subcategoria"), "-- Selecciona Categoría Primero --", true);
+      let textoOriginalBtn = "";
+      if (btnSubmit) {
+        textoOriginalBtn = btnSubmit.innerHTML;
+        btnSubmit.disabled = true;
+        btnSubmit.style.cursor = "not-allowed";
+        btnSubmit.style.opacity = "0.7";
+        btnSubmit.innerHTML = "⏳ Enviando...";
+      }
 
-                    inicializarFechas();
-                    cargarDatosUsuarioLogueado();
-                } else {
-                    const errData = await response.json();
-                    alert(`❌ Error del servidor: ${errData.error || "No se pudo guardar."}`);
-                }
-            } catch (error) {
-                console.error("Error en la petición POST:", error);
-                alert("❌ Hubo un fallo de red o no se pudo establecer conexión con el servidor.");
-            }
+      try {
+        const token = localStorage.getItem('jwtToken') || '';
+        const response = await fetch(`${API_BASE}/contratos`, {
+          method: "POST",
+          headers: { 
+            'Authorization': token ? `Bearer ${token}` : '',
+            "x-user-rol": sesionUsuario ? sesionUsuario.rol : ""
+          },
+          body: formData
         });
-    }
+
+        if (response.ok) {
+          alert("🎉 ¡Contrato y PDF registrados con éxito en MODISA!");
+          formContratos.reset();
+          resetSelect(document.getElementById("grupo"), "-- Selecciona Proyecto Primero --", true);
+          resetSelect(document.getElementById("categoria"), "-- Selecciona Grupo Primero --", true);
+          resetSelect(document.getElementById("subcategoria"), "-- Selecciona Categoría Primero --", true);
+
+          inicializarFechas();
+          cargarDatosUsuarioLogueado();
+        } else {
+          const errData = await response.json();
+          alert(`❌ Error del servidor: ${errData.error || "No se pudo guardar."}`);
+        }
+      } catch (error) {
+        console.error("Error en la petición POST:", error);
+        alert("❌ Hubo un fallo de red o no se pudo establecer conexión con el servidor.");
+      } finally {
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.style.cursor = "pointer";
+          btnSubmit.style.opacity = "1";
+          btnSubmit.innerHTML = textoOriginalBtn;
+        }
+      }
+    });
+  }
 })();
