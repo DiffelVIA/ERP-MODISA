@@ -149,6 +149,9 @@
     }
   }
 
+  // ==========================================
+  // MODIFICACIÓN FRONTEND: Dos desplegables independientes (Residente y Director)
+  // ==========================================
   function renderizarTabla(actividadesAFiltrar) {
     if (!cuerpoTabla) return;
     cuerpoTabla.innerHTML = '';
@@ -169,77 +172,52 @@
       const fila = document.createElement('tr');
       const fechaLimpia = actividad.fecha ? actividad.fecha.split('T')[0] : '';
 
-      // VISTA PARA RESIDENTE
-      if (esResidente) {
-        fila.innerHTML = `
-          <td><strong>${actividad.proyecto}</strong></td>
-          <td>${actividad.responsable}</td>
-          <td><span style="background-color: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #334155;">${actividad.semana || 'N/A'}</span></td>
-          <td>${formatearFechaHTML(fechaLimpia)}</td>
-          <td style="text-align: left;">${actividad.descripcion}</td>
-          <td>
-            <select class="selector-estatus" data-id="${actividad.id}" style="padding: 4px 6px; border-radius: 4px; font-family: inherit;">
-              <option value="pendiente" ${actividad.estado === 'pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
-              <option value="completada" ${actividad.estado === 'completada' ? 'selected' : ''}>✅ Completada</option>
-              ${actividad.estado === 'atrasada' ? '<option value="atrasada" selected>🚨 Atrasada</option>' : ''}
-              ${actividad.estado === 'aplazada' ? '<option value="aplazada" selected>📅 Aplazada</option>' : ''}
-            </select>
-          </td>
-          <td>
-            <textarea
-              class="input-comentario"
-              data-id="${actividad.id}"
-              placeholder="Agregar comentario de reporte..."
-              rows="2"
-              style="width: 100%; min-width: 140px; max-width: 220px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit; font-size: 13px; resize: vertical; box-sizing: border-box;"
-              >${actividad.comentarioDirector || ''}</textarea>
-          </td>
-        `;
-      }
-      // VISTA PARA DIRECTOR OPERATIVO
-      else if (esDirector) {
-        fila.innerHTML = `
-          <td><strong>${actividad.proyecto}</strong></td>
-          <td>${actividad.responsable}</td>
-          <td><span style="background-color: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #334155;">${actividad.semana || 'N/A'}</span></td>
-          <td>${formatearFechaHTML(fechaLimpia)}</td>
-          <td style="text-align: left;">${actividad.descripcion}</td>
-          <td>
-            <select class="selector-estatus" data-id="${actividad.id}" style="padding: 4px 6px; border-radius: 4px; font-family: inherit;">
-              <option value="pendiente" ${actividad.estado === 'pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
-              <option value="atrasada" ${actividad.estado === 'atrasada' ? 'selected' : ''}>🚨 Atrasada</option>
-              <option value="completada" ${actividad.estado === 'completada' ? 'selected' : ''}>✅ Completada</option>
-              <option value="aplazada" ${actividad.estado === 'aplazada' ? 'selected' : ''}>📅 Aplazada</option>
-            </select>
-          </td>
-          <td>
-            <textarea
-              class="input-comentario"
-              data-id="${actividad.id}"
-              placeholder="Añadir comentario..."
-              rows="2"
-              style="width: 100%; min-width: 140px; max-width: 220px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit; font-size: 13px; resize: vertical; box-sizing: border-box;"
-              >${actividad.comentarioDirector || ''}</textarea>
-          </td>
-        `;
-      }
-      
-      else {
-        let estadoVisual = '⏳ Pendiente';
-        if (actividad.estado === 'atrasada') estadoVisual = '🚨 Atrasada';
-        else if (actividad.estado === 'completada') estadoVisual = '✅ Completada';
-        else if (actividad.estado === 'aplazada') estadoVisual = '📅 Aplazada';
+      // DESPLEGABLE 1: Menú interactivo exclusivo del Residente
+      const selectResidenteHTML = esResidente ? `
+        <select class="selector-residente" data-id="${actividad.id}" style="padding: 4px 6px; border-radius: 4px; font-family: inherit; font-size: 12px; border: 1px solid #94a3b8; background-color: #f8fafc;">
+          <option value="pendiente" ${actividad.estado === 'pendiente' ? 'selected' : ''}>⏳ Pendiente (Residente)</option>
+          <option value="completada" ${actividad.estado === 'completada' ? 'selected' : ''}>✅ Realizada (Reporte)</option>
+        </select>
+      ` : `<span style="font-size: 12px; font-weight: 600; color: #475569;">${actividad.estado === 'completada' ? '✅ Reportada' : '⏳ Pendiente'}</span>`;
 
-        fila.innerHTML = `
-          <td><strong>${actividad.proyecto}</strong></td>
-          <td>${actividad.responsable}</td>
-          <td><span style="background-color: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #334155;">${actividad.semana || 'N/A'}</span></td>
-          <td>${formatearFechaHTML(fechaLimpia)}</td>
-          <td style="text-align: left;">${actividad.descripcion}</td>
-          <td style="font-weight: 500; text-align: center;">${estadoVisual}</td>
-          <td style="color: #64748b; font-style: italic; max-width: 220px; word-wrap: break-word;">${actividad.comentarioDirector || '-'}</td>
-        `;
-      }
+      // DESPLEGABLE 2: Menú interactivo exclusivo del Director Operativo (Luis)
+      const selectDirectorHTML = esDirector ? `
+        <select class="selector-estatus selector-director" data-id="${actividad.id}" style="padding: 4px 6px; border-radius: 4px; font-family: inherit; font-size: 12px; font-weight: bold;">
+          <option value="pendiente" ${actividad.estado === 'pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
+          <option value="atrasada" ${actividad.estado === 'atrasada' ? 'selected' : ''}>🚨 Atrasada</option>
+          <option value="completada" ${actividad.estado === 'completada' ? 'selected' : ''}>✅ Completada (Validada)</option>
+          <option value="aplazada" ${actividad.estado === 'aplazada' ? 'selected' : ''}>📅 Aplazada</option>
+        </select>
+      ` : `
+        <span style="font-weight: 500; text-align: center;">
+          ${actividad.estado === 'atrasada' ? '🚨 Atrasada' : (actividad.estado === 'completada' ? '✅ Completada' : (actividad.estado === 'aplazada' ? '📅 Aplazada' : '⏳ Pendiente'))}
+        </span>
+      `;
+
+      const textareaComentarioHTML = (esDirector || esResidente) ? `
+        <textarea
+          class="input-comentario"
+          data-id="${actividad.id}"
+          placeholder="${esResidente ? 'Reporte del residente...' : 'Comentario del director...'}"
+          rows="2"
+          style="width: 100%; min-width: 140px; max-width: 220px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit; font-size: 12px; resize: vertical; box-sizing: border-box;"
+          >${actividad.comentarioDirector || ''}</textarea>
+      ` : `<span style="color: #64748b; font-style: italic; max-width: 220px; word-wrap: break-word;">${actividad.comentarioDirector || '-'}</span>`;
+
+      fila.innerHTML = `
+        <td><strong>${actividad.proyecto}</strong></td>
+        <td>${actividad.responsable}</td>
+        <td><span style="background-color: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #334155;">${actividad.semana || 'N/A'}</span></td>
+        <td>${formatearFechaHTML(fechaLimpia)}</td>
+        <td style="text-align: left;">${actividad.descripcion}</td>
+        <td style="text-align: center; vertical-align: middle;">
+          <div style="display: flex; flex-direction: column; gap: 4px; align-items: center;">
+            <div title="Reporte del Residente">${selectResidenteHTML}</div>
+            <div title="Validación de Dirección Operativa">${selectDirectorHTML}</div>
+          </div>
+        </td>
+        <td>${textareaComentarioHTML}</td>
+      `;
 
       cuerpoTabla.appendChild(fila);
     });
@@ -309,7 +287,23 @@
   }
 
   function asignarEventosInteractivos() {
-    cuerpoTabla.querySelectorAll('.selector-estatus').forEach((select) => {
+    // Escucha cambios en el menú del Residente
+    cuerpoTabla.querySelectorAll('.selector-residente').forEach((select) => {
+      select.addEventListener('change', async (e) => {
+        const idActividad = e.target.getAttribute('data-id');
+        const nuevoEstado = e.target.value;
+
+        const actividad = concentradoMinutas.find(item => String(item.id) === String(idActividad));
+        if (actividad) {
+          actividad.estado = nuevoEstado;
+          await guardarEnNubeUrgente(actividad);
+          aplicarFiltros();
+        }
+      });
+    });
+
+    // Escucha cambios en el menú del Director Operativo
+    cuerpoTabla.querySelectorAll('.selector-director').forEach((select) => {
       select.addEventListener('change', async (e) => {
         const idActividad = e.target.getAttribute('data-id');
         const nuevoEstado = e.target.value;
@@ -319,9 +313,9 @@
           if (nuevoEstado === 'aplazada') {
             nuevaFechaEstado(actividad, e.target);
           } else {
-          actividad.estado = nuevoEstado;
-          await guardarEnNubeUrgente(actividad);
-          aplicarFiltros();
+            actividad.estado = nuevoEstado;
+            await guardarEnNubeUrgente(actividad);
+            aplicarFiltros();
           }
         }
       });
@@ -335,8 +329,8 @@
         const actividad = concentradoMinutas.find(item => String(item.id) === String(idActividad));
 
         if (actividad && actividad.comentarioDirector !== nuevoComentario) {
-        actividad.comentarioDirector = nuevoComentario;
-        await guardarEnNubeUrgente(actividad);
+          actividad.comentarioDirector = nuevoComentario;
+          await guardarEnNubeUrgente(actividad);
         }
       });
     });
