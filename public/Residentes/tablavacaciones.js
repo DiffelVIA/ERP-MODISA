@@ -65,18 +65,15 @@
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
 
-    const esLaura = (
-      userRolNormalizado === 'gerente administracion' || 
-      userRolNormalizado === 'gerente de administracion' ||
-      (userRolNormalizado.includes('gerente') && userRolNormalizado.includes('administrac'))
-    );
-
-    const esLuis = (
-      userRolNormalizado === 'director operativo' ||
+    // MODIFICACIÓN: Permiso de vista e interacción asignado a Director Operativo / Director General
+    const esDirectorOperativo = (
+      userRolNormalizado === 'director operativo' || 
+      userRolNormalizado === 'director_operativo' ||
+      userRolNormalizado === 'director general' ||
       (userRolNormalizado.includes('director') && userRolNormalizado.includes('operativ'))
     );
 
-    const puedeVerGantt = esLaura || esLuis;
+    const puedeVerGantt = esDirectorOperativo;
 
     if (!puedeVerGantt) {
       btnGantt.style.display = 'none';
@@ -195,7 +192,6 @@
       });
       if (res.ok) {
         datosEstatusVacaciones = await res.json();
-        // MEJORA: Reconstruir filtros iniciales al cargar estatus para incluir plantilla completa
         construirFiltrosIniciales();
       }
     } catch (err) {
@@ -228,11 +224,6 @@
     });
   }
 
-  // ==========================================
-  // INICIO PARTE MODIFICADA: OPCIÓN 1 (FILTRO UNIFICADO GLOBAL)
-  // ==========================================
-
-  // Modificación en construirFiltrosIniciales para combinar empleados de solicitudes y plantilla completa
   function construirFiltrosIniciales() {
     const contenedorEmpleados = document.getElementById('filtroEmpleado');
     const contenedorEstados = document.getElementById('filtroEstado');
@@ -240,16 +231,11 @@
 
     if (!contenedorEmpleados || !contenedorEstados) return;
 
-    // MEJORA UX Y DATOS: Obtener empleados de las solicitudes
     const empleadosDesdeVacaciones = datosVacaciones.map(item => item.nombre_empleado || item.empleado || `Empleado ID #${item.id_employee}`);
-    
-    // MEJORA UX Y DATOS: Obtener empleados de la plantilla completa (estatus) para no omitir a quienes no han solicitado vacaciones
     const empleadosDesdeEstatus = datosEstatusVacaciones.map(item => item.nombre_empleado);
 
-    // Unificación y eliminación de duplicados de forma segura
     const empleadosUnicos = [...new Set([...empleadosDesdeVacaciones, ...empleadosDesdeEstatus])].filter(Boolean).sort();
 
-    // Renderizado seguro con escapeHTML para prevención de vulnerabilidades XSS
     contenedorEmpleados.innerHTML = empleadosUnicos.map(emp => `
       <label class="opcion-filtro"><input type="checkbox" value="${escapeHTML(emp)}" class="chk-empleado"> ${escapeHTML(emp)}</label>
     `).join('');
@@ -276,7 +262,6 @@
 
     contenedorEmpleados.addEventListener('change', () => {
       actualizarFiltrosYTabla();
-      // MEJORA UX: Sincronización en tiempo real de la vista Estatus si está activa
       const vistaEstatus = document.getElementById('contenedorVistaEstatus');
       if (vistaEstatus && vistaEstatus.style.display !== 'none') {
         renderizarVistaEstatus();
@@ -331,10 +316,12 @@
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
 
-    const esLaura = (
-      userRolNormalizado === 'gerente administracion' || 
-      userRolNormalizado === 'gerente de administracion' ||
-      (userRolNormalizado.includes('gerente') && userRolNormalizado.includes('administrac'))
+    // MODIFICACIÓN: Controles de edición de la tabla asignados a Director Operativo
+    const esDirectorOperativo = (
+      userRolNormalizado === 'director operativo' || 
+      userRolNormalizado === 'director_operativo' ||
+      userRolNormalizado === 'director general' ||
+      (userRolNormalizado.includes('director') && userRolNormalizado.includes('operativ'))
     );
 
     cuerpo.innerHTML = lista.map(item => {
@@ -357,7 +344,7 @@
       const obsTexto = escapeHTML(item.observaciones || '');
 
       let selectEstadoHTML = '';
-      if (esLaura) {
+      if (esDirectorOperativo) {
         selectEstadoHTML = `
           <select class="select-estado-tabla" data-id="${idVacacion}" onchange="window.actualizarEstadoVacacion(${idVacacion}, this.value, this)" style="padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 13px; color: #334155; font-weight: 500;">
             <option value="pendiente" ${esPendiente ? 'selected' : ''}>Pendiente</option>
@@ -372,7 +359,7 @@
       }
 
       let obsHTML = '';
-      if (esLaura) {
+      if (esDirectorOperativo) {
         obsHTML = `<input type="text" value="${obsTexto}" placeholder="Agregar nota..." class="input-obs-tabla" onblur="window.actualizarObservacionVacacion(${idVacacion}, this.value, this)" style="width: 95%; padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1; font-size: 12px; color: #334155;">`;
       } else {
         obsHTML = `<span style="color: #475569; font-style: italic; font-size: 12px;">${obsTexto || '-'}</span>`;
@@ -394,7 +381,6 @@
     }).join('');
   }
 
-  // Modificación en renderizarVistaEstatus para acoplarse directamente al "Filtro Empleado" superior
   function renderizarVistaEstatus() {
     const contenedor = document.getElementById('contenedorVistaEstatus');
     if (!contenedor) return;
@@ -408,18 +394,19 @@
     const userRolRaw = localStorage.getItem('userRol') || jwtDatos.rol || jwtDatos.role || jwtDatos.job_title || '';
     const userRolNormalizado = userRolRaw.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-    const esLaura = (
-      userRolNormalizado === 'gerente administracion' || 
-      userRolNormalizado === 'gerente de administracion' ||
-      (userRolNormalizado.includes('gerente') && userRolNormalizado.includes('administrac'))
+    // MODIFICACIÓN: Evaluador del tacómetro de estatus para Director Operativo
+    const esDirectorOperativo = (
+      userRolNormalizado === 'director operativo' || 
+      userRolNormalizado === 'director_operativo' ||
+      userRolNormalizado === 'director general' ||
+      (userRolNormalizado.includes('director') && userRolNormalizado.includes('operativ'))
     );
 
     const idUsuarioLogueado = jwtDatos.id_employee || jwtDatos.id || jwtDatos.userId;
 
-    if (esLaura) {
+    if (esDirectorOperativo) {
       const arrSeleccionados = Array.from(empleadosSeleccionados);
 
-      // MEJORA UX: Renderizado dinámico directo desde el filtro superior
       if (arrSeleccionados.length === 1) {
         const nombreBuscado = arrSeleccionados[0];
         const empDatos = datosEstatusVacaciones.find(emp => emp.nombre_empleado === nombreBuscado);
@@ -433,7 +420,6 @@
             </div>`;
         }
       } else {
-        // Estado informativo cuando hay 0 o más de 1 empleados seleccionados
         contenedor.innerHTML = `
           <div style="text-align: center; padding: 40px; color: #64748b; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">
             👆 Por favor, selecciona un empleado para visualizar su estado.
@@ -441,7 +427,6 @@
       }
 
     } else {
-      // UX ROLES REGULARES: Renderizado automático exclusivo de sus propios datos
       const empDatosPropio = datosEstatusVacaciones.find(emp => Number(emp.id_employee) === Number(idUsuarioLogueado)) || datosEstatusVacaciones[0];
       
       if (empDatosPropio) {
@@ -456,7 +441,7 @@
     }
   }
 
-  function generarHTMLTacometroIndividual(emp, esLaura) {
+  function generarHTMLTacometroIndividual(emp, esDirectorOperativo) {
     const diasLey = Number(emp.dias_ley || 0);
     const diasTomados = Number(emp.dias_tomados || 0);
     const diasRestantes = Math.max(0, diasLey - diasTomados);
@@ -472,7 +457,7 @@
           <svg width="180" height="100" viewBox="0 0 160 90">
             <path d="M 10 80 A 70 70 0 0 1 150 80" fill="none" stroke="#e2e8f0" stroke-width="14" stroke-linecap="round" />
             <path d="M 10 80 A 70 70 0 0 1 150 80" fill="none" stroke="#2563eb" stroke-width="14" stroke-linecap="round" 
-              stroke-dasharray="220" stroke-dashoffset="${220 - (220 * porcentaje) / 100}" />
+               stroke-dasharray="220" stroke-dashoffset="${220 - ((220 * porcentaje) / 100)}" />
           </svg>
           <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: bold; color: #1e293b;">
             ${diasRestantes} <span style="font-size: 11px; color: #64748b; font-weight: normal;">días rest.</span>
@@ -495,7 +480,7 @@
           </div>
         </div>
 
-        ${esLaura ? `
+        ${esDirectorOperativo ? `
           <!-- Botón unificado utilizando las reglas CSS globales (.btn y [data-action]) -->
           <div style="margin-top: 20px;">
             <button type="button" class="btn" data-action="renovar" onclick="window.forzarRenovacionDias(${emp.id_employee}, '${escapeHTML(emp.nombre_empleado)}')">

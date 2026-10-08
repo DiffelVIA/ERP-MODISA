@@ -6,12 +6,10 @@ const { gmail } = require('../config/google');
 
 const { verificarToken, verificarRol } = require('../middlewares/authMiddleware');
 
+// MODIFICACIÓN: Se asigna el permiso de autorización principalmente al Director Operativo / Director General
 const ROLES_ADMINISTRATIVOS = [
   'Director Operativo',
-  'Director General',
-  'Gerente de Administración',
-  'Gerente administración',
-  'Gerente Administracion'
+  'Director General'
 ];
 
 async function enviarCorreoGmail({ to, subject, html }) {
@@ -72,9 +70,10 @@ router.get('/', verificarToken, async (req, res) => {
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
 
+    // MODIFICACIÓN: Comprobación RBAC basada en Director Operativo
     const esAdmin = ROLES_ADMINISTRATIVOS.some(r => {
       const rLimpio = r.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      return rLimpio === rolUsuarioLimpio || (rolUsuarioLimpio.includes('gerente') && rolUsuarioLimpio.includes('administrac'));
+      return rLimpio === rolUsuarioLimpio || (rolUsuarioLimpio.includes('director') && rolUsuarioLimpio.includes('operativ'));
     });
 
     let sql = `
@@ -143,11 +142,6 @@ router.get('/', verificarToken, async (req, res) => {
   }
 });
 
-/**
- * @route   GET /api/vacaciones/estatus
- * @desc    Obtiene el resumen de días por ley, tomados y restantes por empleado.
- * @access  Privado (Seguridad RBAC: Empleados ven solo su perfil, Gerencia ve todos)
- */
 router.get('/estatus', verificarToken, async (req, res) => {
   try {
     const rolUsuario = req.usuario ? req.usuario.rol : '';
@@ -159,9 +153,10 @@ router.get('/estatus', verificarToken, async (req, res) => {
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
 
+    // MODIFICACIÓN: Permisos de vista completa asignados a Director Operativo
     const esAdmin = ROLES_ADMINISTRATIVOS.some(r => {
       const rLimpio = r.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      return rLimpio === rolUsuarioLimpio || (rolUsuarioLimpio.includes('gerente') && rolUsuarioLimpio.includes('administrac'));
+      return rLimpio === rolUsuarioLimpio || (rolUsuarioLimpio.includes('director') && rolUsuarioLimpio.includes('operativ'));
     });
 
     let sql = `
@@ -223,11 +218,6 @@ router.get('/estatus', verificarToken, async (req, res) => {
   }
 });
 
-/**
- * @route   DELETE /api/vacaciones/renovar/:id_employee
- * @desc    Limpia (elimina) los días tomados registrados para el periodo actual sin alterar fechas ni perfiles.
- * @access  Privado (Exclusivo Gerente de Administración / ROLES_ADMINISTRATIVOS)
- */
 router.delete('/renovar/:id_employee', verificarToken, verificarRol(ROLES_ADMINISTRATIVOS), async (req, res) => {
   const idEmpleadoParam = parseInt(req.params.id_employee, 10);
 
