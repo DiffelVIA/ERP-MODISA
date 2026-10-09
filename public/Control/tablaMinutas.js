@@ -201,7 +201,7 @@
   }
 
   // ==========================================
-  // MODIFICACIÓN FRONTEND: Ajuste ABAC para "Estado Responsable"
+  // MODIFICACIÓN FRONTEND: Ajuste ABAC y Edición de Responsable para Director
   // ==========================================
   function renderizarTabla(actividadesAFiltrar) {
     if (!cuerpoTabla) return;
@@ -216,7 +216,6 @@
     const rolUsuarioRaw = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol : '';
     const rolUsuarioLimpio = normalizarTextoComp(rolUsuarioRaw);
 
-    // MODIFICACIÓN (Identificación del Usuario Actual para ABAC):
     let nombreUsuarioSesion = '';
     if (usuarioToken) {
       nombreUsuarioSesion = usuarioToken.nombre || usuarioToken.nombre_empleado || usuarioToken.name || usuarioToken.usuario || '';
@@ -244,12 +243,22 @@
       const fechaLimpia = actividad.fecha ? actividad.fecha.split('T')[0] : '';
       const { residente: comRes, director: comDir } = extraerComentarios(actividad.comentarioDirector);
 
-      // MODIFICACIÓN (ABAC): Permite editar si es el usuario asignado como responsable O si es Residente / Director
       const responsableTareaLimpio = normalizarTextoComp(actividad.responsable);
       const esElResponsable = (nombreUsuarioLimpio !== '' && responsableTareaLimpio !== '') && 
         (responsableTareaLimpio.includes(nombreUsuarioLimpio) || nombreUsuarioLimpio.includes(responsableTareaLimpio));
 
       const puedeModificarResponsable = esElResponsable || esResidente || esDirector;
+
+      // COLUMNA 2: Edición de Responsable por Director u Homologación para lectura
+      const celdaResponsable = esDirector ? `
+        <input 
+          type="text" 
+          class="input-responsable-director input-tabla" 
+          data-id="${actividad.id}" 
+          value="${escapeHTML(actividad.responsable)}" 
+          style="width: 95%; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit; font-size: 11.5px; box-sizing: border-box;"
+        />
+      ` : `${escapeHTML(actividad.responsable)}`;
 
       // COLUMNA 6: Estado Responsable (Mapeado a 'avance': 0=Pendiente, 100=Concluida)
       const celdaReporteResidente = puedeModificarResponsable ? `
@@ -313,7 +322,7 @@
 
       fila.innerHTML = `
         <td style="word-break: break-word;"><strong>${escapeHTML(actividad.proyecto)}</strong></td>
-        <td style="word-break: break-word;">${escapeHTML(actividad.responsable)}</td>
+        <td style="word-break: break-word;">${celdaResponsable}</td>
         <td style="text-align: center;"><span style="background-color: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #334155;">${escapeHTML(actividad.semana || 'N/A')}</span></td>
         <td style="text-align: center;">${formatearFechaHTML(fechaLimpia)}</td>
         <td style="text-align: left; word-break: break-word;">${escapeHTML(actividad.descripcion)}</td>
@@ -388,6 +397,22 @@
   }
 
   function asignarEventosInteractivos() {
+    // MODIFICACIÓN: Evento para cambio de responsable por parte del Director
+    cuerpoTabla.querySelectorAll('.input-responsable-director').forEach((input) => {
+      input.addEventListener('blur', async (e) => {
+        const idActividad = e.target.getAttribute('data-id');
+        const nuevoResponsable = e.target.value.trim();
+
+        const actividad = concentradoMinutas.find(item => String(item.id) === String(idActividad));
+        if (actividad && nuevoResponsable !== '' && actividad.responsable !== nuevoResponsable) {
+          actividad.responsable = nuevoResponsable;
+          await guardarEnNubeUrgente(actividad);
+          filtroOpciones(concentradoMinutas);
+          aplicarFiltros();
+        }
+      });
+    });
+
     // Evento para estatus del Responsable (Guarda en la columna 'avance')
     cuerpoTabla.querySelectorAll('.selector-residente').forEach((select) => {
       select.addEventListener('change', async (e) => {
