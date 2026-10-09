@@ -2,24 +2,33 @@
     const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
 
     let proyectosOriginales = [];
-    // MODIFICACIÓN: Arreglo global para almacenar el catálogo de empleados
     let listaEmpleados = [];
 
+    // MODIFICACIÓN (Ciberseguridad): Sanitización de cadenas contra ataques XSS
+    function escapeHTML(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     document.addEventListener("DOMContentLoaded", async () => {
-        // MODIFICACIÓN: Se garantiza que la lista de empleados cargue antes de renderizar la tabla
         await cargarCatalogoEmpleados();
         obtenerYRenderizarProyectos();
         configurarDropdowns();
     });
 
-    // MODIFICACIÓN (Endpoint Correcto): Consulta a /api/employees/gestion con encabezados seguros
+    // MODIFICACIÓN (Lógica / Ruta Real): Petición a /api/empleados/gestion
     async function cargarCatalogoEmpleados() {
         try {
             const token = localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
             const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
             const rolActual = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
 
-            const response = await fetch(`${API_BASE_URL}/employees/gestion`, {
+            const response = await fetch(`${API_BASE_URL}/empleados/gestion`, {
                 headers: { 
                     'Authorization': token ? `Bearer ${token}` : '',
                     'x-user-rol': rolActual
@@ -104,8 +113,8 @@
             const porcentaje = calcularPorcentajeTiempo(fInicio, fFin, proy.status);
             const estadoEspañol = traduccionEstados[proy.status] || proy.status;
 
-            // MODIFICACIÓN: Generación del selector con los empleados obtenidos del endpoint /gestion
-            let celdaResponsableHtml = proy.responsable_name || "<i>Sin asignar</i>";
+            // MODIFICACIÓN: Renderizado del selector de responsable con sanitización XSS
+            let celdaResponsableHtml = escapeHTML(proy.responsable_name) || "<i>Sin asignar</i>";
             if (esDirector) {
                 let opcionesEmpleados = '<option value="">-- Sin Asignar --</option>';
                 if (Array.isArray(listaEmpleados) && listaEmpleados.length > 0) {
@@ -113,10 +122,10 @@
                         const idEmp = emp.id_employee || emp.id_user || emp.id;
                         const nombreEmp = `${emp.name || ''} ${emp.last_name || ''}`.trim();
                         const selected = String(idEmp) === String(proy.id_user) ? 'selected' : '';
-                        return `<option value="${idEmp}" ${selected}>${nombreEmp}</option>`;
+                        return `<option value="${idEmp}" ${selected}>${escapeHTML(nombreEmp)}</option>`;
                     }).join('');
                 } else {
-                    opcionesEmpleados += `<option value="${proy.id_user || ''}" selected>${proy.responsable_name || 'Sin Asignar'}</option>`;
+                    opcionesEmpleados += `<option value="${proy.id_user || ''}" selected>${escapeHTML(proy.responsable_name) || 'Sin Asignar'}</option>`;
                 }
 
                 celdaResponsableHtml = `
@@ -128,9 +137,9 @@
 
             if (!esDirector) {
                 fila.innerHTML = `
-                    <td><strong>${proy.project_name}</strong></td>
+                    <td><strong>${escapeHTML(proy.project_name)}</strong></td>
                     <td>${celdaResponsableHtml}</td>
-                    <td>${proy.location || "N/A"}</td>
+                    <td>${escapeHTML(proy.location) || "N/A"}</td>
                     <td><span class="badge-status status-${proy.status.toLowerCase().replace(/\s+/g, '')}">${estadoEspañol}</span></td>
                     <td>${fInicioFormateada}</td>
                     <td>${fFinFormateada}</td>
@@ -145,9 +154,9 @@
                 `;
             } else {
                 fila.innerHTML = `
-                    <td><strong>${proy.project_name}</strong></td>
+                    <td><strong>${escapeHTML(proy.project_name)}</strong></td>
                     <td>${celdaResponsableHtml}</td>
-                    <td>${proy.location || "N/A"}</td>
+                    <td>${escapeHTML(proy.location) || "N/A"}</td>
                     <td>
                         <select class="selector-estatus" data-id="${proy.id_project}" style="padding: 4px 6px; border-radius: 4px; font-family: inherit; font-weight: 600;">
                             <option value="Active" ${proy.status === 'Active' ? 'selected' : ''}>Activo</option>
@@ -180,7 +189,6 @@
     }
 
     function asignarEventosInteractivos() {
-        // MODIFICACIÓN: Captura del cambio de responsable extrayendo de forma segura la fecha de finalización
         document.querySelectorAll(".selector-responsable").forEach(select => {
             select.addEventListener("change", async (e) => {
                 const idProject = e.target.dataset.id;
@@ -252,13 +260,14 @@
         });
     }
 
+    // MODIFICACIÓN (Ruta Real): Petición PUT hacia /api/proyectos/${id}
     async function procesarActualizacionRenglon(id, status, finishDate, idUser) {
         try {
             const token = localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
             const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
             const rolActual = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
 
-            const response = await fetch(`${API_BASE_URL}/projects/${id}`, {
+            const response = await fetch(`${API_BASE_URL}/proyectos/${id}`, {
                 method: "PUT",
                 headers: { 
                     "Content-Type": "application/json",
@@ -293,7 +302,7 @@
         if (filtroProyecto) {
             filtroProyecto.innerHTML = proyectosUnicos.map(p => `
                 <label class="opcion-filtro" style="display: block; padding: 4px 12px; cursor: pointer;">
-                    <input type="checkbox" value="${p}" class="chk-proyecto"> ${p}
+                    <input type="checkbox" value="${escapeHTML(p)}" class="chk-proyecto"> ${escapeHTML(p)}
                 </label>
             `).join('');
         }
@@ -315,7 +324,7 @@
         if (filtroResponsable) {
             filtroResponsable.innerHTML = responsablesUnicos.map(r => `
                 <label class="opcion-filtro" style="display: block; padding: 4px 12px; cursor: pointer;">
-                    <input type="checkbox" value="${r}" class="chk-responsable"> ${r}
+                    <input type="checkbox" value="${escapeHTML(r)}" class="chk-responsable"> ${escapeHTML(r)}
                 </label>
             `).join('');
         }
