@@ -10,6 +10,27 @@
 
   const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
 
+  // MODIFICACIÓN (Ciberseguridad): Sanitización contra ataques XSS
+  function escapeHTML(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // MODIFICACIÓN (Lógica ABAC): Helper para normalización de texto y comparación de nombres
+  function normalizarTextoComp(texto) {
+    if (!texto) return '';
+    return String(texto)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     cuerpoTabla = document.querySelector('.cuerpoTabla');
     filtroProyecto = document.getElementById("filtroProyecto");
@@ -116,7 +137,7 @@
     if (filtroProyecto) {
       filtroProyecto.innerHTML = proyectosUnicos.map(p => `
         <label class="opcion-filtro">
-          <input type="checkbox" value="${p}" class="chk-proyecto"> ${p}
+          <input type="checkbox" value="${escapeHTML(p)}" class="chk-proyecto"> ${escapeHTML(p)}
         </label>
       `).join('');
     }
@@ -136,20 +157,19 @@
     if (filtroResponsable) {
       filtroResponsable.innerHTML = responsablesUnicos.map(r => `
         <label class="opcion-filtro">
-          <input type="checkbox" value="${r}" class="chk-responsable"> ${r}
+          <input type="checkbox" value="${escapeHTML(r)}" class="chk-responsable"> ${escapeHTML(r)}
         </label>
       `).join('');
     }
     if (filtroSemana) {
       filtroSemana.innerHTML = semanasUnicas.map(s => `
         <label class="opcion-filtro">
-          <input type="checkbox" value="${s}" class="chk-semana"> Semana ${s}
+          <input type="checkbox" value="${escapeHTML(s)}" class="chk-semana"> Semana ${escapeHTML(s)}
         </label>
       `).join('');
     }
   }
 
-  // Auxiliares para separar y formatear los comentarios concatenados
   function extraerComentarios(textoComentario) {
     if (!textoComentario) return { residente: '', director: '' };
     
@@ -181,7 +201,7 @@
   }
 
   // ==========================================
-  // MODIFICACIÓN FRONTEND: Layout de 8 Columnas Perfectamente Alineadas
+  // MODIFICACIÓN FRONTEND: Ajuste ABAC para "Estado Responsable"
   // ==========================================
   function renderizarTabla(actividadesAFiltrar) {
     if (!cuerpoTabla) return;
@@ -194,8 +214,28 @@
 
     const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
     const rolUsuarioRaw = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol : '';
-    const rolUsuarioLimpio = rolUsuarioRaw.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    const rolUsuarioLimpio = normalizarTextoComp(rolUsuarioRaw);
 
+    // MODIFICACIÓN (Identificación del Usuario Actual para ABAC):
+    let nombreUsuarioSesion = '';
+    if (usuarioToken) {
+      nombreUsuarioSesion = usuarioToken.nombre || usuarioToken.nombre_empleado || usuarioToken.name || usuarioToken.usuario || '';
+    }
+    if (!nombreUsuarioSesion) {
+      try {
+        const rawSesion = sessionStorage.getItem('usuarioMODISA');
+        if (rawSesion && rawSesion.trim().startsWith('{')) {
+          const parsed = JSON.parse(rawSesion);
+          nombreUsuarioSesion = parsed.nombre || parsed.nombre_empleado || parsed.usuario || '';
+        } else if (rawSesion) {
+          nombreUsuarioSesion = rawSesion;
+        }
+      } catch (e) {
+        console.error("Error al leer datos de sesión:", e);
+      }
+    }
+
+    const nombreUsuarioLimpio = normalizarTextoComp(nombreUsuarioSesion);
     const esDirector = rolUsuarioLimpio.includes("director");
     const esResidente = rolUsuarioLimpio.includes("residente");
 
@@ -204,15 +244,22 @@
       const fechaLimpia = actividad.fecha ? actividad.fecha.split('T')[0] : '';
       const { residente: comRes, director: comDir } = extraerComentarios(actividad.comentarioDirector);
 
-      // COLUMNA 6: Estatus del Residente (Mapeado a la columna 'avance': 0=Pendiente, 100=Concluida)
-      const celdaReporteResidente = esResidente ? `
+      // MODIFICACIÓN (ABAC): Permite editar si es el usuario asignado como responsable O si es Residente / Director
+      const responsableTareaLimpio = normalizarTextoComp(actividad.responsable);
+      const esElResponsable = (nombreUsuarioLimpio !== '' && responsableTareaLimpio !== '') && 
+        (responsableTareaLimpio.includes(nombreUsuarioLimpio) || nombreUsuarioLimpio.includes(responsableTareaLimpio));
+
+      const puedeModificarResponsable = esElResponsable || esResidente || esDirector;
+
+      // COLUMNA 6: Estado Responsable (Mapeado a 'avance': 0=Pendiente, 100=Concluida)
+      const celdaReporteResidente = puedeModificarResponsable ? `
         <select class="selector-residente" data-id="${actividad.id}" style="width: 90%; padding: 4px 6px; border-radius: 4px; font-family: inherit; font-size: 13px;">
           <option value="0" ${actividad.avance < 100 ? 'selected' : ''}>⏳ Pendiente</option>
           <option value="100" ${actividad.avance >= 100 ? 'selected' : ''}>✅ Concluida</option>
         </select>
       ` : `<span style="font-size: 13px; font-weight: 600; color: ${actividad.avance >= 100 ? '#16a34a' : '#64748b'};">${actividad.avance >= 100 ? '✅ Concluida' : '⏳ Pendiente'}</span>`;
 
-      // COLUMNA 7: Estatus del Director Operativo (Luis)
+      // COLUMNA 7: Estatus Dirección
       const celdaEstadoDirector = esDirector ? `
         <select class="selector-estatus selector-director" data-id="${actividad.id}" style="width: 90%; padding: 4px 6px; border-radius: 4px; font-family: inherit; font-size: 13px; font-weight: 600;">
           <option value="pendiente" ${actividad.estado === 'pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
@@ -226,50 +273,50 @@
         </span>
       `;
 
-      // COLUMNA 8: Comentarios Estructurados por Rol
+      // COLUMNA 8: Comentarios Estructurados por Rol / Responsable
       let celdaComentarios = '';
-      if (esResidente) {
+      if (puedeModificarResponsable && !esDirector) {
         celdaComentarios = `
           <div style="display: flex; flex-direction: column; gap: 4px;">
             <textarea
               class="input-comentario-residente"
               data-id="${actividad.id}"
-              placeholder="Escribe reporte de residente..."
+              placeholder="Escribe reporte de responsable..."
               rows="2"
               style="width: 100%; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit; font-size: 12px; resize: vertical; box-sizing: border-box;"
-              >${comRes}</textarea>
-            ${comDir ? `<small style="color:#0284c7; font-style:italic;">Dir: ${comDir}</small>` : ''}
+              >${escapeHTML(comRes)}</textarea>
+            ${comDir ? `<small style="color:#0284c7; font-style:italic;">Dir: ${escapeHTML(comDir)}</small>` : ''}
           </div>
         `;
       } else if (esDirector) {
         celdaComentarios = `
           <div style="display: flex; flex-direction: column; gap: 4px;">
-            ${comRes ? `<small style="color:#16a34a; font-weight:600;">Res: ${comRes}</small>` : ''}
+            ${comRes ? `<small style="color:#16a34a; font-weight:600;">Resp: ${escapeHTML(comRes)}</small>` : ''}
             <textarea
               class="input-comentario-director"
               data-id="${actividad.id}"
               placeholder="Añadir nota de dirección..."
               rows="2"
               style="width: 100%; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit; font-size: 12px; resize: vertical; box-sizing: border-box;"
-              >${comDir}</textarea>
+              >${escapeHTML(comDir)}</textarea>
           </div>
         `;
       } else {
         celdaComentarios = `
           <div style="font-size: 12px; word-break: break-word;">
-            ${comRes ? `<div style="color:#16a34a; font-weight:600;">Res: ${comRes}</div>` : ''}
-            ${comDir ? `<div style="color:#334155; font-style:italic;">Dir: ${comDir}</div>` : ''}
+            ${comRes ? `<div style="color:#16a34a; font-weight:600;">Resp: ${escapeHTML(comRes)}</div>` : ''}
+            ${comDir ? `<div style="color:#334155; font-style:italic;">Dir: ${escapeHTML(comDir)}</div>` : ''}
             ${(!comRes && !comDir) ? '<span style="color:#94a3b8;">-</span>' : ''}
           </div>
         `;
       }
 
       fila.innerHTML = `
-        <td style="word-break: break-word;"><strong>${actividad.proyecto}</strong></td>
-        <td style="word-break: break-word;">${actividad.responsable}</td>
-        <td style="text-align: center;"><span style="background-color: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #334155;">${actividad.semana || 'N/A'}</span></td>
+        <td style="word-break: break-word;"><strong>${escapeHTML(actividad.proyecto)}</strong></td>
+        <td style="word-break: break-word;">${escapeHTML(actividad.responsable)}</td>
+        <td style="text-align: center;"><span style="background-color: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #334155;">${escapeHTML(actividad.semana || 'N/A')}</span></td>
         <td style="text-align: center;">${formatearFechaHTML(fechaLimpia)}</td>
-        <td style="text-align: left; word-break: break-word;">${actividad.descripcion}</td>
+        <td style="text-align: left; word-break: break-word;">${escapeHTML(actividad.descripcion)}</td>
         <td style="text-align: center;">${celdaReporteResidente}</td>
         <td style="text-align: center;">${celdaEstadoDirector}</td>
         <td>${celdaComentarios}</td>
@@ -278,9 +325,7 @@
       cuerpoTabla.appendChild(fila);
     });
 
-    if (esDirector || esResidente) {
-      asignarEventosInteractivos();
-    }
+    asignarEventosInteractivos();
   }
 
   function aplicarFiltros() {
@@ -343,7 +388,7 @@
   }
 
   function asignarEventosInteractivos() {
-    // Evento para estatus del Residente (Guarda en la columna 'avance')
+    // Evento para estatus del Responsable (Guarda en la columna 'avance')
     cuerpoTabla.querySelectorAll('.selector-residente').forEach((select) => {
       select.addEventListener('change', async (e) => {
         const idActividad = e.target.getAttribute('data-id');
@@ -377,7 +422,7 @@
       });
     });
 
-    // Evento para comentario del Residente
+    // Evento para comentario del Responsable
     cuerpoTabla.querySelectorAll('.input-comentario-residente').forEach((input) => {
       input.addEventListener('blur', async (e) => {
         const idActividad = e.target.getAttribute('data-id');
