@@ -1,6 +1,8 @@
 (() => {
   let concentradoMinutas = [];
   let actividadesFiltradas = [];
+  // MODIFICACIÓN: Almacenamiento global para el catálogo de empleados
+  let listaEmpleados = [];
   let filtroProyecto;
   let filtroEstado;
   let filtroResponsable;
@@ -31,7 +33,7 @@
       .trim();
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
     cuerpoTabla = document.querySelector('.cuerpoTabla');
     filtroProyecto = document.getElementById("filtroProyecto");
     filtroEstado = document.getElementById("filtroEstado");
@@ -40,6 +42,8 @@
 
     if(!cuerpoTabla) return;
 
+    // MODIFICACIÓN: Carga del catálogo de empleados previo a las minutas
+    await cargarCatalogoEmpleados();
     cargarActividades();
     configurarDropdowns();
 
@@ -60,6 +64,30 @@
       btnDescargar.addEventListener('click', MinutasPDF); 
     }
   });
+
+  // MODIFICACIÓN: Consulta al catálogo de empleados (/api/empleados/gestion)
+  async function cargarCatalogoEmpleados() {
+    try {
+      const token = localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
+      const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+      const rolActual = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
+
+      const respuesta = await fetch(`${API_URL}/empleados/gestion`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'x-user-rol': rolActual
+        }
+      });
+
+      if (respuesta.ok) {
+        listaEmpleados = await respuesta.json();
+      } else {
+        console.warn('⚠️ No se pudo obtener la lista de empleados para el selector de minutas.');
+      }
+    } catch (error) {
+      console.error('❌ Error crítico al cargar empleados en minutas:', error);
+    }
+  }
 
   function ordenarDatos(lista) {
     if (criterioOrden === 'proyecto') {
@@ -201,7 +229,7 @@
   }
 
   // ==========================================
-  // MODIFICACIÓN FRONTEND: Ajuste ABAC y Edición de Responsable para Director
+  // MODIFICACIÓN FRONTEND: Selector de Responsable para Director Operativo
   // ==========================================
   function renderizarTabla(actividadesAFiltrar) {
     if (!cuerpoTabla) return;
@@ -249,16 +277,30 @@
 
       const puedeModificarResponsable = esElResponsable || esResidente || esDirector;
 
-      // COLUMNA 2: Edición de Responsable por Director u Homologación para lectura
-      const celdaResponsable = esDirector ? `
-        <input 
-          type="text" 
-          class="input-responsable-director input-tabla" 
-          data-id="${actividad.id}" 
-          value="${escapeHTML(actividad.responsable)}" 
-          style="width: 95%; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit; font-size: 11.5px; box-sizing: border-box;"
-        />
-      ` : `${escapeHTML(actividad.responsable)}`;
+      // MODIFICACIÓN: Construcción del selector <select> con los empleados de la BD
+      let celdaResponsable = escapeHTML(actividad.responsable);
+      if (esDirector) {
+        let opcionesEmpleados = '<option value="">-- Selecciona --</option>';
+        if (Array.isArray(listaEmpleados) && listaEmpleados.length > 0) {
+          opcionesEmpleados += listaEmpleados.map(emp => {
+            const nombreCompleto = `${emp.name || ''} ${emp.last_name || ''}`.trim();
+            const esSeleccionado = normalizarTextoComp(nombreCompleto) === normalizarTextoComp(actividad.responsable) ? 'selected' : '';
+            return `<option value="${escapeHTML(nombreCompleto)}" ${esSeleccionado}>${escapeHTML(nombreCompleto)}</option>`;
+          }).join('');
+        } else {
+          opcionesEmpleados += `<option value="${escapeHTML(actividad.responsable)}" selected>${escapeHTML(actividad.responsable)}</option>`;
+        }
+
+        celdaResponsable = `
+          <select 
+            class="selector-responsable-director" 
+            data-id="${actividad.id}" 
+            style="width: 95%; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit; font-size: 11.5px; box-sizing: border-box;"
+          >
+            ${opcionesEmpleados}
+          </select>
+        `;
+      }
 
       // COLUMNA 6: Estado Responsable (Mapeado a 'avance': 0=Pendiente, 100=Concluida)
       const celdaReporteResidente = puedeModificarResponsable ? `
@@ -397,11 +439,11 @@
   }
 
   function asignarEventosInteractivos() {
-    // MODIFICACIÓN: Evento para cambio de responsable por parte del Director
-    cuerpoTabla.querySelectorAll('.input-responsable-director').forEach((input) => {
-      input.addEventListener('blur', async (e) => {
+    // MODIFICACIÓN: Evento change para reasignación mediante selector desplegable
+    cuerpoTabla.querySelectorAll('.selector-responsable-director').forEach((select) => {
+      select.addEventListener('change', async (e) => {
         const idActividad = e.target.getAttribute('data-id');
-        const nuevoResponsable = e.target.value.trim();
+        const nuevoResponsable = e.target.value;
 
         const actividad = concentradoMinutas.find(item => String(item.id) === String(idActividad));
         if (actividad && nuevoResponsable !== '' && actividad.responsable !== nuevoResponsable) {
