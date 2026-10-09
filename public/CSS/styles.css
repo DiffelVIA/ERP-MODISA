@@ -2,8 +2,8 @@
 
 @import url('./css/base/variables.css');
 @import url('./css/base/global.css');
-@import url('./css/componentes/botones.css');
-@import url('./css/componentes/formularios.css');
-@import url('./css/modulos/tablas.css');
-@import url('./css/modulos/kpis.css');
-@import url('./css/modulos/carrusel.css');
+@import url('./css/components/buttons.css');
+@import url('./css/components/forms.css');
+@import url('./css/modules/tables.css');
+@import url('./css/modules/kpis.css');
+@import url('./css/modules/carrusel.css');
