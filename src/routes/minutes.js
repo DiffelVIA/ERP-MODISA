@@ -43,23 +43,48 @@ router.get('/tabla_minutas', async (req, res) => {
   }
 });
 
-// MODIFICACIÓN: Middleware ampliado para permitir la actualización por parte del Residente
-router.post('/tabla_minutas', verificarToken, (req, res, next) => {
-  const usuarioSesion = req.usuario;
-  const rolRaw = usuarioSesion && usuarioSesion.rol 
+// MODIFICACIÓN: Middleware ABAC/RBAC flexible que permite la actualización a responsables asignados
+router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
+  const usuarioSesion = req.usuario || {};
+  const minutas = req.body;
+  const listaMinutas = Array.isArray(minutas) ? minutas : [minutas];
+
+  const rolRaw = usuarioSesion.rol 
     ? usuarioSesion.rol 
     : (req.headers['x-user-rol'] ? req.headers['x-user-rol'] : '');
 
   const rolLimpio = rolRaw.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
-  const esDirector = rolLimpio.includes('director');
+  // Roles administrativos o directivos con acceso global de escritura
+  const esDirector = rolLimpio.includes('director') || rolLimpio.includes('auxiliar');
   const esResidente = rolLimpio.includes('residente');
 
-  if (!esDirector && !esResidente) {
-    return res.status(403).json({ error: '⛔ Acceso denegado: No tienes permisos para actualizar minutas.'});
+  if (esDirector || esResidente) {
+    return next();
   }
 
-  next();
+  // Validación ABAC: Si no es director/residente, verificar si el usuario es el responsable asignado a la minuta
+  const nombreUsuarioSesion = (
+    usuarioSesion.nombre || 
+    usuarioSesion.nombre_empleado || 
+    usuarioSesion.name || 
+    usuarioSesion.usuario || 
+    req.headers['x-usuario-nombre'] || 
+    ''
+  ).toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+  if (nombreUsuarioSesion !== '') {
+    const esResponsableDeAlguna = listaMinutas.some(item => {
+      const respItem = (item.responsable || '').toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      return respItem !== '' && (respItem.includes(nombreUsuarioSesion) || nombreUsuarioSesion.includes(respItem));
+    });
+
+    if (esResponsableDeAlguna) {
+      return next();
+    }
+  }
+
+  return res.status(403).json({ error: '⛔ Acceso denegado: No tienes permisos para actualizar esta minuta.'});
 
 }, async (req, res) => {
   const minutas = req.body;
