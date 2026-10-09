@@ -4,6 +4,17 @@
 
     let todosLosContratos = [];
 
+    // MODIFICACIÓN (Ciberseguridad): Helper para escapar caracteres HTML especiales
+    function escapeHTML(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     function obtenerRolDesdeJWT() {
         const token = localStorage.getItem('jwtToken');
         if (!token) return '';
@@ -73,8 +84,15 @@
             return;
         }
 
+        // MODIFICACIÓN: Escuchador global ampliado para los 5 filtros
         document.addEventListener('change', (e) => {
-            if (e.target.classList.contains('chk-obra') || e.target.classList.contains('chk-estado')) {
+            if (
+                e.target.classList.contains('chk-obra') || 
+                e.target.classList.contains('chk-estado') ||
+                e.target.classList.contains('chk-direccion') ||
+                e.target.classList.contains('chk-costos') ||
+                e.target.classList.contains('chk-firma')
+            ) {
                 aplicarFiltrosCruzados();
             }
         });
@@ -167,8 +185,8 @@
                 : '';
 
             const enlaceTexto = c.contract_file_url
-                ? `<a href="${c.contract_file_url}" target="_blank" style="color: #007bff; text-decoration: underline;"><strong>${c.contract_key}</strong></a>`
-                : `<strong>${c.contract_key}</strong>`;
+                ? `<a href="${c.contract_file_url}" target="_blank" style="color: #007bff; text-decoration: underline;"><strong>${escapeHTML(c.contract_key)}</strong></a>`
+                : `<strong>${escapeHTML(c.contract_key)}</strong>`;
             
             const celdaClave = `${enlaceTexto}${botonEditarUrl}${botonEliminar}`;
 
@@ -199,8 +217,8 @@
                 : `<span>${mapaCostos[currentCostos] || currentCostos}</span>`;
 
             const celdaComentarioCostos = esCostos
-                ? `<textarea id="comentario-costos-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Escribe un comentario..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${currentComentarioCostos || ''}</textarea>`
-                : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155; word-break: break-word; overflow-wrap: break-word;">${currentComentarioCostos || '---'}</span>`;
+                ? `<textarea id="comentario-costos-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Escribe un comentario..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${escapeHTML(currentComentarioCostos)}</textarea>`
+                : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155; word-break: break-word; overflow-wrap: break-word;">${escapeHTML(currentComentarioCostos) || '---'}</span>`;
 
             const celdaDireccion = (rolUsuarioLimpio.includes('director operativo'))
                 ? `<select id="direccion-${c.id_contract}" class="select-tabla" onchange="autoGuardarFila(${c.id_contract})">
@@ -220,12 +238,12 @@
                 : `<span>${mapaFirma[currentFirma] || currentFirma}</span>`;
 
             tr.innerHTML = `
-                <td>${c.project_name || 'Sin Proyecto'}</td>
+                <td>${escapeHTML(c.project_name) || 'Sin Proyecto'}</td>
                 <td>${fechaFormateada}</td>
                 <td>Semana ${numeroSemana}</td>
                 <td>${celdaClave}</td>
-                <td>${c.Concept || 'Sin descripción'}</td>
-                <td>${c.supplier}</td>
+                <td>${escapeHTML(c.Concept) || 'Sin descripción'}</td>
+                <td>${escapeHTML(c.supplier)}</td>
                 <td data-campo="total" data-total="${total}" style="width: 130px; min-width: 130px; max-width: 130px; color: ${colorFuente}; font-weight: 700; vertical-align: middle;">${celdaTotal}</td>
                 <td data-campo="monto-consultar" data-monto-consultar="${pagado}">${celdaMontoPagado}</td>
                 <td id="porcentaje-${c.id_contract}"><strong>${porcentajePagado}%</strong></td>
@@ -263,7 +281,6 @@
             if (response.ok && data.success) {
                 alert(`✅ ${data.message}`);
                 
-                // Animación y borrado dinámico en interfaz
                 const trFila = document.getElementById(`fila-contrato-${idContract}`);
                 if (trFila) {
                     trFila.style.transition = "all 0.4s ease";
@@ -281,26 +298,57 @@
         }
     };
 
+    // MODIFICACIÓN: Construcción de los 5 contenedores de filtros dinámicos
     function generarOpcionesFiltros(contratos) {
         const contenedorObra = document.getElementById("filtroObra");
         const contenedorEstado = document.getElementById("filtroEstado");
+        const contenedorDireccion = document.getElementById("filtroDireccion");
+        const contenedorCostos = document.getElementById("filtroCostos");
+        const contenedorFirma = document.getElementById("filtroFirma");
 
         if (!contenedorObra || !contenedorEstado) return;
 
         const obrasUnicas = [...new Set(contratos.map(c => c.project_name).filter(Boolean))].sort();
         const estadosUnicos = [...new Set(contratos.map(c => c.status).filter(Boolean))].sort();
+        const direccionUnicos = [...new Set(contratos.map(c => c.status_direccion || 'Pendiente').filter(Boolean))].sort();
+        const costosUnicos = [...new Set(contratos.map(c => c.estado_costos || 'Pendiente').filter(Boolean))].sort();
+        const firmaUnicos = [...new Set(contratos.map(c => (c.firma === 'Firmado' || c.firma === 'Sí') ? 'Firmado' : 'Pendiente').filter(Boolean))].sort();
 
         contenedorObra.innerHTML = obrasUnicas.map(obra => `
           <label class="opcion-filtro" style="display: block; padding: 6px 12px; cursor: pointer; color: #1e293b;">
-            <input type="checkbox" value="${obra}" class="chk-obra"> ${obra}
+            <input type="checkbox" value="${escapeHTML(obra)}" class="chk-obra"> ${escapeHTML(obra)}
           </label>
         `).join('');
 
         contenedorEstado.innerHTML = estadosUnicos.map(estado => `
           <label class="opcion-filtro" style="display: block; padding: 6px 12px; cursor: pointer; color: #1e293b;">
-            <input type="checkbox" value="${estado}" class="chk-estado"> ${estado}
+            <input type="checkbox" value="${escapeHTML(estado)}" class="chk-estado"> ${escapeHTML(estado)}
           </label>
         `).join('');
+
+        if (contenedorDireccion) {
+            contenedorDireccion.innerHTML = direccionUnicos.map(d => `
+              <label class="opcion-filtro" style="display: block; padding: 6px 12px; cursor: pointer; color: #1e293b;">
+                <input type="checkbox" value="${escapeHTML(d)}" class="chk-direccion"> ${escapeHTML(d)}
+              </label>
+            `).join('');
+        }
+
+        if (contenedorCostos) {
+            contenedorCostos.innerHTML = costosUnicos.map(c => `
+              <label class="opcion-filtro" style="display: block; padding: 6px 12px; cursor: pointer; color: #1e293b;">
+                <input type="checkbox" value="${escapeHTML(c)}" class="chk-costos"> ${escapeHTML(c)}
+              </label>
+            `).join('');
+        }
+
+        if (contenedorFirma) {
+            contenedorFirma.innerHTML = firmaUnicos.map(f => `
+              <label class="opcion-filtro" style="display: block; padding: 6px 12px; cursor: pointer; color: #1e293b;">
+                <input type="checkbox" value="${escapeHTML(f)}" class="chk-firma"> ${escapeHTML(f)}
+              </label>
+            `).join('');
+        }
     }
 
     function configurarDropdowns() {
@@ -329,6 +377,7 @@
         });
     }
 
+    // MODIFICACIÓN: Filtrado cruzado multi-criterio (Obra, Estado Pago, Dirección, Costos, Firma)
     function aplicarFiltrosCruzados() {
         const obtenerValoresCheckboxes = (selector) => {
             return Array.from(document.querySelectorAll(selector)).filter(chk => chk.checked).map(chk => chk.value);
@@ -336,11 +385,24 @@
 
         const obrasSeleccionadas = obtenerValoresCheckboxes('.chk-obra');
         const estadosSeleccionados = obtenerValoresCheckboxes('.chk-estado');
+        const direccionSeleccionada = obtenerValoresCheckboxes('.chk-direccion');
+        const costosSeleccionados = obtenerValoresCheckboxes('.chk-costos');
+        const firmaSeleccionada = obtenerValoresCheckboxes('.chk-firma');
 
         const resultadoFiltrado = todosLosContratos.filter(c => {
             const cumpleObra = obrasSeleccionadas.length === 0 || obrasSeleccionadas.includes(c.project_name);
             const cumpleEstado = estadosSeleccionados.length === 0 || estadosSeleccionados.includes(c.status);
-            return cumpleObra && cumpleEstado;
+            
+            const dirValor = c.status_direccion || 'Pendiente';
+            const cumpleDireccion = direccionSeleccionada.length === 0 || direccionSeleccionada.includes(dirValor);
+
+            const cosValor = c.estado_costos || 'Pendiente';
+            const cumpleCostos = costosSeleccionados.length === 0 || costosSeleccionados.includes(cosValor);
+
+            const firValor = (c.firma === 'Firmado' || c.firma === 'Sí') ? 'Firmado' : 'Pendiente';
+            const cumpleFirma = firmaSeleccionada.length === 0 || firmaSeleccionada.includes(firValor);
+
+            return cumpleObra && cumpleEstado && cumpleDireccion && cumpleCostos && cumpleFirma;
         });
 
         renderizarTabla(resultadoFiltrado);
