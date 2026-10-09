@@ -2,27 +2,37 @@
     const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
 
     let proyectosOriginales = [];
-    // MODIFICACIÓN: Lista de catálogo de empleados/residentes para reasignación
+    // MODIFICACIÓN: Arreglo global para almacenar el catálogo de empleados
     let listaEmpleados = [];
 
-    document.addEventListener("DOMContentLoaded", () => {
-        cargarCatalogoEmpleados();
+    document.addEventListener("DOMContentLoaded", async () => {
+        // MODIFICACIÓN: Se garantiza que la lista de empleados cargue antes de renderizar la tabla
+        await cargarCatalogoEmpleados();
         obtenerYRenderizarProyectos();
         configurarDropdowns();
     });
 
-    // MODIFICACIÓN: Función helper para obtener el catálogo de empleados
+    // MODIFICACIÓN (Endpoint Correcto): Consulta a /api/employees/gestion con encabezados seguros
     async function cargarCatalogoEmpleados() {
         try {
             const token = localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
-            const response = await fetch(`${API_BASE_URL}/employees`, {
-                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+            const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+            const rolActual = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
+
+            const response = await fetch(`${API_BASE_URL}/employees/gestion`, {
+                headers: { 
+                    'Authorization': token ? `Bearer ${token}` : '',
+                    'x-user-rol': rolActual
+                }
             });
+
             if (response.ok) {
                 listaEmpleados = await response.json();
+            } else {
+                console.warn("⚠️ No se pudo obtener el catálogo completo de empleados. Código:", response.status);
             }
         } catch (error) {
-            console.error("❌ Error al cargar lista de empleados para reasignación:", error);
+            console.error("❌ Error crítico al cargar catálogo de empleados para reasignación:", error);
         }
     }
 
@@ -94,19 +104,19 @@
             const porcentaje = calcularPorcentajeTiempo(fInicio, fFin, proy.status);
             const estadoEspañol = traduccionEstados[proy.status] || proy.status;
 
-            // MODIFICACIÓN: Construcción del selector de responsable para el Director Operativo
+            // MODIFICACIÓN: Generación del selector con los empleados obtenidos del endpoint /gestion
             let celdaResponsableHtml = proy.responsable_name || "<i>Sin asignar</i>";
             if (esDirector) {
                 let opcionesEmpleados = '<option value="">-- Sin Asignar --</option>';
                 if (Array.isArray(listaEmpleados) && listaEmpleados.length > 0) {
                     opcionesEmpleados += listaEmpleados.map(emp => {
                         const idEmp = emp.id_employee || emp.id_user || emp.id;
-                        const nombreEmp = emp.nombre_completo || `${emp.name || ''} ${emp.last_name || ''}`.trim() || emp.name;
+                        const nombreEmp = `${emp.name || ''} ${emp.last_name || ''}`.trim();
                         const selected = String(idEmp) === String(proy.id_user) ? 'selected' : '';
                         return `<option value="${idEmp}" ${selected}>${nombreEmp}</option>`;
                     }).join('');
                 } else {
-                    opcionesEmpleados += `<option value="${proy.id_user || ''}" selected>${proy.responsable_name || 'Actual'}</option>`;
+                    opcionesEmpleados += `<option value="${proy.id_user || ''}" selected>${proy.responsable_name || 'Sin Asignar'}</option>`;
                 }
 
                 celdaResponsableHtml = `
@@ -170,7 +180,7 @@
     }
 
     function asignarEventosInteractivos() {
-        // MODIFICACIÓN: Escuchador para reasignación de Residente de Obra
+        // MODIFICACIÓN: Captura del cambio de responsable extrayendo de forma segura la fecha de finalización
         document.querySelectorAll(".selector-responsable").forEach(select => {
             select.addEventListener("change", async (e) => {
                 const idProject = e.target.dataset.id;
@@ -181,7 +191,16 @@
                 const inputFecha = fila.querySelector(".input-fecha-fin");
 
                 const estadoActual = selectorEstado ? selectorEstado.value : 'Active';
-                const fechaFinActual = inputFecha ? inputFecha.value : new Date().toISOString().split('T')[0];
+                let fechaFinActual = inputFecha ? inputFecha.value : '';
+
+                if (!fechaFinActual) {
+                    const proyOriginal = proyectosOriginales.find(p => String(p.id_project) === String(idProject));
+                    if (proyOriginal && proyOriginal.finish_date) {
+                        fechaFinActual = proyOriginal.finish_date.split('T')[0];
+                    } else {
+                        fechaFinActual = new Date().toISOString().split('T')[0];
+                    }
+                }
 
                 await procesarActualizacionRenglon(idProject, estadoActual, fechaFinActual, nuevoResponsableId);
             });
@@ -196,7 +215,12 @@
                 const inputFecha = fila.querySelector(".input-fecha-fin");
                 const selectorResponsable = fila.querySelector(".selector-responsable");
 
-                const fechaFinActual = inputFecha ? inputFecha.value : new Date().toISOString().split('T')[0];
+                let fechaFinActual = inputFecha ? inputFecha.value : '';
+                if (!fechaFinActual) {
+                    const proyOriginal = proyectosOriginales.find(p => String(p.id_project) === String(idProject));
+                    fechaFinActual = (proyOriginal && proyOriginal.finish_date) ? proyOriginal.finish_date.split('T')[0] : new Date().toISOString().split('T')[0];
+                }
+
                 const idUserActual = selectorResponsable ? selectorResponsable.value : undefined;
 
                 await procesarActualizacionRenglon(idProject, nuevoEstado, fechaFinActual, idUserActual);
@@ -228,7 +252,6 @@
         });
     }
 
-    // MODIFICACIÓN: Extensión de procesarActualizacionRenglon para incluir id_user
     async function procesarActualizacionRenglon(id, status, finishDate, idUser) {
         try {
             const token = localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
