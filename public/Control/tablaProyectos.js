@@ -2,11 +2,29 @@
     const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
 
     let proyectosOriginales = [];
+    // MODIFICACIÓN: Lista de catálogo de empleados/residentes para reasignación
+    let listaEmpleados = [];
 
     document.addEventListener("DOMContentLoaded", () => {
+        cargarCatalogoEmpleados();
         obtenerYRenderizarProyectos();
         configurarDropdowns();
     });
+
+    // MODIFICACIÓN: Función helper para obtener el catálogo de empleados
+    async function cargarCatalogoEmpleados() {
+        try {
+            const token = localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
+            const response = await fetch(`${API_BASE_URL}/employees`, {
+                headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+            });
+            if (response.ok) {
+                listaEmpleados = await response.json();
+            }
+        } catch (error) {
+            console.error("❌ Error al cargar lista de empleados para reasignación:", error);
+        }
+    }
 
     async function obtenerYRenderizarProyectos() {
         const cuerpoTabla = document.querySelector(".cuerpoTabla");
@@ -76,10 +94,32 @@
             const porcentaje = calcularPorcentajeTiempo(fInicio, fFin, proy.status);
             const estadoEspañol = traduccionEstados[proy.status] || proy.status;
 
+            // MODIFICACIÓN: Construcción del selector de responsable para el Director Operativo
+            let celdaResponsableHtml = proy.responsable_name || "<i>Sin asignar</i>";
+            if (esDirector) {
+                let opcionesEmpleados = '<option value="">-- Sin Asignar --</option>';
+                if (Array.isArray(listaEmpleados) && listaEmpleados.length > 0) {
+                    opcionesEmpleados += listaEmpleados.map(emp => {
+                        const idEmp = emp.id_employee || emp.id_user || emp.id;
+                        const nombreEmp = emp.nombre_completo || `${emp.name || ''} ${emp.last_name || ''}`.trim() || emp.name;
+                        const selected = String(idEmp) === String(proy.id_user) ? 'selected' : '';
+                        return `<option value="${idEmp}" ${selected}>${nombreEmp}</option>`;
+                    }).join('');
+                } else {
+                    opcionesEmpleados += `<option value="${proy.id_user || ''}" selected>${proy.responsable_name || 'Actual'}</option>`;
+                }
+
+                celdaResponsableHtml = `
+                    <select class="selector-responsable" data-id="${proy.id_project}" style="width: 100%; padding: 4px 6px; border-radius: 4px; border: 1px solid #cbd5e1; font-family: inherit; font-size: 12.5px;">
+                        ${opcionesEmpleados}
+                    </select>
+                `;
+            }
+
             if (!esDirector) {
                 fila.innerHTML = `
                     <td><strong>${proy.project_name}</strong></td>
-                    <td>${proy.responsable_name || "<i>Sin asignar</i>"}</td>
+                    <td>${celdaResponsableHtml}</td>
                     <td>${proy.location || "N/A"}</td>
                     <td><span class="badge-status status-${proy.status.toLowerCase().replace(/\s+/g, '')}">${estadoEspañol}</span></td>
                     <td>${fInicioFormateada}</td>
@@ -96,7 +136,7 @@
             } else {
                 fila.innerHTML = `
                     <td><strong>${proy.project_name}</strong></td>
-                    <td>${proy.responsable_name || "<i>Sin asignar</i>"}</td>
+                    <td>${celdaResponsableHtml}</td>
                     <td>${proy.location || "N/A"}</td>
                     <td>
                         <select class="selector-estatus" data-id="${proy.id_project}" style="padding: 4px 6px; border-radius: 4px; font-family: inherit; font-weight: 600;">
@@ -130,6 +170,23 @@
     }
 
     function asignarEventosInteractivos() {
+        // MODIFICACIÓN: Escuchador para reasignación de Residente de Obra
+        document.querySelectorAll(".selector-responsable").forEach(select => {
+            select.addEventListener("change", async (e) => {
+                const idProject = e.target.dataset.id;
+                const nuevoResponsableId = e.target.value;
+                const fila = e.target.closest("tr");
+
+                const selectorEstado = fila.querySelector(".selector-estatus");
+                const inputFecha = fila.querySelector(".input-fecha-fin");
+
+                const estadoActual = selectorEstado ? selectorEstado.value : 'Active';
+                const fechaFinActual = inputFecha ? inputFecha.value : new Date().toISOString().split('T')[0];
+
+                await procesarActualizacionRenglon(idProject, estadoActual, fechaFinActual, nuevoResponsableId);
+            });
+        });
+
         document.querySelectorAll(".selector-estatus").forEach(select => {
             select.addEventListener("change", async (e) => {
                 const idProject = e.target.dataset.id;
@@ -137,9 +194,12 @@
                 const fila = e.target.closest("tr");
                 
                 const inputFecha = fila.querySelector(".input-fecha-fin");
-                const fechaFinActual = inputFecha ? inputFecha.value : new Date().toISOString().split('T')[0];
+                const selectorResponsable = fila.querySelector(".selector-responsable");
 
-                await procesarActualizacionRenglon(idProject, nuevoEstado, fechaFinActual);
+                const fechaFinActual = inputFecha ? inputFecha.value : new Date().toISOString().split('T')[0];
+                const idUserActual = selectorResponsable ? selectorResponsable.value : undefined;
+
+                await procesarActualizacionRenglon(idProject, nuevoEstado, fechaFinActual, idUserActual);
             });
         });
 
@@ -149,6 +209,9 @@
                 const nuevaFechaFin = e.target.value;
                 const fila = e.target.closest("tr");
                 const selector = fila.querySelector(".selector-estatus");
+                const selectorResponsable = fila.querySelector(".selector-responsable");
+
+                const idUserActual = selectorResponsable ? selectorResponsable.value : undefined;
 
                 const hoyLocal = new Date().toLocaleDateString('fr-CA', { timeZone: 'America/Mexico_City' });
                 const nuevaFechaClean = nuevaFechaFin.split('T')[0];
@@ -160,12 +223,13 @@
 
                 if (selector) selector.value = estadoAutomatico;
 
-                await procesarActualizacionRenglon(idProject, estadoAutomatico, nuevaFechaFin);
+                await procesarActualizacionRenglon(idProject, estadoAutomatico, nuevaFechaFin, idUserActual);
             });
         });
     }
 
-    async function procesarActualizacionRenglon(id, status, finishDate) {
+    // MODIFICACIÓN: Extensión de procesarActualizacionRenglon para incluir id_user
+    async function procesarActualizacionRenglon(id, status, finishDate, idUser) {
         try {
             const token = localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
             const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
@@ -178,7 +242,11 @@
                     "Authorization": token ? `Bearer ${token}` : '',
                     "x-user-rol": rolActual 
                 },
-                body: JSON.stringify({ status, finish_date: finishDate })
+                body: JSON.stringify({ 
+                    status, 
+                    finish_date: finishDate,
+                    id_user: idUser 
+                })
             });
 
             if (!response.ok) throw new Error("Fallo al actualizar el registro en el servidor.");
