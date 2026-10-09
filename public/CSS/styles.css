@@ -1,0 +1,9 @@
+/* styles.css - Archivo Principal Orquestador */
+
+@import url('./css/base/variables.css');
+@import url('./css/base/global.css');
+@import url('./css/componentes/botones.css');
+@import url('./css/componentes/formularios.css');
+@import url('./css/modulos/tablas.css');
+@import url('./css/modulos/kpis.css');
+@import url('./css/modulos/carrusel.css');

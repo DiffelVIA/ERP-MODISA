@@ -1,0 +1,44 @@
+:root {
+  --primary-color: #06121E;
+  --accent-color: #3b82f6;
+  --bg-light: #f8fafc;
+  --bg-hover: #f1f5f9;
+  --blanco: #ffffff;
+  --border-color: #cbd5e1;
+  --text-dark: #334155;
+  --text-muted: #4a5568;
+  --dark-text: #000000;
+  --font-main: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --red--: #ff0000;
+  --black--: #000;
+  --verde--: #10b981;
+  --amarillo--: #e3d214;
+}
+
+/* --- ANIMACIONES --- */
+@keyframes sutil-parpadeo {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes fadeInMiniTabla {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInHoverDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
