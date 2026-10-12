@@ -5,7 +5,7 @@ const pool = require('../config/db');
 const { gmail } = require('../config/google');
 const { verificarToken, verificarRol } = require('../middlewares/authMiddleware');
 
-// MODIFICACIÓN (Ciberseguridad y Drive): Inclusión de Multer y Servicio de Google Drive
+// MODIFICACIÓN (Ciberseguridad y Drive): Inclusión de Multer en memoria y Servicio de Google Drive
 const multer = require('multer');
 const { subirArchivoADrive } = require('../services/drive');
 
@@ -76,6 +76,7 @@ async function depurarVacacionesRechazadas() {
 setInterval(depurarVacacionesRechazadas, 24 * 60 * 60 * 1000);
 setTimeout(depurarVacacionesRechazadas, 5000);
 
+// MODIFICACIÓN: Inclusión de COALESCE y campos defensivos para solucionar Error 500
 router.get('/', verificarToken, async (req, res) => {
   try {
     const rolUsuario = req.usuario ? req.usuario.rol : '';
@@ -102,14 +103,18 @@ router.get('/', verificarToken, async (req, res) => {
         ) AS nombre_empleado,
         v.fecha_inicio,
         v.fecha_fin,
-        v.dias_tomados,
+        COALESCE(v.dias_tomados, 0) AS dias_tomados,
         v.created_at,
-        v.estado,
+        COALESCE(v.estado, 'pendiente') AS estado,
         v.observaciones,
         v.documento_firmado_url,
+        ve.hire_date,
+        CONCAT(
+          YEAR(COALESCE(v.fecha_inicio, CURRENT_DATE)), '-', YEAR(DATE_ADD(COALESCE(v.fecha_inicio, CURRENT_DATE), INTERVAL 1 YEAR))
+        ) AS periodo,
         COALESCE(ve.dias_vacaciones_ley, 0) AS dias_vacaciones_ley,
         COALESCE((
-          SELECT SUM(v2.dias_tomados) 
+          SELECT SUM(COALESCE(v2.dias_tomados, 0)) 
           FROM vacaciones v2 
           WHERE v2.id_employee = v.id_employee 
             AND v2.estado IN ('aprobada', 'autorizada')
@@ -151,7 +156,7 @@ router.get('/', verificarToken, async (req, res) => {
     res.json(resultadosEnriquecidos);
 
   } catch (error) {
-    console.error('❌ Error al consultar la tabla vacaciones:', error);
+    console.error('❌ Error crítico al consultar la tabla vacaciones:', error);
     res.status(500).json({
       success: false,
       error: 'Error interno del servidor al obtener las solicitudes de vacaciones.'
@@ -184,7 +189,7 @@ router.get('/estatus', verificarToken, async (req, res) => {
         ) AS nombre_empleado,
         COALESCE(ve.dias_vacaciones_ley, 0) AS dias_ley,
         COALESCE((
-          SELECT SUM(v.dias_tomados) 
+          SELECT SUM(COALESCE(v.dias_tomados, 0)) 
           FROM vacaciones v 
           WHERE v.id_employee = ve.id_employee 
             AND v.estado IN ('aprobada', 'autorizada')
@@ -372,9 +377,7 @@ router.patch('/:id/estado', verificarToken, verificarRol(ROLES_AUTORIZADORES), a
       });
     }
 
-    // MODIFICACIÓN: Disparo de notificación según el estado final
     if (estadoParaBD === 'aprobada') {
-      // Disparo no bloqueante a la Gerente de Administración
       (async () => {
         try {
           const sqlAdmin = `
@@ -517,10 +520,8 @@ router.post('/:id/expediente', verificarToken, uploadMemory.single('expediente')
     // Nomenclatura requerida: [Nombre]-VAC-[Periodo].pdf
     const nombrePdfDrive = `${primerNombreLimpio}-VAC-${periodoVal}.pdf`;
 
-    // Subida a la carpeta de Google Drive provista
     const driveWebViewLink = await subirArchivoADrive(req.file, ID_CARPETA_DRIVE_VACACIONES, nombrePdfDrive);
 
-    // Registro del enlace en la columna documento_firmado_url de la base de datos
     const sqlUpdate = `UPDATE vacaciones SET documento_firmado_url = ? WHERE id_vacacion = ?`;
     await pool.query(sqlUpdate, [driveWebViewLink, idVacacion]);
 
