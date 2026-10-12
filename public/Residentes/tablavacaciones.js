@@ -77,7 +77,6 @@
       (userRolNormalizado.includes('director') && userRolNormalizado.includes('operativ'))
     );
 
-    // MODIFICACIÓN: Ambas figuras de supervisión tienen acceso total de visualización al diagrama Gantt
     const puedeVerGantt = esLaura || esLuis;
 
     if (!puedeVerGantt) {
@@ -178,7 +177,7 @@
 
         cuerpo.innerHTML = `
           <tr>
-            <td colspan="9" style="text-align: center; color: #dc2626; padding: 24px; font-weight: 500;">
+            <td colspan="10" style="text-align: center; color: #dc2626; padding: 24px; font-weight: 500;">
               ❌ ${escapeHTML(msg)}
             </td>
           </tr>`;
@@ -308,7 +307,7 @@
     if (!cuerpo) return;
 
     if (lista.length === 0) {
-      cuerpo.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 20px;">No hay registros de vacaciones con el filtro seleccionado.</td></tr>`;
+      cuerpo.innerHTML = `<tr><td colspan="10" style="text-align:center; padding: 20px;">No hay registros de vacaciones con el filtro seleccionado.</td></tr>`;
       return;
     }
 
@@ -321,12 +320,17 @@
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
 
-    // MODIFICACIÓN: Solamente el Director Operativo tiene controles de edición activos
     const esDirectorOperativo = (
       userRolNormalizado === 'director operativo' || 
       userRolNormalizado === 'director_operativo' ||
       userRolNormalizado === 'director general' ||
       (userRolNormalizado.includes('director') && userRolNormalizado.includes('operativ'))
+    );
+
+    const esGerenteAdmin = (
+      userRolNormalizado === 'gerente administracion' || 
+      userRolNormalizado === 'gerente de administracion' ||
+      (userRolNormalizado.includes('gerente') && userRolNormalizado.includes('administrac'))
     );
 
     cuerpo.innerHTML = lista.map(item => {
@@ -341,12 +345,12 @@
       const diasRestantes = Number(item.dias_restantes || 0);
       
       const estadoRaw = String(item.estado || 'pendiente').toLowerCase();
-      
       const esAprobadaOAutorizada = (estadoRaw === 'aprobada' || estadoRaw === 'autorizada');
       const esRechazada = (estadoRaw === 'rechazada');
       const esPendiente = (!esAprobadaOAutorizada && !esRechazada);
 
       const obsTexto = escapeHTML(item.observaciones || '');
+      const documentoUrl = item.documento_firmado_url || '';
 
       let selectEstadoHTML = '';
       if (esDirectorOperativo) {
@@ -370,6 +374,26 @@
         obsHTML = `<span style="color: #475569; font-style: italic; font-size: 12px;">${obsTexto || '-'}</span>`;
       }
 
+      // MODIFICACIÓN: Controles de expediente digital e impresión en formato institucional
+      let expedienteHTML = '<span style="color:#94a3b8; font-size:12px;">---</span>';
+      if (documentoUrl) {
+        expedienteHTML = `<a href="${documentoUrl}" target="_blank" style="display:inline-flex; align-items:center; gap:4px; padding:4px 8px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:4px; font-weight:bold; text-decoration:none; font-size:12px;">📎 Ver Expediente</a>`;
+      } else if (esAprobadaOAutorizada) {
+        if (esGerenteAdmin) {
+          expedienteHTML = `
+            <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
+              <button type="button" onclick="window.generarPdfImpresion(${idVacacion})" style="padding:4px 8px; background:#1e293b; color:#fff; border:none; border-radius:4px; font-size:11px; cursor:pointer; font-weight:600;">📄 Imprimir Formato</button>
+              <label style="padding:4px 8px; background:#2563eb; color:#fff; border-radius:4px; font-size:11px; cursor:pointer; font-weight:600; text-align:center;">
+                📤 Subir Firmado
+                <input type="file" accept="application/pdf" style="display:none;" onchange="window.subirExpedienteFirmado(${idVacacion}, this)">
+              </label>
+            </div>
+          `;
+        } else {
+          expedienteHTML = `<span style="color:#d97706; font-size:12px; font-weight:500;">⏳ Pendiente Firma</span>`;
+        }
+      }
+
       return `
         <tr data-id="${idVacacion}">
           <td><strong>${empNombre}</strong></td>
@@ -381,6 +405,7 @@
           <td style="text-align: center;"><strong>${diasTomados}</strong></td>
           <td style="text-align: center;">${selectEstadoHTML}</td>
           <td>${obsHTML}</td>
+          <td style="text-align: center;">${expedienteHTML}</td>
         </tr>
       `;
     }).join('');
@@ -412,7 +437,6 @@
       (userRolNormalizado.includes('director') && userRolNormalizado.includes('operativ'))
     );
 
-    // MODIFICACIÓN: Ambos roles (Gerente de Administración y Director Operativo) pueden consultar el estatus global
     const puedeVerEstatusGlobal = esLaura || esDirectorOperativo;
     const idUsuarioLogueado = jwtDatos.id_employee || jwtDatos.id || jwtDatos.userId;
 
@@ -424,7 +448,6 @@
         const empDatos = datosEstatusVacaciones.find(emp => emp.nombre_empleado === nombreBuscado);
 
         if (empDatos) {
-          // MODIFICACIÓN: Pasa esDirectorOperativo para otorgar o restringir el botón de renovación de días
           contenedor.innerHTML = generarHTMLTacometroIndividual(empDatos, esDirectorOperativo);
         } else {
           contenedor.innerHTML = `
@@ -470,7 +493,7 @@
           <svg width="180" height="100" viewBox="0 0 160 90">
             <path d="M 10 80 A 70 70 0 0 1 150 80" fill="none" stroke="#e2e8f0" stroke-width="14" stroke-linecap="round" />
             <path d="M 10 80 A 70 70 0 0 1 150 80" fill="none" stroke="#2563eb" stroke-width="14" stroke-linecap="round" 
-               stroke-dasharray="220" stroke-dashoffset="${220 - ((220 * porcentaje) / 100)}" />
+                stroke-dasharray="220" stroke-dashoffset="${220 * ((100 - porcentaje) / 100)}" />
           </svg>
           <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: bold; color: #1e293b;">
             ${diasRestantes} <span style="font-size: 11px; color: #64748b; font-weight: normal;">días rest.</span>
@@ -494,7 +517,6 @@
         </div>
 
         ${esDirectorOperativo ? `
-          <!-- Botón unificado utilizando las reglas CSS globales (.btn y [data-action]) Exclusivo Director -->
           <div style="margin-top: 20px;">
             <button type="button" class="btn" data-action="renovar" onclick="window.forzarRenovacionDias(${emp.id_employee}, '${escapeHTML(emp.nombre_empleado)}')">
               🔄 Forzar Renovación de Días
@@ -740,6 +762,234 @@
     } catch (err) {
       console.error("❌ Error al guardar observación:", err);
       alert(`❌ Error: ${escapeHTML(err.message)}`);
+    }
+  };
+
+  // MODIFICACIÓN: Generación de Constancia de Vacaciones respetando el nuevo diseño visual institucional
+  window.generarPdfImpresion = function(idVacacion) {
+    const item = datosVacaciones.find(v => String(v.id_vacacion) === String(idVacacion));
+    if (!item) return alert("No se encontró la información de la solicitud.");
+
+    const fechaIngresoFormateada = item.hire_date ? item.hire_date.split('T')[0] : '---';
+    const fechaInicioFormateada = item.fecha_inicio ? item.fecha_inicio.split('T')[0] : '---';
+    const periodoVal = item.periodo || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+
+    const ventanaImp = window.open('', '_blank');
+    ventanaImp.document.write(`
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <title>Constancia de Vacaciones - ${escapeHTML(item.nombre_empleado)}</title>
+        <style>
+          @page {
+            size: letter;
+            margin: 15mm;
+          }
+          body {
+            font-family: Arial, Helvetica, sans-serif;
+            color: #000;
+            background: #fff;
+            margin: 0;
+            padding: 20px;
+          }
+          .contenedor-constancia {
+            width: 100%;
+            max-width: 750px;
+            margin: 0 auto;
+          }
+          .logo-header {
+            text-align: center;
+            margin-bottom: 25px;
+          }
+          .logo-header h1 {
+            font-size: 38px;
+            letter-spacing: 6px;
+            margin: 0;
+            font-family: 'Arial Black', sans-serif;
+          }
+          .tabla-oficial {
+            width: 100%;
+            border-collapse: collapse;
+            border: 2px solid #000;
+            margin-bottom: 40px;
+          }
+          .tabla-oficial td, .tabla-oficial th {
+            border: 1px solid #000;
+            padding: 10px 12px;
+            vertical-align: top;
+            font-size: 13px;
+          }
+          .titulo-sombreado {
+            background-color: #d1d5db;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 8px !important;
+          }
+          .etiqueta {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 6px;
+            color: #000;
+          }
+          .valor {
+            font-size: 14px;
+            font-weight: 500;
+          }
+          .firmas-contenedor {
+            margin-top: 60px;
+            width: 100%;
+          }
+          .firmas-nivel-1 {
+            display: flex;
+            justify-content: space-between;
+            gap: 40px;
+            margin-bottom: 50px;
+          }
+          .firmas-nivel-2 {
+            display: flex;
+            justify-content: center;
+          }
+          .bloque-firma {
+            flex: 1;
+            text-align: center;
+          }
+          .linea-firma {
+            border-top: 1.5px solid #000;
+            margin-bottom: 6px;
+            width: 100%;
+          }
+          .texto-firma {
+            font-size: 12px;
+            font-weight: bold;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="contenedor-constancia">
+          <div class="logo-header">
+            <h1>MODISA</h1>
+          </div>
+
+          <table class="tabla-oficial">
+            <tr>
+              <td colspan="3" class="titulo-sombreado">Constancia de Vacaciones</td>
+            </tr>
+
+            <tr>
+              <td colspan="3">
+                <span class="etiqueta">Nombre del Empleado:</span>
+                <span class="valor">${escapeHTML(item.nombre_empleado)}</span>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="width: 50%;" colspan="1">
+                <span class="etiqueta">Fecha de Ingreso:</span>
+                <span class="valor">${fechaIngresoFormateada}</span>
+              </td>
+              <td style="width: 50%;" colspan="2">
+                <span class="etiqueta">Vacaciones Correspondientes al Periodo:</span>
+                <span class="valor">${escapeHTML(periodoVal)}</span>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="width: 33%;">
+                <span class="etiqueta">Dias a Disfrutar:</span>
+                <span class="valor">${item.dias_tomados} días</span>
+              </td>
+              <td style="width: 33%;">
+                <span class="etiqueta">Dias Pendientes a Disfrutar:</span>
+                <span class="valor">${Number(item.dias_restantes || 0)} días</span>
+              </td>
+              <td style="width: 34%;">
+                <span class="etiqueta">A Partir Del:</span>
+                <span class="valor">${fechaInicioFormateada}</span>
+              </td>
+            </tr>
+
+            <tr>
+              <td colspan="3">
+                <span class="etiqueta">Prima Vacacional:</span>
+                <span class="valor">---</span>
+              </td>
+            </tr>
+          </table>
+
+          <div class="firmas-contenedor">
+            <div class="firmas-nivel-1">
+              <div class="bloque-firma">
+                <div class="linea-firma"></div>
+                <span class="texto-firma">Firma del Empleado</span>
+              </div>
+              <div class="bloque-firma">
+                <div class="linea-firma"></div>
+                <span class="texto-firma">Autorización Administración General</span>
+              </div>
+            </div>
+            
+            <div class="firmas-nivel-2">
+              <div class="bloque-firma" style="max-width: 300px;">
+                <div class="linea-firma"></div>
+                <span class="texto-firma">Autorización Dirección Operativa</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
+    ventanaImp.document.close();
+    ventanaImp.focus();
+    setTimeout(() => { ventanaImp.print(); }, 500);
+  };
+
+  // MODIFICACIÓN: Función asíncrona para subir el PDF firmado a Google Drive con validación previa en cliente
+  window.subirExpedienteFirmado = async function(idVacacion, inputElement) {
+    const file = inputElement.files[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      alert('⚠️ Solo se permiten documentos en formato PDF.');
+      inputElement.value = '';
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('⚠️ El archivo excede el tamaño máximo permitido de 10 MB.');
+      inputElement.value = '';
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('expediente', file);
+
+    const token = localStorage.getItem('jwtToken') || '';
+
+    try {
+      const res = await fetch(`${API_URL}/vacaciones/${idVacacion}/expediente`, {
+        method: 'POST',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: formData
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al subir el expediente firmado.');
+      }
+
+      alert('🎉 Expediente firmado guardado exitosamente en Google Drive.');
+      await cargarDatosVacaciones();
+
+    } catch (err) {
+      console.error("❌ Error al subir expediente firmado:", err);
+      alert(`❌ Error: ${escapeHTML(err.message)}`);
+      inputElement.value = '';
     }
   };
 

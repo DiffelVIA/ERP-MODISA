@@ -3,10 +3,15 @@ const path = require('path');
 const { Readable } = require('stream');
 const { drive } = require('../config/google');
 
-async function subirArchivoADrive(fileObject, idCarpetaDrive) {
+async function subirArchivoADrive(fileObject, idCarpetaDrive, nombrePersonalizado = null) {
   try {
+    const extension = path.extname(fileObject.originalname) || '.pdf';
+    const nombreFinal = nombrePersonalizado 
+      ? (nombrePersonalizado.endsWith('.pdf') ? nombrePersonalizado : `${nombrePersonalizado}${extension}`)
+      : `${Date.now()}${extension}`;
+
     const fileMetadata = {
-      name: Date.now() + path.extname(fileObject.originalname),
+      name: nombreFinal,
       parents: [idCarpetaDrive],
     };
 
@@ -20,7 +25,7 @@ async function subirArchivoADrive(fileObject, idCarpetaDrive) {
     }
 
     const media = {
-      mimeType: fileObject.mimetype,
+      mimeType: fileObject.mimetype || 'application/pdf',
       body: bodyStream,
     };
 

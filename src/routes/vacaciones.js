@@ -3,10 +3,19 @@ const router = express.Router();
 const pool = require('../config/db');
 
 const { gmail } = require('../config/google');
-
 const { verificarToken, verificarRol } = require('../middlewares/authMiddleware');
 
-// MODIFICACIÓN: Separación estricta entre roles de lectura/supervisión y roles autorizadores
+// MODIFICACIÓN (Ciberseguridad y Drive): Inclusión de Multer y Servicio de Google Drive
+const multer = require('multer');
+const { subirArchivoADrive } = require('../services/drive');
+
+const uploadMemory = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 } // Límite estricto de 10 MB
+});
+
+const ID_CARPETA_DRIVE_VACACIONES = process.env.GOOGLE_DRIVE_VACACIONES_FOLDER_ID || '1OY9sLfMIqnPDPhMMfhT13sc-Wm3FqOyS';
+
 const ROLES_VISUALIZACION_GLOBAL = [
   'Director Operativo',
   'Director General',
@@ -78,7 +87,6 @@ router.get('/', verificarToken, async (req, res) => {
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
 
-    // MODIFICACIÓN: Permite visión completa a Dirección y Gerencia de Administración
     const esAdmin = ROLES_VISUALIZACION_GLOBAL.some(r => {
       const rLimpio = r.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       return rLimpio === rolUsuarioLimpio || (rolUsuarioLimpio.includes('gerente') && rolUsuarioLimpio.includes('administrac'));
@@ -98,6 +106,7 @@ router.get('/', verificarToken, async (req, res) => {
         v.created_at,
         v.estado,
         v.observaciones,
+        v.documento_firmado_url,
         COALESCE(ve.dias_vacaciones_ley, 0) AS dias_vacaciones_ley,
         COALESCE((
           SELECT SUM(v2.dias_tomados) 
@@ -161,7 +170,6 @@ router.get('/estatus', verificarToken, async (req, res) => {
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
 
-    // MODIFICACIÓN: Acceso de supervisión al listado global para Gerencia y Dirección
     const esAdmin = ROLES_VISUALIZACION_GLOBAL.some(r => {
       const rLimpio = r.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       return rLimpio === rolUsuarioLimpio || (rolUsuarioLimpio.includes('gerente') && rolUsuarioLimpio.includes('administrac'));
@@ -226,7 +234,6 @@ router.get('/estatus', verificarToken, async (req, res) => {
   }
 });
 
-// MODIFICACIÓN: Acción crítica restringida exclusivamente a roles autorizadores (Director Operativo)
 router.delete('/renovar/:id_employee', verificarToken, verificarRol(ROLES_AUTORIZADORES), async (req, res) => {
   const idEmpleadoParam = parseInt(req.params.id_employee, 10);
 
@@ -326,7 +333,7 @@ router.post('/', verificarToken, async (req, res) => {
   }
 });
 
-// MODIFICACIÓN: Cambio de estatus de autorización exclusivo para Director Operativo
+// MODIFICACIÓN: Cambio de estatus con notificación asíncrona a Gerencia de Administración al Autorizar
 router.patch('/:id/estado', verificarToken, verificarRol(ROLES_AUTORIZADORES), async (req, res) => {
   const idVacacion = req.params.id;
   const { estado } = req.body;
@@ -365,7 +372,43 @@ router.patch('/:id/estado', verificarToken, verificarRol(ROLES_AUTORIZADORES), a
       });
     }
 
-    if (estadoParaBD === 'rechazada') {
+    // MODIFICACIÓN: Disparo de notificación según el estado final
+    if (estadoParaBD === 'aprobada') {
+      // Disparo no bloqueante a la Gerente de Administración
+      (async () => {
+        try {
+          const sqlAdmin = `
+            SELECT COALESCE(email, correo) AS email FROM employees 
+            WHERE LOWER(job_title) LIKE '%gerente%administrac%' 
+               OR LOWER(job_title) LIKE '%administracion%' 
+            LIMIT 1
+          `;
+          const [admins] = await pool.query(sqlAdmin);
+
+          if (admins.length > 0 && admins[0].email) {
+            const correoAdmin = admins[0].email;
+            const plantillaHtml = `
+              <div style="font-family: Arial, sans-serif; padding: 15px; color: #333;">
+                <h2 style="color: #16a34a;">Solicitud de Vacaciones Autorizada - MODISA</h2>
+                <p>Estimada Gerencia de Administración,</p>
+                <p>Se ha <strong>AUTORIZADO</strong> un periodo vacacional en el sistema ERP MODISA.</p>
+                <p>Por favor ingrese al módulo de vacaciones para generar la constancia oficial de impresión, recabar las firmas físicas y cargar el expediente escaneado.</p>
+                <hr style="border: 0; border-top: 1px solid #ccc; margin: 20px 0;">
+                <p style="font-size: 12px; color: #777;">Mensaje automático - Sistema ERP MODISA.</p>
+              </div>
+            `;
+
+            await enviarCorreoGmail({
+              to: correoAdmin,
+              subject: 'Notificación: Vacaciones Autorizadas para Impresión y Firma - MODISA',
+              html: plantillaHtml
+            });
+          }
+        } catch (errEmailAdmin) {
+          console.error('⚠️ Solicitud autorizada pero falló la notificación a Administración:', errEmailAdmin.message);
+        }
+      })();
+    } else if (estadoParaBD === 'rechazada') {
       try {
         const sqlQuery = `
           SELECT 
@@ -418,7 +461,84 @@ router.patch('/:id/estado', verificarToken, verificarRol(ROLES_AUTORIZADORES), a
   }
 });
 
-// MODIFICACIÓN: Edición de notas/observaciones exclusiva para Director Operativo
+// MODIFICACIÓN: Endpoint de carga de expediente firmado a Google Drive con validación MIME y Magic Bytes
+router.post('/:id/expediente', verificarToken, uploadMemory.single('expediente'), async (req, res) => {
+  const idVacacion = req.params.id;
+
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      error: 'Debe seleccionar un archivo PDF para subir.'
+    });
+  }
+
+  // 1. Validación de MIME-Type
+  if (req.file.mimetype !== 'application/pdf') {
+    return res.status(400).json({
+      success: false,
+      error: 'Formato no permitido. Solamente se admiten documentos en formato PDF.'
+    });
+  }
+
+  // 2. Validación por Magic Bytes (%PDF-)
+  const magicBytes = req.file.buffer.toString('utf8', 0, 4);
+  if (magicBytes !== '%PDF') {
+    return res.status(400).json({
+      success: false,
+      error: 'El archivo provisto está dañado o no es un documento PDF válido.'
+    });
+  }
+
+  try {
+    const sqlQuery = `
+      SELECT 
+        v.fecha_inicio,
+        COALESCE(ve.name, 'Empleado') AS primer_nombre,
+        CONCAT(
+          YEAR(v.fecha_inicio), '-', YEAR(DATE_ADD(v.fecha_inicio, INTERVAL 1 YEAR))
+        ) AS periodo
+      FROM vacaciones v
+      LEFT JOIN vista_empleados_vacaciones ve ON v.id_employee = ve.id_employee
+      WHERE v.id_vacacion = ?
+    `;
+
+    const [rows] = await pool.query(sqlQuery, [idVacacion]);
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'No se encontró la solicitud de vacaciones correspondiente.'
+      });
+    }
+
+    const info = rows[0];
+    const primerNombreLimpio = String(info.primer_nombre).trim().split(' ')[0].replace(/[^a-zA-Z0-9]/g, '');
+    const periodoVal = info.periodo || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+    
+    // Nomenclatura requerida: [Nombre]-VAC-[Periodo].pdf
+    const nombrePdfDrive = `${primerNombreLimpio}-VAC-${periodoVal}.pdf`;
+
+    // Subida a la carpeta de Google Drive provista
+    const driveWebViewLink = await subirArchivoADrive(req.file, ID_CARPETA_DRIVE_VACACIONES, nombrePdfDrive);
+
+    // Registro del enlace en la columna documento_firmado_url de la base de datos
+    const sqlUpdate = `UPDATE vacaciones SET documento_firmado_url = ? WHERE id_vacacion = ?`;
+    await pool.query(sqlUpdate, [driveWebViewLink, idVacacion]);
+
+    res.json({
+      success: true,
+      message: '🎉 Expediente digital guardado en Google Drive y vinculado con éxito.',
+      documento_firmado_url: driveWebViewLink
+    });
+
+  } catch (error) {
+    console.error('❌ Error al procesar subida de expediente de vacaciones:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error interno al guardar el expediente digital en Google Drive.'
+    });
+  }
+});
+
 router.patch('/:id/observaciones', verificarToken, verificarRol(ROLES_AUTORIZADORES), async (req, res) => {
   const idVacacion = req.params.id;
   const { observaciones } = req.body;
