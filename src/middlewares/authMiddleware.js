@@ -21,7 +21,14 @@ const verificarToken = (req, res, next) => {
       process.env.JWT_SECRET
     );
     
-    req.usuario = decodificado;
+    // CIBERSEGURIDAD: Desestructuración estricta para evitar inyección de propiedades en req.usuario
+    req.usuario = {
+      id_employee: decodificado.id_employee || decodificado.id || decodificado.userId || null,
+      rol: decodificado.rol || decodificado.role || decodificado.job_title || '',
+      email: decodificado.email || '',
+      name: decodificado.name || decodificado.nombre || ''
+    };
+
     return next();
   } catch (error) {
     console.warn('⚠️ Token JWT inválido o expirado:', error.message);
@@ -30,7 +37,7 @@ const verificarToken = (req, res, next) => {
 };
 
 const normalizarTexto = (texto) => {
-  if (!texto) return '';
+  if (texto === null || texto === undefined) return '';
   return String(texto)
     .trim()
     .toLowerCase()
