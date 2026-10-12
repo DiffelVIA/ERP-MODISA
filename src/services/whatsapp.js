@@ -191,65 +191,112 @@ const verificarYNotificarContratosSinFirma = async () => {
             return { success: false, message: 'WhatsApp no está conectado.' };
         }
 
-        console.log('🔍 Ejecutando revisión automática de contratos sin firma...');
+        console.log('🔍 Ejecutando revisión automática de contratos sin seguimiento (≥ 7 días)...');
 
+        // Consulta filtrada estrictamente por contratos con 7 o más días de registrados
         const sql = `
             SELECT 
                 c.id_contract,
                 c.contract_key,
                 c.supplier,
-                c.total_amount,
+                c.estado_costos,
+                c.status_direccion,
+                c.firma,
                 p.whatsapp_group_jid,
                 DATEDIFF(NOW(), c.created_at) AS dias_transcurridos
             FROM contracts c
             LEFT JOIN projects p ON c.id_project = p.id_project
-            WHERE LOWER(TRIM(IFNULL(c.firma, ''))) NOT IN ('firmado', 'autorizado')
+            WHERE DATEDIFF(NOW(), c.created_at) >= 7
               AND LOWER(TRIM(IFNULL(c.status, ''))) != 'rechazado'
               AND LOWER(TRIM(IFNULL(c.status_direccion, ''))) != 'rechazado'
               AND LOWER(TRIM(IFNULL(c.estado_costos, ''))) != 'rechazado'
+              AND (
+                  LOWER(TRIM(IFNULL(c.estado_costos, ''))) NOT IN ('revisado', 'aprobado') OR
+                  LOWER(TRIM(IFNULL(c.status_direccion, ''))) NOT IN ('autorizado', 'autorizada') OR
+                  LOWER(TRIM(IFNULL(c.firma, ''))) NOT IN ('firmado', 'si', 'sí')
+              )
         `;
 
         const [contratos] = await pool.query(sql);
 
         if (contratos.length === 0) {
-            console.log('✅ No hay contratos autorizados pendientes de firma el día de hoy.');
-            return { success: true, message: 'No hay contratos pendientes de firma hoy.' };
+            console.log('✅ No hay contratos con falta de seguimiento mayores a 7 días hoy.');
+            return { success: true, message: 'No hay contratos con falta de seguimiento hoy.' };
         }
 
-        let notificacionesEnviadas = 0;
+        // Agrupar los contratos por grupo de WhatsApp para enviar un único mensaje por chat
+        const gruposNotificación = new Map();
 
         for (const contrato of contratos) {
-            const dias = Number(contrato.dias_transcurridos);
-            
-            const correspondeNotificar = dias >= 3;
-
-            if (correspondeNotificar) {
-                const targetJid = contrato.whatsapp_group_jid || process.env.WHATSAPP_GROUP_JID;
-
-                if (!targetJid) {
-                    console.warn(`⚠️ No hay JID configurado para el contrato: ${contrato.contract_key}`);
-                    continue;
-                }
-
-                const clave = contrato.contract_key || `ID #${contrato.id_contract}`;
-                const mensaje = `⚠️ *RECORDATORIO DE FIRMA DE CONTRATO*\n\n` +
-                                `El contrato *${clave}* del proveedor *${contrato.supplier}* lleva *${dias} días* *pendiente de firma*.\n\n` +
-                                `📌 *Por favor, regulariza la firma para autorizar los pagos*`;
-
-                await sock.sendMessage(targetJid, { text: mensaje });
-                notificacionesEnviadas++;
-                console.log(`📲 Recordatorio de firma enviado a (${targetJid}) para contrato: ${clave} (${dias} días)`);
+            const targetJid = contrato.whatsapp_group_jid || process.env.WHATSAPP_GROUP_JID;
+            if (!targetJid) {
+                console.warn(`⚠️ No hay JID de grupo configurado para el contrato: ${contrato.contract_key}`);
+                continue;
             }
+
+            // Sanitización contra caracteres de control de Markdown en WhatsApp
+            const claveLimpia = String(contrato.contract_key || `ID #${contrato.id_contract}`)
+                .replace(/[*_~`]/g, '')
+                .trim();
+
+            const estadoCostos = String(contrato.estado_costos || '').toLowerCase().trim();
+            const statusDireccion = String(contrato.status_direccion || '').toLowerCase().trim();
+            const estadoFirma = String(contrato.firma || '').toLowerCase().trim();
+
+            const faltantes = [];
+
+            if (!['revisado', 'aprobado'].includes(estadoCostos)) {
+                faltantes.push('falta de revisión');
+            }
+            if (!['autorizado', 'autorizada'].includes(statusDireccion)) {
+                faltantes.push('falta de autorización');
+            }
+            if (!['firmado', 'si', 'sí'].includes(estadoFirma)) {
+                faltantes.push('falta de firma');
+            }
+
+            if (faltantes.length === 0) continue;
+
+            // Ensamblar la descripción de faltantes formateada
+            let textoFaltantes = '';
+            if (faltantes.length === 1) {
+                textoFaltantes = faltantes[0].charAt(0).toUpperCase() + faltantes[0].slice(1);
+            } else if (faltantes.length === 2) {
+                textoFaltantes = `${faltantes[0].charAt(0).toUpperCase() + faltantes[0].slice(1)} y ${faltantes[1]}`;
+            } else {
+                textoFaltantes = `${faltantes[0].charAt(0).toUpperCase() + faltantes[0].slice(1)}, ${faltantes[1]} y ${faltantes[2]}`;
+            }
+
+            const lineaContrato = `${claveLimpia} ${textoFaltantes}`;
+
+            if (!gruposNotificación.has(targetJid)) {
+                gruposNotificación.set(targetJid, []);
+            }
+            gruposNotificación.get(targetJid).push(lineaContrato);
+        }
+
+        let mensajesEnviados = 0;
+
+        // Construir y enviar un mensaje único por grupo de WhatsApp
+        for (const [jidGrupo, listaLineas] of gruposNotificación.entries()) {
+            if (listaLineas.length === 0) continue;
+
+            const cuerpoMensaje = `Los siguientes contratos tienen falta de seguimiento:\n` +
+                listaLineas.join('\n');
+
+            await sock.sendMessage(jidGrupo, { text: cuerpoMensaje });
+            mensajesEnviados++;
+            console.log(`📲 Reporte consolidado enviado a (${jidGrupo}) con ${listaLineas.length} contrato(s).`);
         }
 
         return { 
             success: true, 
-            message: `Proceso finalizado. Notificaciones enviadas: ${notificacionesEnviadas}`,
-            totalEncontrados: contratos.length 
+            message: `Proceso finalizado. Mensajes consolidados enviados: ${mensajesEnviados}`,
+            totalContratosIdentificados: contratos.length 
         };
 
     } catch (error) {
-        console.error('❌ Error en la verificación automática de firmas:', error);
+        console.error('❌ Error en la verificación automática de contratos:', error);
         throw error;
     }
 };
