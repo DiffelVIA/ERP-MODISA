@@ -763,7 +763,6 @@
     }
   };
 
-  // MODIFICACIÓN (jsPDF Nativo): Generación vectorial directa de la Constancia de Vacaciones en archivo binario PDF
   window.generarPdfImpresion = function(idVacacion) {
     const item = datosVacaciones.find(v => String(v.id_vacacion) === String(idVacacion));
     if (!item) {
@@ -783,6 +782,7 @@
       format: 'letter'
     });
 
+    // 1. Datos sanitizados
     const nombreEmpleadoVal = item.nombre_empleado || `Empleado ID #${item.id_employee}`;
     const primerNombreVal = String(nombreEmpleadoVal).trim().split(' ')[0].replace(/[^a-zA-Z0-9]/g, '');
     const fechaIngresoVal = item.hire_date ? String(item.hire_date).split('T')[0] : '---';
@@ -791,30 +791,35 @@
     const diasTomadosVal = Number(item.dias_tomados || 0);
     const periodoVal = item.periodo || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
 
-    doc.setFillColor(15, 23, 42);
-    doc.rect(15, 15, 186, 4, 'F');
+    // 2. Franja Superior Corporativa (#06121E)
+    doc.setFillColor(6, 18, 30); // Color exacto #06121E
+    doc.rect(15, 12, 186, 12, 'F');
 
+    // 3. Encabezado Título
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.setTextColor(15, 23, 42);
-    doc.text("MODISA ERP - CONSTANCIA DE VACACIONES", 108, 28, { align: "center" });
+    doc.setFontSize(15);
+    doc.setTextColor(6, 18, 30);
+    doc.text("MODISA ERP - CONSTANCIA DE VACACIONES", 108, 32, { align: "center" });
 
-    doc.setFontSize(10);
+    doc.setFontSize(9.5);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100, 116, 139);
-    doc.text("MODERNIZACIÓN Y DISEÑO S.A. DE C.V.", 108, 34, { align: "center" });
+    doc.text("MODERNIZACIÓN Y DISEÑO S.A. DE C.V.", 108, 38, { align: "center" });
 
     doc.setDrawColor(203, 213, 225);
     doc.setLineWidth(0.5);
-    doc.line(15, 38, 201, 38);
+    doc.line(15, 42, 201, 42);
 
+    // 4. Texto de Aviso Inicial (Mismo formato)
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.setTextColor(30, 41, 59);
+    doc.setTextColor(30, 41, 59); // #1e293b
     const textoIntro = "Por medio de la presente se hace constar la autorización del periodo vacacional para el colaborador de acuerdo con las especificaciones detalladas a continuación:";
-    doc.text(doc.splitTextToSize(textoIntro, 186), 15, 46);
+    doc.text(doc.splitTextToSize(textoIntro, 186), 15, 50);
 
-    let startY = 58;
-    const filaAltura = 9;
+    // 5. Tabla Ampliada (Fila de 12mm de alto)
+    let startY = 62;
+    const filaAltura = 12;
     const datosTabla = [
       ["Nombre del Empleado:", nombreEmpleadoVal],
       ["Fecha de Ingreso:", fechaIngresoVal],
@@ -827,69 +832,75 @@
     datosTabla.forEach(([colLabel, colValue], index) => {
       const currentY = startY + (index * filaAltura);
 
+      // Celda Etiqueta
       doc.setFillColor(248, 250, 252);
       doc.rect(15, currentY, 65, filaAltura, 'F');
       
+      // Bordes
       doc.setDrawColor(203, 213, 225);
       doc.rect(15, currentY, 65, filaAltura, 'D');
       doc.rect(80, currentY, 121, filaAltura, 'D');
 
+      // Texto Etiqueta
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
+      doc.setFontSize(10);
       doc.setTextColor(51, 65, 85);
-      doc.text(colLabel, 18, currentY + 6);
+      doc.text(colLabel, 18, currentY + 7.5);
 
+      // Texto Valor
       doc.setFont("helvetica", index === 0 || index === 3 ? "bold" : "normal");
+      doc.setFontSize(10);
       doc.setTextColor(15, 23, 42);
-      doc.text(String(colValue), 83, currentY + 6);
+      doc.text(String(colValue), 83, currentY + 7.5);
     });
 
+    // 6. Texto de Nota / Compromiso (Homologado en fuente, tamaño, color y formato)
     const finalTablaY = startY + (datosTabla.length * filaAltura) + 12;
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(9);
-    doc.setTextColor(71, 85, 105);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(30, 41, 59); // #1e293b
     const textoCompromiso = "El empleado se compromete a reincorporarse a sus labores habituales al día hábil siguiente del término de su periodo vacacional autorizado.";
     doc.text(doc.splitTextToSize(textoCompromiso, 186), 15, finalTablaY);
 
-    const firmasY = finalTablaY + 45;
+    // 7. Sección de Firmas Distribuida Proporcionalmente
+    const firmasY = finalTablaY + 50;
 
-    doc.setDrawColor(15, 23, 42);
-    doc.setLineWidth(0.5);
+    // Columna 1: Empleado
+    doc.setDrawColor(6, 18, 30);
+    doc.setLineWidth(0.6);
     doc.line(18, firmasY, 68, firmasY);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(51, 65, 85);
-    doc.text(doc.splitTextToSize(nombreEmpleadoVal, 50), 43, firmasY + 5, { align: "center" });
+    doc.setFontSize(9.5);
+    doc.setTextColor(30, 41, 59);
+    doc.text(doc.splitTextToSize(nombreEmpleadoVal, 50), 43, firmasY + 6, { align: "center" });
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
+    doc.setFontSize(8.5);
     doc.setTextColor(100, 116, 139);
-    doc.text("Firma del Empleado", 43, firmasY + 12, { align: "center" });
+    doc.text("Firma del Empleado", 43, firmasY + 13, { align: "center" });
 
-    doc.setDrawColor(15, 23, 42);
+    // Columna 2: Administración
+    doc.setDrawColor(6, 18, 30);
     doc.line(78, firmasY, 128, firmasY);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(51, 65, 85);
-    doc.text("Gerencia de Administración", 103, firmasY + 5, { align: "center" });
+    doc.setFontSize(9.5);
+    doc.setTextColor(30, 41, 59);
+    doc.text("Gerencia de Administración", 103, firmasY + 6, { align: "center" });
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
+    doc.setFontSize(8.5);
     doc.setTextColor(100, 116, 139);
-    doc.text("Revisado y Registrado", 103, firmasY + 12, { align: "center" });
+    doc.text("Revisado y Registrado", 103, firmasY + 13, { align: "center" });
 
-    doc.setDrawColor(15, 23, 42);
+    // Columna 3: Dirección
+    doc.setDrawColor(6, 18, 30);
     doc.line(138, firmasY, 188, firmasY);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(51, 65, 85);
-    doc.text("Dirección Operativa", 163, firmasY + 5, { align: "center" });
+    doc.setFontSize(9.5);
+    doc.setTextColor(30, 41, 59);
+    doc.text("Dirección Operativa", 163, firmasY + 6, { align: "center" });
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
+    doc.setFontSize(8.5);
     doc.setTextColor(100, 116, 139);
-    doc.text("Autorizado", 163, firmasY + 12, { align: "center" });
-
-    doc.setFontSize(8);
-    doc.setTextColor(148, 163, 184);
-    doc.text("Documento generado automáticamente por el Sistema ERP MODISA", 108, 260, { align: "center" });
+    doc.text("Autorizado", 163, firmasY + 13, { align: "center" });
 
     const nombreArchivo = `Constancia_Vacaciones_${primerNombreVal}_${periodoVal}.pdf`;
     doc.save(nombreArchivo);
