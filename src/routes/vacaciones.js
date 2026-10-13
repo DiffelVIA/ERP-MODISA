@@ -338,7 +338,7 @@ router.post('/', verificarToken, async (req, res) => {
   }
 });
 
-// MODIFICACIÓN: Cambio de estatus con notificación asíncrona a Gerencia de Administración al Autorizar
+// MODIFICACIÓN: Cambio de estatus optimizado sin envío de correos electrónicos
 router.patch('/:id/estado', verificarToken, verificarRol(ROLES_AUTORIZADORES), async (req, res) => {
   const idVacacion = req.params.id;
   const { estado } = req.body;
@@ -375,79 +375,6 @@ router.patch('/:id/estado', verificarToken, verificarRol(ROLES_AUTORIZADORES), a
         success: false,
         error: 'No se encontró la solicitud de vacaciones especificada.'
       });
-    }
-
-    if (estadoParaBD === 'aprobada') {
-      (async () => {
-        try {
-          const sqlAdmin = `
-            SELECT COALESCE(email, correo) AS email FROM employees 
-            WHERE LOWER(job_title) LIKE '%gerente%administrac%' 
-               OR LOWER(job_title) LIKE '%administracion%' 
-            LIMIT 1
-          `;
-          const [admins] = await pool.query(sqlAdmin);
-
-          if (admins.length > 0 && admins[0].email) {
-            const correoAdmin = admins[0].email;
-            const plantillaHtml = `
-              <div style="font-family: Arial, sans-serif; padding: 15px; color: #333;">
-                <h2 style="color: #16a34a;">Solicitud de Vacaciones Autorizada - MODISA</h2>
-                <p>Estimada Gerencia de Administración,</p>
-                <p>Se ha <strong>AUTORIZADO</strong> un periodo vacacional en el sistema ERP MODISA.</p>
-                <p>Por favor ingrese al módulo de vacaciones para generar la constancia oficial de impresión, recabar las firmas físicas y cargar el expediente escaneado.</p>
-                <hr style="border: 0; border-top: 1px solid #ccc; margin: 20px 0;">
-                <p style="font-size: 12px; color: #777;">Mensaje automático - Sistema ERP MODISA.</p>
-              </div>
-            `;
-
-            await enviarCorreoGmail({
-              to: correoAdmin,
-              subject: 'Notificación: Vacaciones Autorizadas para Impresión y Firma - MODISA',
-              html: plantillaHtml
-            });
-          }
-        } catch (errEmailAdmin) {
-          console.error('⚠️ Solicitud autorizada pero falló la notificación a Administración:', errEmailAdmin.message);
-        }
-      })();
-    } else if (estadoParaBD === 'rechazada') {
-      try {
-        const sqlQuery = `
-          SELECT 
-            v.fecha_inicio, 
-            v.fecha_fin, 
-            v.observaciones,
-            COALESCE(ve.email, ve.correo) AS correo,
-            CONCAT(COALESCE(ve.name, ''), ' ', COALESCE(ve.last_name, '')) AS nombre
-          FROM vacaciones v
-          LEFT JOIN vista_empleados_vacaciones ve ON v.id_employee = ve.id_employee
-          WHERE v.id_vacacion = ?
-        `;
-        const [filasInfo] = await pool.query(sqlQuery, [idVacacion]);
-
-        if (filasInfo.length > 0 && filasInfo[0].correo) {
-          const info = filasInfo[0];
-          const plantillaHtml = `
-            <div style="font-family: Arial, sans-serif; padding: 15px; color: #333;">
-              <h2 style="color: #dc2626;">Notificación de Solicitud de Vacaciones - MODISA</h2>
-              <p>Hola <strong>${info.nombre || 'Empleado'}</strong>,</p>
-              <p>Te informamos que tu solicitud de vacaciones programada del <strong>${info.fecha_inicio}</strong> al <strong>${info.fecha_fin}</strong> ha sido <span style="color: #dc2626; font-weight: bold;">RECHAZADA</span>.</p>
-              ${info.observaciones ? `<p><strong>Observaciones:</strong> ${info.observaciones}</p>` : ''}
-              <hr style="border: 0; border-top: 1px solid #ccc; margin: 20px 0;">
-              <p style="font-size: 12px; color: #777;">Este es un mensaje automático generado por el Sistema ERP MODISA.</p>
-            </div>
-          `;
-
-          await enviarCorreoGmail({
-            to: info.correo,
-            subject: 'Estatus de Solicitud de Vacaciones - MODISA',
-            html: plantillaHtml
-          });
-        }
-      } catch (errEmail) {
-        console.error('⚠️ Solicitud rechazada pero falló la notificación de correo:', errEmail.message);
-      }
     }
 
     res.json({
