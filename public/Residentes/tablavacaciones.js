@@ -374,12 +374,11 @@
         obsHTML = `<span style="color: #475569; font-style: italic; font-size: 12px;">${obsTexto || '-'}</span>`;
       }
 
-      // MODIFICACIÓN: Controles de expediente digital e impresión en formato institucional
       let expedienteHTML = '<span style="color:#94a3b8; font-size:12px;">---</span>';
       if (documentoUrl) {
-        expedienteHTML = `<a href="${documentoUrl}" target="_blank" style="display:inline-flex; align-items:center; gap:4px; padding:4px 8px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:4px; font-weight:bold; text-decoration:none; font-size:12px;">📎 Ver Expediente</a>`;
+        expedienteHTML = `<a href="${escapeHTML(documentoUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-flex; align-items:center; gap:4px; padding:4px 8px; background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; border-radius:4px; font-weight:bold; text-decoration:none; font-size:12px;">📎 Ver Expediente</a>`;
       } else if (esAprobadaOAutorizada) {
-        if (esGerenteAdmin) {
+        if (esGerenteAdmin || esDirectorOperativo) {
           expedienteHTML = `
             <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
               <button type="button" onclick="window.generarPdfImpresion(${idVacacion})" style="padding:4px 8px; background:#1e293b; color:#fff; border:none; border-radius:4px; font-size:11px; cursor:pointer; font-weight:600;">📄 Imprimir Formato</button>
@@ -483,24 +482,23 @@
     const diasRestantes = Math.max(0, diasLey - diasTomados);
 
     const porcentaje = diasLey > 0 ? Math.min(100, Math.max(0, (diasTomados / diasLey) * 100)) : 0;
+    const dashOffset = 220 * ((100 - porcentaje) / 100);
 
     return `
       <div style="background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); text-align: center; max-width: 450px; margin: 0 auto;">
         <h3 style="margin: 0 0 15px 0; font-size: 18px; color: #1e293b; font-weight: 600;">${escapeHTML(emp.nombre_empleado)}</h3>
         
-        <!-- Tacómetro SVG Semi-circular -->
         <div style="position: relative; width: 180px; height: 105px; margin: 0 auto;">
           <svg width="180" height="100" viewBox="0 0 160 90">
             <path d="M 10 80 A 70 70 0 0 1 150 80" fill="none" stroke="#e2e8f0" stroke-width="14" stroke-linecap="round" />
             <path d="M 10 80 A 70 70 0 0 1 150 80" fill="none" stroke="#2563eb" stroke-width="14" stroke-linecap="round" 
-                stroke-dasharray="220" stroke-dashoffset="${220 * ((100 - porcentaje) / 100)}" />
+                  stroke-dasharray="220" stroke-dashoffset="${dashOffset}" />
           </svg>
           <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: bold; color: #1e293b;">
             ${diasRestantes} <span style="font-size: 11px; color: #64748b; font-weight: normal;">días rest.</span>
           </div>
         </div>
 
-        <!-- Métricas -->
         <div style="display: flex; justify-content: space-around; margin-top: 20px; border-top: 1px solid #f1f5f9; padding-top: 15px; font-size: 13px;">
           <div>
             <span style="color: #64748b; display: block; font-size: 11px;">Por Ley</span>
@@ -741,7 +739,7 @@
     const trFila = elementoInput ? elementoInput.closest('tr') : document.querySelector(`tr[data-id="${idVacacion}"]`);
 
     try {
-      const res = await fetch(`${API_URL}/vacaciones/observaciones/${idVacacion}`, {
+      const res = await fetch(`${API_URL}/vacaciones/${idVacacion}/observaciones`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -765,206 +763,157 @@
     }
   };
 
-  // MODIFICACIÓN: Generación de Constancia de Vacaciones respetando el nuevo diseño visual institucional
+  // MODIFICACIÓN (jsPDF Nativo): Generación vectorial directa de la Constancia de Vacaciones en archivo binario PDF
   window.generarPdfImpresion = function(idVacacion) {
     const item = datosVacaciones.find(v => String(v.id_vacacion) === String(idVacacion));
-    if (!item) return alert("No se encontró la información de la solicitud.");
+    if (!item) {
+      alert("⚠️ No se encontró la información de la solicitud de vacaciones.");
+      return;
+    }
 
-    const fechaIngresoFormateada = item.hire_date ? item.hire_date.split('T')[0] : '---';
-    const fechaInicioFormateada = item.fecha_inicio ? item.fecha_inicio.split('T')[0] : '---';
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      alert("❌ La librería jsPDF no está cargada correctamente en el navegador. Por favor recargue la página.");
+      return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'letter'
+    });
+
+    const nombreEmpleadoVal = item.nombre_empleado || `Empleado ID #${item.id_employee}`;
+    const primerNombreVal = String(nombreEmpleadoVal).trim().split(' ')[0].replace(/[^a-zA-Z0-9]/g, '');
+    const fechaIngresoVal = item.hire_date ? String(item.hire_date).split('T')[0] : '---';
+    const fechaInicioVal = item.fecha_inicio ? String(item.fecha_inicio).split('T')[0] : '---';
+    const fechaFinVal = item.fecha_fin ? String(item.fecha_fin).split('T')[0] : '---';
+    const diasTomadosVal = Number(item.dias_tomados || 0);
     const periodoVal = item.periodo || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
 
-    const ventanaImp = window.open('', '_blank');
-    ventanaImp.document.write(`
-      <!DOCTYPE html>
-      <html lang="es">
-      <head>
-        <meta charset="UTF-8">
-        <title>Constancia de Vacaciones - ${escapeHTML(item.nombre_empleado)}</title>
-        <style>
-          @page {
-            size: letter;
-            margin: 15mm;
-          }
-          body {
-            font-family: Arial, Helvetica, sans-serif;
-            color: #000;
-            background: #fff;
-            margin: 0;
-            padding: 20px;
-          }
-          .contenedor-constancia {
-            width: 100%;
-            max-width: 750px;
-            margin: 0 auto;
-          }
-          .logo-header {
-            text-align: center;
-            margin-bottom: 25px;
-          }
-          .logo-header h1 {
-            font-size: 38px;
-            letter-spacing: 6px;
-            margin: 0;
-            font-family: 'Arial Black', sans-serif;
-          }
-          .tabla-oficial {
-            width: 100%;
-            border-collapse: collapse;
-            border: 2px solid #000;
-            margin-bottom: 40px;
-          }
-          .tabla-oficial td, .tabla-oficial th {
-            border: 1px solid #000;
-            padding: 10px 12px;
-            vertical-align: top;
-            font-size: 13px;
-          }
-          .titulo-sombreado {
-            background-color: #d1d5db;
-            text-align: center;
-            font-size: 18px;
-            font-weight: bold;
-            padding: 8px !important;
-          }
-          .etiqueta {
-            font-weight: bold;
-            display: block;
-            margin-bottom: 6px;
-            color: #000;
-          }
-          .valor {
-            font-size: 14px;
-            font-weight: 500;
-          }
-          .firmas-contenedor {
-            margin-top: 60px;
-            width: 100%;
-          }
-          .firmas-nivel-1 {
-            display: flex;
-            justify-content: space-between;
-            gap: 40px;
-            margin-bottom: 50px;
-          }
-          .firmas-nivel-2 {
-            display: flex;
-            justify-content: center;
-          }
-          .bloque-firma {
-            flex: 1;
-            text-align: center;
-          }
-          .linea-firma {
-            border-top: 1.5px solid #000;
-            margin-bottom: 6px;
-            width: 100%;
-          }
-          .texto-firma {
-            font-size: 12px;
-            font-weight: bold;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="contenedor-constancia">
-          <div class="logo-header">
-            <h1>MODISA</h1>
-          </div>
+    doc.setFillColor(15, 23, 42);
+    doc.rect(15, 15, 186, 4, 'F');
 
-          <table class="tabla-oficial">
-            <tr>
-              <td colspan="3" class="titulo-sombreado">Constancia de Vacaciones</td>
-            </tr>
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(15, 23, 42);
+    doc.text("MODISA ERP - CONSTANCIA DE VACACIONES", 108, 28, { align: "center" });
 
-            <tr>
-              <td colspan="3">
-                <span class="etiqueta">Nombre del Empleado:</span>
-                <span class="valor">${escapeHTML(item.nombre_empleado)}</span>
-              </td>
-            </tr>
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    doc.text("MODERNIZACIÓN Y DISEÑO S.A. DE C.V.", 108, 34, { align: "center" });
 
-            <tr>
-              <td style="width: 50%;" colspan="1">
-                <span class="etiqueta">Fecha de Ingreso:</span>
-                <span class="valor">${fechaIngresoFormateada}</span>
-              </td>
-              <td style="width: 50%;" colspan="2">
-                <span class="etiqueta">Vacaciones Correspondientes al Periodo:</span>
-                <span class="valor">${escapeHTML(periodoVal)}</span>
-              </td>
-            </tr>
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.5);
+    doc.line(15, 38, 201, 38);
 
-            <tr>
-              <td style="width: 33%;">
-                <span class="etiqueta">Dias a Disfrutar:</span>
-                <span class="valor">${item.dias_tomados} días</span>
-              </td>
-              <td style="width: 33%;">
-                <span class="etiqueta">Dias Pendientes a Disfrutar:</span>
-                <span class="valor">${Number(item.dias_restantes || 0)} días</span>
-              </td>
-              <td style="width: 34%;">
-                <span class="etiqueta">A Partir Del:</span>
-                <span class="valor">${fechaInicioFormateada}</span>
-              </td>
-            </tr>
+    doc.setFontSize(10);
+    doc.setTextColor(30, 41, 59);
+    const textoIntro = "Por medio de la presente se hace constar la autorización del periodo vacacional para el colaborador de acuerdo con las especificaciones detalladas a continuación:";
+    doc.text(doc.splitTextToSize(textoIntro, 186), 15, 46);
 
-            <tr>
-              <td colspan="3">
-                <span class="etiqueta">Prima Vacacional:</span>
-                <span class="valor">---</span>
-              </td>
-            </tr>
-          </table>
+    let startY = 58;
+    const filaAltura = 9;
+    const datosTabla = [
+      ["Nombre del Empleado:", nombreEmpleadoVal],
+      ["Fecha de Ingreso:", fechaIngresoVal],
+      ["Periodo Correspondiente:", periodoVal],
+      ["Días Solicitados:", `${diasTomadosVal} día(s)`],
+      ["Fecha de Inicio:", fechaInicioVal],
+      ["Fecha de Término:", fechaFinVal]
+    ];
 
-          <div class="firmas-contenedor">
-            <div class="firmas-nivel-1">
-              <div class="bloque-firma">
-                <div class="linea-firma"></div>
-                <span class="texto-firma">Firma del Empleado</span>
-              </div>
-              <div class="bloque-firma">
-                <div class="linea-firma"></div>
-                <span class="texto-firma">Autorización Administración General</span>
-              </div>
-            </div>
-            
-            <div class="firmas-nivel-2">
-              <div class="bloque-firma" style="max-width: 300px;">
-                <div class="linea-firma"></div>
-                <span class="texto-firma">Autorización Dirección Operativa</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `);
-    ventanaImp.document.close();
-    ventanaImp.focus();
-    setTimeout(() => { ventanaImp.print(); }, 500);
+    datosTabla.forEach(([colLabel, colValue], index) => {
+      const currentY = startY + (index * filaAltura);
+
+      doc.setFillColor(248, 250, 252);
+      doc.rect(15, currentY, 65, filaAltura, 'F');
+      
+      doc.setDrawColor(203, 213, 225);
+      doc.rect(15, currentY, 65, filaAltura, 'D');
+      doc.rect(80, currentY, 121, filaAltura, 'D');
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(51, 65, 85);
+      doc.text(colLabel, 18, currentY + 6);
+
+      doc.setFont("helvetica", index === 0 || index === 3 ? "bold" : "normal");
+      doc.setTextColor(15, 23, 42);
+      doc.text(String(colValue), 83, currentY + 6);
+    });
+
+    const finalTablaY = startY + (datosTabla.length * filaAltura) + 12;
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105);
+    const textoCompromiso = "El empleado se compromete a reincorporarse a sus labores habituales al día hábil siguiente del término de su periodo vacacional autorizado.";
+    doc.text(doc.splitTextToSize(textoCompromiso, 186), 15, finalTablaY);
+
+    const firmasY = finalTablaY + 45;
+
+    doc.setDrawColor(15, 23, 42);
+    doc.setLineWidth(0.5);
+    doc.line(18, firmasY, 68, firmasY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(51, 65, 85);
+    doc.text(doc.splitTextToSize(nombreEmpleadoVal, 50), 43, firmasY + 5, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Firma del Empleado", 43, firmasY + 12, { align: "center" });
+
+    doc.setDrawColor(15, 23, 42);
+    doc.line(78, firmasY, 128, firmasY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(51, 65, 85);
+    doc.text("Gerencia de Administración", 103, firmasY + 5, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Revisado y Registrado", 103, firmasY + 12, { align: "center" });
+
+    doc.setDrawColor(15, 23, 42);
+    doc.line(138, firmasY, 188, firmasY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(51, 65, 85);
+    doc.text("Dirección Operativa", 163, firmasY + 5, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Autorizado", 163, firmasY + 12, { align: "center" });
+
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text("Documento generado automáticamente por el Sistema ERP MODISA", 108, 260, { align: "center" });
+
+    const nombreArchivo = `Constancia_Vacaciones_${primerNombreVal}_${periodoVal}.pdf`;
+    doc.save(nombreArchivo);
   };
 
-  // MODIFICACIÓN: Función asíncrona para subir el PDF firmado a Google Drive con validación previa en cliente
   window.subirExpedienteFirmado = async function(idVacacion, inputElement) {
-    const file = inputElement.files[0];
-    if (!file) return;
+    if (!inputElement || !inputElement.files || inputElement.files.length === 0) return;
 
-    if (file.type !== 'application/pdf') {
-      alert('⚠️ Solo se permiten documentos en formato PDF.');
+    const archivo = inputElement.files[0];
+
+    if (archivo.type !== 'application/pdf') {
+      alert("❌ Únicamente se permiten archivos en formato PDF.");
       inputElement.value = '';
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      alert('⚠️ El archivo excede el tamaño máximo permitido de 10 MB.');
+    if (archivo.size > 10 * 1024 * 1024) {
+      alert("❌ El archivo supera el límite máximo permitido de 10 MB.");
       inputElement.value = '';
       return;
     }
 
     const formData = new FormData();
-    formData.append('expediente', file);
+    formData.append('expediente', archivo);
 
     const token = localStorage.getItem('jwtToken') || '';
 
@@ -980,10 +929,10 @@
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Error al subir el expediente firmado.');
+        throw new Error(data.error || 'Ocurrió un error al subir el expediente firmado.');
       }
 
-      alert('🎉 Expediente firmado guardado exitosamente en Google Drive.');
+      alert(`✅ ${data.message}`);
       await cargarDatosVacaciones();
 
     } catch (err) {
