@@ -799,12 +799,7 @@
     doc.setFont("helvetica", "bold");
     doc.setFontSize(15);
     doc.setTextColor(6, 18, 30);
-    doc.text("MODISA ERP - CONSTANCIA DE VACACIONES", 108, 32, { align: "center" });
-
-    doc.setFontSize(9.5);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(100, 116, 139);
-    doc.text("MODERNIZACIÓN Y DISEÑO S.A. DE C.V.", 108, 38, { align: "center" });
+    doc.text("MODISA - CONSTANCIA DE VACACIONES", 108, 32, { align: "center" });
 
     doc.setDrawColor(203, 213, 225);
     doc.setLineWidth(0.5);
@@ -814,7 +809,7 @@
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.setTextColor(30, 41, 59); // #1e293b
-    const textoIntro = "Por medio de la presente se hace constar la autorización del periodo vacacional para el colaborador de acuerdo con las especificaciones detalladas a continuación:";
+    const textoIntro = "En atención a la solicitud presentada, se autoriza el periodo vacacional correspondiente al colaborador según las siguientes especificaciones:";
     doc.text(doc.splitTextToSize(textoIntro, 186), 15, 50);
 
     // 5. Tabla Ampliada (Fila de 12mm de alto)
