@@ -1,7 +1,6 @@
 (() => {
   let concentradoMinutas = [];
   let actividadesFiltradas = [];
-  // MODIFICACIÓN: Almacenamiento global para el catálogo de empleados
   let listaEmpleados = [];
   let filtroProyecto;
   let filtroEstado;
@@ -12,7 +11,6 @@
 
   const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000/api' : 'https://erp-modisa.onrender.com/api';
 
-  // MODIFICACIÓN (Ciberseguridad): Sanitización contra ataques XSS
   function escapeHTML(str) {
     if (!str) return '';
     return String(str)
@@ -23,7 +21,6 @@
       .replace(/'/g, '&#039;');
   }
 
-  // MODIFICACIÓN (Lógica ABAC): Helper para normalización de texto y comparación de nombres
   function normalizarTextoComp(texto) {
     if (!texto) return '';
     return String(texto)
@@ -42,7 +39,6 @@
 
     if(!cuerpoTabla) return;
 
-    // MODIFICACIÓN: Carga del catálogo de empleados previo a las minutas
     await cargarCatalogoEmpleados();
     cargarActividades();
     configurarDropdowns();
@@ -65,7 +61,6 @@
     }
   });
 
-  // MODIFICACIÓN: Consulta al catálogo de empleados (/api/empleados/gestion)
   async function cargarCatalogoEmpleados() {
     try {
       const token = localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
@@ -228,9 +223,6 @@
     return partes.join(' | ');
   }
 
-  // ==========================================
-  // MODIFICACIÓN FRONTEND: Selector de Responsable para Director Operativo
-  // ==========================================
   function renderizarTabla(actividadesAFiltrar) {
     if (!cuerpoTabla) return;
     cuerpoTabla.innerHTML = '';
@@ -275,9 +267,8 @@
       const esElResponsable = (nombreUsuarioLimpio !== '' && responsableTareaLimpio !== '') && 
         (responsableTareaLimpio.includes(nombreUsuarioLimpio) || nombreUsuarioLimpio.includes(responsableTareaLimpio));
 
-      const puedeModificarResponsable = esElResponsable || esResidente || esDirector;
+      const puedeModificarResponsable = esElResponsable || esResidente;
 
-      // MODIFICACIÓN: Construcción del selector <select> con los empleados de la BD
       let celdaResponsable = escapeHTML(actividad.responsable);
       if (esDirector) {
         let opcionesEmpleados = '<option value="">-- Selecciona --</option>';
@@ -302,15 +293,28 @@
         `;
       }
 
-      // COLUMNA 6: Estado Responsable (Mapeado a 'avance': 0=Pendiente, 100=Concluida)
-      const celdaReporteResidente = puedeModificarResponsable ? `
-        <select class="selector-residente" data-id="${actividad.id}" style="width: 90%; padding: 4px 6px; border-radius: 4px; font-family: inherit; font-size: 13px;">
-          <option value="0" ${actividad.avance < 100 ? 'selected' : ''}>⏳ Pendiente</option>
-          <option value="100" ${actividad.avance >= 100 ? 'selected' : ''}>✅ Concluida</option>
-        </select>
-      ` : `<span style="font-size: 13px; font-weight: 600; color: ${actividad.avance >= 100 ? '#16a34a' : '#64748b'};">${actividad.avance >= 100 ? '✅ Concluida' : '⏳ Pendiente'}</span>`;
+      let celdaReporteResidente = '';
+      if (esDirector) {
+        celdaReporteResidente = `
+          <span style="font-size: 13px; font-weight: 600; color: ${actividad.avance >= 100 ? '#16a34a' : '#64748b'}; padding: 4px 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; display: inline-block;">
+            ${actividad.avance >= 100 ? '✅ Concluida' : '⏳ Pendiente'}
+          </span>
+        `;
+      } else if (puedeModificarResponsable) {
+        celdaReporteResidente = `
+          <select class="selector-residente" data-id="${actividad.id}" style="width: 90%; padding: 4px 6px; border-radius: 4px; font-family: inherit; font-size: 13px;">
+            <option value="0" ${actividad.avance < 100 ? 'selected' : ''}>⏳ Pendiente</option>
+            <option value="100" ${actividad.avance >= 100 ? 'selected' : ''}>✅ Concluida</option>
+          </select>
+        `;
+      } else {
+        celdaReporteResidente = `
+          <span style="font-size: 13px; font-weight: 600; color: ${actividad.avance >= 100 ? '#16a34a' : '#64748b'};">
+            ${actividad.avance >= 100 ? '✅ Concluida' : '⏳ Pendiente'}
+          </span>
+        `;
+      }
 
-      // COLUMNA 7: Estatus Dirección
       const celdaEstadoDirector = esDirector ? `
         <select class="selector-estatus selector-director" data-id="${actividad.id}" style="width: 90%; padding: 4px 6px; border-radius: 4px; font-family: inherit; font-size: 13px; font-weight: 600;">
           <option value="pendiente" ${actividad.estado === 'pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
@@ -324,7 +328,6 @@
         </span>
       `;
 
-      // COLUMNA 8: Comentarios Estructurados por Rol / Responsable
       let celdaComentarios = '';
       if (puedeModificarResponsable && !esDirector) {
         celdaComentarios = `
@@ -439,7 +442,6 @@
   }
 
   function asignarEventosInteractivos() {
-    // MODIFICACIÓN: Evento change para reasignación mediante selector desplegable
     cuerpoTabla.querySelectorAll('.selector-responsable-director').forEach((select) => {
       select.addEventListener('change', async (e) => {
         const idActividad = e.target.getAttribute('data-id');
@@ -455,7 +457,6 @@
       });
     });
 
-    // Evento para estatus del Responsable (Guarda en la columna 'avance')
     cuerpoTabla.querySelectorAll('.selector-residente').forEach((select) => {
       select.addEventListener('change', async (e) => {
         const idActividad = e.target.getAttribute('data-id');
@@ -470,7 +471,6 @@
       });
     });
 
-    // Evento para estatus del Director Operativo
     cuerpoTabla.querySelectorAll('.selector-director').forEach((select) => {
       select.addEventListener('change', async (e) => {
         const idActividad = e.target.getAttribute('data-id');
@@ -489,7 +489,6 @@
       });
     });
 
-    // Evento para comentario del Responsable
     cuerpoTabla.querySelectorAll('.input-comentario-residente').forEach((input) => {
       input.addEventListener('blur', async (e) => {
         const idActividad = e.target.getAttribute('data-id');
@@ -508,7 +507,6 @@
       });
     });
 
-    // Evento para comentario del Director Operativo
     cuerpoTabla.querySelectorAll('.input-comentario-director').forEach((input) => {
       input.addEventListener('blur', async (e) => {
         const idActividad = e.target.getAttribute('data-id');
