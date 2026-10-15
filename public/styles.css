@@ -15,6 +15,9 @@
   --amarillo--: #e3d214;
 }
 
+/* BASE & RESETS */
+
+
 .monto-celda.monto-pendiente {
   color: var(--accent-color) !important;
 }
@@ -318,7 +321,7 @@ header nav ul li a:hover{
 }
 
 .tabla tbody tr:hover { 
-  background-color: rgba(0, 102, 204, 0.217); /* Tono azul/gris tenue de excelente visibilidad */
+  background-color: rgba(0, 102, 204, 0.217);
   cursor: pointer;
 }
 
@@ -375,7 +378,7 @@ header nav ul li a:hover{
 /*---------------------------------------------------------------------------------------------------------------*/
 footer {
  background-color: var(--primary-color);
- color: var(--bg-light);
+ color: var(--blanco);
  padding: 15px 30px;
  margin-top: auto;
  display: flex;
@@ -400,7 +403,7 @@ footer p {
 }
 
 footer #btn-logout {
- color: var(--bg-light, #ffffff);
+ color: var(--blanco);
  text-decoration: none;
  padding: 6px 12px;
  border-radius: 4px;
@@ -518,7 +521,7 @@ footer #btn-logout:hover {
   text-align: center;
   margin-top: 15px;
   padding: 8px;
-  background-color: #fef2f2;
+  background-color: var(--blanco);
   border-radius: 4px;
   box-sizing: border-box;
 }
@@ -1085,6 +1088,3 @@ footer #btn-logout:hover {
     transform: translate(-50%, 0);
   }
 }
-/* ==========================================
-   FIN MODIFICACIÓN: TARJETA DE OBSERVACIONES ORIENTADA HACIA ABAJO
-   ========================================== */
