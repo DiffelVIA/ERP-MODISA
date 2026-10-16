@@ -11,8 +11,18 @@
   --font-main: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   --red--: #ff0000;
   --black--: #000;
-  --verde--: #10b981;
-  --amarillo--: #e3d214;
+  --verde--: #07cb8a;
+  --amarillo--: #e3d210;
+  --box-shadow--: rgba(0,0,0,0.05);
+  --box-shadow-2--: rgba(6, 18, 30, 0.04);
+  --footer-color--: rgba(255, 255, 255, 0.1);
+  --tabla-hover-color--: rgba(0, 102, 204, 0.217);
+  --gray-dark: #46484a;
+  --gray-light: #87919bfa;
+  --brown-dark: #5c3a21;
+  --cream-light: #f5f5dc;
+  --orange-dark: #ff8c00;
+  --green-light: #8ff88f;
 }
 
 body{
@@ -132,7 +142,7 @@ header nav ul li a:hover{
   padding: 40px 30px;
   border-radius: 8px;
   border: 1px solid var(--border-color); 
-  box-shadow: 0 4px 12px rgba(6, 18, 30, 0.05);
+  box-shadow: 0 4px 12px var(--box-shadow-2--);
   width: 100%;
   max-width: 420px;
   box-sizing: border-box;
@@ -265,7 +275,7 @@ header nav ul li a:hover{
   cursor: pointer;
   display: inline-block;
   margin-bottom: 25px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+  box-shadow: 0 4px 10px var(--box-shadow--);
   transition: all 0.2s ease;
 }
 
@@ -317,7 +327,7 @@ header nav ul li a:hover{
   min-width: 200px;
   max-height: 240px;
   overflow-y: auto;
-  box-shadow: 0px 8px 16px rgba(6, 18, 30, 0.1);
+  box-shadow: 0px 8px 16px var(--box-shadow-2--);
   border: 1px solid var(--border-color);
   border-radius: 4px;
   z-index: 100;
@@ -417,7 +427,7 @@ header nav ul li a:hover{
 }
 
 .carrusel-ventana::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.02);
+  background: var(--box-shadow--);
   border-radius: 10px;
 }
 
@@ -449,8 +459,8 @@ header nav ul li a:hover{
   background-color: var(--blanco);
   padding: 20px;
   border-radius: 12px;
-  border: 1px solid rgba(0,0,0,0.03);
-  box-shadow: 0 10px 25px rgba(6,18,30,0.06);
+  border: 1px solid var(--box-shadow--);
+  box-shadow: 0 10px 25px var(--box-shadow-2--);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -461,7 +471,7 @@ header nav ul li a:hover{
 
 .tarjeta:hover{
   transform: translateY(-11px);
-  box-shadow: 0 15px 35px rgba(6,18,30,0.12);
+  box-shadow: 0 15px 35px var(--box-shadow-2--);
 }
 
 .icono-tarjeta{
@@ -545,7 +555,7 @@ header nav ul li a:hover{
   width: 100%;       
   margin: 20px auto; 
   overflow-x: auto;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 15px var(--box-shadow--);
   border-radius: 6px;
 }
 
@@ -590,7 +600,7 @@ header nav ul li a:hover{
 }
 
 .tabla tbody tr:hover { 
-  background-color: rgba(0, 102, 204, 0.217);
+  background-color: var(--tabla-hover-color--);
   cursor: pointer;
 }
 
@@ -919,7 +929,7 @@ header nav ul li a:hover{
   display: flex;
   flex-direction: column;
   gap: 8px;
-  box-shadow: 0 4px 12px rgba(6, 18, 30, 0.04);
+  box-shadow: 0 4px 12px var(--box-shadow-2--);
 }
 
 .lbl-kpi-db {
@@ -947,7 +957,7 @@ header nav ul li a:hover{
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 20px;
-  box-shadow: 0 4px 12px rgba(6, 18, 30, 0.04);
+  box-shadow: 0 4px 12px var(--box-shadow-2--);
   display: flex;
   flex-direction: column;
 }
@@ -990,7 +1000,7 @@ header nav ul li a:hover{
   color: #1e293b;
   padding: 10px 12px;
   border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25), 0 3px 8px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 10px 25px var(--box-shadow--), 0 3px 8px var(--box-shadow--);
   border: 1px solid #cbd5e1;
   z-index: 1000;
   pointer-events: none;
@@ -1064,7 +1074,7 @@ footer #btn-logout {
 }
 
 footer #btn-logout:hover {
- background-color: rgba(255, 255, 255, 0.1);
+ background-color: var(--footer-color--);
  text-decoration: underline;
 
 }
