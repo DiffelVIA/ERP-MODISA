@@ -733,7 +733,6 @@
     } catch (err) {
       console.error("❌ Error al actualizar estado:", err);
       alert(`❌ Error: ${escapeHTML(err.message)}`);
-      await cargarDatosVacaciones();
     }
   };
 
