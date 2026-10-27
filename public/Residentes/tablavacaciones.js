@@ -278,6 +278,8 @@
   }
 
   function actualizarFiltrosYTabla() {
+    const posicionScroll = window.scrollY || document.documentElement.scrollTop;
+
     empleadosSeleccionados = new Set(
       Array.from(document.querySelectorAll('.chk-empleado:checked')).map(cb => cb.value)
     );
@@ -300,6 +302,7 @@
 
     renderizarTabla(filtrados);
     renderizarGanttVacaciones(filtrados);
+    window.scrollTo(0, posicionScroll);
   }
 
   function renderizarTabla(lista) {
