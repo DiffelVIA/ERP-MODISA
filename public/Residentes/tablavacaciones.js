@@ -196,7 +196,12 @@
       });
       if (res.ok) {
         datosEstatusVacaciones = await res.json();
-        construirFiltrosIniciales();
+
+        // 1. Si la vista de estatus (tacómetro/resumen) está visible, actualizarla
+        const vistaEstatus = document.getElementById('contenedorVistaEstatus');
+        if (vistaEstatus && vistaEstatus.style.display !== 'none') {
+          renderizarVistaEstatus();
+        }
       }
     } catch (err) {
       console.error('❌ Error al cargar estatus de vacaciones:', err);
