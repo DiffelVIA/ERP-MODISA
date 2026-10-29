@@ -438,6 +438,22 @@
       (userRolNormalizado.includes('gerente') && userRolNormalizado.includes('administrac'))
     );
 
+    // MODIFICACIÓN (Acumulado de Días): Calcular el total acumulado de días tomados por cada empleado (excluyendo rechazadas)
+    const mapaGozadosPorEmpleado = {};
+    datosVacaciones.forEach(v => {
+      const idEmp = String(v.id_employee);
+      const est = String(v.estado || 'pendiente').toLowerCase();
+      
+      // Se acumulan los días si la solicitud está en estado pendiente, aprobada o autorizada (no rechazada)
+      if (est !== 'rechazada') {
+        const dTomados = (v.fecha_inicio && v.fecha_fin)
+          ? calcularDiasHabilesEfectivos(v.fecha_inicio, v.fecha_fin)
+          : Number(v.dias_tomados || 0);
+
+        mapaGozadosPorEmpleado[idEmp] = (mapaGozadosPorEmpleado[idEmp] || 0) + dTomados;
+      }
+    });
+
     cuerpo.innerHTML = lista.map(item => {
       const idVacacion = item.id_vacacion;
       const empNombre = escapeHTML(item.nombre_empleado || item.empleado || `Empleado ID #${item.id_employee}`);
@@ -449,8 +465,12 @@
         ? calcularDiasHabilesEfectivos(item.fecha_inicio, item.fecha_fin)
         : Number(item.dias_tomados || 0);
 
-      const diasLey = Number(item.dias_vacaciones_ley || 0);
-      const diasRestantes = Math.max(0, diasLey - diasTomados);
+      const diasLey = Number(item.dias_vacaciones_ley || item.dias_ley || 0);
+
+      // MODIFICACIÓN: Restar el acumulado total del empleado a los días por ley
+      const idEmpKey = String(item.id_employee);
+      const totalGozadosEmpleado = mapaGozadosPorEmpleado[idEmpKey] || 0;
+      const diasRestantes = Math.max(0, diasLey - totalGozadosEmpleado);
       
       const estadoRaw = String(item.estado || 'pendiente').toLowerCase();
       const esAprobadaOAutorizada = (estadoRaw === 'aprobada' || estadoRaw === 'autorizada');
