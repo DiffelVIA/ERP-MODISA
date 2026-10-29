@@ -532,7 +532,7 @@
           <td style="text-align: center;"><strong>${diasTomados}</strong></td>
           <td style="text-align: center;">${selectEstadoHTML}</td>
           <td>${obsHTML}</td>
-          <td style="text-align: center;">${expedienteHTML}</td>
+          <td style="text-align: center;">${expedienteHTML}</td> 
         </tr>
       `;
     }).join('');
