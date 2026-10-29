@@ -3,6 +3,38 @@
         ? 'http://localhost:3000/api' 
         : 'https://erp-modisa.onrender.com/api';
 
+    // MODIFICACIÓN (LFT Dinámica): Obtiene el N-ésimo día de la semana de un mes/año
+    function obtenerNthDiaDelMes(anio, mesZeroBased, diaSemanaDeseado, nOcurrencia) {
+        let fecha = new Date(anio, mesZeroBased, 1);
+        let conteo = 0;
+        while (fecha.getMonth() === mesZeroBased) {
+            if (fecha.getDay() === diaSemanaDeseado) {
+                conteo++;
+                if (conteo === nOcurrencia) {
+                    const m = String(mesZeroBased + 1).padStart(2, '0');
+                    const d = String(fecha.getDate()).padStart(2, '0');
+                    return `${anio}-${m}-${d}`;
+                }
+            }
+            fecha.setDate(fecha.getDate() + 1);
+        }
+        return null;
+    }
+
+    // MODIFICACIÓN: Genera el conjunto de días festivos oficiales LFT (México) para un año específico
+    function obtenerFestivosOficialesMexico(anio) {
+        return new Set([
+            `${anio}-01-01`, // Año Nuevo
+            `${anio}-05-01`, // Día del Trabajo
+            `${anio}-09-16`, // Día de la Independencia
+            `${anio}-12-25`, // Navidad
+            // Lunes conmemorativos según Art. 74 LFT:
+            obtenerNthDiaDelMes(anio, 1, 1, 1), // Aniversario Constitución (1er lunes de Feb)
+            obtenerNthDiaDelMes(anio, 2, 1, 3), // Natalicio Benito Juárez (3er lunes de Mar)
+            obtenerNthDiaDelMes(anio, 10, 1, 3) // Revolución Mexicana (3er lunes de Nov)
+        ]);
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         inicializarSolicitante();
         configurarCalculoDiasHabiles();
@@ -72,6 +104,7 @@
         if (inputNombre) inputNombre.value = `Empleado ID #${idEmpleado}`;
     }
 
+    // MODIFICACIÓN: Integración del cálculo de días hábiles omitiendo festivos LFT y fines de semana
     function configurarCalculoDiasHabiles() {
         const inputInicio = document.getElementById('fecha_inicio');
         const inputFin = document.getElementById('fecha_fin');
@@ -99,12 +132,24 @@
             }
 
             let diasHabiles = 0;
+            const cacheFestivosAnio = {};
 
             while (fechaActual <= fechaFin) {
                 const diaSemana = fechaActual.getDay();
-                if (diaSemana !== 0 && diaSemana !== 6) {
+                const anio = fechaActual.getFullYear();
+                const mes = String(fechaActual.getMonth() + 1).padStart(2, '0');
+                const dia = String(fechaActual.getDate()).padStart(2, '0');
+                const fechaClave = `${anio}-${mes}-${dia}`;
+
+                if (!cacheFestivosAnio[anio]) {
+                    cacheFestivosAnio[anio] = obtenerFestivosOficialesMexico(anio);
+                }
+
+                // Omitir Sábados (6), Domingos (0) y Días Festivos LFT
+                if (diaSemana !== 0 && diaSemana !== 6 && !cacheFestivosAnio[anio].has(fechaClave)) {
                     diasHabiles++;
                 }
+
                 fechaActual.setDate(fechaActual.getDate() + 1);
             }
 
@@ -152,7 +197,6 @@
 
             try {
                 const token = localStorage.getItem('jwtToken') || '';
-                // CORRECCIÓN DE SEGURIDAD Y RUTA: Apunta directamente al endpoint universal /vacaciones
                 const res = await fetch(`${API_BASE}/vacaciones`, {
                     method: 'POST',
                     headers: {
@@ -178,5 +222,5 @@
                 btnGuardar.style.cursor = 'pointer';
             }
         });
-}
+    }
 })();
