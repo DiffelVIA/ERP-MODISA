@@ -5,13 +5,12 @@ const pool = require('../config/db');
 const { gmail } = require('../config/google');
 const { verificarToken, verificarRol } = require('../middlewares/authMiddleware');
 
-// MODIFICACIÓN (Ciberseguridad y Drive): Inclusión de Multer en memoria y Servicio de Google Drive
 const multer = require('multer');
 const { subirArchivoADrive } = require('../services/drive');
 
 const uploadMemory = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // Límite estricto de 10 MB
+  limits: { fileSize: 10 * 1024 * 1024 }
 });
 
 const ID_CARPETA_DRIVE_VACACIONES = process.env.GOOGLE_DRIVE_VACACIONES_FOLDER_ID || '1OY9sLfMIqnPDPhMMfhT13sc-Wm3FqOyS';
@@ -76,7 +75,6 @@ async function depurarVacacionesRechazadas() {
 setInterval(depurarVacacionesRechazadas, 24 * 60 * 60 * 1000);
 setTimeout(depurarVacacionesRechazadas, 5000);
 
-// MODIFICACIÓN: Inclusión de COALESCE y campos defensivos para solucionar Error 500
 router.get('/', verificarToken, async (req, res) => {
   try {
     const rolUsuario = req.usuario ? req.usuario.rol : '';
@@ -338,7 +336,7 @@ router.post('/', verificarToken, async (req, res) => {
   }
 });
 
-// MODIFICACIÓN: Cambio de estatus optimizado sin envío de correos electrónicos
+// MODIFICACIÓN (Notificaciones): Cambio de estatus con envío de correo asíncrono
 router.patch('/:id/estado', verificarToken, verificarRol(ROLES_AUTORIZADORES), async (req, res) => {
   const idVacacion = req.params.id;
   const { estado } = req.body;
@@ -377,6 +375,50 @@ router.patch('/:id/estado', verificarToken, verificarRol(ROLES_AUTORIZADORES), a
       });
     }
 
+    if (estadoParaBD === 'aprobada' || estadoParaBD === 'rechazada') {
+      const estadoEtiqueta = estadoParaBD === 'aprobada' ? 'Autorizada' : 'Rechazada';
+
+      const sqlDetalles = `
+        SELECT 
+          v.observaciones,
+          COALESCE(ve.email, '') AS email_empleado
+        FROM vacaciones v
+        LEFT JOIN vista_empleados_vacaciones ve ON v.id_employee = ve.id_employee
+        WHERE v.id_vacacion = ?
+      `;
+
+      pool.query(sqlDetalles, [idVacacion]).then(([rows]) => {
+        if (rows.length > 0) {
+          const obsTexto = rows[0].observaciones ? rows[0].observaciones.trim() : 'Sin comentarios adicionales.';
+          
+          const destinatarioTemporal = 'dvillalva@modisa.com.mx';
+
+          const cuerpoHtml = `
+            <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; background-color: #ffffff;">
+              <h2 style="color: #0f172a; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">MODISA ERP - Estado de Vacaciones</h2>
+              <p style="font-size: 15px; line-height: 1.6;">Buen día,</p>
+              <p style="font-size: 15px; line-height: 1.6;">
+                Te informamos que tu solicitud fue <strong style="color: ${estadoParaBD === 'aprobada' ? '#16a34a' : '#dc2626'};">${estadoEtiqueta}</strong>, contempla los siguientes comentarios:
+              </p>
+              <blockquote style="background-color: #f8fafc; border-left: 4px solid #2563eb; margin: 16px 0; padding: 12px 16px; font-style: italic; color: #334155;">
+                "${obsTexto}"
+              </blockquote>
+              <p style="font-size: 14px; margin-top: 24px; color: #475569;">
+                Saludos,<br/>
+                <strong>Dirección MODISA</strong>
+              </p>
+            </div>
+          `;
+
+          enviarCorreoGmail({
+            to: destinatarioTemporal,
+            subject: `Notificación de Solicitud de Vacaciones - ${estadoEtiqueta}`,
+            html: cuerpoHtml
+          }).catch(err => console.error('❌ Error al procesar envío de correo:', err));
+        }
+      }).catch(err => console.error('❌ Error al consultar detalles para correo:', err));
+    }
+
     res.json({
       success: true,
       message: `✅ Estado de vacaciones actualizado a '${estadoParaBD}' con éxito.`
@@ -391,7 +433,6 @@ router.patch('/:id/estado', verificarToken, verificarRol(ROLES_AUTORIZADORES), a
   }
 });
 
-// MODIFICACIÓN: Endpoint de carga de expediente firmado a Google Drive con validación MIME y Magic Bytes
 router.post('/:id/expediente', verificarToken, uploadMemory.single('expediente'), async (req, res) => {
   const idVacacion = req.params.id;
 
@@ -402,7 +443,6 @@ router.post('/:id/expediente', verificarToken, uploadMemory.single('expediente')
     });
   }
 
-  // 1. Validación de MIME-Type
   if (req.file.mimetype !== 'application/pdf') {
     return res.status(400).json({
       success: false,
@@ -410,7 +450,6 @@ router.post('/:id/expediente', verificarToken, uploadMemory.single('expediente')
     });
   }
 
-  // 2. Validación por Magic Bytes (%PDF-)
   const magicBytes = req.file.buffer.toString('utf8', 0, 4);
   if (magicBytes !== '%PDF') {
     return res.status(400).json({
@@ -444,7 +483,6 @@ router.post('/:id/expediente', verificarToken, uploadMemory.single('expediente')
     const primerNombreLimpio = String(info.primer_nombre).trim().split(' ')[0].replace(/[^a-zA-Z0-9]/g, '');
     const periodoVal = info.periodo || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
     
-    // Nomenclatura requerida: [Nombre]-VAC-[Periodo].pdf
     const nombrePdfDrive = `${primerNombreLimpio}-VAC-${periodoVal}.pdf`;
 
     const driveWebViewLink = await subirArchivoADrive(req.file, ID_CARPETA_DRIVE_VACACIONES, nombrePdfDrive);
