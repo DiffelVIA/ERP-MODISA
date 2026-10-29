@@ -336,7 +336,7 @@ router.post('/', verificarToken, async (req, res) => {
   }
 });
 
-// MODIFICACIÓN (Sincronización): Acepta y actualiza opcionalmente observaciones junto con el cambio de estado
+// MODIFICACIÓN (Producción): Envío dinámico de notificaciones al correo real del empleado
 router.patch('/:id/estado', verificarToken, verificarRol(ROLES_AUTORIZADORES), async (req, res) => {
   const idVacacion = req.params.id;
   const { estado, observaciones } = req.body;
@@ -368,7 +368,6 @@ router.patch('/:id/estado', verificarToken, verificarRol(ROLES_AUTORIZADORES), a
     let sqlUpdate = `UPDATE vacaciones SET estado = ?`;
     const queryParams = [estadoParaBD];
 
-    // Si la petición incluye observaciones, actualizarlas en el mismo Query
     if (observaciones !== undefined) {
       sqlUpdate += `, observaciones = ?`;
       queryParams.push(observaciones ? observaciones.trim() : null);
@@ -404,7 +403,11 @@ router.patch('/:id/estado', verificarToken, verificarRol(ROLES_AUTORIZADORES), a
             ? observaciones.trim()
             : (rows[0].observaciones ? rows[0].observaciones.trim() : 'Sin comentarios adicionales.');
           
-          const destinatarioTemporal = 'dvillalva@modisa.com.mx';
+          // MODIFICACIÓN: Asignación dinámica del correo real del empleado con dirección fallback
+          const emailEmpleadoReal = rows[0].email_empleado ? String(rows[0].email_empleado).trim() : '';
+          const destinatarioFinal = (emailEmpleadoReal && emailEmpleadoReal.includes('@')) 
+            ? emailEmpleadoReal 
+            : 'dvillalva@modisa.com.mx';
 
           const cuerpoHtml = `
             <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; background-color: #ffffff;">
@@ -424,7 +427,7 @@ router.patch('/:id/estado', verificarToken, verificarRol(ROLES_AUTORIZADORES), a
           `;
 
           enviarCorreoGmail({
-            to: destinatarioTemporal,
+            to: destinatarioFinal,
             subject: `Notificación de Solicitud de Vacaciones - ${estadoEtiqueta}`,
             html: cuerpoHtml
           }).catch(err => console.error('❌ Error al procesar envío de correo:', err));
