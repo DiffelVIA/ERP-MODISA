@@ -9,6 +9,84 @@
   let estadosSeleccionados = new Set();
   let anioGanttSeleccionado = new Date().getFullYear();
 
+  /**
+   * MODIFICACIÓN (LFT Dinámica): Obtiene el N-ésimo día de la semana de un mes/año
+   * (Ej. primer lunes de febrero, tercer lunes de marzo)
+   */
+  function obtenerNthDiaDelMes(anio, mesZeroBased, diaSemanaDeseado, nOcurrencia) {
+    let fecha = new Date(anio, mesZeroBased, 1);
+    let conteo = 0;
+    while (fecha.getMonth() === mesZeroBased) {
+      if (fecha.getDay() === diaSemanaDeseado) {
+        conteo++;
+        if (conteo === nOcurrencia) {
+          const m = String(mesZeroBased + 1).padStart(2, '0');
+          const d = String(fecha.getDate()).padStart(2, '0');
+          return `${anio}-${m}-${d}`;
+        }
+      }
+      fecha.setDate(fecha.getDate() + 1);
+    }
+    return null;
+  }
+
+  /**
+   * MODIFICACIÓN: Genera el conjunto de días festivos oficiales LFT (México) para un año específico
+   */
+  function obtenerFestivosOficialesMexico(anio) {
+    const festivos = new Set([
+      `${anio}-01-01`, // Año Nuevo
+      `${anio}-05-01`, // Día del Trabajo
+      `${anio}-09-16`, // Día de la Independencia
+      `${anio}-12-25`, // Navidad
+      // Lunes conmemorativos según Art. 74 LFT:
+      obtenerNthDiaDelMes(anio, 1, 1, 1), // Aniversario Constitución (1er lunes de Feb)
+      obtenerNthDiaDelMes(anio, 2, 1, 3), // Natalicio Benito Juárez (3er lunes de Mar)
+      obtenerNthDiaDelMes(anio, 10, 1, 3) // Revolución Mexicana (3er lunes de Nov)
+    ]);
+    return festivos;
+  }
+
+  /**
+   * MODIFICACIÓN: Calcula los días hábiles efectivos entre dos fechas
+   * Excluye sábados, domingos y festivos LFT generados dinámicamente según el año
+   */
+  function calcularDiasHabilesEfectivos(fInicioStr, fFinStr) {
+    if (!fInicioStr || !fFinStr) return 0;
+
+    const inicio = new Date(`${fInicioStr.split('T')[0]}T00:00:00`);
+    const fin = new Date(`${fFinStr.split('T')[0]}T00:00:00`);
+
+    if (isNaN(inicio.getTime()) || isNaN(fin.getTime()) || inicio > fin) return 0;
+
+    let diasHabiles = 0;
+    const fechaActual = new Date(inicio);
+
+    // Mapa de caché en memoria para no recalcular festivos en el mismo año
+    const cacheFestivosAnio = {};
+
+    while (fechaActual <= fin) {
+      const diaSemana = fechaActual.getDay(); // 0 = Domingo, 6 = Sábado
+      const anio = fechaActual.getFullYear();
+      const mes = String(fechaActual.getMonth() + 1).padStart(2, '0');
+      const dia = String(fechaActual.getDate()).padStart(2, '0');
+      const fechaClave = `${anio}-${mes}-${dia}`;
+
+      if (!cacheFestivosAnio[anio]) {
+        cacheFestivosAnio[anio] = obtenerFestivosOficialesMexico(anio);
+      }
+
+      // Descartar Sábados (6), Domingos (0) y Festivos LFT del año evaluado
+      if (diaSemana !== 0 && diaSemana !== 6 && !cacheFestivosAnio[anio].has(fechaClave)) {
+        diasHabiles++;
+      }
+
+      fechaActual.setDate(fechaActual.getDate() + 1);
+    }
+
+    return diasHabiles;
+  }
+
   function escapeHTML(str) {
     if (!str) return '';
     return String(str)
@@ -197,7 +275,6 @@
       if (res.ok) {
         datosEstatusVacaciones = await res.json();
 
-        // 1. Si la vista de estatus (tacómetro/resumen) está visible, actualizarla
         const vistaEstatus = document.getElementById('contenedorVistaEstatus');
         if (vistaEstatus && vistaEstatus.style.display !== 'none') {
           renderizarVistaEstatus();
@@ -347,10 +424,14 @@
       const fechaSolicitud = escapeHTML(item.created_at ? item.created_at.split('T')[0] : (item.fecha_solicitud || '-'));
       const fechaInicio = escapeHTML(item.fecha_inicio ? item.fecha_inicio.split('T')[0] : '-');
       const fechaFin = escapeHTML(item.fecha_fin ? item.fecha_fin.split('T')[0] : '-');
-      const diasTomados = Number(item.dias_tomados || 0);
+
+      // MODIFICACIÓN: Conteo dinámico multiaño omitiendo fines de semana y festivos LFT
+      const diasTomados = (item.fecha_inicio && item.fecha_fin)
+        ? calcularDiasHabilesEfectivos(item.fecha_inicio, item.fecha_fin)
+        : Number(item.dias_tomados || 0);
 
       const diasLey = Number(item.dias_vacaciones_ley || 0);
-      const diasRestantes = Number(item.dias_restantes || 0);
+      const diasRestantes = Math.max(0, diasLey - diasTomados);
       
       const estadoRaw = String(item.estado || 'pendiente').toLowerCase();
       const esAprobadaOAutorizada = (estadoRaw === 'aprobada' || estadoRaw === 'autorizada');
@@ -640,12 +721,16 @@
           const duracion = (idxFin - idxInicio) + 1;
           const estClase = String(v.estado || 'pendiente').toLowerCase();
           
+          const diasTomadosGantt = (v.fecha_inicio && v.fecha_fin)
+            ? calcularDiasHabilesEfectivos(v.fecha_inicio, v.fecha_fin)
+            : Number(v.dias_tomados || 0);
+
           mapaCeldasAnual[idxInicio] = {
             duracion: duracion,
             estado: (estClase === 'aprobada' || estClase === 'autorizada') ? 'autorizada' : 'pendiente',
-            diasTomados: Number(v.dias_tomados || 0),
+            diasTomados: diasTomadosGantt,
             diasLey: Number(v.dias_vacaciones_ley || 0),
-            diasRestantes: Number(v.dias_restantes || 0)
+            diasRestantes: Math.max(0, Number(v.dias_vacaciones_ley || 0) - diasTomadosGantt)
           };
         }
       });
@@ -722,7 +807,12 @@
         const idEmp = itemLocal.id_employee;
         const totalGozados = datosVacaciones
           .filter(v => v.id_employee === idEmp && (v.estado === 'aprobada' || v.estado === 'autorizada'))
-          .reduce((sum, v) => sum + Number(v.dias_tomados || 0), 0);
+          .reduce((sum, v) => {
+            const dHabiles = (v.fecha_inicio && v.fecha_fin)
+              ? calcularDiasHabilesEfectivos(v.fecha_inicio, v.fecha_fin)
+              : Number(v.dias_tomados || 0);
+            return sum + dHabiles;
+          }, 0);
 
         datosVacaciones.forEach(v => {
           if (v.id_employee === idEmp) {
@@ -794,14 +884,14 @@
     const fechaIngresoVal = item.hire_date ? String(item.hire_date).split('T')[0] : '---';
     const fechaInicioVal = item.fecha_inicio ? String(item.fecha_inicio).split('T')[0] : '---';
     const fechaFinVal = item.fecha_fin ? String(item.fecha_fin).split('T')[0] : '---';
-    const diasTomadosVal = Number(item.dias_tomados || 0);
     const periodoVal = item.periodo || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
 
+    const diasTomadosVal = (item.fecha_inicio && item.fecha_fin)
+      ? calcularDiasHabilesEfectivos(item.fecha_inicio, item.fecha_fin)
+      : Number(item.dias_tomados || 0);
+
     const diasLeyVal = Number(item.dias_vacaciones_ley || item.dias_ley || 0);
-    const diasRestantesCalculados = item.dias_restantes !== undefined && item.dias_restantes !== null 
-      ? Number(item.dias_restantes) 
-      : Math.max(0, diasLeyVal - diasTomadosVal);
-    const diasRestantesVal = isNaN(diasRestantesCalculados) ? 0 : diasRestantesCalculados;
+    const diasRestantesVal = Math.max(0, diasLeyVal - diasTomadosVal);
 
     doc.setFillColor(6, 18, 30);
     doc.rect(15, 12, 186, 12, 'F');
