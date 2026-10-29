@@ -870,31 +870,62 @@
     }
   };
 
-  window.actualizarObservacionVacacion = async function(idVacacion, nuevaObservacion, elementoInput) {
+  window.actualizarEstadoVacacion = async function(idVacacion, nuevoEstado, elementoInput) {
     const token = localStorage.getItem('jwtToken') || '';
+
     const trFila = elementoInput ? elementoInput.closest('tr') : document.querySelector(`tr[data-id="${idVacacion}"]`);
+    const inputObs = trFila ? trFila.querySelector('.input-obs-tabla') : null;
+    const textoObservacion = inputObs ? inputObs.value : null;
 
     try {
-      const res = await fetch(`${API_URL}/vacaciones/${idVacacion}/observaciones`, {
+      const res = await fetch(`${API_URL}/vacaciones/${idVacacion}/estado`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': token ? `Bearer ${token}` : ''
         },
-        body: JSON.stringify({ observaciones: nuevaObservacion })
+        body: JSON.stringify({ 
+          estado: nuevoEstado,
+          observaciones: textoObservacion 
+        })
       });
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'No se pudo actualizar la observación.');
+        throw new Error(data.error || 'No se pudo actualizar el estado.');
       }
 
-      if (trFila) {
-        trFila.style.backgroundColor = "#eaffea";
-        setTimeout(() => { trFila.style.backgroundColor = ""; }, 600);
+      const itemLocal = datosVacaciones.find(item => item.id_vacacion === idVacacion);
+      if (itemLocal) {
+        itemLocal.estado = nuevoEstado;
+        
+        if (textoObservacion !== null) {
+          itemLocal.observaciones = textoObservacion;
+        }
+
+        const idEmp = itemLocal.id_employee;
+        const totalGozados = datosVacaciones
+          .filter(v => v.id_employee === idEmp && (v.estado === 'aprobada' || v.estado === 'autorizada'))
+          .reduce((sum, v) => {
+            const dHabiles = (v.fecha_inicio && v.fecha_fin)
+              ? calcularDiasHabilesEfectivos(v.fecha_inicio, v.fecha_fin)
+              : Number(v.dias_tomados || 0);
+            return sum + dHabiles;
+          }, 0);
+
+        datosVacaciones.forEach(v => {
+          if (v.id_employee === idEmp) {
+            v.dias_gozados = totalGozados;
+            v.dias_restantes = Math.max(0, Number(v.dias_vacaciones_ley || 0) - totalGozados);
+          }
+        });
       }
+
+      actualizarFiltrosYTabla();
+      await cargarDatosEstatus();
+
     } catch (err) {
-      console.error("❌ Error al guardar observación:", err);
+      console.error("❌ Error al actualizar estado:", err);
       alert(`❌ Error: ${escapeHTML(err.message)}`);
     }
   };
