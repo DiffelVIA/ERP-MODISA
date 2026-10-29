@@ -336,10 +336,10 @@ router.post('/', verificarToken, async (req, res) => {
   }
 });
 
-// MODIFICACIÓN (Notificaciones): Cambio de estatus con envío de correo asíncrono
+// MODIFICACIÓN (Sincronización): Acepta y actualiza opcionalmente observaciones junto con el cambio de estado
 router.patch('/:id/estado', verificarToken, verificarRol(ROLES_AUTORIZADORES), async (req, res) => {
   const idVacacion = req.params.id;
-  const { estado } = req.body;
+  const { estado, observaciones } = req.body;
 
   if (!estado) {
     return res.status(400).json({
@@ -365,8 +365,19 @@ router.patch('/:id/estado', verificarToken, verificarRol(ROLES_AUTORIZADORES), a
   }
 
   try {
-    const sqlUpdate = `UPDATE vacaciones SET estado = ? WHERE id_vacacion = ?`;
-    const [result] = await pool.query(sqlUpdate, [estadoParaBD, idVacacion]);
+    let sqlUpdate = `UPDATE vacaciones SET estado = ?`;
+    const queryParams = [estadoParaBD];
+
+    // Si la petición incluye observaciones, actualizarlas en el mismo Query
+    if (observaciones !== undefined) {
+      sqlUpdate += `, observaciones = ?`;
+      queryParams.push(observaciones ? observaciones.trim() : null);
+    }
+
+    sqlUpdate += ` WHERE id_vacacion = ?`;
+    queryParams.push(idVacacion);
+
+    const [result] = await pool.query(sqlUpdate, queryParams);
 
     if (result.affectedRows === 0) {
       return res.status(404).json({
@@ -389,7 +400,9 @@ router.patch('/:id/estado', verificarToken, verificarRol(ROLES_AUTORIZADORES), a
 
       pool.query(sqlDetalles, [idVacacion]).then(([rows]) => {
         if (rows.length > 0) {
-          const obsTexto = rows[0].observaciones ? rows[0].observaciones.trim() : 'Sin comentarios adicionales.';
+          const obsTexto = (observaciones !== undefined && observaciones !== null && observaciones.trim() !== '')
+            ? observaciones.trim()
+            : (rows[0].observaciones ? rows[0].observaciones.trim() : 'Sin comentarios adicionales.');
           
           const destinatarioTemporal = 'dvillalva@modisa.com.mx';
 
