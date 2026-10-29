@@ -789,7 +789,6 @@
       format: 'letter'
     });
 
-    // 1. Datos sanitizados
     const nombreEmpleadoVal = item.nombre_empleado || `Empleado ID #${item.id_employee}`;
     const primerNombreVal = String(nombreEmpleadoVal).trim().split(' ')[0].replace(/[^a-zA-Z0-9]/g, '');
     const fechaIngresoVal = item.hire_date ? String(item.hire_date).split('T')[0] : '---';
@@ -798,11 +797,15 @@
     const diasTomadosVal = Number(item.dias_tomados || 0);
     const periodoVal = item.periodo || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
 
-    // 2. Franja Superior Corporativa (#06121E)
-    doc.setFillColor(6, 18, 30); // Color exacto #06121E
+    const diasLeyVal = Number(item.dias_vacaciones_ley || item.dias_ley || 0);
+    const diasRestantesCalculados = item.dias_restantes !== undefined && item.dias_restantes !== null 
+      ? Number(item.dias_restantes) 
+      : Math.max(0, diasLeyVal - diasTomadosVal);
+    const diasRestantesVal = isNaN(diasRestantesCalculados) ? 0 : diasRestantesCalculados;
+
+    doc.setFillColor(6, 18, 30);
     doc.rect(15, 12, 186, 12, 'F');
 
-    // 3. Encabezado Título
     doc.setFont("helvetica", "bold");
     doc.setFontSize(15);
     doc.setTextColor(6, 18, 30);
@@ -812,21 +815,21 @@
     doc.setLineWidth(0.5);
     doc.line(15, 42, 201, 42);
 
-    // 4. Texto de Aviso Inicial (Mismo formato)
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.setTextColor(30, 41, 59); // #1e293b
+    doc.setTextColor(30, 41, 59);
     const textoIntro = "En atención a la solicitud presentada, se autoriza el periodo vacacional correspondiente al colaborador según las siguientes especificaciones:";
     doc.text(doc.splitTextToSize(textoIntro, 186), 15, 50);
 
-    // 5. Tabla Ampliada (Fila de 12mm de alto)
     let startY = 62;
     const filaAltura = 12;
+
     const datosTabla = [
       ["Nombre del Empleado:", nombreEmpleadoVal],
       ["Fecha de Ingreso:", fechaIngresoVal],
       ["Periodo Correspondiente:", periodoVal],
       ["Días Solicitados:", `${diasTomadosVal} día(s)`],
+      ["Días Restantes a Gozar:", `${diasRestantesVal} día(s)`],
       ["Fecha de Inicio:", fechaInicioVal],
       ["Fecha de Término:", fechaFinVal]
     ];
@@ -834,40 +837,33 @@
     datosTabla.forEach(([colLabel, colValue], index) => {
       const currentY = startY + (index * filaAltura);
 
-      // Celda Etiqueta
       doc.setFillColor(248, 250, 252);
       doc.rect(15, currentY, 65, filaAltura, 'F');
       
-      // Bordes
       doc.setDrawColor(203, 213, 225);
       doc.rect(15, currentY, 65, filaAltura, 'D');
       doc.rect(80, currentY, 121, filaAltura, 'D');
 
-      // Texto Etiqueta
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.setTextColor(51, 65, 85);
       doc.text(colLabel, 18, currentY + 7.5);
 
-      // Texto Valor
-      doc.setFont("helvetica", index === 0 || index === 3 ? "bold" : "normal");
+      doc.setFont("helvetica", index === 0 || index === 3 || index === 4 ? "bold" : "normal");
       doc.setFontSize(10);
       doc.setTextColor(15, 23, 42);
       doc.text(String(colValue), 83, currentY + 7.5);
     });
 
-    // 6. Texto de Nota / Compromiso (Homologado en fuente, tamaño, color y formato)
     const finalTablaY = startY + (datosTabla.length * filaAltura) + 12;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.setTextColor(30, 41, 59); // #1e293b
+    doc.setTextColor(30, 41, 59);
     const textoCompromiso = "El empleado se compromete a reincorporarse a sus labores habituales al día hábil siguiente del término de su periodo vacacional autorizado.";
     doc.text(doc.splitTextToSize(textoCompromiso, 186), 15, finalTablaY);
 
-    // 7. Sección de Firmas Distribuida Proporcionalmente
-    const firmasY = finalTablaY + 50;
+    const firmasY = finalTablaY + 45;
 
-    // Columna 1: Empleado
     doc.setDrawColor(6, 18, 30);
     doc.setLineWidth(0.6);
     doc.line(18, firmasY, 68, firmasY);
@@ -880,7 +876,6 @@
     doc.setTextColor(100, 116, 139);
     doc.text("Firma del Empleado", 43, firmasY + 13, { align: "center" });
 
-    // Columna 2: Administración
     doc.setDrawColor(6, 18, 30);
     doc.line(78, firmasY, 128, firmasY);
     doc.setFont("helvetica", "bold");
@@ -892,7 +887,6 @@
     doc.setTextColor(100, 116, 139);
     doc.text("Revisado y Registrado", 103, firmasY + 13, { align: "center" });
 
-    // Columna 3: Dirección
     doc.setDrawColor(6, 18, 30);
     doc.line(138, firmasY, 188, firmasY);
     doc.setFont("helvetica", "bold");
