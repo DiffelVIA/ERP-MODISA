@@ -7,12 +7,10 @@
   let datosEstatusVacaciones = [];
   let empleadosSeleccionados = new Set();
   let estadosSeleccionados = new Set();
+  // MODIFICACIÓN (Filtros UX): Estado para el nuevo filtro de expedientes
+  let expedientesSeleccionados = new Set();
   let anioGanttSeleccionado = new Date().getFullYear();
 
-  /**
-   * MODIFICACIÓN (LFT Dinámica): Obtiene el N-ésimo día de la semana de un mes/año
-   * (Ej. primer lunes de febrero, tercer lunes de marzo)
-   */
   function obtenerNthDiaDelMes(anio, mesZeroBased, diaSemanaDeseado, nOcurrencia) {
     let fecha = new Date(anio, mesZeroBased, 1);
     let conteo = 0;
@@ -30,9 +28,6 @@
     return null;
   }
 
-  /**
-   * MODIFICACIÓN: Genera el conjunto de días festivos oficiales LFT (México) para un año específico
-   */
   function obtenerFestivosOficialesMexico(anio) {
     const festivos = new Set([
       `${anio}-01-01`, // Año Nuevo
@@ -47,10 +42,6 @@
     return festivos;
   }
 
-  /**
-   * MODIFICACIÓN: Calcula los días hábiles efectivos entre dos fechas
-   * Excluye sábados, domingos y festivos LFT generados dinámicamente según el año
-   */
   function calcularDiasHabilesEfectivos(fInicioStr, fFinStr) {
     if (!fInicioStr || !fFinStr) return 0;
 
@@ -61,12 +52,10 @@
 
     let diasHabiles = 0;
     const fechaActual = new Date(inicio);
-
-    // Mapa de caché en memoria para no recalcular festivos en el mismo año
     const cacheFestivosAnio = {};
 
     while (fechaActual <= fin) {
-      const diaSemana = fechaActual.getDay(); // 0 = Domingo, 6 = Sábado
+      const diaSemana = fechaActual.getDay();
       const anio = fechaActual.getFullYear();
       const mes = String(fechaActual.getMonth() + 1).padStart(2, '0');
       const dia = String(fechaActual.getDate()).padStart(2, '0');
@@ -76,7 +65,6 @@
         cacheFestivosAnio[anio] = obtenerFestivosOficialesMexico(anio);
       }
 
-      // Descartar Sábados (6), Domingos (0) y Festivos LFT del año evaluado
       if (diaSemana !== 0 && diaSemana !== 6 && !cacheFestivosAnio[anio].has(fechaClave)) {
         diasHabiles++;
       }
@@ -241,7 +229,14 @@
       }
 
       datosVacaciones = await respuesta.json();
-      construirFiltrosIniciales();
+      
+      // MODIFICACIÓN (UX / Estado de Filtros): Solo construir filtros la primera vez si el DOM está vacío
+      const contenedorExpediente = document.getElementById('filtroExpediente');
+      if (!contenedorExpediente || contenedorExpediente.children.length === 0) {
+        construirFiltrosIniciales();
+      } else {
+        actualizarFiltrosYTabla();
+      }
 
     } catch (error) {
       clearTimeout(timeoutId);
@@ -310,9 +305,11 @@
     });
   }
 
+  // MODIFICACIÓN (UX / Filtros): Removida la preselección inicial y agregado el Filtro Expediente
   function construirFiltrosIniciales() {
     const contenedorEmpleados = document.getElementById('filtroEmpleado');
     const contenedorEstados = document.getElementById('filtroEstado');
+    const contenedorExpediente = document.getElementById('filtroExpediente');
     const selectAnio = document.getElementById('selectAnioGantt');
 
     if (!contenedorEmpleados || !contenedorEstados) return;
@@ -326,13 +323,27 @@
       <label class="opcion-filtro"><input type="checkbox" value="${escapeHTML(emp)}" class="chk-empleado"> ${escapeHTML(emp)}</label>
     `).join('');
 
+    // Se remueve 'checked' para no preseleccionar nada al cargar/refrescar la página
     const estadosUnicos = ['pendiente', 'autorizada', 'rechazada'];
     contenedorEstados.innerHTML = estadosUnicos.map(est => `
       <label class="opcion-filtro">
-        <input type="checkbox" value="${est}" class="chk-estado" ${est === 'pendiente' ? 'checked' : ''}> 
+        <input type="checkbox" value="${est}" class="chk-estado"> 
         ${est.charAt(0).toUpperCase() + est.slice(1)}
       </label>
     `).join('');
+
+    // Inyección de opciones para Filtro Expediente
+    if (contenedorExpediente) {
+      contenedorExpediente.innerHTML = `
+        <label class="opcion-filtro">
+          <input type="checkbox" value="pendiente" class="chk-expediente"> Pendiente de archivo
+        </label>
+        <label class="opcion-filtro">
+          <input type="checkbox" value="archivado" class="chk-expediente"> Archivado
+        </label>
+      `;
+      contenedorExpediente.addEventListener('change', actualizarFiltrosYTabla);
+    }
 
     if (selectAnio) {
       const aniosExtraidos = datosVacaciones
@@ -359,6 +370,7 @@
     actualizarFiltrosYTabla();
   }
 
+  // MODIFICACIÓN (UX / Filtros): Evaluación combinada de empleados, estados y expedientes
   function actualizarFiltrosYTabla() {
     const posicionScroll = window.scrollY || document.documentElement.scrollTop;
 
@@ -370,16 +382,24 @@
       Array.from(document.querySelectorAll('.chk-estado:checked')).map(cb => cb.value)
     );
 
+    expedientesSeleccionados = new Set(
+      Array.from(document.querySelectorAll('.chk-expediente:checked')).map(cb => cb.value)
+    );
+
     const filtrados = datosVacaciones.filter(item => {
       const empNombre = item.nombre_empleado || item.empleado || `Empleado ID #${item.id_employee}`;
       const estNombreRaw = String(item.estado || 'pendiente').toLowerCase();
-      
       const estNombre = (estNombreRaw === 'aprobada') ? 'autorizada' : estNombreRaw;
+
+      // Clasificación de Expediente
+      const tieneExpediente = Boolean(item.documento_firmado_url);
+      const estExpediente = tieneExpediente ? 'archivado' : 'pendiente';
 
       const cumpleEmpleado = empleadosSeleccionados.size === 0 || empleadosSeleccionados.has(empNombre);
       const cumpleEstado = estadosSeleccionados.size === 0 || estadosSeleccionados.has(estNombre);
+      const cumpleExpediente = expedientesSeleccionados.size === 0 || expedientesSeleccionados.has(estExpediente);
 
-      return cumpleEmpleado && cumpleEstado;
+      return cumpleEmpleado && cumpleEstado && cumpleExpediente;
     });
 
     renderizarTabla(filtrados);
@@ -425,7 +445,6 @@
       const fechaInicio = escapeHTML(item.fecha_inicio ? item.fecha_inicio.split('T')[0] : '-');
       const fechaFin = escapeHTML(item.fecha_fin ? item.fecha_fin.split('T')[0] : '-');
 
-      // MODIFICACIÓN: Conteo dinámico multiaño omitiendo fines de semana y festivos LFT
       const diasTomados = (item.fecha_inicio && item.fecha_fin)
         ? calcularDiasHabilesEfectivos(item.fecha_inicio, item.fecha_fin)
         : Number(item.dias_tomados || 0);
