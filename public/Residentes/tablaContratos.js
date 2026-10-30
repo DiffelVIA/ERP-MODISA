@@ -4,7 +4,6 @@
 
     let todosLosContratos = [];
 
-    // MODIFICACIÓN (Ciberseguridad): Helper para escapar caracteres HTML especiales
     function escapeHTML(str) {
         if (!str) return '';
         return String(str)
