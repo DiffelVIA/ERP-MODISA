@@ -1,4 +1,4 @@
-import { escapeHTML, calcularDiasHabilesEfectivos } from './vacaciones-ui.js';
+import { escapeHTML, calcularDiasHabilesEfectivos } from './vacacionesUi.js';
 
 export function inicializarHandlersGlobales(API_URL, getDatosVacaciones, setDatosVacaciones, cargarDatosVacaciones, cargarDatosEstatus, actualizarFiltrosYTabla, renderizarVistaEstatus) {
   

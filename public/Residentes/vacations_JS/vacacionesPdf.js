@@ -1,4 +1,4 @@
-import { escapeHTML, calcularDiasHabilesEfectivos } from './vacaciones-ui.js';
+import { escapeHTML, calcularDiasHabilesEfectivos } from './vacacionesUi.js';
 
 export function inicializarHandlersPDF(API_URL, getDatosVacaciones, cargarDatosVacaciones) {
 
