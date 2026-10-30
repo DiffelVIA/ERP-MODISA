@@ -1,7 +1,7 @@
 // public/Residentes/vacations_JS/vacaciones-core.js
-import { escapeHTML, renderizarTabla, renderizarVistaEstatus, renderizarGanttVacaciones } from './vacaciones-ui.js';
-import { inicializarHandlersGlobales } from './vacaciones-notif.js';
-import { inicializarHandlersPDF } from './vacaciones-pdf.js';
+import { escapeHTML, renderizarTabla, renderizarVistaEstatus, renderizarGanttVacaciones } from './vacacionesUi.js';
+import { inicializarHandlersGlobales } from './vacacionesNotif.js';
+import { inicializarHandlersPDF } from './vacacionesPdf.js';
 
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
   ? 'http://localhost:3000/api' 
