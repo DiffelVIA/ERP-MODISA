@@ -37,12 +37,17 @@ export function inicializarHandlersPDF(API_URL, getDatosVacaciones, cargarDatosV
     const diasRestantesVal = Math.max(0, diasLeyVal - diasTomadosVal);
 
     doc.setFillColor(6, 18, 30);
-    doc.rect(15, 12, 186, 12, 'F');
+    doc.rect(15, 12, 186, 16, 'F');
 
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(15);
+    doc.setFontSize(20);
+    doc.setTextColor(255, 255, 255);
+    doc.text("MODISA", 108, 22.5, { align: "center" });
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
     doc.setTextColor(6, 18, 30);
-    doc.text("MODISA - CONSTANCIA DE VACACIONES", 108, 32, { align: "center" });
+    doc.text("SOLICITUD DE VACACIONES", 108, 36, { align: "center" });
 
     doc.setDrawColor(203, 213, 225);
     doc.setLineWidth(0.5);
