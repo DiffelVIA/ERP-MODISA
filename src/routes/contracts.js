@@ -9,50 +9,92 @@ const { notificarModificacionContrato } = require('../services/whatsapp');
 
 const { gmail } = require('../config/google');
 
-async function enviarCorreoRechazoDireccion(datosContrato, comentarioRechazo) {
-  const DESTINATARIO = 'dvillalva@modisa.com.mx';
-  const asunto = `🚨 Contrato Rechazado: ${datosContrato.contract_key || '---'} (${datosContrato.project_name || 'Sin Proyecto'})`;
-
-  const htmlContent = `
-    <div style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px; color: #1e293b;">
-        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
-            <div style="padding: 24px;">
-                <h2 style="color: #dc2626; font-size: 18px; margin-top: 0;">⚠️ Contrato Rechazado</h2>
-                <p style="font-size: 14px; line-height: 1.5; color: #475569;">
-                    Se ha actualizado el estado de la siguiente solicitud de contrato, revisa los comentarios:
-                </p>
-                <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
-                    <tr style="background-color: #f1f5f9;">
-                        <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold; width: 40%;">Clave de Contrato:</td>
-                        <td style="padding: 10px; border: 1px solid #cbd5e1;">${datosContrato.contract_key || '---'}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold;">Proyecto / Obra:</td>
-                        <td style="padding: 10px; border: 1px solid #cbd5e1;">${datosContrato.project_name || 'Sin Proyecto'}</td>
-                    </tr>
-                    <tr style="background-color: #f1f5f9;">
-                        <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold;">Proveedor:</td>
-                        <td style="padding: 10px; border: 1px solid #cbd5e1;">${datosContrato.supplier || '---'}</td>
-                    </tr>
-                </table>
-
-                <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; border-radius: 0 4px 4px 0;">
-                    <strong style="color: #991b1b; display: block; margin-bottom: 5px;">Comentarios:</strong>
-                    <p style="margin: 0; color: #7f1d1d; font-size: 14px; white-space: pre-wrap;">${comentarioRechazo || 'Sin comentarios registrados.'}</p>
-                </div>
-
-                <p style="font-size: 12px; color: #94a3b8; margin-top: 30px; text-align: center;">
-                    Este es un mensaje automático generado por el ERP MODISA, no contestar.
-                </p>
-            </div>
-        </div>
-    </div>
-  `;
-
+async function enviarCorreoRechazoDireccion(idContrato, comentarioRechazo) {
   try {
+    const sqlContrato = `
+      SELECT 
+        c.contract_key,
+        c.supplier,
+        COALESCE(p.project_name, 'Sin Proyecto') AS project_name,
+        e_res.email AS email_residente
+      FROM contracts c
+      LEFT JOIN projects p ON c.id_project = p.id_project
+      LEFT JOIN employees e_res ON c.id_employee = e_res.id_employee
+      WHERE c.id_contract = ?
+    `;
+
+    const [rowsContrato] = await pool.query(sqlContrato, [idContrato]);
+    if (rowsContrato.length === 0) return;
+
+    const datosContrato = rowsContrato[0];
+
+    const sqlCostos = `
+      SELECT email 
+      FROM employees 
+      WHERE LOWER(TRIM(job_title)) LIKE '%costos%' 
+         OR LOWER(TRIM(job_title)) LIKE '%gerente de costos%'
+    `;
+
+    const [rowsCostos] = await pool.query(sqlCostos);
+
+    const correosDestino = new Set();
+
+    if (datosContrato.email_residente && datosContrato.email_residente.includes('@')) {
+      correosDestino.add(datosContrato.email_residente.trim());
+    }
+
+    rowsCostos.forEach(emp => {
+      if (emp.email && emp.email.includes('@')) {
+        correosDestino.add(emp.email.trim());
+      }
+    });
+
+    if (correosDestino.size === 0) {
+      correosDestino.add('dvillalva@modisa.com.mx');
+    }
+
+    const listaDestinatarios = Array.from(correosDestino).join(', ');
+    const asunto = `🚨 Contrato Rechazado: ${datosContrato.contract_key || '---'} (${datosContrato.project_name})`;
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px; color: #1e293b;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+              <div style="padding: 24px;">
+                  <h2 style="color: #dc2626; font-size: 18px; margin-top: 0;">⚠️ Contrato Rechazado</h2>
+                  <p style="font-size: 14px; line-height: 1.5; color: #475569;">
+                      Se ha actualizado el estado de la siguiente solicitud de contrato, revisa los comentarios:
+                  </p>
+                  <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+                      <tr style="background-color: #f1f5f9;">
+                          <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold; width: 40%;">Clave de Contrato:</td>
+                          <td style="padding: 10px; border: 1px solid #cbd5e1;">${datosContrato.contract_key || '---'}</td>
+                      </tr>
+                      <tr>
+                          <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold;">Proyecto / Obra:</td>
+                          <td style="padding: 10px; border: 1px solid #cbd5e1;">${datosContrato.project_name}</td>
+                      </tr>
+                      <tr style="background-color: #f1f5f9;">
+                          <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold;">Proveedor:</td>
+                          <td style="padding: 10px; border: 1px solid #cbd5e1;">${datosContrato.supplier || '---'}</td>
+                      </tr>
+                  </table>
+
+                  <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; border-radius: 0 4px 4px 0;">
+                      <strong style="color: #991b1b; display: block; margin-bottom: 5px;">Comentarios:</strong>
+                      <p style="margin: 0; color: #7f1d1d; font-size: 14px; white-space: pre-wrap;">${comentarioRechazo || 'Sin comentarios registrados.'}</p>
+                  </div>
+
+                  <p style="font-size: 12px; color: #94a3b8; margin-top: 30px; text-align: center;">
+                      Este es un mensaje automático generado por el ERP MODISA, no contestar.
+                  </p>
+              </div>
+          </div>
+      </div>
+    `;
+
     const utf8Subject = `=?utf-8?B?${Buffer.from(asunto).toString('base64')}?=`;
     const messageParts = [
-      `To: ${DESTINATARIO}`,
+      `To: ${listaDestinatarios}`,
       'Content-Type: text/html; charset=utf-8',
       'MIME-Version: 1.0',
       `Subject: ${utf8Subject}`,
@@ -70,9 +112,9 @@ async function enviarCorreoRechazoDireccion(datosContrato, comentarioRechazo) {
       userId: 'me',
       requestBody: { raw: encodedMessage }
     });
-    console.log(`✉️ Correo de rechazo de contrato enviado exitosamente vía Gmail API a: ${DESTINATARIO}`);
+    console.log(`✉️ Correo de rechazo enviado vía Gmail API a: ${listaDestinatarios}`);
   } catch (err) {
-    console.error('❌ Error al enviar correo mediante Gmail API en contratos:', err);
+    console.error('❌ Error al enviarle correo al Residente/Costos mediante Gmail API:', err);
   }
 }
 
@@ -323,9 +365,8 @@ router.put('/:id/actualizar-control', async (req, res) => {
             return res.status(404).json({ error: "No se encontró el contrato especificado." });
         }
 
-        // Disparador vía Gmail API al detectar el rechazo de Dirección Operativa
-        if (fueRechazadoPorDireccion && contratoPrevio.length > 0) {
-            enviarCorreoRechazoDireccion(contratoPrevio[0], comentarioDireccionValido);
+        if (fueRechazadoPorDireccion) {
+            enviarCorreoRechazoDireccion(id, comentarioDireccionValido);
         }
 
         if (contratoPrevio.length > 0 && nuevoTotal !== null) {
