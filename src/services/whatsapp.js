@@ -161,9 +161,6 @@ const iniciarWhatsApp = async () => {
         console.error('❌ Error al inicializar servicio de WhatsApp:', err.message);
     }
 };
-// ==========================================
-// FIN MODIFICACIÓN
-// ==========================================
 
 const notificarModificacionContrato = async (contractKey, targetGroupJid) => {
     try {

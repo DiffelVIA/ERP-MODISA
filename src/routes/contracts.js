@@ -16,10 +16,12 @@ async function enviarCorreoRechazoDireccion(idContrato, comentarioRechazo) {
         c.contract_key,
         c.supplier,
         COALESCE(p.project_name, 'Sin Proyecto') AS project_name,
-        e_res.email AS email_residente
+        e_proj.email AS email_residente_proyecto,
+        e_contr.email AS email_residente_contrato
       FROM contracts c
       LEFT JOIN projects p ON c.id_project = p.id_project
-      LEFT JOIN employees e_res ON c.id_employee = e_res.id_employee
+      LEFT JOIN employees e_proj ON p.id_user = e_proj.id_employee
+      LEFT JOIN employees e_contr ON c.id_employee = e_contr.id_employee
       WHERE c.id_contract = ?
     `;
 
@@ -39,8 +41,12 @@ async function enviarCorreoRechazoDireccion(idContrato, comentarioRechazo) {
 
     const correosDestino = new Set();
 
-    if (datosContrato.email_residente && datosContrato.email_residente.includes('@')) {
-      correosDestino.add(datosContrato.email_residente.trim());
+    if (datosContrato.email_residente_proyecto && datosContrato.email_residente_proyecto.includes('@')) {
+      correosDestino.add(datosContrato.email_residente_proyecto.trim());
+    }
+
+    if (datosContrato.email_residente_contrato && datosContrato.email_residente_contrato.includes('@')) {
+      correosDestino.add(datosContrato.email_residente_contrato.trim());
     }
 
     rowsCostos.forEach(emp => {
@@ -70,7 +76,7 @@ async function enviarCorreoRechazoDireccion(idContrato, comentarioRechazo) {
                           <td style="padding: 10px; border: 1px solid #cbd5e1;">${datosContrato.contract_key || '---'}</td>
                       </tr>
                       <tr>
-                          <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold;">Proyecto / Obra:</td>
+                          <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold;">Proyecto:</td>
                           <td style="padding: 10px; border: 1px solid #cbd5e1;">${datosContrato.project_name}</td>
                       </tr>
                       <tr style="background-color: #f1f5f9;">
