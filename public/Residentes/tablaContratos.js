@@ -83,7 +83,6 @@
             return;
         }
 
-        // MODIFICACIÓN: Escuchador global ampliado para los 5 filtros
         document.addEventListener('change', (e) => {
             if (
                 e.target.classList.contains('chk-obra') || 
@@ -132,7 +131,7 @@
         tbody.innerHTML = "";
 
         if (listaContratos.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="19" style="text-align:center;">🚫 No se encontraron contratos con los filtros seleccionados.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="16" style="text-align:center; padding: 20px;">🚫 No se encontraron contratos con los filtros seleccionados.</td></tr>`;
             return;
         }
 
@@ -236,23 +235,26 @@
                    </select>`
                 : `<span>${mapaFirma[currentFirma] || currentFirma}</span>`;
 
+            // =========================================================================
+            // REFACTORIZACIÓN DE ALINEACIÓN ESTRICTA: 16 CELDAS (TD) EN ORDEN
+            // =========================================================================
             tr.innerHTML = `
-                <td>${escapeHTML(c.project_name) || 'Sin Proyecto'}</td>
-                <td>${fechaFormateada}</td>
-                <td>Semana ${numeroSemana}</td>
-                <td>${celdaClave}</td>
-                <td>${escapeHTML(c.Concept) || 'Sin descripción'}</td>
-                <td>${escapeHTML(c.supplier)}</td>
-                <td data-campo="total" data-total="${total}" style="width: 130px; min-width: 130px; max-width: 130px; color: ${colorFuente}; font-weight: 700; vertical-align: middle;">${celdaTotal}</td>
-                <td data-campo="monto-consultar" data-monto-consultar="${pagado}">${celdaMontoPagado}</td>
-                <td id="porcentaje-${c.id_contract}"><strong>${porcentajePagado}%</strong></td>
-                <td data-campo="saldo-dinero" style="color: #64748b; font-weight: 500;">$${saldoPendienteDinero.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
-                <td data-campo="saldo-porcentaje" style="color: #64748b; font-weight: bold;">${saldoPendientePorcentaje}%</td>
-                <td data-campo="status-pago" data-valor-real="${currentStatus}">${celdaStatusPago}</td>
-                <td data-campo="estado-costos">${celdaCostos}</td>
-                <td data-campo="comentarios-costos" style="width: 220px; min-width: 220px; max-width: 220px; vertical-align: middle;">${celdaComentarioCostos}</td>
-                <td data-campo="status-direccion">${celdaDireccion}</td>
-                <td data-campo="firma">${celdaFirma}</td>
+                <td style="vertical-align: middle;">${escapeHTML(c.project_name) || 'Sin Proyecto'}</td>
+                <td style="vertical-align: middle;">${fechaFormateada}</td>
+                <td style="vertical-align: middle; text-align: center;">Semana ${numeroSemana}</td>
+                <td style="vertical-align: middle;">${celdaClave}</td>
+                <td style="vertical-align: middle; word-break: break-word; overflow-wrap: break-word;">${escapeHTML(c.Concept) || 'Sin descripción'}</td>
+                <td style="vertical-align: middle; word-break: break-word; overflow-wrap: break-word;">${escapeHTML(c.supplier)}</td>
+                <td data-campo="total" data-total="${total}" style="color: ${colorFuente}; font-weight: 700; vertical-align: middle; text-align: right;">${celdaTotal}</td>
+                <td data-campo="monto-consultar" data-monto-consultar="${pagado}" style="vertical-align: middle; text-align: right;">${celdaMontoPagado}</td>
+                <td id="porcentaje-${c.id_contract}" style="vertical-align: middle; text-align: center;"><strong>${porcentajePagado}%</strong></td>
+                <td data-campo="saldo-dinero" style="color: #64748b; font-weight: 500; vertical-align: middle; text-align: right;">$${saldoPendienteDinero.toLocaleString('es-MX', {minimumFractionDigits: 2})}</td>
+                <td data-campo="saldo-porcentaje" style="color: #64748b; font-weight: bold; vertical-align: middle; text-align: center;">${saldoPendientePorcentaje}%</td>
+                <td data-campo="status-pago" data-valor-real="${currentStatus}" style="vertical-align: middle; text-align: center;">${celdaStatusPago}</td>
+                <td data-campo="estado-costos" style="vertical-align: middle; text-align: center;">${celdaCostos}</td>
+                <td data-campo="comentarios-costos" style="vertical-align: middle; word-break: break-word; overflow-wrap: break-word;">${celdaComentarioCostos}</td>
+                <td data-campo="status-direccion" style="vertical-align: middle; text-align: center;">${celdaDireccion}</td>
+                <td data-campo="firma" style="vertical-align: middle; text-align: center;">${celdaFirma}</td>
             `;
  
             tbody.appendChild(tr);
@@ -297,7 +299,6 @@
         }
     };
 
-    // MODIFICACIÓN: Construcción de los 5 contenedores de filtros dinámicos
     function generarOpcionesFiltros(contratos) {
         const contenedorObra = document.getElementById("filtroObra");
         const contenedorEstado = document.getElementById("filtroEstado");
@@ -376,7 +377,6 @@
         });
     }
 
-    // MODIFICACIÓN: Filtrado cruzado multi-criterio (Obra, Estado Pago, Dirección, Costos, Firma)
     function aplicarFiltrosCruzados() {
         const obtenerValoresCheckboxes = (selector) => {
             return Array.from(document.querySelectorAll(selector)).filter(chk => chk.checked).map(chk => chk.value);
