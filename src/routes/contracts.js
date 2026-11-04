@@ -1,11 +1,78 @@
 const express = require('express');
 const router = express.Router();
 const fs = require('fs');
+const nodemailer = require('nodemailer');
 const pool = require('../config/db');
 const upload = require('../middlewares/uploads');
 const { subirArchivoADrive } = require('../services/drive');
 const { verificarToken } = require('../middlewares/authMiddleware');
 const { notificarModificacionContrato } = require('../services/whatsapp');
+
+const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: Number(process.env.SMTP_PORT || 465),
+    secure: process.env.SMTP_SECURE !== 'false',
+    auth: {
+        user: process.env.SMTP_USER || 'tu_correo_emisor@modisa.com.mx',
+        pass: process.env.SMTP_PASS || 'tu_password_o_app_key'
+    }
+});
+
+async function enviarCorreoRechazoDireccion(datosContrato, comentarioRechazo) {
+    const DESTINATARIO_PRUEBA = 'dvillalva@gmail.com.mx';
+
+    const htmlContent = `
+        <div style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px; color: #1e293b;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+                <div style="background-color: #06121e; padding: 20px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 3px;">MODISA</h1>
+                    <p style="color: #94a3b8; margin: 5px 0 0 0; font-size: 12px; font-weight: bold; text-transform: uppercase;">Notificación de Control de Contratos</p>
+                </div>
+                <div style="padding: 24px;">
+                    <h2 style="color: #dc2626; font-size: 18px; margin-top: 0;">⚠️ Contrato Rechazado por Dirección Operativa</h2>
+                    <p style="font-size: 14px; line-height: 1.5; color: #475569;">
+                        Se ha actualizado el estado de la siguiente solicitud de contrato a <strong>RECHAZADO</strong>.
+                    </p>
+                    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+                        <tr style="background-color: #f1f5f9;">
+                            <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold; width: 40%;">Clave de Contrato:</td>
+                            <td style="padding: 10px; border: 1px solid #cbd5e1;">${datosContrato.contract_key || '---'}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold;">Proyecto / Obra:</td>
+                            <td style="padding: 10px; border: 1px solid #cbd5e1;">${datosContrato.project_name || 'Sin Proyecto'}</td>
+                        </tr>
+                        <tr style="background-color: #f1f5f9;">
+                            <td style="padding: 10px; border: 1px solid #cbd5e1; font-weight: bold;">Proveedor:</td>
+                            <td style="padding: 10px; border: 1px solid #cbd5e1;">${datosContrato.supplier || '---'}</td>
+                        </tr>
+                    </table>
+
+                    <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; border-radius: 0 4px 4px 0;">
+                        <strong style="color: #991b1b; display: block; margin-bottom: 5px;">Comentarios de Dirección Operativa:</strong>
+                        <p style="margin: 0; color: #7f1d1d; font-size: 14px; white-space: pre-wrap;">${comentarioRechazo || 'Sin comentarios registrados.'}</p>
+                    </div>
+
+                    <p style="font-size: 12px; color: #94a3b8; margin-top: 30px; text-align: center;">
+                        Este es un mensaje automático generado por el ERP MODISA ®.
+                    </p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    try {
+        await transporter.sendMail({
+            from: '"ERP MODISA - Notificaciones" <no-reply@modisa.com.mx>',
+            to: DESTINATARIO_PRUEBA,
+            subject: `🚨 Contrato Rechazado: ${datosContrato.contract_key} (${datosContrato.project_name})`,
+            html: htmlContent
+        });
+        console.log(`📧 Correo de notificación de rechazo enviado con éxito a ${DESTINATARIO_PRUEBA}`);
+    } catch (errorMail) {
+        console.error("❌ Error al enviar correo de notificación Nodemailer:", errorMail.message);
+    }
+}
 
 router.post('/', upload.single('pdfFile'), async (req, res) => {
     const userRol = req.headers['x-user-rol'];
@@ -142,6 +209,7 @@ router.get('/', verificarToken, async (req, res) => {
                 c.estado_costos,     
                 c.comentarios_costos,
                 c.status_direccion,  
+                c.comentarios_direccion, -- NUEVA COLUMNA INCLUIDA
                 c.firma,
                 COALESCE(p.project_name, 'Sin Proyecto') AS project_name,
                 COALESCE(pc.grupo, '---') AS grupo,
@@ -192,21 +260,33 @@ router.get('/', verificarToken, async (req, res) => {
 
 router.put('/:id/actualizar-control', async (req, res) => {
     const { id } = req.params;
-    let { status, estado_costos, status_direccion, firma, total_amount, comentarios_costos } = req.body;
+
+    let { 
+        status, 
+        estado_costos, 
+        status_direccion, 
+        firma, 
+        total_amount, 
+        comentarios_costos,
+        comentarios_direccion 
+    } = req.body;
 
     try {
         const [contratoPrevio] = await pool.query(
-            `SELECT c.contract_key, c.total_amount, p.whatsapp_group_jid 
+            `SELECT c.contract_key, c.supplier, c.total_amount, p.project_name, p.whatsapp_group_jid 
              FROM contracts c
              LEFT JOIN projects p ON c.id_project = p.id_project
              WHERE c.id_contract = ?`,
             [id]
         );
 
+        let fueRechazadoPorDireccion = false;
+
         if (status_direccion === 'Rechazado') {
             estado_costos = 'Rechazado';
             firma = 'Pendiente';
             status = 'Rechazado';
+            fueRechazadoPorDireccion = true;
         } 
         else if (estado_costos === 'Rechazado') {
             status = 'Rechazado';
@@ -217,11 +297,12 @@ router.put('/:id/actualizar-control', async (req, res) => {
         const statusDireccionValido = status_direccion || 'Pendiente';
         const firmaValida = firma || 'Pendiente';
         const nuevoTotal = (total_amount !== undefined && total_amount !== null) ? Number(total_amount) : null;
-        const comentarioValido = comentarios_costos !== undefined ? comentarios_costos : null;
+        const comentarioCostosValido = comentarios_costos !== undefined ? comentarios_costos : null;
+        const comentarioDireccionValido = comentarios_direccion !== undefined ? comentarios_direccion : null;
 
         const sql = `
             UPDATE contracts 
-            SET status = ?, estado_costos = ?, status_direccion = ?, firma = ?, total_amount = ?, comentarios_costos = ?
+            SET status = ?, estado_costos = ?, status_direccion = ?, firma = ?, total_amount = ?, comentarios_costos = ?, comentarios_direccion = ?
             WHERE id_contract = ?
         `;
         
@@ -231,12 +312,17 @@ router.put('/:id/actualizar-control', async (req, res) => {
             statusDireccionValido, 
             firmaValida, 
             nuevoTotal,
-            comentarioValido,
+            comentarioCostosValido,
+            comentarioDireccionValido,
             id
         ]);
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ error: "No se encontró el contrato especificado." });
+        }
+
+        if (fueRechazadoPorDireccion && contratoPrevio.length > 0) {
+            enviarCorreoRechazoDireccion(contratoPrevio[0], comentarioDireccionValido);
         }
 
         if (contratoPrevio.length > 0 && nuevoTotal !== null) {
