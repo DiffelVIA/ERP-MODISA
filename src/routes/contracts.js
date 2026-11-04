@@ -42,7 +42,7 @@ async function enviarCorreoRechazoDireccion(datosContrato, comentarioRechazo) {
                 </div>
 
                 <p style="font-size: 12px; color: #94a3b8; margin-top: 30px; text-align: center;">
-                    Este es un mensaje automático generado por el ERP MODISA ®.
+                    Este es un mensaje automático generado por el ERP MODISA, no contestar.
                 </p>
             </div>
         </div>
