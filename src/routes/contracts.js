@@ -7,12 +7,8 @@ const { subirArchivoADrive } = require('../services/drive');
 const { verificarToken } = require('../middlewares/authMiddleware');
 const { notificarModificacionContrato } = require('../services/whatsapp');
 
-// Importación del cliente de Gmail autenticado desde la configuración de Google
 const { gmail } = require('../config/google');
 
-// =========================================================================
-// FUNCIÓN DE ENVÍO DE CORREO MEDIANTE GMAIL API (OAUTH2)
-// =========================================================================
 async function enviarCorreoRechazoDireccion(datosContrato, comentarioRechazo) {
   const DESTINATARIO = 'dvillalva@modisa.com.mx';
   const asunto = `🚨 Contrato Rechazado: ${datosContrato.contract_key || '---'} (${datosContrato.project_name || 'Sin Proyecto'})`;
@@ -20,14 +16,10 @@ async function enviarCorreoRechazoDireccion(datosContrato, comentarioRechazo) {
   const htmlContent = `
     <div style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px; color: #1e293b;">
         <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
-            <div style="background-color: #06121e; padding: 20px; text-align: center;">
-                <h1 style="color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 3px;">MODISA</h1>
-                <p style="color: #94a3b8; margin: 5px 0 0 0; font-size: 12px; font-weight: bold; text-transform: uppercase;">Notificación de Control de Contratos</p>
-            </div>
             <div style="padding: 24px;">
-                <h2 style="color: #dc2626; font-size: 18px; margin-top: 0;">⚠️ Contrato Rechazado por Dirección Operativa</h2>
+                <h2 style="color: #dc2626; font-size: 18px; margin-top: 0;">⚠️ Contrato Rechazado</h2>
                 <p style="font-size: 14px; line-height: 1.5; color: #475569;">
-                    Se ha actualizado el estado de la siguiente solicitud de contrato a <strong>RECHAZADO</strong>, revisa las observaciones registradas:
+                    Se ha actualizado el estado de la siguiente solicitud de contrato, revisa los comentarios:
                 </p>
                 <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
                     <tr style="background-color: #f1f5f9;">
@@ -45,7 +37,7 @@ async function enviarCorreoRechazoDireccion(datosContrato, comentarioRechazo) {
                 </table>
 
                 <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; border-radius: 0 4px 4px 0;">
-                    <strong style="color: #991b1b; display: block; margin-bottom: 5px;">Comentarios de Dirección Operativa:</strong>
+                    <strong style="color: #991b1b; display: block; margin-bottom: 5px;">Comentarios:</strong>
                     <p style="margin: 0; color: #7f1d1d; font-size: 14px; white-space: pre-wrap;">${comentarioRechazo || 'Sin comentarios registrados.'}</p>
                 </div>
 
