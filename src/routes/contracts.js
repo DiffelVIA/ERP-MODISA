@@ -8,18 +8,35 @@ const { subirArchivoADrive } = require('../services/drive');
 const { verificarToken } = require('../middlewares/authMiddleware');
 const { notificarModificacionContrato } = require('../services/whatsapp');
 
+// =========================================================================
+// CONFIGURACIÓN OPTIMIZADA DE NODEMAILER (PUERTO 587 Y TLS FLEXIBLE)
+// =========================================================================
 const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: Number(process.env.SMTP_PORT || 465),
-    secure: process.env.SMTP_SECURE !== 'false',
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: process.env.SMTP_SECURE === 'true', // false para puerto 587 con STARTTLS
     auth: {
         user: process.env.SMTP_USER || 'tu_correo_emisor@modisa.com.mx',
         pass: process.env.SMTP_PASS || 'tu_password_o_app_key'
+    },
+    tls: {
+        rejectUnauthorized: false // Evita bloqueos de certificados en servidores cloud (Render, etc.)
+    }
+});
+
+// Verificador automático de credenciales SMTP en consola
+transporter.verify((error, success) => {
+    if (error) {
+        console.error("❌ Error de autenticación/conexión con el servidor SMTP de correo:", error.message);
+    } else {
+        console.log("🚀 Servidor SMTP autenticado y listo para enviar correos de notificación.");
     }
 });
 
 async function enviarCorreoRechazoDireccion(datosContrato, comentarioRechazo) {
-    const DESTINATARIO_PRUEBA = 'dvillalva@gmail.com.mx';
+    // CORRECCIÓN CRÍTICA: Destinatario directo solicitado
+    const DESTINATARIO_PRUEBA = 'dvillalva@modisa.com.mx';
+    const emisorCorreo = process.env.SMTP_USER || 'no-reply@modisa.com.mx';
 
     const htmlContent = `
         <div style="font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px; color: #1e293b;">
@@ -31,7 +48,7 @@ async function enviarCorreoRechazoDireccion(datosContrato, comentarioRechazo) {
                 <div style="padding: 24px;">
                     <h2 style="color: #dc2626; font-size: 18px; margin-top: 0;">⚠️ Contrato Rechazado por Dirección Operativa</h2>
                     <p style="font-size: 14px; line-height: 1.5; color: #475569;">
-                        Se ha actualizado el estado de la siguiente solicitud de contrato a <strong>RECHAZADO</strong>.
+                        Se ha actualizado el estado de la siguiente solicitud de contrato, revisa los motivos presentados.
                     </p>
                     <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
                         <tr style="background-color: #f1f5f9;">
@@ -62,15 +79,15 @@ async function enviarCorreoRechazoDireccion(datosContrato, comentarioRechazo) {
     `;
 
     try {
-        await transporter.sendMail({
-            from: '"ERP MODISA - Notificaciones" <no-reply@modisa.com.mx>',
+        const info = await transporter.sendMail({
+            from: `"ERP MODISA - Notificaciones" <${emisorCorreo}>`,
             to: DESTINATARIO_PRUEBA,
             subject: `🚨 Contrato Rechazado: ${datosContrato.contract_key} (${datosContrato.project_name})`,
             html: htmlContent
         });
-        console.log(`📧 Correo de notificación de rechazo enviado con éxito a ${DESTINATARIO_PRUEBA}`);
+        console.log(`📧 Correo de notificación enviado exitosamente a ${DESTINATARIO_PRUEBA}. ID de mensaje: ${info.messageId}`);
     } catch (errorMail) {
-        console.error("❌ Error al enviar correo de notificación Nodemailer:", errorMail.message);
+        console.error("❌ Error al enviar correo de notificación Nodemailer:", errorMail);
     }
 }
 
@@ -209,7 +226,7 @@ router.get('/', verificarToken, async (req, res) => {
                 c.estado_costos,     
                 c.comentarios_costos,
                 c.status_direccion,  
-                c.comentarios_direccion, -- NUEVA COLUMNA INCLUIDA
+                c.comentarios_direccion,
                 c.firma,
                 COALESCE(p.project_name, 'Sin Proyecto') AS project_name,
                 COALESCE(pc.grupo, '---') AS grupo,
