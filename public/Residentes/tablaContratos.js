@@ -131,7 +131,7 @@
         tbody.innerHTML = "";
 
         if (listaContratos.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="16" style="text-align:center; padding: 20px;">🚫 No se encontraron contratos con los filtros seleccionados.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding: 20px;">🚫 No se encontraron contratos con los filtros seleccionados.</td></tr>`;
             return;
         }
 
@@ -171,6 +171,7 @@
 
             const esCostos = rolUsuarioLimpio.includes("costos");
             const esResidente = rolUsuarioLimpio.includes("residente");
+            const esDireccion = rolUsuarioLimpio.includes("director operativo");
             
             const puedeEliminar = esCostos || esResidente;
 
@@ -192,6 +193,7 @@
             const currentCostos = c.estado_costos || "Pendiente";
             const currentComentarioCostos = c.comentarios_costos || "";
             const currentDireccion = c.status_direccion || "Pendiente";
+            const currentComentarioDireccion = c.comentarios_direccion || "";
             const currentFirma = c.firma || "Pendiente";
 
             const mapaStatus = { "Pendiente": "⏳ Pendiente", "Pagado": "💰 Pagado", "Rechazado": "❌ Rechazado" };
@@ -218,13 +220,18 @@
                 ? `<textarea id="comentario-costos-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Escribe un comentario..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${escapeHTML(currentComentarioCostos)}</textarea>`
                 : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155; word-break: break-word; overflow-wrap: break-word;">${escapeHTML(currentComentarioCostos) || '---'}</span>`;
 
-            const celdaDireccion = (rolUsuarioLimpio.includes('director operativo'))
+            const celdaDireccion = esDireccion
                 ? `<select id="direccion-${c.id_contract}" class="select-tabla" onchange="autoGuardarFila(${c.id_contract})">
                         <option value="Pendiente" ${currentDireccion === 'Pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
                         <option value="Autorizado" ${currentDireccion === 'Autorizado' ? 'selected' : ''}>✔️ Autorizado</option>
                         <option value="Rechazado" ${currentDireccion === 'Rechazado' ? 'selected' : ''}>❌ Rechazado</option>
                    </select>`
                 : `<span>${mapaDireccion[currentDireccion] || currentDireccion}</span>`;
+
+            // NUEVO CONTROL: Textarea interactivo para Comentarios Dirección
+            const celdaComentarioDireccion = esDireccion
+                ? `<textarea id="comentario-direccion-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Escribe motivo de rechazo/autorización..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${escapeHTML(currentComentarioDireccion)}</textarea>`
+                : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155; word-break: break-word; overflow-wrap: break-word;">${escapeHTML(currentComentarioDireccion) || '---'}</span>`;
 
             const firmaDeshabilitada = (currentDireccion === 'Rechazado') ? 'disabled' : '';
 
@@ -235,9 +242,7 @@
                    </select>`
                 : `<span>${mapaFirma[currentFirma] || currentFirma}</span>`;
 
-            // =========================================================================
-            // REFACTORIZACIÓN DE ALINEACIÓN ESTRICTA: 16 CELDAS (TD) EN ORDEN
-            // =========================================================================
+            // Estructura limpia de 17 celdas exactas
             tr.innerHTML = `
                 <td style="vertical-align: middle;">${escapeHTML(c.project_name) || 'Sin Proyecto'}</td>
                 <td style="vertical-align: middle;">${fechaFormateada}</td>
@@ -254,6 +259,7 @@
                 <td data-campo="estado-costos" style="vertical-align: middle; text-align: center;">${celdaCostos}</td>
                 <td data-campo="comentarios-costos" style="vertical-align: middle; word-break: break-word; overflow-wrap: break-word;">${celdaComentarioCostos}</td>
                 <td data-campo="status-direccion" style="vertical-align: middle; text-align: center;">${celdaDireccion}</td>
+                <td data-campo="comentarios-direccion" style="vertical-align: middle; word-break: break-word; overflow-wrap: break-word;">${celdaComentarioDireccion}</td>
                 <td data-campo="firma" style="vertical-align: middle; text-align: center;">${celdaFirma}</td>
             `;
  
@@ -429,6 +435,7 @@
         
         const inputTotal = document.getElementById(`total-${id}`);
         const inputComentarioCostos = document.getElementById(`comentario-costos-${id}`);
+        const inputComentarioDireccion = document.getElementById(`comentario-direccion-${id}`);
 
         const totalFilaNum = inputTotal ? Number(inputTotal.value || 0) : (cellTotal ? Number(cellTotal.getAttribute('data-total') || 0) : 0);
         
@@ -439,6 +446,7 @@
 
         const montoPagado = cellMontoConsultar ? Number(cellMontoConsultar.getAttribute('data-monto-consultar') || 0) : 0;
         const comentarioCostosVal = inputComentarioCostos ? inputComentarioCostos.value : null;
+        const comentarioDireccionVal = inputComentarioDireccion ? inputComentarioDireccion.value : null;
 
         let statusDireccion = selectDireccion ? selectDireccion.value : (cellStatusDireccion ? cellStatusDireccion.innerText.replace(/[⏳✔️❌\s]/g, "") : "Pendiente");
         let statusGeneral   = cellStatusPago ? (cellStatusPago.getAttribute('data-valor-real') || "Pendiente") : "Pendiente";
@@ -515,7 +523,8 @@
                     status_direccion: statusDireccion,
                     firma: firmaVal,
                     total_amount: totalFilaNum,
-                    comentarios_costos: comentarioCostosVal
+                    comentarios_costos: comentarioCostosVal,
+                    comentarios_direccion: comentarioDireccionVal // Envío de la justificación al backend
                 })
             });
 
@@ -542,6 +551,7 @@
                     contratoEnCache.firma = firmaVal;
                     contratoEnCache.total_amount = totalFilaNum;
                     contratoEnCache.comentarios_costos = comentarioCostosVal;
+                    contratoEnCache.comentarios_direccion = comentarioDireccionVal;
                 }
                 
                 trFila.style.backgroundColor = "#eaffea";
