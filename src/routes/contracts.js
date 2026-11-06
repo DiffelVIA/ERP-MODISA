@@ -246,7 +246,6 @@ router.get('/', verificarToken, async (req, res) => {
 
         const esRolGlobal = rolesGlobales.includes(userRol);
 
-        // MODIFICACIÓN: Selección de c.comentarios_administracion agregada a la consulta SQL
         let sql = `
             SELECT 
                 c.id_contract,
@@ -310,7 +309,7 @@ router.get('/', verificarToken, async (req, res) => {
     }
 });
 
-// MODIFICACIÓN: Adición de verificarToken para protección del endpoint
+// MODIFICACIÓN: Ruta PUT con verificación estricta e independiente de roles por cada campo de comentario
 router.put('/:id/actualizar-control', verificarToken, async (req, res) => {
     const { id } = req.params;
     const usuarioSesion = req.usuario;
@@ -323,33 +322,49 @@ router.put('/:id/actualizar-control', verificarToken, async (req, res) => {
         total_amount, 
         comentarios_costos,
         comentarios_direccion,
-        comentarios_administracion // MODIFICACIÓN: Desestructuración del nuevo parámetro
+        comentarios_administracion
     } = req.body;
 
-    // CIBERSEGURIDAD: Validación estricta de rol en backend para edición del nuevo campo de administración
+    // CIBERSEGURIDAD: Verificación estricta de roles autenticados
     const userRol = usuarioSesion && usuarioSesion.rol 
         ? usuarioSesion.rol.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') 
         : '';
 
-    const rolesAutorizadosAdmin = ['gerente de costos', 'costos', 'compras', 'director operativo'];
-
-    if (comentarios_administracion !== undefined) {
-        const esAutorizado = rolesAutorizadosAdmin.some(r => userRol.includes(r));
-        if (!esAutorizado) {
-            return res.status(403).json({ 
-                error: "⛔ Acceso denegado: Solo Costos, Compras y Director Operativo pueden modificar los comentarios de administración." 
-            });
-        }
-    }
+    const esCostos = userRol.includes('costos');
+    const esDireccion = userRol.includes('director operativo');
+    const esCompras = userRol.includes('compras') || (userRol.includes('gerente') && userRol.includes('administrac'));
 
     try {
-        const [contratoPrevio] = await pool.query(
-            `SELECT c.contract_key, c.supplier, c.total_amount, p.project_name, p.whatsapp_group_jid 
-             FROM contracts c
-             LEFT JOIN projects p ON c.id_project = p.id_project
-             WHERE c.id_contract = ?`,
+        // Consulta del estado actual para preservar comentarios si no corresponde la autorización
+        const [contratoExistente] = await pool.query(
+            `SELECT comentarios_costos, comentarios_direccion, comentarios_administracion, total_amount 
+             FROM contracts WHERE id_contract = ?`,
             [id]
         );
+
+        if (contratoExistente.length === 0) {
+            return res.status(404).json({ error: "No se encontró el contrato especificado." });
+        }
+
+        const datosActuales = contratoExistente[0];
+
+        // Validar intentos no autorizados de edición
+        if (comentarios_costos !== undefined && comentarios_costos !== datosActuales.comentarios_costos && !esCostos) {
+            return res.status(403).json({ error: "⛔ Acceso denegado: Solo el área de Costos puede editar sus comentarios." });
+        }
+
+        if (comentarios_direccion !== undefined && comentarios_direccion !== datosActuales.comentarios_direccion && !esDireccion) {
+            return res.status(403).json({ error: "⛔ Acceso denegado: Solo el Director Operativo puede editar sus comentarios." });
+        }
+
+        if (comentarios_administracion !== undefined && comentarios_administracion !== datosActuales.comentarios_administracion && !esCompras) {
+            return res.status(403).json({ error: "⛔ Acceso denegado: Solo Compras / Administración pueden editar sus comentarios." });
+        }
+
+        // Asignar los comentarios respetando permisos
+        const comentarioCostosValido = esCostos ? (comentarios_costos !== undefined ? comentarios_costos : datosActuales.comentarios_costos) : datosActuales.comentarios_costos;
+        const comentarioDireccionValido = esDireccion ? (comentarios_direccion !== undefined ? comentarios_direccion : datosActuales.comentarios_direccion) : datosActuales.comentarios_direccion;
+        const comentarioAdministracionValido = esCompras ? (comentarios_administracion !== undefined ? comentarios_administracion : datosActuales.comentarios_administracion) : datosActuales.comentarios_administracion;
 
         let fueRechazadoPorDireccion = false;
 
@@ -368,12 +383,7 @@ router.put('/:id/actualizar-control', verificarToken, async (req, res) => {
         const statusDireccionValido = status_direccion || 'Pendiente';
         const firmaValida = firma || 'Pendiente';
         const nuevoTotal = (total_amount !== undefined && total_amount !== null) ? Number(total_amount) : null;
-        const comentarioCostosValido = comentarios_costos !== undefined ? comentarios_costos : null;
-        const comentarioDireccionValido = comentarios_direccion !== undefined ? comentarios_direccion : null;
-        // MODIFICACIÓN: Tratamiento seguro para comentarios_administracion
-        const comentarioAdministracionValido = comentarios_administracion !== undefined ? comentarios_administracion : null;
 
-        // MODIFICACIÓN: Inclusión de comentarios_administracion en la sentencia SQL UPDATE
         const sql = `
             UPDATE contracts 
             SET status = ?, estado_costos = ?, status_direccion = ?, firma = ?, total_amount = ?, comentarios_costos = ?, comentarios_direccion = ?, comentarios_administracion = ?
@@ -392,20 +402,25 @@ router.put('/:id/actualizar-control', verificarToken, async (req, res) => {
             id
         ]);
 
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ error: "No se encontró el contrato especificado." });
-        }
-
         if (fueRechazadoPorDireccion) {
             enviarCorreoRechazoDireccion(id, comentarioDireccionValido);
         }
 
-        if (contratoPrevio.length > 0 && nuevoTotal !== null) {
-            const montoAnterior = Number(contratoPrevio[0].total_amount);
+        if (nuevoTotal !== null) {
+            const montoAnterior = Number(datosActuales.total_amount);
             if (montoAnterior !== nuevoTotal) {
-                const clave = contratoPrevio[0].contract_key || `ID #${id}`;
-                const targetGroupJid = contratoPrevio[0].whatsapp_group_jid;
-                notificarModificacionContrato(clave, targetGroupJid);
+                const [infoContrato] = await pool.query(
+                    `SELECT c.contract_key, p.whatsapp_group_jid 
+                     FROM contracts c
+                     LEFT JOIN projects p ON c.id_project = p.id_project
+                     WHERE c.id_contract = ?`,
+                    [id]
+                );
+                if (infoContrato.length > 0) {
+                    const clave = infoContrato[0].contract_key || `ID #${id}`;
+                    const targetGroupJid = infoContrato[0].whatsapp_group_jid;
+                    notificarModificacionContrato(clave, targetGroupJid);
+                }
             }
         }
 

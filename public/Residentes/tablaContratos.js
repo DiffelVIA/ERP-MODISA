@@ -131,7 +131,6 @@
         tbody.innerHTML = "";
 
         if (listaContratos.length === 0) {
-            // MODIFICACIÓN: Se ajusta colspan a 18 por la nueva columna
             tbody.innerHTML = `<tr><td colspan="18" style="text-align:center; padding: 20px;">🚫 No se encontraron contratos con los filtros seleccionados.</td></tr>`;
             return;
         }
@@ -170,13 +169,12 @@
             const diasPasados = Math.floor((fechaRef - inicioAño) / (24 * 60 * 60 * 1000));
             const numeroSemana = Math.ceil((diasPasados + inicioAño.getDay() + 1) / 7);
 
+            // MODIFICACIÓN: Identificación estricta de roles por área
             const esCostos = rolUsuarioLimpio.includes("costos");
             const esResidente = rolUsuarioLimpio.includes("residente");
             const esDireccion = rolUsuarioLimpio.includes("director operativo");
-            const esCompras = rolUsuarioLimpio.includes("compras");
+            const esCompras = rolUsuarioLimpio.includes("compras") || (rolUsuarioLimpio.includes("gerente") && rolUsuarioLimpio.includes("administrac"));
             
-            // MODIFICACIÓN: Roles autorizados para editar la nueva columna Comentarios Administración
-            const puedeEditarAdmin = esCostos || esCompras || esDireccion;
             const puedeEliminar = esCostos || esResidente;
 
             const botonEditarUrl = esCostos 
@@ -198,7 +196,6 @@
             const currentComentarioCostos = c.comentarios_costos || "";
             const currentDireccion = c.status_direccion || "Pendiente";
             const currentComentarioDireccion = c.comentarios_direccion || "";
-            // MODIFICACIÓN: Captura del campo comentarios_administracion
             const currentComentarioAdministracion = c.comentarios_administracion || "";
             const currentFirma = c.firma || "Pendiente";
 
@@ -222,8 +219,9 @@
                    </select>`
                 : `<span>${mapaCostos[currentCostos] || currentCostos}</span>`;
 
+            // MODIFICACIÓN: Comentarios de Costos SOLO editables por Costos
             const celdaComentarioCostos = esCostos
-                ? `<textarea id="comentario-costos-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Comentario..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${escapeHTML(currentComentarioCostos)}</textarea>`
+                ? `<textarea id="comentario-costos-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Comentario Costos..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${escapeHTML(currentComentarioCostos)}</textarea>`
                 : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155; word-break: break-word; overflow-wrap: break-word;">${escapeHTML(currentComentarioCostos) || '---'}</span>`;
 
             const celdaDireccion = esDireccion
@@ -234,25 +232,25 @@
                    </select>`
                 : `<span>${mapaDireccion[currentDireccion] || currentDireccion}</span>`;
 
+            // MODIFICACIÓN: Comentarios de Dirección SOLO editables por Director Operativo
             const celdaComentarioDireccion = esDireccion
-                ? `<textarea id="comentario-direccion-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Comentario..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${escapeHTML(currentComentarioDireccion)}</textarea>`
+                ? `<textarea id="comentario-direccion-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Comentario Dirección..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${escapeHTML(currentComentarioDireccion)}</textarea>`
                 : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155; word-break: break-word; overflow-wrap: break-word;">${escapeHTML(currentComentarioDireccion) || '---'}</span>`;
 
-            // MODIFICACIÓN: Construcción del campo Comentarios Administración respetando roles (Costos, Compras y Director Operativo)
-            const celdaComentarioAdministracion = puedeEditarAdmin
-                ? `<textarea id="comentario-administracion-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Comentario..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${escapeHTML(currentComentarioAdministracion)}</textarea>`
+            // MODIFICACIÓN: Comentarios de Administración SOLO editables por Compras / Administración
+            const celdaComentarioAdministracion = esCompras
+                ? `<textarea id="comentario-administracion-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Comentario Administración..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${escapeHTML(currentComentarioAdministracion)}</textarea>`
                 : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155; word-break: break-word; overflow-wrap: break-word;">${escapeHTML(currentComentarioAdministracion) || '---'}</span>`;
 
             const firmaDeshabilitada = (currentDireccion === 'Rechazado') ? 'disabled' : '';
 
-            const celdaFirma = (rolUsuarioLimpio.includes('compras'))
+            const celdaFirma = esCompras
                 ? `<select id="firma-${c.id_contract}" class="select-tabla" ${firmaDeshabilitada} onchange="autoGuardarFila(${c.id_contract})">
                         <option value="Pendiente" ${currentFirma === 'Pendiente' || currentFirma === 'No' ? 'selected' : ''}>⏳ No</option>
                         <option value="Firmado" ${currentFirma === 'Firmado' || currentFirma === 'Sí' ? 'selected' : ''}>✅ Sí</option>
                    </select>`
                 : `<span>${mapaFirma[currentFirma] || currentFirma}</span>`;
 
-            // MODIFICACIÓN: Inserción de la celda de comentarios de administración (18 celdas en total)
             tr.innerHTML = `
                 <td style="vertical-align: middle;">${escapeHTML(c.project_name) || 'Sin Proyecto'}</td>
                 <td style="vertical-align: middle;">${fechaFormateada}</td>
@@ -447,7 +445,6 @@
         const inputTotal = document.getElementById(`total-${id}`);
         const inputComentarioCostos = document.getElementById(`comentario-costos-${id}`);
         const inputComentarioDireccion = document.getElementById(`comentario-direccion-${id}`);
-        // MODIFICACIÓN: Captura del input de Comentarios Administración
         const inputComentarioAdministracion = document.getElementById(`comentario-administracion-${id}`);
 
         const totalFilaNum = inputTotal ? Number(inputTotal.value || 0) : (cellTotal ? Number(cellTotal.getAttribute('data-total') || 0) : 0);
@@ -458,9 +455,10 @@
         if (cellTotal) cellTotal.setAttribute('data-total', totalFilaNum);
 
         const montoPagado = cellMontoConsultar ? Number(cellMontoConsultar.getAttribute('data-monto-consultar') || 0) : 0;
+        
+        // MODIFICACIÓN: Si el usuario no tiene textarea (es span), mantiene su valor actual del caché
         const comentarioCostosVal = inputComentarioCostos ? inputComentarioCostos.value : (contratoEnCache ? contratoEnCache.comentarios_costos : null);
         const comentarioDireccionVal = inputComentarioDireccion ? inputComentarioDireccion.value : (contratoEnCache ? contratoEnCache.comentarios_direccion : null);
-        // MODIFICACIÓN: Extracción del valor o mantenimiento en cache
         const comentarioAdministracionVal = inputComentarioAdministracion ? inputComentarioAdministracion.value : (contratoEnCache ? contratoEnCache.comentarios_administracion : null);
 
         let statusDireccion = selectDireccion ? selectDireccion.value : (cellStatusDireccion ? cellStatusDireccion.innerText.replace(/[⏳✔️❌\s]/g, "") : "Pendiente");
@@ -532,7 +530,6 @@
                     "Content-Type": "application/json",
                     "Authorization": token ? `Bearer ${token}` : ''
                 },
-                // MODIFICACIÓN: Inclusión de comentarios_administracion en el payload del auto-guardado
                 body: JSON.stringify({
                     status: statusGeneral, 
                     estado_costos: estadoCostos,
@@ -569,7 +566,6 @@
                     contratoEnCache.total_amount = totalFilaNum;
                     contratoEnCache.comentarios_costos = comentarioCostosVal;
                     contratoEnCache.comentarios_direccion = comentarioDireccionVal;
-                    // MODIFICACIÓN: Actualización del cache local
                     contratoEnCache.comentarios_administracion = comentarioAdministracionVal;
                 }
                 
