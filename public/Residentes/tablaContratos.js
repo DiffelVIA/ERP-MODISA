@@ -131,7 +131,8 @@
         tbody.innerHTML = "";
 
         if (listaContratos.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding: 20px;">🚫 No se encontraron contratos con los filtros seleccionados.</td></tr>`;
+            // MODIFICACIÓN: Se ajusta colspan a 18 por la nueva columna
+            tbody.innerHTML = `<tr><td colspan="18" style="text-align:center; padding: 20px;">🚫 No se encontraron contratos con los filtros seleccionados.</td></tr>`;
             return;
         }
 
@@ -172,7 +173,10 @@
             const esCostos = rolUsuarioLimpio.includes("costos");
             const esResidente = rolUsuarioLimpio.includes("residente");
             const esDireccion = rolUsuarioLimpio.includes("director operativo");
+            const esCompras = rolUsuarioLimpio.includes("compras");
             
+            // MODIFICACIÓN: Roles autorizados para editar la nueva columna Comentarios Administración
+            const puedeEditarAdmin = esCostos || esCompras || esDireccion;
             const puedeEliminar = esCostos || esResidente;
 
             const botonEditarUrl = esCostos 
@@ -194,6 +198,8 @@
             const currentComentarioCostos = c.comentarios_costos || "";
             const currentDireccion = c.status_direccion || "Pendiente";
             const currentComentarioDireccion = c.comentarios_direccion || "";
+            // MODIFICACIÓN: Captura del campo comentarios_administracion
+            const currentComentarioAdministracion = c.comentarios_administracion || "";
             const currentFirma = c.firma || "Pendiente";
 
             const mapaStatus = { "Pendiente": "⏳ Pendiente", "Pagado": "💰 Pagado", "Rechazado": "❌ Rechazado" };
@@ -228,10 +234,14 @@
                    </select>`
                 : `<span>${mapaDireccion[currentDireccion] || currentDireccion}</span>`;
 
-            // NUEVO CONTROL: Textarea interactivo para Comentarios Dirección
             const celdaComentarioDireccion = esDireccion
                 ? `<textarea id="comentario-direccion-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Comentario..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${escapeHTML(currentComentarioDireccion)}</textarea>`
                 : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155; word-break: break-word; overflow-wrap: break-word;">${escapeHTML(currentComentarioDireccion) || '---'}</span>`;
+
+            // MODIFICACIÓN: Construcción del campo Comentarios Administración respetando roles (Costos, Compras y Director Operativo)
+            const celdaComentarioAdministracion = puedeEditarAdmin
+                ? `<textarea id="comentario-administracion-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Comentario..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${escapeHTML(currentComentarioAdministracion)}</textarea>`
+                : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155; word-break: break-word; overflow-wrap: break-word;">${escapeHTML(currentComentarioAdministracion) || '---'}</span>`;
 
             const firmaDeshabilitada = (currentDireccion === 'Rechazado') ? 'disabled' : '';
 
@@ -242,7 +252,7 @@
                    </select>`
                 : `<span>${mapaFirma[currentFirma] || currentFirma}</span>`;
 
-            // Estructura limpia de 17 celdas exactas
+            // MODIFICACIÓN: Inserción de la celda de comentarios de administración (18 celdas en total)
             tr.innerHTML = `
                 <td style="vertical-align: middle;">${escapeHTML(c.project_name) || 'Sin Proyecto'}</td>
                 <td style="vertical-align: middle;">${fechaFormateada}</td>
@@ -260,6 +270,7 @@
                 <td data-campo="comentarios-costos" style="vertical-align: middle; word-break: break-word; overflow-wrap: break-word;">${celdaComentarioCostos}</td>
                 <td data-campo="status-direccion" style="vertical-align: middle; text-align: center;">${celdaDireccion}</td>
                 <td data-campo="comentarios-direccion" style="vertical-align: middle; word-break: break-word; overflow-wrap: break-word;">${celdaComentarioDireccion}</td>
+                <td data-campo="comentarios-administracion" style="vertical-align: middle; word-break: break-word; overflow-wrap: break-word;">${celdaComentarioAdministracion}</td>
                 <td data-campo="firma" style="vertical-align: middle; text-align: center;">${celdaFirma}</td>
             `;
  
@@ -436,6 +447,8 @@
         const inputTotal = document.getElementById(`total-${id}`);
         const inputComentarioCostos = document.getElementById(`comentario-costos-${id}`);
         const inputComentarioDireccion = document.getElementById(`comentario-direccion-${id}`);
+        // MODIFICACIÓN: Captura del input de Comentarios Administración
+        const inputComentarioAdministracion = document.getElementById(`comentario-administracion-${id}`);
 
         const totalFilaNum = inputTotal ? Number(inputTotal.value || 0) : (cellTotal ? Number(cellTotal.getAttribute('data-total') || 0) : 0);
         
@@ -445,8 +458,10 @@
         if (cellTotal) cellTotal.setAttribute('data-total', totalFilaNum);
 
         const montoPagado = cellMontoConsultar ? Number(cellMontoConsultar.getAttribute('data-monto-consultar') || 0) : 0;
-        const comentarioCostosVal = inputComentarioCostos ? inputComentarioCostos.value : null;
-        const comentarioDireccionVal = inputComentarioDireccion ? inputComentarioDireccion.value : null;
+        const comentarioCostosVal = inputComentarioCostos ? inputComentarioCostos.value : (contratoEnCache ? contratoEnCache.comentarios_costos : null);
+        const comentarioDireccionVal = inputComentarioDireccion ? inputComentarioDireccion.value : (contratoEnCache ? contratoEnCache.comentarios_direccion : null);
+        // MODIFICACIÓN: Extracción del valor o mantenimiento en cache
+        const comentarioAdministracionVal = inputComentarioAdministracion ? inputComentarioAdministracion.value : (contratoEnCache ? contratoEnCache.comentarios_administracion : null);
 
         let statusDireccion = selectDireccion ? selectDireccion.value : (cellStatusDireccion ? cellStatusDireccion.innerText.replace(/[⏳✔️❌\s]/g, "") : "Pendiente");
         let statusGeneral   = cellStatusPago ? (cellStatusPago.getAttribute('data-valor-real') || "Pendiente") : "Pendiente";
@@ -517,6 +532,7 @@
                     "Content-Type": "application/json",
                     "Authorization": token ? `Bearer ${token}` : ''
                 },
+                // MODIFICACIÓN: Inclusión de comentarios_administracion en el payload del auto-guardado
                 body: JSON.stringify({
                     status: statusGeneral, 
                     estado_costos: estadoCostos,
@@ -524,7 +540,8 @@
                     firma: firmaVal,
                     total_amount: totalFilaNum,
                     comentarios_costos: comentarioCostosVal,
-                    comentarios_direccion: comentarioDireccionVal // Envío de la justificación al backend
+                    comentarios_direccion: comentarioDireccionVal,
+                    comentarios_administracion: comentarioAdministracionVal
                 })
             });
 
@@ -552,6 +569,8 @@
                     contratoEnCache.total_amount = totalFilaNum;
                     contratoEnCache.comentarios_costos = comentarioCostosVal;
                     contratoEnCache.comentarios_direccion = comentarioDireccionVal;
+                    // MODIFICACIÓN: Actualización del cache local
+                    contratoEnCache.comentarios_administracion = comentarioAdministracionVal;
                 }
                 
                 trFila.style.backgroundColor = "#eaffea";

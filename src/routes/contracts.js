@@ -246,6 +246,7 @@ router.get('/', verificarToken, async (req, res) => {
 
         const esRolGlobal = rolesGlobales.includes(userRol);
 
+        // MODIFICACIÓN: Selección de c.comentarios_administracion agregada a la consulta SQL
         let sql = `
             SELECT 
                 c.id_contract,
@@ -260,6 +261,7 @@ router.get('/', verificarToken, async (req, res) => {
                 c.comentarios_costos,
                 c.status_direccion,  
                 c.comentarios_direccion,
+                c.comentarios_administracion,
                 c.firma,
                 COALESCE(p.project_name, 'Sin Proyecto') AS project_name,
                 COALESCE(pc.grupo, '---') AS grupo,
@@ -308,8 +310,10 @@ router.get('/', verificarToken, async (req, res) => {
     }
 });
 
-router.put('/:id/actualizar-control', async (req, res) => {
+// MODIFICACIÓN: Adición de verificarToken para protección del endpoint
+router.put('/:id/actualizar-control', verificarToken, async (req, res) => {
     const { id } = req.params;
+    const usuarioSesion = req.usuario;
 
     let { 
         status, 
@@ -318,8 +322,25 @@ router.put('/:id/actualizar-control', async (req, res) => {
         firma, 
         total_amount, 
         comentarios_costos,
-        comentarios_direccion 
+        comentarios_direccion,
+        comentarios_administracion // MODIFICACIÓN: Desestructuración del nuevo parámetro
     } = req.body;
+
+    // CIBERSEGURIDAD: Validación estricta de rol en backend para edición del nuevo campo de administración
+    const userRol = usuarioSesion && usuarioSesion.rol 
+        ? usuarioSesion.rol.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') 
+        : '';
+
+    const rolesAutorizadosAdmin = ['gerente de costos', 'costos', 'compras', 'director operativo'];
+
+    if (comentarios_administracion !== undefined) {
+        const esAutorizado = rolesAutorizadosAdmin.some(r => userRol.includes(r));
+        if (!esAutorizado) {
+            return res.status(403).json({ 
+                error: "⛔ Acceso denegado: Solo Costos, Compras y Director Operativo pueden modificar los comentarios de administración." 
+            });
+        }
+    }
 
     try {
         const [contratoPrevio] = await pool.query(
@@ -349,10 +370,13 @@ router.put('/:id/actualizar-control', async (req, res) => {
         const nuevoTotal = (total_amount !== undefined && total_amount !== null) ? Number(total_amount) : null;
         const comentarioCostosValido = comentarios_costos !== undefined ? comentarios_costos : null;
         const comentarioDireccionValido = comentarios_direccion !== undefined ? comentarios_direccion : null;
+        // MODIFICACIÓN: Tratamiento seguro para comentarios_administracion
+        const comentarioAdministracionValido = comentarios_administracion !== undefined ? comentarios_administracion : null;
 
+        // MODIFICACIÓN: Inclusión de comentarios_administracion en la sentencia SQL UPDATE
         const sql = `
             UPDATE contracts 
-            SET status = ?, estado_costos = ?, status_direccion = ?, firma = ?, total_amount = ?, comentarios_costos = ?, comentarios_direccion = ?
+            SET status = ?, estado_costos = ?, status_direccion = ?, firma = ?, total_amount = ?, comentarios_costos = ?, comentarios_direccion = ?, comentarios_administracion = ?
             WHERE id_contract = ?
         `;
         
@@ -364,6 +388,7 @@ router.put('/:id/actualizar-control', async (req, res) => {
             nuevoTotal,
             comentarioCostosValido,
             comentarioDireccionValido,
+            comentarioAdministracionValido,
             id
         ]);
 
@@ -510,4 +535,4 @@ router.delete('/:id', verificarToken, async (req, res) => {
     }
 });
 
-module.exports = router; 
+module.exports = router;
