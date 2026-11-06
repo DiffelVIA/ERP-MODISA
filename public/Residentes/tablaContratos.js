@@ -131,7 +131,7 @@
         tbody.innerHTML = "";
 
         if (listaContratos.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding: 20px;">🚫 No se encontraron contratos con los filtros seleccionados.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="16" style="text-align:center; padding: 20px;">🚫 No se encontraron contratos con los filtros seleccionados.</td></tr>`;
             return;
         }
 
@@ -191,9 +191,7 @@
 
             const currentStatus = c.status || "Pendiente";
             const currentCostos = c.estado_costos || "Pendiente";
-            const currentComentarioCostos = c.comentarios_costos || "";
             const currentDireccion = c.status_direccion || "Pendiente";
-            const currentComentarioDireccion = c.comentarios_direccion || "";
             const currentFirma = c.firma || "Pendiente";
 
             const mapaStatus = { "Pendiente": "⏳ Pendiente", "Pagado": "💰 Pagado", "Rechazado": "❌ Rechazado" };
@@ -216,10 +214,6 @@
                    </select>`
                 : `<span>${mapaCostos[currentCostos] || currentCostos}</span>`;
 
-            const celdaComentarioCostos = esCostos
-                ? `<textarea id="comentario-costos-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Comentario..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${escapeHTML(currentComentarioCostos)}</textarea>`
-                : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155; word-break: break-word; overflow-wrap: break-word;">${escapeHTML(currentComentarioCostos) || '---'}</span>`;
-
             const celdaDireccion = esDireccion
                 ? `<select id="direccion-${c.id_contract}" class="select-tabla" onchange="autoGuardarFila(${c.id_contract})">
                         <option value="Pendiente" ${currentDireccion === 'Pendiente' ? 'selected' : ''}>⏳ Pendiente</option>
@@ -227,11 +221,6 @@
                         <option value="Rechazado" ${currentDireccion === 'Rechazado' ? 'selected' : ''}>❌ Rechazado</option>
                    </select>`
                 : `<span>${mapaDireccion[currentDireccion] || currentDireccion}</span>`;
-
-            // NUEVO CONTROL: Textarea interactivo para Comentarios Dirección
-            const celdaComentarioDireccion = esDireccion
-                ? `<textarea id="comentario-direccion-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Comentario..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${escapeHTML(currentComentarioDireccion)}</textarea>`
-                : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155; word-break: break-word; overflow-wrap: break-word;">${escapeHTML(currentComentarioDireccion) || '---'}</span>`;
 
             const firmaDeshabilitada = (currentDireccion === 'Rechazado') ? 'disabled' : '';
 
@@ -242,7 +231,7 @@
                    </select>`
                 : `<span>${mapaFirma[currentFirma] || currentFirma}</span>`;
 
-            // Estructura limpia de 17 celdas exactas
+            // Estructura limpia de 16 celdas exactas con Botón Modal Observaciones
             tr.innerHTML = `
                 <td style="vertical-align: middle;">${escapeHTML(c.project_name) || 'Sin Proyecto'}</td>
                 <td style="vertical-align: middle;">${fechaFormateada}</td>
@@ -257,15 +246,80 @@
                 <td data-campo="saldo-porcentaje" style="color: #64748b; font-weight: bold; vertical-align: middle; text-align: center;">${saldoPendientePorcentaje}%</td>
                 <td data-campo="status-pago" data-valor-real="${currentStatus}" style="vertical-align: middle; text-align: center;">${celdaStatusPago}</td>
                 <td data-campo="estado-costos" style="vertical-align: middle; text-align: center;">${celdaCostos}</td>
-                <td data-campo="comentarios-costos" style="vertical-align: middle; word-break: break-word; overflow-wrap: break-word;">${celdaComentarioCostos}</td>
                 <td data-campo="status-direccion" style="vertical-align: middle; text-align: center;">${celdaDireccion}</td>
-                <td data-campo="comentarios-direccion" style="vertical-align: middle; word-break: break-word; overflow-wrap: break-word;">${celdaComentarioDireccion}</td>
                 <td data-campo="firma" style="vertical-align: middle; text-align: center;">${celdaFirma}</td>
+                <td style="vertical-align: middle; text-align: center;">
+                    <button type="button" class="btn-ver-obs" onclick="abrirModalObservaciones(${c.id_contract})">
+                        💬 Observaciones
+                    </button>
+                </td>
             `;
  
             tbody.appendChild(tr);
         });
     }
+
+    // FUNCIONALIDAD DEL MODAL DE OBSERVACIONES
+    window.abrirModalObservaciones = function(idContrato) {
+        const contrato = todosLosContratos.find(c => c.id_contract === idContrato);
+        if (!contrato) return;
+
+        document.getElementById('modalIdContratoHidden').value = idContrato;
+        document.getElementById('modalObsTitulo').innerText = `💬 Observaciones: ${contrato.contract_key || 'Contrato #' + idContrato}`;
+        
+        document.getElementById('obsCostos').value = contrato.comentarios_costos || '';
+        document.getElementById('obsDireccion').value = contrato.comentarios_direccion || '';
+        document.getElementById('obsAdministracion').value = contrato.comentarios_administracion || '';
+
+        const modal = document.getElementById('modalObservaciones');
+        modal.style.display = 'flex';
+    };
+
+    window.cerrarModalObservaciones = function() {
+        const modal = document.getElementById('modalObservaciones');
+        modal.style.display = 'none';
+    };
+
+    window.guardarObservacionesModal = async function() {
+        const idContrato = document.getElementById('modalIdContratoHidden').value;
+        const obsCostos = document.getElementById('obsCostos').value;
+        const obsDireccion = document.getElementById('obsDireccion').value;
+        const obsAdministracion = document.getElementById('obsAdministracion').value;
+
+        const token = localStorage.getItem('jwtToken') || '';
+
+        try {
+            const res = await fetch(`${API_BASE}/contratos/${idContrato}/actualizar-control`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': token ? `Bearer ${token}` : ''
+                },
+                body: JSON.stringify({
+                    comentarios_costos: obsCostos,
+                    comentarios_direccion: obsDireccion,
+                    comentarios_administracion: obsAdministracion
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'No se pudieron guardar las observaciones.');
+
+            const itemLocal = todosLosContratos.find(c => c.id_contract == idContrato);
+            if (itemLocal) {
+                itemLocal.comentarios_costos = obsCostos;
+                itemLocal.comentarios_direccion = obsDireccion;
+                itemLocal.comentarios_administracion = obsAdministracion;
+            }
+
+            alert('✅ Observaciones guardadas correctamente.');
+            cerrarModalObservaciones();
+
+        } catch (err) {
+            console.error("❌ Error al actualizar observaciones desde modal:", err);
+            alert(`❌ Error: ${err.message}`);
+        }
+    };
 
     window.eliminarContrato = async function(idContract, claveContrato) {
         const confirmacion = confirm(`⚠️ ¿Estás seguro de que deseas eliminar permanentemente el contrato "${claveContrato}"?\n\nEsta acción no se puede deshacer.`);
@@ -434,8 +488,6 @@
         const selectFirma = document.getElementById(`firma-${id}`);
         
         const inputTotal = document.getElementById(`total-${id}`);
-        const inputComentarioCostos = document.getElementById(`comentario-costos-${id}`);
-        const inputComentarioDireccion = document.getElementById(`comentario-direccion-${id}`);
 
         const totalFilaNum = inputTotal ? Number(inputTotal.value || 0) : (cellTotal ? Number(cellTotal.getAttribute('data-total') || 0) : 0);
         
@@ -445,8 +497,11 @@
         if (cellTotal) cellTotal.setAttribute('data-total', totalFilaNum);
 
         const montoPagado = cellMontoConsultar ? Number(cellMontoConsultar.getAttribute('data-monto-consultar') || 0) : 0;
-        const comentarioCostosVal = inputComentarioCostos ? inputComentarioCostos.value : null;
-        const comentarioDireccionVal = inputComentarioDireccion ? inputComentarioDireccion.value : null;
+        
+        // Conservar los valores existentes de comentarios al cambiar controles select de la fila
+        const comentarioCostosVal = contratoEnCache ? contratoEnCache.comentarios_costos : null;
+        const comentarioDireccionVal = contratoEnCache ? contratoEnCache.comentarios_direccion : null;
+        const comentarioAdministracionVal = contratoEnCache ? contratoEnCache.comentarios_administracion : null;
 
         let statusDireccion = selectDireccion ? selectDireccion.value : (cellStatusDireccion ? cellStatusDireccion.innerText.replace(/[⏳✔️❌\s]/g, "") : "Pendiente");
         let statusGeneral   = cellStatusPago ? (cellStatusPago.getAttribute('data-valor-real') || "Pendiente") : "Pendiente";
@@ -524,7 +579,8 @@
                     firma: firmaVal,
                     total_amount: totalFilaNum,
                     comentarios_costos: comentarioCostosVal,
-                    comentarios_direccion: comentarioDireccionVal // Envío de la justificación al backend
+                    comentarios_direccion: comentarioDireccionVal,
+                    comentarios_administracion: comentarioAdministracionVal
                 })
             });
 
@@ -550,8 +606,6 @@
                     contratoEnCache.status_direccion = statusDireccion;
                     contratoEnCache.firma = firmaVal;
                     contratoEnCache.total_amount = totalFilaNum;
-                    contratoEnCache.comentarios_costos = comentarioCostosVal;
-                    contratoEnCache.comentarios_direccion = comentarioDireccionVal;
                 }
                 
                 trFila.style.backgroundColor = "#eaffea";

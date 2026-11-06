@@ -1084,3 +1084,147 @@ footer {
   width: 100%;
   box-sizing: border-box;
 }
+
+/* ==========================================================================
+   MODAL DE OBSERVACIONES / DETALLES DE CONTRATOS (UX)
+   ========================================================================== */
+.modal-observaciones-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-observaciones-content {
+    background-color: #ffffff;
+    width: 90%;
+    max-width: 650px;
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+    animation: fadeInModal 0.25s ease-out;
+}
+
+@keyframes fadeInModal {
+    from {
+        opacity: 0;
+        transform: translateY(-15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header-obs {
+    background-color: #06121e;
+    color: #ffffff;
+    padding: 18px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header-obs h2 {
+    margin: 0;
+    font-size: 18px;
+    letter-spacing: 0.5px;
+}
+
+.btn-cerrar-modal {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 24px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.btn-cerrar-modal:hover {
+    color: #ffffff;
+}
+
+.modal-body-obs {
+    padding: 24px;
+    max-height: 75vh;
+    overflow-y: auto;
+}
+
+.grupo-comentario {
+    margin-bottom: 20px;
+}
+
+.grupo-comentario label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #334155;
+}
+
+.grupo-comentario textarea {
+    width: 100%;
+    min-height: 75px;
+    padding: 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    color: #1e293b;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.grupo-comentario textarea:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.modal-footer-obs {
+    padding: 16px 24px;
+    background-color: #f8fafc;
+    text-align: right;
+    border-top: 1px solid #e2e8f0;
+}
+
+.btn-guardar-obs {
+    background-color: #2563eb;
+    color: #ffffff;
+    border: none;
+    padding: 9px 18px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-guardar-obs:hover {
+    background-color: #1d4ed8;
+}
+
+.btn-ver-obs {
+    background-color: #f1f5f9;
+    color: #0f172a;
+    border: 1px solid #cbd5e1;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-ver-obs:hover {
+    background-color: #e2e8f0;
+}
+

@@ -260,6 +260,7 @@ router.get('/', verificarToken, async (req, res) => {
                 c.comentarios_costos,
                 c.status_direccion,  
                 c.comentarios_direccion,
+                c.comentarios_administracion,
                 c.firma,
                 COALESCE(p.project_name, 'Sin Proyecto') AS project_name,
                 COALESCE(pc.grupo, '---') AS grupo,
@@ -318,7 +319,8 @@ router.put('/:id/actualizar-control', async (req, res) => {
         firma, 
         total_amount, 
         comentarios_costos,
-        comentarios_direccion 
+        comentarios_direccion,
+        comentarios_administracion
     } = req.body;
 
     try {
@@ -349,10 +351,11 @@ router.put('/:id/actualizar-control', async (req, res) => {
         const nuevoTotal = (total_amount !== undefined && total_amount !== null) ? Number(total_amount) : null;
         const comentarioCostosValido = comentarios_costos !== undefined ? comentarios_costos : null;
         const comentarioDireccionValido = comentarios_direccion !== undefined ? comentarios_direccion : null;
+        const comentarioAdministracionValido = comentarios_administracion !== undefined ? comentarios_administracion : null;
 
         const sql = `
             UPDATE contracts 
-            SET status = ?, estado_costos = ?, status_direccion = ?, firma = ?, total_amount = ?, comentarios_costos = ?, comentarios_direccion = ?
+            SET status = ?, estado_costos = ?, status_direccion = ?, firma = ?, total_amount = ?, comentarios_costos = ?, comentarios_direccion = ?, comentarios_administracion = ?
             WHERE id_contract = ?
         `;
         
@@ -364,6 +367,7 @@ router.put('/:id/actualizar-control', async (req, res) => {
             nuevoTotal,
             comentarioCostosValido,
             comentarioDireccionValido,
+            comentarioAdministracionValido,
             id
         ]);
 
@@ -510,4 +514,4 @@ router.delete('/:id', verificarToken, async (req, res) => {
     }
 });
 
-module.exports = router; 
+module.exports = router;

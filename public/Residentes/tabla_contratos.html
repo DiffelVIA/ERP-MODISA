@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consulta de Contratos</title>
-    <script src="/timeout.js"> </script>
+    <script src="/timeout.js"></script>
     <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
     <link rel="stylesheet" href="/styles.css">
 </head>
@@ -14,43 +14,33 @@
             <img src="/img/logo.png" alt="logo" id="logo">
         </div>
         <nav>
-      <ul>
-        <li><a href="../principal.html?panel=residentes">Volver a Panel Residentes</a></li>
-      </ul>
-    </nav>
+            <ul>
+                <li><a href="../principal.html?panel=residentes">Volver a Panel Residentes</a></li>
+            </ul>
+        </nav>
     </header>
     <main class="main-tabla">
         <h1>Consulta de Contratos</h1>
         <div class="contenedorFiltros">
-
             <div class="filtros" id="dropdownObra">
                 <button type="button" class="btn-dropdown">Filtro Obra ▾</button>
-                <div class="contenido-dropdown" id="filtroObra">
-                </div>
+                <div class="contenido-dropdown" id="filtroObra"></div>
             </div>
-
             <div class="filtros" id="dropdownEstado">
                 <button type="button" class="btn-dropdown">Filtro Estado Pago ▾</button>
-                <div class="contenido-dropdown" id="filtroEstado">
-                </div>
+                <div class="contenido-dropdown" id="filtroEstado"></div>
             </div>
-
             <div class="filtros" id="dropdownDireccion">
                 <button type="button" class="btn-dropdown">Filtro Dirección ▾</button>
-                <div class="contenido-dropdown" id="filtroDireccion">
-                </div>
+                <div class="contenido-dropdown" id="filtroDireccion"></div>
             </div>
-
             <div class="filtros" id="dropdownCostos">
                 <button type="button" class="btn-dropdown">Filtro Costos ▾</button>
-                <div class="contenido-dropdown" id="filtroCostos">
-                </div>
+                <div class="contenido-dropdown" id="filtroCostos"></div>
             </div>
-
             <div class="filtros" id="dropdownFirma">
                 <button type="button" class="btn-dropdown">Filtro Firma ▾</button>
-                <div class="contenido-dropdown" id="filtroFirma">
-                </div>
+                <div class="contenido-dropdown" id="filtroFirma"></div>
             </div>
         </div>  
 
@@ -74,17 +64,48 @@
                         <th>Saldo (%)</th>
                         <th>Estado de Pago</th>
                         <th>Estado Costos</th>
-                        <th>Comentarios Costos</th>
                         <th>Estado Dirección</th>
-                        <th>Comentarios Dirección</th>
                         <th>Firmado</th>
+                        <th>Observaciones</th>
                     </tr>
                 </thead>
                 <tbody class="cuerpoTabla">
                 </tbody>
             </table>
         </div>
+
+        <!-- MODAL DE OBSERVACIONES DE CONTRATOS -->
+        <div id="modalObservaciones" class="modal-observaciones-overlay">
+            <div class="modal-observaciones-content">
+                <div class="modal-header-obs">
+                    <h2 id="modalObsTitulo">💬 Observaciones del Contrato</h2>
+                    <button type="button" class="btn-cerrar-modal" onclick="cerrarModalObservaciones()">&times;</button>
+                </div>
+                <div class="modal-body-obs">
+                    <input type="hidden" id="modalIdContratoHidden">
+                    
+                    <div class="grupo-comentario">
+                        <label for="obsCostos">Comentarios de Costos:</label>
+                        <textarea id="obsCostos" placeholder="Sin observaciones de Costos."></textarea>
+                    </div>
+                    
+                    <div class="grupo-comentario">
+                        <label for="obsDireccion">Comentarios de Dirección Operativa:</label>
+                        <textarea id="obsDireccion" placeholder="Sin observaciones de Dirección Operativa."></textarea>
+                    </div>
+
+                    <div class="grupo-comentario">
+                        <label for="obsAdministracion">Comentarios de Administración:</label>
+                        <textarea id="obsAdministracion" placeholder="Sin observaciones de Administración."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer-obs">
+                    <button type="button" class="btn-guardar-obs" onclick="guardarObservacionesModal()">Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
     </main>
+
     <footer id="footer">
         <p>Software especializado MODISA ®</p>
         <p>Esta aplicación web está diseñada exclusivamente para consultar los contratos registrados</p>
