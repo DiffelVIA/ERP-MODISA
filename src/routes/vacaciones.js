@@ -133,7 +133,7 @@ function calcularDiasHabilesServidor(fechaInicio, fechaFin) {
   return diasHabiles;
 }
 
-// MODIFICACIÓN SOLUCIÓN: Ruta principal GET /api/vacaciones que resuelve el Error 404 de la tabla
+// MODIFICACIÓN SOLUCIÓN: Se agrega DATE_FORMAT(e.hire_date, '%Y-%m-%d') AS hire_date en la consulta SQL
 router.get('/', verificarToken, async (req, res) => {
   try {
     const rolUsuario = req.usuario ? req.usuario.rol : '';
@@ -158,6 +158,7 @@ router.get('/', verificarToken, async (req, res) => {
           NULLIF(TRIM(CONCAT(COALESCE(e.name, ''), ' ', COALESCE(e.last_name, ''))), ''),
           CONCAT('Empleado ID #', v.id_employee)
         ) AS nombre_empleado,
+        DATE_FORMAT(e.hire_date, '%Y-%m-%d') AS hire_date,
         v.fecha_inicio,
         v.fecha_fin,
         COALESCE(v.dias_tomados, 0) AS dias_tomados,
