@@ -1,3 +1,4 @@
+// MODIFICACIÓN SOLUCIÓN: Definición local de helpers utilitarios para evitar SyntaxError por importaciones de módulos ES6
 function escapeHTML(str) {
   if (!str) return '';
   return String(str)
@@ -6,6 +7,22 @@ function escapeHTML(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+function calcularDiasHabilesEfectivos(inicio, fin) {
+  if (!inicio || !fin) return 0;
+  const fInicio = new Date(inicio);
+  const fFin = new Date(fin);
+  let dias = 0;
+  let cursor = new Date(fInicio);
+  while (cursor <= fFin) {
+    const diaSemana = cursor.getDay();
+    if (diaSemana !== 0 && diaSemana !== 6) { // Excluir sábados (6) y domingos (0)
+      dias++;
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dias;
 }
 
 export function inicializarHandlersGlobales(API_URL, getDatosVacaciones, setDatosVacaciones, cargarDatosVacaciones, cargarDatosEstatus, actualizarFiltrosYTabla, renderizarVistaEstatus) {
