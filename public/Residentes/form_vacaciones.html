@@ -46,8 +46,9 @@
                 <input type="number" id="dias_tomados" name="dias_tomados" readonly style="background-color: #e9ecef; cursor: not-allowed;" placeholder="Pendiente" required>
             </div>
 
+            <!-- MODIFICACIÓN SOLUCIÓN: Botón-Enlace sin navegación externa para evitar redirección al Login -->
             <div class="contenedor-formulario">
-                <a href="tabla_vacaciones.html?vista=gantt" target="_blank" rel="noopener noreferrer">📅 Ver calendario de vacaciones antes de elegir fechas</a>
+                <a href="tabla_vacaciones.html?vista=gantt" id="btnIrGanttVacaciones" style="color: #2563eb; text-decoration: underline; font-weight: 500; cursor: pointer;">📅 Ver calendario de vacaciones antes de elegir fechas</a>
             </div>
 
             <div class="contenedor-botones">
@@ -63,6 +64,19 @@
 
     <script src="/authClient.js"></script>
     <script src="formVacaciones.js"></script>
+    
+    <!-- MODIFICACIÓN SOLUCIÓN: Manejador de navegación segura sin perder sesión JWT -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const btnGantt = document.getElementById('btnIrGanttVacaciones');
+            if (btnGantt) {
+                btnGantt.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    window.location.href = 'tabla_vacaciones.html?vista=gantt';
+                });
+            }
+        });
+    </script>
 
 </body>
 </html>
