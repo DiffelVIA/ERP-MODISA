@@ -1,8 +1,8 @@
-import { escapeHTML, calcularDiasHabilesEfectivos } from './vacacionesUi.js';
+// MODIFICACIÓN SOLUCIÓN: Se remueve la función no utilizada 'calcularDiasHabilesEfectivos' para evitar SyntaxError de importación
+import { escapeHTML } from './vacacionesUi.js';
 
 export function inicializarHandlersGlobales(API_URL, getDatosVacaciones, setDatosVacaciones, cargarDatosVacaciones, cargarDatosEstatus, actualizarFiltrosYTabla, renderizarVistaEstatus) {
   
-  // MODIFICACIÓN SOLUCIÓN: Crear modal dinámico en el DOM si no existe
   function obtenerOCrearModal() {
     let modal = document.getElementById('modalComentariosVacaciones');
     if (!modal) {
@@ -73,7 +73,7 @@ export function inicializarHandlersGlobales(API_URL, getDatosVacaciones, setDato
         await enviarActualizacion(idVacacion, nuevoEstado, obsTexto, nivelParam, token);
       },
       onCancelar: () => {
-        if (elementoInput) cargarDatosVacaciones(); // Revertir selector
+        if (elementoInput) cargarDatosVacaciones();
       }
     });
   };

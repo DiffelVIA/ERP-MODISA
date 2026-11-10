@@ -338,7 +338,7 @@ router.post('/', verificarToken, async (req, res) => {
     // Enviar correo de notificación de nueva solicitud (Dirigido a pruebas)
     const htmlCorreo = `
       <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 600px; padding: 20px; border: 1px solid #cbd5e1; border-radius: 8px;">
-        <h2 style="color: #2563eb;">MODISA ERP - Nueva Solicitud de Vacaciones</h2>
+        <h2 style="color: #2563eb;">Nueva Solicitud de Vacaciones</h2>
         <p>Estimado Jefe Inmediato,</p>
         <p>El colaborador ha registrado una nueva solicitud del <strong>${fecha_inicio}</strong> al <strong>${fecha_fin}</strong> (${diasTomadosFinal} días hábiles).</p>
         <p>Por favor ingresa al sistema para revisar y autorizar.</p>
