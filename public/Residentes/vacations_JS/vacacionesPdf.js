@@ -1,4 +1,29 @@
-import { escapeHTML, calcularDiasHabilesEfectivos } from './vacacionesUi.js';
+// MODIFICACIÓN SOLUCIÓN: Se definen funciones utilitarias y de saneamiento localmente para eliminar dependencias de importación obsoletas que rompen ES6
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function calcularDiasHabilesEfectivos(inicio, fin) {
+  if (!inicio || !fin) return 0;
+  const fInicio = new Date(inicio);
+  const fFin = new Date(fin);
+  let dias = 0;
+  let cursor = new Date(fInicio);
+  while (cursor <= fFin) {
+    const diaSemana = cursor.getDay();
+    if (diaSemana !== 0 && diaSemana !== 6) { // Excluir sábados (6) y domingos (0)
+      dias++;
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dias;
+}
 
 export function inicializarHandlersPDF(API_URL, getDatosVacaciones, cargarDatosVacaciones) {
 
@@ -98,6 +123,20 @@ export function inicializarHandlersPDF(API_URL, getDatosVacaciones, cargarDatosV
   window.subirExpedienteFirmado = async function(idVacacion, inputElement) {
     if (!inputElement || !inputElement.files || inputElement.files.length === 0) return;
     const archivo = inputElement.files[0];
+
+    // MODIFICACIÓN SOLUCIÓN (Ciberseguridad y UX): Validación previa del archivo en cliente
+    if (archivo.type !== 'application/pdf') {
+      alert("⚠️ Solo se permiten archivos en formato PDF.");
+      inputElement.value = '';
+      return;
+    }
+
+    const maxTamanoBytes = 5 * 1024 * 1024; // Límite de 5 MB
+    if (archivo.size > maxTamanoBytes) {
+      alert("⚠️ El archivo es demasiado grande. El tamaño máximo permitido es de 5 MB.");
+      inputElement.value = '';
+      return;
+    }
 
     const formData = new FormData();
     formData.append('expediente', archivo);
