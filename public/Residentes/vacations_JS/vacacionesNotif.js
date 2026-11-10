@@ -142,5 +142,5 @@ export function inicializarHandlersGlobales(API_URL, getDatosVacaciones, setDato
       console.error("❌ Error al renovar días:", err);
       alert(`❌ Error: ${escapeHTML(err.message)}`);
     }
-  };
+  }; 
 }
