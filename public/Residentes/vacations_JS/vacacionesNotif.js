@@ -1,5 +1,13 @@
-// MODIFICACIÓN SOLUCIÓN: Se remueve la función no utilizada 'calcularDiasHabilesEfectivos' para evitar SyntaxError de importación
-import { escapeHTML } from './vacacionesUi.js';
+// MODIFICACIÓN SOLUCIÓN: Definición local de escapeHTML para evitar errores de resolución de módulos ES6
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 export function inicializarHandlersGlobales(API_URL, getDatosVacaciones, setDatosVacaciones, cargarDatosVacaciones, cargarDatosEstatus, actualizarFiltrosYTabla, renderizarVistaEstatus) {
   
@@ -142,5 +150,5 @@ export function inicializarHandlersGlobales(API_URL, getDatosVacaciones, setDato
       console.error("❌ Error al renovar días:", err);
       alert(`❌ Error: ${escapeHTML(err.message)}`);
     }
-  }; 
+  };
 }
