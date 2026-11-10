@@ -1,7 +1,19 @@
-// public/Residentes/vacations_JS/vacaciones-core.js
-import { escapeHTML, renderizarTabla, renderizarVistaEstatus, renderizarGanttVacaciones } from './vacacionesUi.js';
+// public/Residentes/vacations_JS/vacacionesCore.js
+// MODIFICACIÓN SOLUCIÓN: Se remueve escapeHTML del import de vacacionesUi.js para resolver el SyntaxError de ES6
+import { renderizarTabla, renderizarVistaEstatus, renderizarGanttVacaciones } from './vacacionesUi.js';
 import { inicializarHandlersGlobales } from './vacacionesNotif.js';
 import { inicializarHandlersPDF } from './vacacionesPdf.js';
+
+// MODIFICACIÓN SOLUCIÓN: Definición local de escapeHTML para saneamiento contra XSS sin dependencias externas
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
   ? 'http://localhost:3000/api' 
@@ -200,7 +212,6 @@ async function cargarGanttEmpleado() {
     }
   }
 }
-// FIN MODIFICACIÓN SOLUCIÓN
 
 document.addEventListener('DOMContentLoaded', async () => {
   configurarDropdownsUI();
@@ -212,7 +223,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btnGanttAuto = document.getElementById('btnVistaGantt');
     if (btnGanttAuto) btnGanttAuto.click();
   }
-  // FIN MODIFICACIÓN SOLUCIÓN
   
   // Registrar handlers globales en la ventana
   inicializarHandlersGlobales(API_URL, getDatosVacaciones, setDatosVacaciones, cargarDatosVacaciones, cargarDatosEstatus, actualizarFiltrosYTabla, () => renderizarVistaEstatus(datosEstatusVacaciones, empleadosSeleccionados, obtenerDatosDesdeJWT));
@@ -223,7 +233,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // MODIFICACIÓN SOLUCIÓN: Se agrega el año siguiente al selector para poder planear a futuro
   if (!esRolAdministrativo()) asegurarOpcionesAnioGantt();
-  // FIN MODIFICACIÓN SOLUCIÓN
 });
 
 function configurarAlternadorVistasUI() {
@@ -265,9 +274,6 @@ function configurarAlternadorVistasUI() {
 
   const puedeVerGantt = esLaura || esLuis;
 
-  // MODIFICACIÓN SOLUCIÓN: Ya no se oculta el botón del Gantt; ahora lo ven todos los roles.
-  // Los datos los restringe el backend (GET /api/vacaciones/gantt), no la interfaz.
-
   function resetearBotones() {
     [btnTabla, btnGantt, btnEstatus].forEach(btn => {
       if (btn) {
@@ -279,7 +285,7 @@ function configurarAlternadorVistasUI() {
     if (vistaTabla) vistaTabla.style.display = 'none';
     if (vistaGantt) vistaGantt.style.display = 'none';
     if (vistaEstatus) vistaEstatus.style.display = 'none';
-    if (grupoFiltros) grupoFiltros.style.display = 'flex'; // MODIFICACIÓN SOLUCIÓN
+    if (grupoFiltros) grupoFiltros.style.display = 'flex';
   }
 
   btnTabla.addEventListener('click', () => {
@@ -290,7 +296,6 @@ function configurarAlternadorVistasUI() {
     vistaTabla.style.display = 'block';
   });
 
-  // MODIFICACIÓN SOLUCIÓN: El listener del Gantt aplica para todos los roles
   btnGantt.addEventListener('click', () => {
     resetearBotones();
     btnGantt.classList.add('activa');
@@ -319,7 +324,6 @@ function configurarAlternadorVistasUI() {
   if (selectAnio) {
     selectAnio.addEventListener('change', (e) => {
       anioGanttSeleccionado = parseInt(e.target.value, 10);
-      // MODIFICACIÓN SOLUCIÓN: Roles no administrativos vuelven a consultar el año elegido al backend
       if (puedeVerGantt) {
         actualizarFiltrosYTabla();
       } else {
@@ -527,7 +531,7 @@ function actualizarFiltrosYTabla() {
   });
 
   renderizarTabla(filtrados, datosVacaciones, obtenerDatosDesdeJWT);
-    // MODIFICACIÓN SOLUCIÓN: Los administrativos conservan su Gantt; los demás roles usan los datos del endpoint /gantt
+
   if (esRolAdministrativo()) {
     renderizarGanttVacaciones(filtrados, anioGanttSeleccionado);
   } else {
