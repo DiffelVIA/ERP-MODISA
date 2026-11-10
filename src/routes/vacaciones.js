@@ -306,6 +306,7 @@ router.get('/estatus', verificarToken, async (req, res) => {
 });
 
 // POST / Registra nueva solicitud de vacaciones
+// MODIFICACIÓN SOLUCIÓN: Notifica con el nombre del empleado que realizó la solicitud
 router.post('/', verificarToken, async (req, res) => {
   if (!req.usuario) {
     return res.status(401).json({
@@ -327,6 +328,16 @@ router.post('/', verificarToken, async (req, res) => {
   }
 
   try {
+    // MODIFICACIÓN SOLUCIÓN: Consultar nombre del empleado para personalizar la notificación por correo
+    const [empRows] = await pool.query(`
+      SELECT TRIM(CONCAT(COALESCE(name, ''), ' ', COALESCE(last_name, ''))) AS nombre_completo
+      FROM employees WHERE id_employee = ? LIMIT 1
+    `, [idEmpleadoFinal]);
+
+    const nombreEmpleadoCorreo = (empRows.length > 0 && empRows[0].nombre_completo.trim())
+      ? empRows[0].nombre_completo.trim()
+      : `Empleado ID #${idEmpleadoFinal}`;
+
     const sqlInsert = `
       INSERT INTO vacaciones (
         id_employee, fecha_inicio, fecha_fin, dias_tomados, estado, estado_jefe, estado_director
@@ -335,12 +346,13 @@ router.post('/', verificarToken, async (req, res) => {
 
     const [insertResult] = await pool.query(sqlInsert, [idEmpleadoFinal, fecha_inicio, fecha_fin, diasTomadosFinal]);
 
+    // MODIFICACIÓN SOLUCIÓN: Plantilla personalizada indicando el nombre del colaborador que solicita
     const htmlCorreo = `
       <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 600px; padding: 20px; border: 1px solid #cbd5e1; border-radius: 8px;">
-        <h2 style="color: #2563eb;">Nueva Solicitud de Vacaciones</h2>
-        <p>Buena tarde,</p>
-        <p>Un colaborador ha registrado una nueva solicitud del <strong>${fecha_inicio}</strong> al <strong>${fecha_fin}</strong> (${diasTomadosFinal} días hábiles).</p>
-        <p>Por favor ingresa al sistema para revisar y autorizar.</p>
+        <h2 style="color: #2563eb; margin-top: 0;">Nueva Solicitud de Vacaciones</h2>
+        <p style="font-size: 14px;">Buena tarde,</p>
+        <p style="font-size: 14px;"><strong>${nombreEmpleadoCorreo}</strong>, ha registrado una nueva solicitud del <strong>${fecha_inicio}</strong> al <strong>${fecha_fin}</strong> (${diasTomadosFinal} días hábiles).</p>
+        <p style="font-size: 14px;">Por favor ingresa al sistema para revisar y autorizar.</p>
       </div>
     `;
 

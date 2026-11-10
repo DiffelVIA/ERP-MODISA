@@ -37,6 +37,9 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
   const jwtDatos = obtenerDatosDesdeJWT() || {};
   const userRolRaw = localStorage.getItem('userRol') || jwtDatos.rol || jwtDatos.role || jwtDatos.job_title || '';
   const userRolNormalizado = userRolRaw.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  
+  // Extraer el ID del usuario en sesión desde el token JWT
+  const idUsuarioSesion = jwtDatos.id_employee || jwtDatos.id || jwtDatos.userId || null;
 
   const esGerenteAdmin = (
     userRolNormalizado === 'gerente administracion' || 
@@ -49,14 +52,6 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
     userRolNormalizado === 'director_operativo' ||
     userRolNormalizado === 'director general' ||
     (userRolNormalizado.includes('director') && userRolNormalizado.includes('operativ'))
-  );
-
-  const esJefeInmediato = (
-    userRolNormalizado.includes('jefe') || 
-    userRolNormalizado.includes('gerente') || 
-    userRolNormalizado.includes('coordinador') ||
-    userRolNormalizado.includes('supervisor') ||
-    esDirectorOperativo
   );
 
   cuerpo.innerHTML = lista.map(item => {
@@ -73,21 +68,25 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
     const diasLey = Number(item.dias_vacaciones_ley || item.dias_ley || 0);
     const estadoJefe = String(item.estado_jefe || 'pendiente').toLowerCase();
     const estadoDir = String(item.estado_director || 'pendiente').toLowerCase();
-    const estadoGlobal = String(item.estado || 'pendiente').toLowerCase();
 
-    // Solicitud totalmente aprobada por ambos niveles
-    const estaTotalmenteAprobada = (estadoGlobal === 'aprobada' || estadoGlobal === 'autorizada' || (estadoJefe === 'autorizada' && estadoDir === 'autorizada'));
+    // MODIFICACIÓN SOLUCIÓN: Únicamente si AMBOS niveles están en 'autorizada' o 'aprobada' se aprueba globalmente
+    const totalmenteAutorizada = (
+      (estadoJefe === 'autorizada' || estadoJefe === 'aprobada') &&
+      (estadoDir === 'autorizada' || estadoDir === 'aprobada')
+    );
 
-    // Helper para obtener estilo de badge según el estado
     const obtenerEstiloEstado = (estado) => {
       if (estado === 'autorizada' || estado === 'aprobada') return 'background: #dcfce7; color: #15803d; border: 1px solid #86efac;';
       if (estado === 'rechazada') return 'background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5;';
       return 'background: #fef3c7; color: #b45309; border: 1px solid #fde68a;'; // Pendiente
     };
 
-    // MODIFICACIÓN SOLUCIÓN: Selector interactivo o badge para Jefe Inmediato
+    // MODIFICACIÓN SOLUCIÓN (Seguridad): Solo el jefe directo asignado (e.id_manager) o Admin puede interactuar con el select
+    const esJefeAsignado = String(item.id_manager) === String(idUsuarioSesion);
+    const puedeEditarJefe = esJefeAsignado || esGerenteAdmin;
+
     let selectJefeHTML = '';
-    if (esJefeInmediato) {
+    if (puedeEditarJefe) {
       selectJefeHTML = `
         <select class="select-estado-tabla" onchange="window.actualizarEstadoVacacion(${idVacacion}, this.value, this, 'jefe')" style="padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; ${obtenerEstiloEstado(estadoJefe)}">
           <option value="pendiente" ${estadoJefe === 'pendiente' ? 'selected' : ''}>🟡 Pendiente</option>
@@ -98,7 +97,7 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
       selectJefeHTML = `<span style="padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; display: inline-block; ${obtenerEstiloEstado(estadoJefe)}">${estadoJefe.toUpperCase()}</span>`;
     }
 
-    // MODIFICACIÓN SOLUCIÓN: Selector interactivo o badge para Dirección Operativa
+    // MODIFICACIÓN SOLUCIÓN: Solo Director Operativo o Admin pueden editar la columna de Dirección Operativa
     let selectDirHTML = '';
     if (esDirectorOperativo) {
       selectDirHTML = `
@@ -114,7 +113,7 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
     let expedienteHTML = '<span style="color:#94a3b8; font-size:12px;">---</span>';
     if (item.documento_firmado_url) {
       expedienteHTML = `<a href="${escapeHTML(item.documento_firmado_url)}" target="_blank" style="padding:4px 8px; background:#eff6ff; color:#2563eb; border-radius:4px; font-weight:bold; font-size:11px; text-decoration:none;">📎 Ver Expediente</a>`;
-    } else if (estaTotalmenteAprobada) {
+    } else if (totalmenteAutorizada) {
       if (esGerenteAdmin) {
         expedienteHTML = `
           <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
@@ -127,6 +126,8 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
       } else {
         expedienteHTML = `<span style="color:#2563eb; font-size:11px; font-weight:bold;">✅ Autorizada (Pendiente Impresión Admin)</span>`;
       }
+    } else {
+      expedienteHTML = `<span style="color:#94a3b8; font-size:11px; font-weight:600;">---</span>`;
     }
 
     return `
@@ -139,11 +140,9 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
         <td style="text-align: center;">${fechaFin}</td>
         <td style="text-align: center;"><strong>${diasTomados}</strong></td>
         
-        <!-- Estado y Observaciones Jefe Inmediato -->
         <td style="text-align: center;">${selectJefeHTML}</td>
         <td style="font-size: 11px; color: #475569;">${escapeHTML(item.observaciones_jefe || '-')}</td>
 
-        <!-- Estado y Observaciones Dirección Operativa -->
         <td style="text-align: center;">${selectDirHTML}</td>
         <td style="font-size: 11px; color: #475569;">${escapeHTML(item.observaciones_director || '-')}</td>
 
