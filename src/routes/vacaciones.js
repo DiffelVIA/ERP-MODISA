@@ -78,7 +78,7 @@ async function depurarVacacionesRechazadas() {
 setInterval(depurarVacacionesRechazadas, 24 * 60 * 60 * 1000);
 setTimeout(depurarVacacionesRechazadas, 5000);
 
-// MODIFICACIÓN SOLUCIÓN: GET / con campos de doble aprobación y fecha de solicitud
+// GET / con campos de doble aprobación y fecha de solicitud
 router.get('/', verificarToken, async (req, res) => {
   try {
     const rolUsuario = req.usuario ? req.usuario.rol : '';
@@ -305,7 +305,7 @@ router.get('/estatus', verificarToken, async (req, res) => {
   }
 });
 
-// MODIFICACIÓN SOLUCIÓN: Notifica al Jefe Inmediato al crear la solicitud
+// POST / Registra nueva solicitud de vacaciones
 router.post('/', verificarToken, async (req, res) => {
   if (!req.usuario) {
     return res.status(401).json({
@@ -335,12 +335,11 @@ router.post('/', verificarToken, async (req, res) => {
 
     const [insertResult] = await pool.query(sqlInsert, [idEmpleadoFinal, fecha_inicio, fecha_fin, diasTomadosFinal]);
 
-    // Enviar correo de notificación de nueva solicitud (Dirigido a pruebas)
     const htmlCorreo = `
       <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 600px; padding: 20px; border: 1px solid #cbd5e1; border-radius: 8px;">
         <h2 style="color: #2563eb;">Nueva Solicitud de Vacaciones</h2>
-        <p>Estimado Jefe Inmediato,</p>
-        <p>El colaborador ha registrado una nueva solicitud del <strong>${fecha_inicio}</strong> al <strong>${fecha_fin}</strong> (${diasTomadosFinal} días hábiles).</p>
+        <p>Buena tarde,</p>
+        <p>Un colaborador ha registrado una nueva solicitud del <strong>${fecha_inicio}</strong> al <strong>${fecha_fin}</strong> (${diasTomadosFinal} días hábiles).</p>
         <p>Por favor ingresa al sistema para revisar y autorizar.</p>
       </div>
     `;
@@ -366,7 +365,7 @@ router.post('/', verificarToken, async (req, res) => {
   }
 });
 
-// MODIFICACIÓN SOLUCIÓN: Actualización de estado por nivel (nivel: 'jefe' | 'director')
+// MODIFICACIÓN SOLUCIÓN: Actualización de estado por nivel con validación de id_manager, comentarios opcionales y correo limpio
 router.patch('/:id/estado', verificarToken, async (req, res) => {
   const idVacacion = req.params.id;
   const { estado, observaciones, nivel } = req.body;
@@ -377,55 +376,93 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
 
   const estadoLimpio = estado.toLowerCase().trim();
   const estadoParaBD = (estadoLimpio === 'autorizada' || estadoLimpio === 'aprobada') ? 'autorizada' : (estadoLimpio === 'rechazada' ? 'rechazada' : 'pendiente');
+  
+  // Si no ingresan texto de observaciones, asignar por defecto "Sin comentarios adicionales"
+  const comentarioFinal = (observaciones && observaciones.trim().length > 0) ? observaciones.trim() : 'Sin comentarios adicionales';
 
   try {
-    const [filas] = await pool.query('SELECT * FROM vacaciones WHERE id_vacacion = ?', [idVacacion]);
+    const [filas] = await pool.query(`
+      SELECT v.*, e.id_manager 
+      FROM vacaciones v 
+      INNER JOIN employees e ON e.id_employee = v.id_employee 
+      WHERE v.id_vacacion = ?
+    `, [idVacacion]);
+
     if (filas.length === 0) return res.status(404).json({ success: false, error: 'Solicitud no encontrada.' });
 
     const vac = filas[0];
+    const idUsuarioSesion = req.usuario ? (req.usuario.id_employee || req.usuario.id || req.usuario.userId) : null;
+    const rolUsuarioRaw = req.usuario ? (req.usuario.rol || req.usuario.role || '') : '';
+    const rolLimpio = rolUsuarioRaw.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    const esAdminGlobal = ROLES_VISUALIZACION_GLOBAL.some(r => r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === rolLimpio);
+
     let sqlUpdate = '';
     const params = [];
 
     if (nivel === 'jefe') {
+      // Ciberseguridad: Validar que el usuario autenticado sea el id_manager asignado o un rol administrativo global
+      const esJefeDirecto = String(vac.id_manager) === String(idUsuarioSesion);
+      if (!esJefeDirecto && !esAdminGlobal) {
+        return res.status(403).json({
+          success: false,
+          error: '⛔ No tienes permisos para modificar el estado del Jefe Inmediato de este empleado.'
+        });
+      }
       sqlUpdate = `UPDATE vacaciones SET estado_jefe = ?, observaciones_jefe = ? WHERE id_vacacion = ?`;
-      params.push(estadoParaBD, observaciones ? observaciones.trim() : null, idVacacion);
+      params.push(estadoParaBD, comentarioFinal, idVacacion);
     } else if (nivel === 'director') {
+      const esDirector = ROLES_AUTORIZADORES.some(r => r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === rolLimpio);
+      if (!esDirector && !esAdminGlobal) {
+        return res.status(403).json({
+          success: false,
+          error: '⛔ No tienes permisos de Dirección Operativa para autorizar este nivel.'
+        });
+      }
       sqlUpdate = `UPDATE vacaciones SET estado_director = ?, observaciones_director = ? WHERE id_vacacion = ?`;
-      params.push(estadoParaBD, observaciones ? observaciones.trim() : null, idVacacion);
+      params.push(estadoParaBD, comentarioFinal, idVacacion);
     } else {
-      // Fallback si no se especifica nivel
       sqlUpdate = `UPDATE vacaciones SET estado_jefe = ?, observaciones_jefe = ? WHERE id_vacacion = ?`;
-      params.push(estadoParaBD, observaciones ? observaciones.trim() : null, idVacacion);
+      params.push(estadoParaBD, comentarioFinal, idVacacion);
     }
 
     await pool.query(sqlUpdate, params);
 
-    // Consultar estado actualizado para calcular estado global
+    // Consultar estado actualizado para calcular estado global de la solicitud
     const [filasActual] = await pool.query('SELECT * FROM vacaciones WHERE id_vacacion = ?', [idVacacion]);
     const vAct = filasActual[0];
 
     let estadoGlobal = 'pendiente';
     if (vAct.estado_jefe === 'rechazada' || vAct.estado_director === 'rechazada') {
       estadoGlobal = 'rechazada';
-    } else if (vAct.estado_jefe === 'autorizada' && vAct.estado_director === 'autorizada') {
+    } else if (
+      (vAct.estado_jefe === 'autorizada' || vAct.estado_jefe === 'aprobada') && 
+      (vAct.estado_director === 'autorizada' || vAct.estado_director === 'aprobada')
+    ) {
       estadoGlobal = 'aprobada';
     }
 
     await pool.query('UPDATE vacaciones SET estado = ? WHERE id_vacacion = ?', [estadoGlobal, idVacacion]);
 
-    // Correo de notificación según avance
+    // MODIFICACIÓN SOLUCIÓN: Plantilla de correo limpia, sin número de solicitud ni MODISA ERP, desglosando jefe y dirección
     const htmlCorreo = `
-      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
-        <h2 style="color: #0f172a;">MODISA ERP - Actualización de Solicitud #${idVacacion}</h2>
-        <p>El estado por nivel <strong>${nivel || 'autorizador'}</strong> cambió a: <strong style="color: ${estadoParaBD === 'autorizada' ? '#16a34a' : '#dc2626'};">${estadoParaBD.toUpperCase()}</strong></p>
-        <p>Observaciones: <em>"${observaciones || 'Sin comentarios adicionales.'}"</em></p>
-        <p>Estado Global de la Solicitud: <strong>${estadoGlobal.toUpperCase()}</strong></p>
+      <div style="font-family: Arial, sans-serif; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 550px; background: #ffffff;">
+        <h2 style="color: #0f172a; margin-top: 0; font-size: 20px;">Actualización de Solicitud</h2>
+        <p style="font-size: 14px; color: #334155;">Estimado colaborador, te informamos sobre el estatus de tu solicitud de vacaciones:</p>
+        
+        <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin: 16px 0; border: 1px solid #cbd5e1;">
+          <p style="margin: 6px 0; font-size: 13px;">El estado de tu jefe inmediato es: <strong style="color: ${vAct.estado_jefe === 'autorizada' ? '#16a34a' : (vAct.estado_jefe === 'rechazada' ? '#dc2626' : '#d97706')};">${(vAct.estado_jefe || 'pendiente').toUpperCase()}</strong></p>
+          <p style="margin: 6px 0; font-size: 13px;">El estado de dirección es: <strong style="color: ${vAct.estado_director === 'autorizada' ? '#16a34a' : (vAct.estado_director === 'rechazada' ? '#dc2626' : '#d97706')};">${(vAct.estado_director || 'pendiente').toUpperCase()}</strong></p>
+        </div>
+
+        <p style="font-size: 13px; color: #475569;"><strong>Observaciones:</strong> "${comentarioFinal}"</p>
+        <p style="font-size: 13px; color: #0f172a;"><strong>Estado Global:</strong> ${estadoGlobal.toUpperCase()}</p>
       </div>
     `;
 
     enviarCorreoGmail({
       to: CORREO_PRUEBAS,
-      subject: `Notificación de Estado de Vacaciones - ${estadoParaBD}`,
+      subject: 'Actualización de Solicitud',
       html: htmlCorreo
     }).catch(err => console.error('❌ Error enviando correo:', err));
 

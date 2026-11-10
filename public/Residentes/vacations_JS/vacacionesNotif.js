@@ -27,6 +27,7 @@ function calcularDiasHabilesEfectivos(inicio, fin) {
 
 export function inicializarHandlersGlobales(API_URL, getDatosVacaciones, setDatosVacaciones, cargarDatosVacaciones, cargarDatosEstatus, actualizarFiltrosYTabla, renderizarVistaEstatus) {
   
+  // MODIFICACIÓN SOLUCIÓN: Modal estilizado sin menciones a roles y con comentarios opcionales
   function obtenerOCrearModal() {
     let modal = document.getElementById('modalComentariosVacaciones');
     if (!modal) {
@@ -35,8 +36,8 @@ export function inicializarHandlersGlobales(API_URL, getDatosVacaciones, setDato
       modal.style.cssText = 'display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center;';
       modal.innerHTML = `
         <div style="background:#ffffff; border-radius:12px; width:90%; max-width:480px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); border:1px solid #e2e8f0;">
-          <h3 id="modalComentarioTitulo" style="margin-top:0; color:#0f172a; font-size:18px;">✍️ Observaciones Obligatorias</h3>
-          <p id="modalComentarioDesc" style="color:#64748b; font-size:13px; margin-bottom:12px;">Ingresa tus observaciones para guardar el cambio de estado:</p>
+          <h3 id="modalComentarioTitulo" style="margin-top:0; color:#0f172a; font-size:18px; font-weight:bold;">Autorización de Solicitud</h3>
+          <p id="modalComentarioDesc" style="color:#64748b; font-size:13px; margin-bottom:12px;">Ingresa tus observaciones (opcional):</p>
           <textarea id="modalTxtObservaciones" style="width:100%; height:90px; border:1px solid #cbd5e1; border-radius:6px; padding:10px; font-size:13px; font-family:sans-serif;" placeholder="Escribe los comentarios aquí..."></textarea>
           <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
             <button type="button" id="modalBtnCancelar" style="padding:8px 16px; background:#f1f5f9; color:#475569; border:none; border-radius:6px; cursor:pointer; font-weight:600;">Cancelar</button>
@@ -49,30 +50,23 @@ export function inicializarHandlersGlobales(API_URL, getDatosVacaciones, setDato
     return modal;
   }
 
-  function abrirModalObservaciones({ titulo, descripcion, valorInicial, onConfirmar, onCancelar }) {
+  function abrirModalObservaciones({ valorInicial, onConfirmar, onCancelar }) {
     const modal = obtenerOCrearModal();
-    const txtTitulo = document.getElementById('modalComentarioTitulo');
-    const txtDesc = document.getElementById('modalComentarioDesc');
     const txtArea = document.getElementById('modalTxtObservaciones');
     const btnGuardar = document.getElementById('modalBtnGuardar');
     const btnCancelar = document.getElementById('modalBtnCancelar');
 
-    if (txtTitulo) txtTitulo.textContent = titulo;
-    if (txtDesc) txtDesc.textContent = descripcion;
     if (txtArea) txtArea.value = valorInicial || '';
-
     modal.style.display = 'flex';
 
     const cerrar = () => { modal.style.display = 'none'; };
 
     btnGuardar.onclick = () => {
-      const val = txtArea.value.trim();
-      if (!val) {
-        alert("⚠️ Es obligatorio ingresar observaciones.");
-        return;
-      }
+      const val = txtArea ? txtArea.value.trim() : '';
+      // MODIFICACIÓN SOLUCIÓN: Ya no se exige texto obligatorio; si está vacío se envía 'Sin comentarios adicionales'
+      const comentarioEnviado = val.length > 0 ? val : 'Sin comentarios adicionales';
       cerrar();
-      if (onConfirmar) onConfirmar(val);
+      if (onConfirmar) onConfirmar(comentarioEnviado);
     };
 
     btnCancelar.onclick = () => {
@@ -85,13 +79,11 @@ export function inicializarHandlersGlobales(API_URL, getDatosVacaciones, setDato
     const token = localStorage.getItem('jwtToken') || '';
 
     if (nuevoEstado === 'pendiente') {
-      await enviarActualizacion(idVacacion, nuevoEstado, '', nivelParam, token);
+      await enviarActualizacion(idVacacion, nuevoEstado, 'Sin comentarios adicionales', nivelParam, token);
       return;
     }
 
     abrirModalObservaciones({
-      titulo: `Autorización de Solicitud (${nivelParam.toUpperCase()})`,
-      descripcion: `Para cambiar el estado a ${nuevoEstado.toUpperCase()}, ingresa tus observaciones obligatorias:`,
       valorInicial: '',
       onConfirmar: async (obsTexto) => {
         await enviarActualizacion(idVacacion, nuevoEstado, obsTexto, nivelParam, token);
@@ -112,7 +104,7 @@ export function inicializarHandlersGlobales(API_URL, getDatosVacaciones, setDato
         },
         body: JSON.stringify({
           estado: estadoVal,
-          observaciones: obsTexto,
+          observaciones: obsTexto || 'Sin comentarios adicionales',
           nivel: nivelVal
         })
       });
