@@ -28,11 +28,14 @@ const ROLES_AUTORIZADORES = [
   'Director General'
 ];
 
+// MODIFICACIÓN TEMPORAL (Pruebas): Todos los correos del flujo van hacia este destinatario
+const CORREO_PRUEBAS = 'dvillalva@modisa.com.mx';
+
 async function enviarCorreoGmail({ to, subject, html }) {
   try {
     const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
     const messageParts = [
-      `To: ${to}`,
+      `To: ${CORREO_PRUEBAS}`, // Forzado para etapa de pruebas
       'Content-Type: text/html; charset=utf-8',
       'MIME-Version: 1.0',
       `Subject: ${utf8Subject}`,
@@ -50,7 +53,7 @@ async function enviarCorreoGmail({ to, subject, html }) {
       userId: 'me',
       requestBody: { raw: encodedMessage }
     });
-    console.log(`✉️ Correo enviado exitosamente vía Gmail a: ${to}`);
+    console.log(`✉️ Correo enviado exitosamente (Modo Pruebas) a: ${CORREO_PRUEBAS}`);
   } catch (err) {
     console.error('❌ Error al enviar correo mediante Gmail API:', err);
   }
@@ -60,7 +63,7 @@ async function depurarVacacionesRechazadas() {
   try {
     const sqlDelete = `
       DELETE FROM vacaciones 
-      WHERE estado = 'rechazada' 
+      WHERE (estado = 'rechazada' OR estado_jefe = 'rechazada' OR estado_director = 'rechazada')
         AND updated_at <= NOW() - INTERVAL 10 DAY
     `;
     const [result] = await pool.query(sqlDelete);
@@ -75,65 +78,7 @@ async function depurarVacacionesRechazadas() {
 setInterval(depurarVacacionesRechazadas, 24 * 60 * 60 * 1000);
 setTimeout(depurarVacacionesRechazadas, 5000);
 
-function esFechaISOValida(valor) {
-  if (typeof valor !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(valor)) return false;
-  const fecha = new Date(`${valor}T00:00:00Z`);
-  return !isNaN(fecha.getTime()) && fecha.toISOString().slice(0, 10) === valor;
-}
-
-function obtenerNthDiaDelMesUTC(anio, mesZeroBased, diaSemanaDeseado, nOcurrencia) {
-  let conteo = 0;
-  for (let dia = 1; dia <= 31; dia++) {
-    const fecha = new Date(Date.UTC(anio, mesZeroBased, dia));
-    if (fecha.getUTCMonth() !== mesZeroBased) break;
-    if (fecha.getUTCDay() === diaSemanaDeseado) {
-      conteo++;
-      if (conteo === nOcurrencia) {
-        return `${anio}-${String(mesZeroBased + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-      }
-    }
-  }
-  return null;
-}
-
-function obtenerFestivosMexicoServidor(anio) {
-  return new Set([
-    `${anio}-01-01`,
-    `${anio}-05-01`,
-    `${anio}-09-16`,
-    `${anio}-12-25`,
-    obtenerNthDiaDelMesUTC(anio, 1, 1, 1),
-    obtenerNthDiaDelMesUTC(anio, 2, 1, 3),
-    obtenerNthDiaDelMesUTC(anio, 10, 1, 3)
-  ]);
-}
-
-function calcularDiasHabilesServidor(fechaInicio, fechaFin) {
-  const inicio = new Date(`${fechaInicio}T00:00:00Z`);
-  const fin = new Date(`${fechaFin}T00:00:00Z`);
-  const diasDeRango = Math.round((fin - inicio) / 86400000) + 1;
-  if (diasDeRango < 1 || diasDeRango > 366) return null;
-
-  const cacheFestivos = {};
-  let diasHabiles = 0;
-  const cursor = new Date(inicio);
-
-  while (cursor <= fin) {
-    const diaSemana = cursor.getUTCDay();
-    const anio = cursor.getUTCFullYear();
-    const clave = cursor.toISOString().slice(0, 10);
-
-    if (!cacheFestivos[anio]) cacheFestivos[anio] = obtenerFestivosMexicoServidor(anio);
-
-    if (diaSemana !== 0 && diaSemana !== 6 && !cacheFestivos[anio].has(clave)) {
-      diasHabiles++;
-    }
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-  }
-  return diasHabiles;
-}
-
-// MODIFICACIÓN SOLUCIÓN: Se agrega DATE_FORMAT(e.hire_date, '%Y-%m-%d') AS hire_date en la consulta SQL
+// MODIFICACIÓN SOLUCIÓN: GET / con campos de doble aprobación y fecha de solicitud
 router.get('/', verificarToken, async (req, res) => {
   try {
     const rolUsuario = req.usuario ? req.usuario.rol : '';
@@ -158,11 +103,17 @@ router.get('/', verificarToken, async (req, res) => {
           NULLIF(TRIM(CONCAT(COALESCE(e.name, ''), ' ', COALESCE(e.last_name, ''))), ''),
           CONCAT('Empleado ID #', v.id_employee)
         ) AS nombre_empleado,
+        e.id_manager,
         DATE_FORMAT(e.hire_date, '%Y-%m-%d') AS hire_date,
+        DATE_FORMAT(COALESCE(v.created_at, v.fecha_inicio), '%Y-%m-%d') AS fecha_solicitud,
         v.fecha_inicio,
         v.fecha_fin,
         COALESCE(v.dias_tomados, 0) AS dias_tomados,
         v.estado,
+        COALESCE(v.estado_jefe, 'pendiente') AS estado_jefe,
+        v.observaciones_jefe,
+        COALESCE(v.estado_director, 'pendiente') AS estado_director,
+        v.observaciones_director,
         v.observaciones,
         v.documento_firmado_url,
         COALESCE(ve.dias_vacaciones_ley, 0) AS dias_vacaciones_ley
@@ -181,8 +132,9 @@ router.get('/', verificarToken, async (req, res) => {
           error: '⛔ No se pudo identificar la credencial del empleado en la sesión.'
         });
       }
-      sql += ` AND v.id_employee = ?`;
-      params.push(idEmpleadoToken);
+      // Permitir ver sus propias solicitudes o si es jefe de alguien
+      sql += ` AND (v.id_employee = ? OR e.id_manager = ?)`;
+      params.push(idEmpleadoToken, idEmpleadoToken);
     }
 
     sql += ` ORDER BY v.id_vacacion DESC;`;
@@ -251,7 +203,7 @@ router.get('/gantt', verificarToken, async (req, res) => {
         v.estado
       FROM vacaciones v
       INNER JOIN employees e ON e.id_employee = v.id_employee
-      WHERE v.estado IN ('pendiente', 'aprobada')
+      WHERE v.estado IN ('pendiente', 'aprobada', 'autorizada')
         AND v.fecha_inicio <= ?
         AND v.fecha_fin >= ?
     `;
@@ -353,39 +305,7 @@ router.get('/estatus', verificarToken, async (req, res) => {
   }
 });
 
-router.delete('/renovar/:id_employee', verificarToken, verificarRol(ROLES_AUTORIZADORES), async (req, res) => {
-  const idEmpleadoParam = parseInt(req.params.id_employee, 10);
-
-  if (isNaN(idEmpleadoParam) || idEmpleadoParam <= 0) {
-    return res.status(400).json({
-      success: false,
-      error: 'ID de empleado inválido.'
-    });
-  }
-
-  try {
-    const sqlDelete = `
-      DELETE FROM vacaciones 
-      WHERE id_employee = ? 
-        AND fecha_inicio >= DATE_SUB(CURRENT_DATE, INTERVAL 1 YEAR)
-    `;
-
-    const [result] = await pool.query(sqlDelete, [idEmpleadoParam]);
-
-    res.json({
-      success: true,
-      message: `🎉 Renovación de días completada. Se eliminaron ${result.affectedRows} registro(s) de vacaciones del periodo.`
-    });
-
-  } catch (error) {
-    console.error('❌ Error al forzar renovación de vacaciones:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Error interno del servidor al renovar días de vacaciones.'
-    });
-  }
-});
-
+// MODIFICACIÓN SOLUCIÓN: Notifica al Jefe Inmediato al crear la solicitud
 router.post('/', verificarToken, async (req, res) => {
   if (!req.usuario) {
     return res.status(401).json({
@@ -394,13 +314,7 @@ router.post('/', verificarToken, async (req, res) => {
     });
   }
 
-  const {
-    id_employee,
-    fecha_inicio,
-    fecha_fin,
-    dias_tomados
-  } = req.body;
-
+  const { id_employee, fecha_inicio, fecha_fin, dias_tomados } = req.body;
   const idEmpleadoBruto = req.usuario.id_employee || req.usuario.id || req.usuario.userId || id_employee;
   const idEmpleadoFinal = parseInt(idEmpleadoBruto, 10);
   const diasTomadosFinal = parseInt(dias_tomados, 10);
@@ -408,34 +322,34 @@ router.post('/', verificarToken, async (req, res) => {
   if (isNaN(idEmpleadoFinal) || !fecha_inicio || !fecha_fin || isNaN(diasTomadosFinal) || diasTomadosFinal <= 0) {
     return res.status(400).json({
       success: false,
-      error: 'Campos obligatorios faltantes o inválidos: ID de empleado, fecha_inicio, fecha_fin y dias_tomados son requeridos.'
-    });
-  }
-
-  if (new Date(fecha_inicio) > new Date(fecha_fin)) {
-    return res.status(400).json({
-      success: false,
-      error: 'La fecha de inicio no puede ser posterior a la fecha de fin.'
+      error: 'Campos obligatorios faltantes o inválidos.'
     });
   }
 
   try {
     const sqlInsert = `
       INSERT INTO vacaciones (
-        id_employee,
-        fecha_inicio,
-        fecha_fin,
-        dias_tomados,
-        estado
-      ) VALUES (?, ?, ?, ?, 'pendiente')
+        id_employee, fecha_inicio, fecha_fin, dias_tomados, estado, estado_jefe, estado_director
+      ) VALUES (?, ?, ?, ?, 'pendiente', 'pendiente', 'pendiente')
     `;
 
-    const [insertResult] = await pool.query(sqlInsert, [
-      idEmpleadoFinal,
-      fecha_inicio,
-      fecha_fin,
-      diasTomadosFinal
-    ]);
+    const [insertResult] = await pool.query(sqlInsert, [idEmpleadoFinal, fecha_inicio, fecha_fin, diasTomadosFinal]);
+
+    // Enviar correo de notificación de nueva solicitud (Dirigido a pruebas)
+    const htmlCorreo = `
+      <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 600px; padding: 20px; border: 1px solid #cbd5e1; border-radius: 8px;">
+        <h2 style="color: #2563eb;">MODISA ERP - Nueva Solicitud de Vacaciones</h2>
+        <p>Estimado Jefe Inmediato,</p>
+        <p>El colaborador ha registrado una nueva solicitud del <strong>${fecha_inicio}</strong> al <strong>${fecha_fin}</strong> (${diasTomadosFinal} días hábiles).</p>
+        <p>Por favor ingresa al sistema para revisar y autorizar.</p>
+      </div>
+    `;
+
+    enviarCorreoGmail({
+      to: CORREO_PRUEBAS,
+      subject: 'Nueva Solicitud de Vacaciones Pendiente de Autorizar',
+      html: htmlCorreo
+    }).catch(err => console.error('❌ Error enviando correo:', err));
 
     res.status(201).json({
       success: true,
@@ -444,223 +358,104 @@ router.post('/', verificarToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Error al insertar en la tabla vacaciones:', error);
+    console.error('❌ Error al insertar vacaciones:', error);
     res.status(500).json({
       success: false,
-      error: 'Error interno del servidor al procesar la solicitud de vacaciones.'
+      error: 'Error interno del servidor al procesar la solicitud.'
     });
   }
 });
 
-router.patch('/:id/estado', verificarToken, verificarRol(ROLES_AUTORIZADORES), async (req, res) => {
+// MODIFICACIÓN SOLUCIÓN: Actualización de estado por nivel (nivel: 'jefe' | 'director')
+router.patch('/:id/estado', verificarToken, async (req, res) => {
   const idVacacion = req.params.id;
-  const { estado, observaciones } = req.body;
+  const { estado, observaciones, nivel } = req.body;
 
   if (!estado) {
-    return res.status(400).json({
-      success: false,
-      error: 'El campo estado es requerido.'
-    });
+    return res.status(400).json({ success: false, error: 'El estado es obligatorio.' });
   }
 
   const estadoLimpio = estado.toLowerCase().trim();
-
-  let estadoParaBD = estadoLimpio;
-  if (estadoLimpio === 'autorizada' || estadoLimpio === 'aprobada') {
-    estadoParaBD = 'aprobada';
-  } else if (estadoLimpio === 'rechazada') {
-    estadoParaBD = 'rechazada';
-  } else if (estadoLimpio === 'pendiente') {
-    estadoParaBD = 'pendiente';
-  } else {
-    return res.status(400).json({
-      success: false,
-      error: 'Estado inválido. Los valores permitidos son: pendiente, autorizada/aprobada, rechazada.'
-    });
-  }
+  const estadoParaBD = (estadoLimpio === 'autorizada' || estadoLimpio === 'aprobada') ? 'autorizada' : (estadoLimpio === 'rechazada' ? 'rechazada' : 'pendiente');
 
   try {
-    let sqlUpdate = `UPDATE vacaciones SET estado = ?`;
-    const queryParams = [estadoParaBD];
+    const [filas] = await pool.query('SELECT * FROM vacaciones WHERE id_vacacion = ?', [idVacacion]);
+    if (filas.length === 0) return res.status(404).json({ success: false, error: 'Solicitud no encontrada.' });
 
-    if (observaciones !== undefined) {
-      sqlUpdate += `, observaciones = ?`;
-      queryParams.push(observaciones ? observaciones.trim() : null);
+    const vac = filas[0];
+    let sqlUpdate = '';
+    const params = [];
+
+    if (nivel === 'jefe') {
+      sqlUpdate = `UPDATE vacaciones SET estado_jefe = ?, observaciones_jefe = ? WHERE id_vacacion = ?`;
+      params.push(estadoParaBD, observaciones ? observaciones.trim() : null, idVacacion);
+    } else if (nivel === 'director') {
+      sqlUpdate = `UPDATE vacaciones SET estado_director = ?, observaciones_director = ? WHERE id_vacacion = ?`;
+      params.push(estadoParaBD, observaciones ? observaciones.trim() : null, idVacacion);
+    } else {
+      // Fallback si no se especifica nivel
+      sqlUpdate = `UPDATE vacaciones SET estado_jefe = ?, observaciones_jefe = ? WHERE id_vacacion = ?`;
+      params.push(estadoParaBD, observaciones ? observaciones.trim() : null, idVacacion);
     }
 
-    sqlUpdate += ` WHERE id_vacacion = ?`;
-    queryParams.push(idVacacion);
+    await pool.query(sqlUpdate, params);
 
-    const [result] = await pool.query(sqlUpdate, queryParams);
+    // Consultar estado actualizado para calcular estado global
+    const [filasActual] = await pool.query('SELECT * FROM vacaciones WHERE id_vacacion = ?', [idVacacion]);
+    const vAct = filasActual[0];
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'No se encontró la solicitud de vacaciones especificada.'
-      });
+    let estadoGlobal = 'pendiente';
+    if (vAct.estado_jefe === 'rechazada' || vAct.estado_director === 'rechazada') {
+      estadoGlobal = 'rechazada';
+    } else if (vAct.estado_jefe === 'autorizada' && vAct.estado_director === 'autorizada') {
+      estadoGlobal = 'aprobada';
     }
 
-    if (estadoParaBD === 'aprobada' || estadoParaBD === 'rechazada') {
-      const estadoEtiqueta = estadoParaBD === 'aprobada' ? 'Autorizada' : 'Rechazada';
+    await pool.query('UPDATE vacaciones SET estado = ? WHERE id_vacacion = ?', [estadoGlobal, idVacacion]);
 
-      const sqlDetalles = `
-        SELECT 
-          v.observaciones,
-          COALESCE(ve.email, '') AS email_empleado
-        FROM vacaciones v
-        LEFT JOIN vista_empleados_vacaciones ve ON v.id_employee = ve.id_employee
-        WHERE v.id_vacacion = ?
-      `;
+    // Correo de notificación según avance
+    const htmlCorreo = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="color: #0f172a;">MODISA ERP - Actualización de Solicitud #${idVacacion}</h2>
+        <p>El estado por nivel <strong>${nivel || 'autorizador'}</strong> cambió a: <strong style="color: ${estadoParaBD === 'autorizada' ? '#16a34a' : '#dc2626'};">${estadoParaBD.toUpperCase()}</strong></p>
+        <p>Observaciones: <em>"${observaciones || 'Sin comentarios adicionales.'}"</em></p>
+        <p>Estado Global de la Solicitud: <strong>${estadoGlobal.toUpperCase()}</strong></p>
+      </div>
+    `;
 
-      pool.query(sqlDetalles, [idVacacion]).then(([rows]) => {
-        if (rows.length > 0) {
-          const obsTexto = (observaciones !== undefined && observaciones !== null && observaciones.trim() !== '')
-            ? observaciones.trim()
-            : (rows[0].observaciones ? rows[0].observaciones.trim() : 'Sin comentarios adicionales.');
-          
-          const emailEmpleadoReal = rows[0].email_empleado ? String(rows[0].email_empleado).trim() : '';
-          const destinatarioFinal = (emailEmpleadoReal && emailEmpleadoReal.includes('@')) 
-            ? emailEmpleadoReal 
-            : 'dvillalva@modisa.com.mx';
-
-          const cuerpoHtml = `
-            <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; background-color: #ffffff;">
-              <h2 style="color: #0f172a; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">MODISA ERP - Estado de Vacaciones</h2>
-              <p style="font-size: 15px; line-height: 1.6;">Buen día,</p>
-              <p style="font-size: 15px; line-height: 1.6;">
-                Te informamos que tu solicitud fue <strong style="color: ${estadoParaBD === 'aprobada' ? '#16a34a' : '#dc2626'};">${estadoEtiqueta}</strong>, contempla los siguientes comentarios:
-              </p>
-              <blockquote style="background-color: #f8fafc; border-left: 4px solid #2563eb; margin: 16px 0; padding: 12px 16px; font-style: italic; color: #334155;">
-                "${obsTexto}"
-              </blockquote>
-              <p style="font-size: 14px; margin-top: 24px; color: #475569;">
-                Saludos,<br/>
-                <strong>Dirección MODISA</strong>
-              </p>
-            </div>
-          `;
-
-          enviarCorreoGmail({
-            to: destinatarioFinal,
-            subject: `Notificación de Solicitud de Vacaciones - ${estadoEtiqueta}`,
-            html: cuerpoHtml
-          }).catch(err => console.error('❌ Error al procesar envío de correo:', err));
-        }
-      }).catch(err => console.error('❌ Error al consultar detalles para correo:', err));
-    }
+    enviarCorreoGmail({
+      to: CORREO_PRUEBAS,
+      subject: `Notificación de Estado de Vacaciones - ${estadoParaBD}`,
+      html: htmlCorreo
+    }).catch(err => console.error('❌ Error enviando correo:', err));
 
     res.json({
       success: true,
-      message: `✅ Estado de vacaciones actualizado a '${estadoParaBD}' con éxito.`
+      message: `✅ Estado actualizado con éxito a '${estadoParaBD}'.`,
+      estado_global: estadoGlobal
     });
 
   } catch (error) {
-    console.error('❌ Error al actualizar estado de vacaciones:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Error interno del servidor al actualizar el estado de las vacaciones.'
-    });
+    console.error('❌ Error al actualizar estado:', error);
+    res.status(500).json({ success: false, error: 'Error interno del servidor.' });
   }
 });
 
 router.post('/:id/expediente', verificarToken, uploadMemory.single('expediente'), async (req, res) => {
   const idVacacion = req.params.id;
 
-  if (!req.file) {
-    return res.status(400).json({
-      success: false,
-      error: 'Debe seleccionar un archivo PDF para subir.'
-    });
-  }
-
-  if (req.file.mimetype !== 'application/pdf') {
-    return res.status(400).json({
-      success: false,
-      error: 'Formato no permitido. Solamente se admiten documentos en formato PDF.'
-    });
-  }
-
-  const magicBytes = req.file.buffer.toString('utf8', 0, 4);
-  if (magicBytes !== '%PDF') {
-    return res.status(400).json({
-      success: false,
-      error: 'El archivo provisto está dañado o no es un documento PDF válido.'
-    });
+  if (!req.file || req.file.mimetype !== 'application/pdf') {
+    return res.status(400).json({ success: false, error: 'Debe seleccionar un archivo PDF válido.' });
   }
 
   try {
-    const sqlQuery = `
-      SELECT 
-        v.fecha_inicio,
-        COALESCE(ve.name, 'Empleado') AS primer_nombre,
-        CONCAT(
-          YEAR(v.fecha_inicio), '-', YEAR(DATE_ADD(v.fecha_inicio, INTERVAL 1 YEAR))
-        ) AS periodo
-      FROM vacaciones v
-      LEFT JOIN vista_empleados_vacaciones ve ON v.id_employee = ve.id_employee
-      WHERE v.id_vacacion = ?
-    `;
+    const driveWebViewLink = await subirArchivoADrive(req.file, ID_CARPETA_DRIVE_VACACIONES, `VAC-${idVacacion}.pdf`);
+    await pool.query('UPDATE vacaciones SET documento_firmado_url = ? WHERE id_vacacion = ?', [driveWebViewLink, idVacacion]);
 
-    const [rows] = await pool.query(sqlQuery, [idVacacion]);
-    if (rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'No se encontró la solicitud de vacaciones correspondiente.'
-      });
-    }
-
-    const info = rows[0];
-    const primerNombreLimpio = String(info.primer_nombre).trim().split(' ')[0].replace(/[^a-zA-Z0-9]/g, '');
-    const periodoVal = info.periodo || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
-    
-    const nombrePdfDrive = `${primerNombreLimpio}-VAC-${periodoVal}.pdf`;
-
-    const driveWebViewLink = await subirArchivoADrive(req.file, ID_CARPETA_DRIVE_VACACIONES, nombrePdfDrive);
-
-    const sqlUpdate = `UPDATE vacaciones SET documento_firmado_url = ? WHERE id_vacacion = ?`;
-    await pool.query(sqlUpdate, [driveWebViewLink, idVacacion]);
-
-    res.json({
-      success: true,
-      message: '🎉 Expediente digital guardado en Google Drive y vinculado con éxito.',
-      documento_firmado_url: driveWebViewLink
-    });
-
+    res.json({ success: true, message: '🎉 Expediente digital guardado en Google Drive y vinculado con éxito.', documento_firmado_url: driveWebViewLink });
   } catch (error) {
-    console.error('❌ Error al procesar subida de expediente de vacaciones:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Error interno al guardar el expediente digital en Google Drive.'
-    });
-  }
-});
-
-router.patch('/:id/observaciones', verificarToken, verificarRol(ROLES_AUTORIZADORES), async (req, res) => {
-  const idVacacion = req.params.id;
-  const { observaciones } = req.body;
-
-  try {
-    const sqlUpdate = `UPDATE vacaciones SET observaciones = ? WHERE id_vacacion = ?`;
-    const [result] = await pool.query(sqlUpdate, [observaciones ? observaciones.trim() : null, idVacacion]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'No se encontró la solicitud de vacaciones especificada.'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: '✅ Observaciones actualizadas correctamente.'
-    });
-
-  } catch (error) {
-    console.error('❌ Error al actualizar observaciones de vacaciones:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Error interno del servidor al actualizar las observaciones.'
-    });
+    console.error('❌ Error al procesar expediente:', error);
+    res.status(500).json({ success: false, error: 'Error al subir el expediente.' });
   }
 });
 

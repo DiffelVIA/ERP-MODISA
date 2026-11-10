@@ -6,54 +6,23 @@ export function inicializarHandlersPDF(API_URL, getDatosVacaciones, cargarDatosV
     const datosVacaciones = getDatosVacaciones() || [];
     const item = datosVacaciones.find(v => String(v.id_vacacion) === String(idVacacion));
     if (!item) {
-      alert("⚠️ No se encontró la información de la solicitud de vacaciones.");
-      return;
-    }
-
-    if (!window.jspdf || !window.jspdf.jsPDF) {
-      alert("❌ La librería jsPDF no está cargada correctamente en el navegador. Por favor recargue la página.");
+      alert("⚠️ No se encontró la información de la solicitud.");
       return;
     }
 
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'letter'
-    });
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
 
     const nombreEmpleadoVal = item.nombre_empleado || `Empleado ID #${item.id_employee}`;
     const primerNombreVal = String(nombreEmpleadoVal).trim().split(' ')[0].replace(/[^a-zA-Z0-9]/g, '');
-    const fechaIngresoVal = item.hire_date ? String(item.hire_date).split('T')[0] : '---';
+    const fechaSolicitudVal = item.fecha_solicitud ? String(item.fecha_solicitud).split('T')[0] : (item.created_at ? String(item.created_at).split('T')[0] : '---');
     const fechaInicioVal = item.fecha_inicio ? String(item.fecha_inicio).split('T')[0] : '---';
     const fechaFinVal = item.fecha_fin ? String(item.fecha_fin).split('T')[0] : '---';
-    const periodoVal = item.periodo || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+    const periodoVal = `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
 
     const diasTomadosActual = (item.fecha_inicio && item.fecha_fin)
       ? calcularDiasHabilesEfectivos(item.fecha_inicio, item.fecha_fin)
       : Number(item.dias_tomados || 0);
-
-    const diasLeyVal = Number(item.dias_vacaciones_ley || item.dias_ley || 0);
-
-    // MODIFICACIÓN SOLUCIÓN: Sumar los días consumidos en solicitudes previas autorizadas/aprobadas del mismo empleado
-    const idEmp = item.id_employee;
-    let diasAcumuladosPrevios = 0;
-
-    datosVacaciones.forEach(v => {
-      // Excluir la solicitud actual de la suma previa y contar solo autorizadas/aprobadas
-      if (String(v.id_employee) === String(idEmp) && String(v.id_vacacion) !== String(idVacacion)) {
-        const est = String(v.estado || '').toLowerCase();
-        if (est === 'aprobada' || est === 'autorizada') {
-          const diasV = (v.fecha_inicio && v.fecha_fin)
-            ? calcularDiasHabilesEfectivos(v.fecha_inicio, v.fecha_fin)
-            : Number(v.dias_tomados || 0);
-          diasAcumuladosPrevios += diasV;
-        }
-      }
-    });
-
-    // Restantes = Días Ley - Días consumidos previamente - Días de esta solicitud
-    const diasRestantesVal = Math.max(0, diasLeyVal - diasAcumuladosPrevios - diasTomadosActual);
 
     doc.setFillColor(6, 18, 30);
     doc.rect(15, 12, 186, 12, 'F');
@@ -67,137 +36,87 @@ export function inicializarHandlersPDF(API_URL, getDatosVacaciones, cargarDatosV
     doc.setLineWidth(0.5);
     doc.line(15, 42, 201, 42);
 
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(30, 41, 59);
-    const textoIntro = "En atención a la solicitud presentada, se autoriza el periodo vacacional correspondiente al colaborador según las siguientes especificaciones:";
-    doc.text(doc.splitTextToSize(textoIntro, 186), 15, 50);
-
-    let startY = 62;
-    const filaAltura = 12;
+    let startY = 52;
+    const filaAltura = 11;
 
     const datosTabla = [
       ["Nombre del Empleado:", nombreEmpleadoVal],
-      ["Fecha de Ingreso:", fechaIngresoVal],
+      ["Fecha de Solicitud:", fechaSolicitudVal],
       ["Periodo Correspondiente:", periodoVal],
       ["Días Solicitados:", `${diasTomadosActual} día(s)`],
-      ["Días Restantes a Gozar:", `${diasRestantesVal} día(s)`],
       ["Fecha de Inicio:", fechaInicioVal],
-      ["Fecha de Término:", fechaFinVal]
+      ["Fecha de Término:", fechaFinVal],
+      ["Obs. Jefe Inmediato:", item.observaciones_jefe || "Sin observaciones"],
+      ["Obs. Dirección Operativa:", item.observaciones_director || "Sin observaciones"]
     ];
 
     datosTabla.forEach(([colLabel, colValue], index) => {
       const currentY = startY + (index * filaAltura);
-
       doc.setFillColor(248, 250, 252);
       doc.rect(15, currentY, 65, filaAltura, 'F');
-      
       doc.setDrawColor(203, 213, 225);
       doc.rect(15, currentY, 65, filaAltura, 'D');
       doc.rect(80, currentY, 121, filaAltura, 'D');
 
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
+      doc.setFontSize(9.5);
       doc.setTextColor(51, 65, 85);
-      doc.text(colLabel, 18, currentY + 7.5);
+      doc.text(colLabel, 18, currentY + 7);
 
-      doc.setFont("helvetica", index === 0 || index === 3 || index === 4 ? "bold" : "normal");
-      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
       doc.setTextColor(15, 23, 42);
-      doc.text(String(colValue), 83, currentY + 7.5);
+      doc.text(String(colValue), 83, currentY + 7);
     });
 
-    const finalTablaY = startY + (datosTabla.length * filaAltura) + 12;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(30, 41, 59);
-    const textoCompromiso = "El empleado se compromete a reincorporarse a sus labores habituales al día hábil siguiente del término de su periodo vacacional autorizado.";
-    doc.text(doc.splitTextToSize(textoCompromiso, 186), 15, finalTablaY);
+    const firmasY = startY + (datosTabla.length * filaAltura) + 35;
 
-    const firmasY = finalTablaY + 45;
-
+    // Firmas: Empleado, Jefe Inmediato, Dirección Operativa
     doc.setDrawColor(6, 18, 30);
-    doc.setLineWidth(0.6);
     doc.line(18, firmasY, 68, firmasY);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(9.5);
-    doc.setTextColor(30, 41, 59);
-    doc.text(doc.splitTextToSize(nombreEmpleadoVal, 50), 43, firmasY + 6, { align: "center" });
+    doc.setFontSize(9);
+    doc.text(nombreEmpleadoVal, 43, firmasY + 5, { align: "center" });
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    doc.setTextColor(100, 116, 139);
-    doc.text("Firma del Empleado", 43, firmasY + 13, { align: "center" });
+    doc.text("Firma Empleado", 43, firmasY + 10, { align: "center" });
 
-    doc.setDrawColor(6, 18, 30);
     doc.line(78, firmasY, 128, firmasY);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(9.5);
-    doc.setTextColor(30, 41, 59);
-    doc.text("Gerencia de Administración", 103, firmasY + 6, { align: "center" });
+    doc.text("Jefe Inmediato", 103, firmasY + 5, { align: "center" });
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    doc.setTextColor(100, 116, 139);
-    doc.text("Revisado y Registrado", 103, firmasY + 13, { align: "center" });
+    doc.text("Vo.Bo. Autorizado", 103, firmasY + 10, { align: "center" });
 
-    doc.setDrawColor(6, 18, 30);
     doc.line(138, firmasY, 188, firmasY);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(9.5);
-    doc.setTextColor(30, 41, 59);
-    doc.text("Dirección Operativa", 163, firmasY + 6, { align: "center" });
+    doc.text("Dirección Operativa", 163, firmasY + 5, { align: "center" });
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    doc.setTextColor(100, 116, 139);
-    doc.text("Autorizado", 163, firmasY + 13, { align: "center" });
+    doc.text("Autorización Final", 163, firmasY + 10, { align: "center" });
 
-    const nombreArchivo = `Constancia_Vacaciones_${primerNombreVal}_${periodoVal}.pdf`;
-    doc.save(nombreArchivo);
+    doc.save(`Constancia_Vacaciones_${primerNombreVal}_${periodoVal}.pdf`);
   };
 
   window.subirExpedienteFirmado = async function(idVacacion, inputElement) {
     if (!inputElement || !inputElement.files || inputElement.files.length === 0) return;
-
     const archivo = inputElement.files[0];
-
-    if (archivo.type !== 'application/pdf') {
-      alert("❌ Únicamente se permiten archivos en formato PDF.");
-      inputElement.value = '';
-      return;
-    }
-
-    if (archivo.size > 10 * 1024 * 1024) {
-      alert("❌ El archivo supera el límite máximo permitido de 10 MB.");
-      inputElement.value = '';
-      return;
-    }
 
     const formData = new FormData();
     formData.append('expediente', archivo);
 
     const token = localStorage.getItem('jwtToken') || '';
-
     try {
       const res = await fetch(`${API_URL}/vacaciones/${idVacacion}/expediente`, {
         method: 'POST',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
+        headers: { 'Authorization': token ? `Bearer ${token}` : '' },
         body: formData
       });
-
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Ocurrió un error al subir el expediente firmado.');
-      }
+      if (!res.ok) throw new Error(data.error || 'Error al subir expediente.');
 
       alert(`✅ ${data.message}`);
       await cargarDatosVacaciones();
-
     } catch (err) {
-      console.error("❌ Error al subir expediente firmado:", err);
+      console.error("❌ Error:", err);
       alert(`❌ Error: ${escapeHTML(err.message)}`);
-      inputElement.value = '';
     }
   };
 }
