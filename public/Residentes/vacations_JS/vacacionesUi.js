@@ -1,3 +1,30 @@
+// MODIFICACIÓN SOLUCIÓN: Definición local de helpers utilitarios para saneamiento XSS y cálculo de días en tablas UI
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function calcularDiasHabilesEfectivos(inicio, fin) {
+  if (!inicio || !fin) return 0;
+  const fInicio = new Date(inicio);
+  const fFin = new Date(fin);
+  let dias = 0;
+  let cursor = new Date(fInicio);
+  while (cursor <= fFin) {
+    const diaSemana = cursor.getDay();
+    if (diaSemana !== 0 && diaSemana !== 6) {
+      dias++;
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dias;
+}
+
 export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
   const cuerpo = document.getElementById('cuerpoTablaVacaciones');
   if (!cuerpo) return;
@@ -59,7 +86,7 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
     if (item.documento_firmado_url) {
       expedienteHTML = `<a href="${escapeHTML(item.documento_firmado_url)}" target="_blank" style="padding:4px 8px; background:#eff6ff; color:#2563eb; border-radius:4px; font-weight:bold; font-size:11px; text-decoration:none;">📎 Ver Expediente</a>`;
     } else if (estaTotalmenteAprobada) {
-      // MODIFICACIÓN REQUERIDA: Solamente Gerente de Administración puede imprimir el formato
+      // Solamente Gerente de Administración puede imprimir el formato
       if (esGerenteAdmin) {
         expedienteHTML = `
           <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
@@ -97,4 +124,17 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
       </tr>
     `;
   }).join('');
+}
+
+// MODIFICACIÓN SOLUCIÓN: Exportación de stubs de renderizado UI para prevenir SyntaxError en vacacionesCore.js
+export function renderizarVistaEstatus(datosEstatus, empleadosSeleccionados, obtenerDatosDesdeJWT) {
+  const contenedor = document.getElementById('contenedorVistaEstatus');
+  if (!contenedor) return;
+  // Mantiene el contenedor preparado para renderizado dinámico de tarjetas de estatus
+}
+
+export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
+  const grid = document.getElementById('ganttGrid');
+  if (!grid) return;
+  // Mantiene el contenedor preparado para renderizado del calendario Gantt
 }
