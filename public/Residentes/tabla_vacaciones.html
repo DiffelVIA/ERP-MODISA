@@ -27,7 +27,7 @@
     
     <div class="contenedorFiltros" style="display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;">
 
-      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      <div id="grupoFiltrosVacaciones" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
         <!-- Filtro Empleado -->
         <div class="filtros" id="dropdownEmpleado">
           <button type="button" class="btn-dropdown">Filtro Empleado ▾</button>
@@ -86,10 +86,15 @@
 
     <section id="contenedorVistaGantt" class="seccion-gantt" style="display: none; margin-bottom: 25px;">
       <div class="gantt-header-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
-        <div style="display: flex; align-items: center; gap: 15px;">
+        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
           <h2 style="font-size: 18px; color: #1e293b; margin: 0;">Calendario Anual de Vacaciones</h2>
           <select id="selectAnioGantt" style="padding: 5px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold; color: #1e293b; background: #fff; cursor: pointer;">
           </select>
+
+          <div id="grupoVistaGantt" role="group" aria-label="Alcance del calendario" style="display: none; background: #e2e8f0; padding: 3px; border-radius: 8px; gap: 3px;">
+            <button type="button" id="btnGanttArea" aria-pressed="true" style="padding: 6px 14px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; background: #2563eb; color: #ffffff; font-size: 12px; transition: all 0.2s;">Mi área</button>
+            <button type="button" id="btnGanttGeneral" aria-pressed="false" style="padding: 6px 14px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; background: transparent; color: #475569; font-size: 12px; transition: all 0.2s;">General</button>
+          </div>
         </div>
         <div class="gantt-leyenda" style="display: flex; gap: 15px; font-size: 13px;">
           <div class="leyenda-item" style="display: flex; align-items: center; gap: 5px;">
@@ -102,6 +107,8 @@
           </div>
         </div>
       </div>
+
+      <p id="ganttInfoAlcance" role="status" aria-live="polite" style="display: none; margin: 0 0 12px 0; font-size: 12px; color: #64748b;"></p>
       
       <div id="ganttGrid" class="gantt-grid">
         <div style="padding: 20px; text-align: center; color: #64748b;">Cargando calendario anual...</div>

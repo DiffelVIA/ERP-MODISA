@@ -244,3 +244,17 @@
   visibility: visible;
   opacity: 1;
 }
+
+.gantt-barra-container:focus-within {
+  z-index: 50;
+}
+
+.gantt-barra-container:focus-within .gantt-tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+.gantt-barra:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}

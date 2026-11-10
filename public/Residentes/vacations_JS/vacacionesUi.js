@@ -314,7 +314,18 @@ export function generarHTMLTacometroIndividual(emp, esDirectorOperativo) {
   `;
 }
 
-export function renderizarGanttVacaciones(lista, anioGanttSeleccionado) {
+function formatearFechaCorta(fStr) {
+  if (!fStr) return '-';
+  const partes = String(fStr).split('T')[0].split('-');
+  if (partes.length !== 3) return escapeHTML(fStr);
+  return `${escapeHTML(partes[2])}/${escapeHTML(partes[1])}/${escapeHTML(partes[0])}`;
+}
+
+// MODIFICACIÓN SOLUCIÓN: Se agrega el parámetro opcional "opciones" (ocultarSaldos, idEmpleadoActual).
+// Sin opciones, el comportamiento para administrativos es el mismo de siempre.
+export function renderizarGanttVacaciones(lista, anioGanttSeleccionado, opciones = {}) {
+  const { ocultarSaldos = false, idEmpleadoActual = null } = opciones;
+
   const contenedorGrid = document.getElementById('ganttGrid');
   if (!contenedorGrid) return;
 
@@ -345,7 +356,11 @@ export function renderizarGanttVacaciones(lista, anioGanttSeleccionado) {
 
   const vacacionesPorEmpleado = {};
   lista.forEach(item => {
-    const empNombre = item.nombre_empleado || item.empleado || `Empleado ID #${item.id_employee}`;
+    const nombreBase = item.nombre_empleado || item.empleado || `Empleado ID #${item.id_employee}`;
+    // MODIFICACIÓN SOLUCIÓN: Marca la fila propia con "(Tú)" para ubicarse rápido en el calendario
+    const esPropio = idEmpleadoActual !== null && Number(item.id_employee) === Number(idEmpleadoActual);
+    const empNombre = esPropio ? `${nombreBase} (Tú)` : nombreBase;
+
     if (!vacacionesPorEmpleado[empNombre]) {
       vacacionesPorEmpleado[empNombre] = [];
     }
@@ -379,28 +394,41 @@ export function renderizarGanttVacaciones(lista, anioGanttSeleccionado) {
 
     const mapaCeldasAnual = {};
 
-    vacacionesPorEmpleado[empNombre].forEach(v => {
+    // MODIFICACIÓN SOLUCIÓN: Se ordenan las solicitudes y se recortan los empalmes del mismo empleado
+    // para que la rejilla no se desfase ni una barra pise a otra con la misma fecha de inicio.
+    const solicitudesOrdenadas = [...vacacionesPorEmpleado[empNombre]].sort((a, b) =>
+      String(a.fecha_inicio || '').localeCompare(String(b.fecha_inicio || ''))
+    );
+    let ultimoDiaOcupado = -1;
+
+    solicitudesOrdenadas.forEach(v => {
       if (!v.fecha_inicio || !v.fecha_fin) return;
 
-      const idxInicio = fechaADiaAnual(v.fecha_inicio);
+      const idxInicioOriginal = fechaADiaAnual(v.fecha_inicio);
       const idxFin = fechaADiaAnual(v.fecha_fin);
 
-      if (idxInicio !== null && idxFin !== null && idxFin >= idxInicio) {
-        const duracion = (idxFin - idxInicio) + 1;
-        const estClase = String(v.estado || 'pendiente').toLowerCase();
-        
-        const diasTomadosGantt = (v.fecha_inicio && v.fecha_fin)
-          ? calcularDiasHabilesEfectivos(v.fecha_inicio, v.fecha_fin)
-          : Number(v.dias_tomados || 0);
+      if (idxInicioOriginal === null || idxFin === null || idxFin < idxInicioOriginal) return;
 
-        mapaCeldasAnual[idxInicio] = {
-          duracion: duracion,
-          estado: (estClase === 'aprobada' || estClase === 'autorizada') ? 'autorizada' : 'pendiente',
-          diasTomados: diasTomadosGantt,
-          diasLey: Number(v.dias_vacaciones_ley || 0),
-          diasRestantes: Math.max(0, Number(v.dias_vacaciones_ley || 0) - diasTomadosGantt)
-        };
-      }
+      const idxInicio = Math.max(idxInicioOriginal, ultimoDiaOcupado + 1);
+      if (idxInicio > idxFin) return; // Totalmente contenida en otra barra ya dibujada
+      ultimoDiaOcupado = idxFin;
+
+      const duracion = (idxFin - idxInicio) + 1;
+      const estClase = String(v.estado || 'pendiente').toLowerCase();
+      
+      const diasTomadosGantt = (v.fecha_inicio && v.fecha_fin)
+        ? calcularDiasHabilesEfectivos(v.fecha_inicio, v.fecha_fin)
+        : Number(v.dias_tomados || 0);
+
+      mapaCeldasAnual[idxInicio] = {
+        duracion: duracion,
+        estado: (estClase === 'aprobada' || estClase === 'autorizada') ? 'autorizada' : 'pendiente',
+        diasTomados: diasTomadosGantt,
+        diasLey: Number(v.dias_vacaciones_ley || 0),
+        diasRestantes: Math.max(0, Number(v.dias_vacaciones_ley || 0) - diasTomadosGantt),
+        fechaInicio: String(v.fecha_inicio).split('T')[0],
+        fechaFin: String(v.fecha_fin).split('T')[0]
+      };
     });
 
     const totalEmpleados = listaEmpleadosClaves.length;
@@ -421,18 +449,33 @@ export function renderizarGanttVacaciones(lista, anioGanttSeleccionado) {
       if (mapaCeldasAnual[d]) {
         const info = mapaCeldasAnual[d];
         const span = info.duracion;
+
+        // MODIFICACIÓN SOLUCIÓN: Tooltip sin saldos de días de ley/restantes cuando se ve el calendario de compañeros
+        const nombreEstado = info.estado === 'autorizada' ? 'Autorizada' : 'Pendiente';
+        const contenidoTooltip = ocultarSaldos
+          ? `
+                <strong style="color: #60a5fa; font-size: 12px;">${empNombreEscaped}</strong><br/>
+                <span>📅 Del ${formatearFechaCorta(info.fechaInicio)} al ${formatearFechaCorta(info.fechaFin)}</span><br/>
+                <span>🏖 Días hábiles: <strong>${info.diasTomados}</strong></span><br/>
+                <span>📌 Estado: <strong>${nombreEstado}</strong></span>`
+          : `
+                <strong style="color: #60a5fa; font-size: 12px;">${empNombreEscaped}</strong><br/>
+                <span>📜 Días por Ley: <strong>${info.diasLey}</strong></span><br/>
+                <span>🏖 Días Tomados: <strong>${info.diasTomados}</strong></span><br/>
+                <span>⏳ Días Pendientes: <strong>${info.diasRestantes}</strong></span>`;
+
+        // Accesibilidad por teclado solo en la vista de empleados
+        const atributosAccesibilidad = ocultarSaldos
+          ? `tabindex="0" role="img" aria-label="${escapeHTML(`${empNombre}: ${nombreEstado}, ${info.diasTomados} días hábiles, del ${info.fechaInicio} al ${info.fechaFin}`)}"`
+          : '';
         
         htmlFilasEmpleados += `
           <div class="gantt-celda-dia" style="grid-column: span ${span};">
             <div class="gantt-barra-container">
-              <div class="gantt-barra ${info.estado}">
+              <div class="gantt-barra ${info.estado}" ${atributosAccesibilidad}>
                 ${info.diasTomados}d
               </div>
-              <div class="gantt-tooltip ${claseTooltipPosicion}">
-                <strong style="color: #60a5fa; font-size: 12px;">${empNombreEscaped}</strong><br/>
-                <span>📜 Días por Ley: <strong>${info.diasLey}</strong></span><br/>
-                <span>🏖 Días Tomados: <strong>${info.diasTomados}</strong></span><br/>
-                <span>⏳ Días Pendientes: <strong>${info.diasRestantes}</strong></span>
+              <div class="gantt-tooltip ${claseTooltipPosicion}">${contenidoTooltip}
               </div>
             </div>
           </div>

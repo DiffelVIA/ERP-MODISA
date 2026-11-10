@@ -75,89 +75,144 @@ async function depurarVacacionesRechazadas() {
 setInterval(depurarVacacionesRechazadas, 24 * 60 * 60 * 1000);
 setTimeout(depurarVacacionesRechazadas, 5000);
 
-router.get('/', verificarToken, async (req, res) => {
+function esFechaISOValida(valor) {
+  if (typeof valor !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(valor)) return false;
+  const fecha = new Date(`${valor}T00:00:00Z`);
+  return !isNaN(fecha.getTime()) && fecha.toISOString().slice(0, 10) === valor;
+}
+
+function obtenerNthDiaDelMesUTC(anio, mesZeroBased, diaSemanaDeseado, nOcurrencia) {
+  let conteo = 0;
+  for (let dia = 1; dia <= 31; dia++) {
+    const fecha = new Date(Date.UTC(anio, mesZeroBased, dia));
+    if (fecha.getUTCMonth() !== mesZeroBased) break;
+    if (fecha.getUTCDay() === diaSemanaDeseado) {
+      conteo++;
+      if (conteo === nOcurrencia) {
+        return `${anio}-${String(mesZeroBased + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+      }
+    }
+  }
+  return null;
+}
+
+// Mismos festivos que ya usa tu frontend (formVacaciones.js / vacacionesUi.js) para que los números coincidan
+function obtenerFestivosMexicoServidor(anio) {
+  return new Set([
+    `${anio}-01-01`,
+    `${anio}-05-01`,
+    `${anio}-09-16`,
+    `${anio}-12-25`,
+    obtenerNthDiaDelMesUTC(anio, 1, 1, 1),
+    obtenerNthDiaDelMesUTC(anio, 2, 1, 3),
+    obtenerNthDiaDelMesUTC(anio, 10, 1, 3)
+  ]);
+}
+
+// Devuelve los días hábiles del rango, o null si el rango excede 366 días (evita ciclos enormes)
+function calcularDiasHabilesServidor(fechaInicio, fechaFin) {
+  const inicio = new Date(`${fechaInicio}T00:00:00Z`);
+  const fin = new Date(`${fechaFin}T00:00:00Z`);
+  const diasDeRango = Math.round((fin - inicio) / 86400000) + 1;
+  if (diasDeRango < 1 || diasDeRango > 366) return null;
+
+  const cacheFestivos = {};
+  let diasHabiles = 0;
+  const cursor = new Date(inicio);
+
+  while (cursor <= fin) {
+    const diaSemana = cursor.getUTCDay();
+    const anio = cursor.getUTCFullYear();
+    const clave = cursor.toISOString().slice(0, 10);
+
+    if (!cacheFestivos[anio]) cacheFestivos[anio] = obtenerFestivosMexicoServidor(anio);
+
+    if (diaSemana !== 0 && diaSemana !== 6 && !cacheFestivos[anio].has(clave)) {
+      diasHabiles++;
+    }
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return diasHabiles;
+}
+
+router.get('/gantt', verificarToken, async (req, res) => {
   try {
-    const rolUsuario = req.usuario ? req.usuario.rol : '';
-    const idEmpleadoToken = req.usuario ? (req.usuario.id_employee || req.usuario.id || req.usuario.userId) : null;
+    const idEmpleadoToken = parseInt(req.usuario && req.usuario.id_employee, 10);
 
-    const rolUsuarioLimpio = (rolUsuario || '')
-      .trim()
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
+    if (!Number.isInteger(idEmpleadoToken) || idEmpleadoToken <= 0) {
+      return res.status(403).json({
+        success: false,
+        error: '⛔ No se pudo identificar la credencial del empleado en la sesión.'
+      });
+    }
 
-    const esAdmin = ROLES_VISUALIZACION_GLOBAL.some(r => {
-      const rLimpio = r.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      return rLimpio === rolUsuarioLimpio || (rolUsuarioLimpio.includes('gerente') && rolUsuarioLimpio.includes('administrac'));
-    });
+    // Lista blanca: cualquier valor distinto de 'general' se trata como 'area'
+    const vista = req.query.vista === 'general' ? 'general' : 'area';
 
+    let anio = parseInt(req.query.anio, 10);
+    if (!Number.isInteger(anio) || anio < 2000 || anio > 2100) {
+      anio = new Date().getFullYear();
+    }
+
+    // El área se toma de la base de datos con el id del token, jamás del navegador
+    const [filasSolicitante] = await pool.query(
+      'SELECT department FROM employees WHERE id_employee = ? LIMIT 1',
+      [idEmpleadoToken]
+    );
+
+    if (filasSolicitante.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: '⛔ El empleado de la sesión ya no existe en el sistema.'
+      });
+    }
+
+    const area = filasSolicitante[0].department ? String(filasSolicitante[0].department).trim() : null;
+
+    res.set('Cache-Control', 'no-store');
+
+    if (vista === 'area' && !area) {
+      return res.json({ success: true, vista, area: null, anio, datos: [] });
+    }
+
+    // Columnas explícitas: sin correo, observaciones, documentos ni datos sensibles
     let sql = `
-      SELECT 
+      SELECT
         v.id_vacacion,
         v.id_employee,
         COALESCE(
-          NULLIF(TRIM(CONCAT(COALESCE(ve.name, ''), ' ', COALESCE(ve.last_name, ''))), ''),
+          NULLIF(TRIM(CONCAT(COALESCE(e.name, ''), ' ', COALESCE(e.last_name, ''))), ''),
           CONCAT('Empleado ID #', v.id_employee)
         ) AS nombre_empleado,
-        v.fecha_inicio,
-        v.fecha_fin,
+        DATE_FORMAT(v.fecha_inicio, '%Y-%m-%d') AS fecha_inicio,
+        DATE_FORMAT(v.fecha_fin, '%Y-%m-%d') AS fecha_fin,
         COALESCE(v.dias_tomados, 0) AS dias_tomados,
-        v.created_at,
-        COALESCE(v.estado, 'pendiente') AS estado,
-        v.observaciones,
-        v.documento_firmado_url,
-        ve.hire_date,
-        CONCAT(
-          YEAR(COALESCE(v.fecha_inicio, CURRENT_DATE)), '-', YEAR(DATE_ADD(COALESCE(v.fecha_inicio, CURRENT_DATE), INTERVAL 1 YEAR))
-        ) AS periodo,
-        COALESCE(ve.dias_vacaciones_ley, 0) AS dias_vacaciones_ley,
-        COALESCE((
-          SELECT SUM(COALESCE(v2.dias_tomados, 0)) 
-          FROM vacaciones v2 
-          WHERE v2.id_employee = v.id_employee 
-            AND v2.estado IN ('aprobada', 'autorizada')
-            AND v2.fecha_inicio >= DATE_SUB(CURRENT_DATE, INTERVAL 1 YEAR)
-        ), 0) AS dias_gozados
+        v.estado
       FROM vacaciones v
-      LEFT JOIN vista_empleados_vacaciones ve ON v.id_employee = ve.id_employee
-      WHERE 1=1
+      INNER JOIN employees e ON e.id_employee = v.id_employee
+      WHERE v.estado IN ('pendiente', 'aprobada')
+        AND v.fecha_inicio <= ?
+        AND v.fecha_fin >= ?
     `;
 
-    const params = [];
+    const params = [`${anio}-12-31`, `${anio}-01-01`];
 
-    if (!esAdmin) {
-      if (!idEmpleadoToken) {
-        return res.status(403).json({
-          success: false,
-          error: '⛔ No se pudo identificar la credencial del empleado en la sesión.'
-        });
-      }
-      sql += ` AND v.id_employee = ?`;
-      params.push(idEmpleadoToken);
+    if (vista === 'area') {
+      sql += ` AND e.department = ?`;
+      params.push(area);
     }
 
-    sql += ` ORDER BY v.created_at DESC, v.id_vacacion DESC;`;
+    sql += ` ORDER BY e.name ASC, v.fecha_inicio ASC;`;
 
     const [rows] = await pool.query(sql, params);
 
-    const resultadosEnriquecidos = rows.map(r => {
-      const diasLey = Number(r.dias_vacaciones_ley || 0);
-      const diasGozados = Number(r.dias_gozados || 0);
-      return {
-        ...r,
-        motivo: '',
-        dias_gozados: diasGozados,
-        dias_restantes: Math.max(0, diasLey - diasGozados)
-      };
-    });
-
-    res.json(resultadosEnriquecidos);
+    res.json({ success: true, vista, area, anio, datos: rows });
 
   } catch (error) {
-    console.error('❌ Error crítico al consultar la tabla vacaciones:', error);
+    console.error('❌ Error al consultar el calendario Gantt de vacaciones:', error);
     res.status(500).json({
       success: false,
-      error: 'Error interno del servidor al obtener las solicitudes de vacaciones.'
+      error: 'Error interno del servidor al obtener el calendario de vacaciones.'
     });
   }
 });
@@ -233,6 +288,88 @@ router.get('/estatus', verificarToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Error interno del servidor al obtener el estatus de vacaciones.'
+    });
+  }
+});
+
+router.get('/gantt', verificarToken, async (req, res) => {
+  try {
+    const idEmpleadoToken = parseInt(req.usuario && req.usuario.id_employee, 10);
+
+    if (!Number.isInteger(idEmpleadoToken) || idEmpleadoToken <= 0) {
+      return res.status(403).json({
+        success: false,
+        error: '⛔ No se pudo identificar la credencial del empleado en la sesión.'
+      });
+    }
+
+    // Lista blanca: cualquier valor distinto de 'general' se trata como 'area'
+    const vista = req.query.vista === 'general' ? 'general' : 'area';
+
+    let anio = parseInt(req.query.anio, 10);
+    if (!Number.isInteger(anio) || anio < 2000 || anio > 2100) {
+      anio = new Date().getFullYear();
+    }
+
+    // El área se toma de la base de datos con el id del token, jamás del navegador
+    const [filasSolicitante] = await pool.query(
+      'SELECT department FROM employees WHERE id_employee = ? LIMIT 1',
+      [idEmpleadoToken]
+    );
+
+    if (filasSolicitante.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: '⛔ El empleado de la sesión ya no existe en el sistema.'
+      });
+    }
+
+    const area = filasSolicitante[0].department ? String(filasSolicitante[0].department).trim() : null;
+
+    res.set('Cache-Control', 'no-store');
+
+    if (vista === 'area' && !area) {
+      return res.json({ success: true, vista, area: null, anio, datos: [] });
+    }
+
+    // Columnas explícitas: sin correo, observaciones, documentos ni datos sensibles
+    let sql = `
+      SELECT
+        v.id_vacacion,
+        v.id_employee,
+        COALESCE(
+          NULLIF(TRIM(CONCAT(COALESCE(e.name, ''), ' ', COALESCE(e.last_name, ''))), ''),
+          CONCAT('Empleado ID #', v.id_employee)
+        ) AS nombre_empleado,
+        DATE_FORMAT(v.fecha_inicio, '%Y-%m-%d') AS fecha_inicio,
+        DATE_FORMAT(v.fecha_fin, '%Y-%m-%d') AS fecha_fin,
+        COALESCE(v.dias_tomados, 0) AS dias_tomados,
+        v.estado
+      FROM vacaciones v
+      INNER JOIN employees e ON e.id_employee = v.id_employee
+      WHERE v.estado IN ('pendiente', 'aprobada')
+        AND v.fecha_inicio <= ?
+        AND v.fecha_fin >= ?
+    `;
+
+    const params = [`${anio}-12-31`, `${anio}-01-01`];
+
+    if (vista === 'area') {
+      sql += ` AND e.department = ?`;
+      params.push(area);
+    }
+
+    sql += ` ORDER BY e.name ASC, v.fecha_inicio ASC;`;
+
+    const [rows] = await pool.query(sql, params);
+
+    res.json({ success: true, vista, area, anio, datos: rows });
+
+  } catch (error) {
+    console.error('❌ Error al consultar el calendario Gantt de vacaciones:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error interno del servidor al obtener el calendario de vacaciones.'
     });
   }
 });

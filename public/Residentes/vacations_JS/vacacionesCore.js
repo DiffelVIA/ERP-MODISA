@@ -13,6 +13,10 @@ let empleadosSeleccionados = new Set();
 let estadosSeleccionados = new Set();
 let expedientesSeleccionados = new Set();
 let anioGanttSeleccionado = new Date().getFullYear();
+let datosGanttEmpleado = [];
+let vistaGanttActual = 'area'; // 'area' (por defecto) | 'general'
+let ganttEmpleadoCargado = false;
+let contadorSolicitudGantt = 0;
 
 // Getters / Setters para compartir estado entre módulos de forma segura
 export const getDatosVacaciones = () => datosVacaciones;
@@ -35,9 +39,180 @@ export function obtenerDatosDesdeJWT() {
   }
 }
 
+// MODIFICACIÓN SOLUCIÓN: Solo para decidir qué muestra la interfaz. La seguridad real la aplica el backend.
+function esRolAdministrativo() {
+  const jwtDatos = obtenerDatosDesdeJWT() || {};
+  const rolRaw = localStorage.getItem('userRol') || jwtDatos.rol || jwtDatos.role || jwtDatos.job_title || '';
+  const rol = rolRaw.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  const esGerenteAdmin = (
+    rol === 'gerente administracion' ||
+    rol === 'gerente de administracion' ||
+    (rol.includes('gerente') && rol.includes('administrac'))
+  );
+
+  const esDirector = (
+    rol === 'director operativo' ||
+    rol === 'director general' ||
+    (rol.includes('director') && rol.includes('operativ'))
+  );
+
+  return esGerenteAdmin || esDirector;
+}
+
+// Garantiza que el año actual y el siguiente existan en el selector para poder planear a futuro
+function asegurarOpcionesAnioGantt() {
+  const select = document.getElementById('selectAnioGantt');
+  if (!select) return;
+
+  const anioActual = new Date().getFullYear();
+  const anios = new Set(Array.from(select.options).map(o => parseInt(o.value, 10)));
+  anios.add(anioActual);
+  anios.add(anioActual + 1);
+
+  const ordenados = [...anios].filter(Number.isInteger).sort((a, b) => b - a);
+  select.innerHTML = ordenados.map(a => `
+    <option value="${a}" ${a === anioGanttSeleccionado ? 'selected' : ''}>Año ${a}</option>
+  `).join('');
+}
+
+function actualizarEstiloToggleGantt() {
+  [['btnGanttArea', 'area'], ['btnGanttGeneral', 'general']].forEach(([idBtn, clave]) => {
+    const btn = document.getElementById(idBtn);
+    if (!btn) return;
+    const activo = vistaGanttActual === clave;
+    btn.style.background = activo ? '#2563eb' : 'transparent';
+    btn.style.color = activo ? '#ffffff' : '#475569';
+    btn.setAttribute('aria-pressed', String(activo));
+  });
+}
+
+function configurarToggleVistaGantt() {
+  const grupo = document.getElementById('grupoVistaGantt');
+  const btnArea = document.getElementById('btnGanttArea');
+  const btnGeneral = document.getElementById('btnGanttGeneral');
+
+  if (!grupo || !btnArea || !btnGeneral) return;
+  if (esRolAdministrativo()) return; // Los administrativos conservan su vista actual
+
+  grupo.style.display = 'flex';
+
+  const cambiarVista = (nuevaVista) => {
+    if (vistaGanttActual === nuevaVista) return;
+    vistaGanttActual = nuevaVista;
+    actualizarEstiloToggleGantt();
+    cargarGanttEmpleado();
+  };
+
+  btnArea.addEventListener('click', () => cambiarVista('area'));
+  btnGeneral.addEventListener('click', () => cambiarVista('general'));
+}
+
+function renderizarGanttEmpleado() {
+  if (!ganttEmpleadoCargado) return;
+
+  const jwtDatos = obtenerDatosDesdeJWT() || {};
+  const idActual = jwtDatos.id_employee || jwtDatos.id || jwtDatos.userId || null;
+
+  renderizarGanttVacaciones(datosGanttEmpleado, anioGanttSeleccionado, {
+    ocultarSaldos: true,
+    idEmpleadoActual: idActual
+  });
+}
+
+async function cargarGanttEmpleado() {
+  const grid = document.getElementById('ganttGrid');
+  const info = document.getElementById('ganttInfoAlcance');
+  const idSolicitud = ++contadorSolicitudGantt;
+  ganttEmpleadoCargado = false;
+
+  if (grid) {
+    grid.innerHTML = `<div role="status" style="padding: 20px; text-align: center; color: #64748b;">Cargando calendario anual...</div>`;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const token = localStorage.getItem('jwtToken') || '';
+    const params = new URLSearchParams({
+      vista: vistaGanttActual,
+      anio: String(anioGanttSeleccionado)
+    });
+
+    const respuesta = await fetch(`${API_URL}/vacaciones/gantt?${params.toString()}`, {
+      signal: controller.signal,
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Accept': 'application/json'
+      }
+    });
+
+    clearTimeout(timeoutId);
+    if (idSolicitud !== contadorSolicitudGantt) return;
+
+    if (!respuesta.ok) {
+      let mensaje = `Error ${respuesta.status}: no se pudo consultar el calendario.`;
+      try {
+        const errorJson = await respuesta.json();
+        if (errorJson && errorJson.error) mensaje = errorJson.error;
+      } catch (_) { /* se conserva el mensaje genérico */ }
+      throw new Error(mensaje);
+    }
+
+    const resultado = await respuesta.json();
+    if (idSolicitud !== contadorSolicitudGantt) return;
+
+    datosGanttEmpleado = Array.isArray(resultado.datos) ? resultado.datos : [];
+    ganttEmpleadoCargado = true;
+
+    if (info) {
+      const alcance = vistaGanttActual === 'area'
+        ? (resultado.area
+            ? `Mostrando solo al área ${resultado.area}.`
+            : 'Tu perfil no tiene un área asignada; usa la vista General.')
+        : 'Mostrando a todo el personal.';
+      info.textContent = `${alcance} Incluye solicitudes pendientes y autorizadas.`;
+      info.style.display = 'block';
+    }
+
+    renderizarGanttEmpleado();
+
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (idSolicitud !== contadorSolicitudGantt) return;
+
+    console.error('❌ Error al cargar el calendario Gantt:', error);
+    const msg = error.name === 'AbortError'
+      ? 'La solicitud ha superado el tiempo de espera. Por favor, reintente.'
+      : error.message;
+
+    if (grid) {
+      grid.innerHTML = `
+        <div role="alert" style="padding: 24px; text-align: center; color: #dc2626; font-weight: 500;">
+          ❌ ${escapeHTML(msg)}
+          <div style="margin-top: 12px;">
+            <button type="button" id="btnReintentarGantt" class="btn">Reintentar</button>
+          </div>
+        </div>`;
+      const btnReintentar = document.getElementById('btnReintentarGantt');
+      if (btnReintentar) btnReintentar.addEventListener('click', cargarGanttEmpleado);
+    }
+  }
+}
+// FIN MODIFICACIÓN SOLUCIÓN
+
 document.addEventListener('DOMContentLoaded', async () => {
   configurarDropdownsUI();
   configurarAlternadorVistasUI();
+
+  // MODIFICACIÓN SOLUCIÓN: Selector Mi área / General y apertura directa desde el formulario (?vista=gantt)
+  configurarToggleVistaGantt();
+  if (new URLSearchParams(window.location.search).get('vista') === 'gantt') {
+    const btnGanttAuto = document.getElementById('btnVistaGantt');
+    if (btnGanttAuto) btnGanttAuto.click();
+  }
+  // FIN MODIFICACIÓN SOLUCIÓN
   
   // Registrar handlers globales en la ventana
   inicializarHandlersGlobales(API_URL, getDatosVacaciones, setDatosVacaciones, cargarDatosVacaciones, cargarDatosEstatus, actualizarFiltrosYTabla, () => renderizarVistaEstatus(datosEstatusVacaciones, empleadosSeleccionados, obtenerDatosDesdeJWT));
@@ -45,6 +220,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await cargarDatosVacaciones();
   await cargarDatosEstatus();
+
+  // MODIFICACIÓN SOLUCIÓN: Se agrega el año siguiente al selector para poder planear a futuro
+  if (!esRolAdministrativo()) asegurarOpcionesAnioGantt();
+  // FIN MODIFICACIÓN SOLUCIÓN
 });
 
 function configurarAlternadorVistasUI() {
@@ -57,6 +236,9 @@ function configurarAlternadorVistasUI() {
   const vistaEstatus = document.getElementById('contenedorVistaEstatus');
 
   const selectAnio = document.getElementById('selectAnioGantt');
+
+  // MODIFICACIÓN SOLUCIÓN: Grupo de filtros que se oculta en el Gantt de empleados (no les aplican)
+  const grupoFiltros = document.getElementById('grupoFiltrosVacaciones');
 
   if (!btnTabla || !btnGantt || !vistaTabla || !vistaGantt) return;
 
@@ -83,9 +265,8 @@ function configurarAlternadorVistasUI() {
 
   const puedeVerGantt = esLaura || esLuis;
 
-  if (!puedeVerGantt) {
-    btnGantt.style.display = 'none';
-  }
+  // MODIFICACIÓN SOLUCIÓN: Ya no se oculta el botón del Gantt; ahora lo ven todos los roles.
+  // Los datos los restringe el backend (GET /api/vacaciones/gantt), no la interfaz.
 
   function resetearBotones() {
     [btnTabla, btnGantt, btnEstatus].forEach(btn => {
@@ -98,6 +279,7 @@ function configurarAlternadorVistasUI() {
     if (vistaTabla) vistaTabla.style.display = 'none';
     if (vistaGantt) vistaGantt.style.display = 'none';
     if (vistaEstatus) vistaEstatus.style.display = 'none';
+    if (grupoFiltros) grupoFiltros.style.display = 'flex'; // MODIFICACIÓN SOLUCIÓN
   }
 
   btnTabla.addEventListener('click', () => {
@@ -108,15 +290,20 @@ function configurarAlternadorVistasUI() {
     vistaTabla.style.display = 'block';
   });
 
-  if (puedeVerGantt) {
-    btnGantt.addEventListener('click', () => {
-      resetearBotones();
-      btnGantt.classList.add('activa');
-      btnGantt.style.background = '#2563eb';
-      btnGantt.style.color = '#ffffff';
-      vistaGantt.style.display = 'block';
-    });
-  }
+  // MODIFICACIÓN SOLUCIÓN: El listener del Gantt aplica para todos los roles
+  btnGantt.addEventListener('click', () => {
+    resetearBotones();
+    btnGantt.classList.add('activa');
+    btnGantt.style.background = '#2563eb';
+    btnGantt.style.color = '#ffffff';
+    vistaGantt.style.display = 'block';
+
+    if (!puedeVerGantt) {
+      if (grupoFiltros) grupoFiltros.style.display = 'none';
+      asegurarOpcionesAnioGantt();
+      cargarGanttEmpleado();
+    }
+  });
 
   if (btnEstatus && vistaEstatus) {
     btnEstatus.addEventListener('click', () => {
@@ -132,7 +319,12 @@ function configurarAlternadorVistasUI() {
   if (selectAnio) {
     selectAnio.addEventListener('change', (e) => {
       anioGanttSeleccionado = parseInt(e.target.value, 10);
-      actualizarFiltrosYTabla();
+      // MODIFICACIÓN SOLUCIÓN: Roles no administrativos vuelven a consultar el año elegido al backend
+      if (puedeVerGantt) {
+        actualizarFiltrosYTabla();
+      } else {
+        cargarGanttEmpleado();
+      }
     });
   }
 }
@@ -335,6 +527,11 @@ function actualizarFiltrosYTabla() {
   });
 
   renderizarTabla(filtrados, datosVacaciones, obtenerDatosDesdeJWT);
-  renderizarGanttVacaciones(filtrados, anioGanttSeleccionado);
+    // MODIFICACIÓN SOLUCIÓN: Los administrativos conservan su Gantt; los demás roles usan los datos del endpoint /gantt
+  if (esRolAdministrativo()) {
+    renderizarGanttVacaciones(filtrados, anioGanttSeleccionado);
+  } else {
+    renderizarGanttEmpleado();
+  }
   window.scrollTo(0, posicionScroll);
 }
