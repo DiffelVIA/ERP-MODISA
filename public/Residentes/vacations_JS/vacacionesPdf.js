@@ -3,7 +3,7 @@ import { escapeHTML, calcularDiasHabilesEfectivos } from './vacacionesUi.js';
 export function inicializarHandlersPDF(API_URL, getDatosVacaciones, cargarDatosVacaciones) {
 
   window.generarPdfImpresion = function(idVacacion) {
-    const datosVacaciones = getDatosVacaciones();
+    const datosVacaciones = getDatosVacaciones() || [];
     const item = datosVacaciones.find(v => String(v.id_vacacion) === String(idVacacion));
     if (!item) {
       alert("⚠️ No se encontró la información de la solicitud de vacaciones.");
@@ -29,12 +29,31 @@ export function inicializarHandlersPDF(API_URL, getDatosVacaciones, cargarDatosV
     const fechaFinVal = item.fecha_fin ? String(item.fecha_fin).split('T')[0] : '---';
     const periodoVal = item.periodo || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
 
-    const diasTomadosVal = (item.fecha_inicio && item.fecha_fin)
+    const diasTomadosActual = (item.fecha_inicio && item.fecha_fin)
       ? calcularDiasHabilesEfectivos(item.fecha_inicio, item.fecha_fin)
       : Number(item.dias_tomados || 0);
 
     const diasLeyVal = Number(item.dias_vacaciones_ley || item.dias_ley || 0);
-    const diasRestantesVal = Math.max(0, diasLeyVal - diasTomadosVal);
+
+    // MODIFICACIÓN SOLUCIÓN: Sumar los días consumidos en solicitudes previas autorizadas/aprobadas del mismo empleado
+    const idEmp = item.id_employee;
+    let diasAcumuladosPrevios = 0;
+
+    datosVacaciones.forEach(v => {
+      // Excluir la solicitud actual de la suma previa y contar solo autorizadas/aprobadas
+      if (String(v.id_employee) === String(idEmp) && String(v.id_vacacion) !== String(idVacacion)) {
+        const est = String(v.estado || '').toLowerCase();
+        if (est === 'aprobada' || est === 'autorizada') {
+          const diasV = (v.fecha_inicio && v.fecha_fin)
+            ? calcularDiasHabilesEfectivos(v.fecha_inicio, v.fecha_fin)
+            : Number(v.dias_tomados || 0);
+          diasAcumuladosPrevios += diasV;
+        }
+      }
+    });
+
+    // Restantes = Días Ley - Días consumidos previamente - Días de esta solicitud
+    const diasRestantesVal = Math.max(0, diasLeyVal - diasAcumuladosPrevios - diasTomadosActual);
 
     doc.setFillColor(6, 18, 30);
     doc.rect(15, 12, 186, 12, 'F');
@@ -61,7 +80,7 @@ export function inicializarHandlersPDF(API_URL, getDatosVacaciones, cargarDatosV
       ["Nombre del Empleado:", nombreEmpleadoVal],
       ["Fecha de Ingreso:", fechaIngresoVal],
       ["Periodo Correspondiente:", periodoVal],
-      ["Días Solicitados:", `${diasTomadosVal} día(s)`],
+      ["Días Solicitados:", `${diasTomadosActual} día(s)`],
       ["Días Restantes a Gozar:", `${diasRestantesVal} día(s)`],
       ["Fecha de Inicio:", fechaInicioVal],
       ["Fecha de Término:", fechaFinVal]
