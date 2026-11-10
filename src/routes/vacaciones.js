@@ -28,14 +28,16 @@ const ROLES_AUTORIZADORES = [
   'Director General'
 ];
 
-// MODIFICACIÓN TEMPORAL (Pruebas): Todos los correos del flujo van hacia este destinatario
-const CORREO_PRUEBAS = 'dvillalva@modisa.com.mx';
+// MODIFICACIÓN SOLUCIÓN: Correo de respaldo en caso de que un usuario en BD no tenga correo capturado
+const CORREO_FALLBACK = 'dvillalva@modisa.com.mx';
 
+// MODIFICACIÓN SOLUCIÓN: Enviar correo dinámico al destinatario especificado en "to"
 async function enviarCorreoGmail({ to, subject, html }) {
   try {
+    const destinatarioFinal = (to && typeof to === 'string' && to.includes('@')) ? to.trim() : CORREO_FALLBACK;
     const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
     const messageParts = [
-      `To: ${CORREO_PRUEBAS}`, // Forzado para etapa de pruebas
+      `To: ${destinatarioFinal}`,
       'Content-Type: text/html; charset=utf-8',
       'MIME-Version: 1.0',
       `Subject: ${utf8Subject}`,
@@ -53,7 +55,7 @@ async function enviarCorreoGmail({ to, subject, html }) {
       userId: 'me',
       requestBody: { raw: encodedMessage }
     });
-    console.log(`✉️ Correo enviado exitosamente (Modo Pruebas) a: ${CORREO_PRUEBAS}`);
+    console.log(`✉️ Correo enviado exitosamente a: ${destinatarioFinal}`);
   } catch (err) {
     console.error('❌ Error al enviar correo mediante Gmail API:', err);
   }
@@ -132,7 +134,6 @@ router.get('/', verificarToken, async (req, res) => {
           error: '⛔ No se pudo identificar la credencial del empleado en la sesión.'
         });
       }
-      // Permitir ver sus propias solicitudes o si es jefe de alguien
       sql += ` AND (v.id_employee = ? OR e.id_manager = ?)`;
       params.push(idEmpleadoToken, idEmpleadoToken);
     }
@@ -305,8 +306,7 @@ router.get('/estatus', verificarToken, async (req, res) => {
   }
 });
 
-// POST / Registra nueva solicitud de vacaciones
-// MODIFICACIÓN SOLUCIÓN: Notifica con el nombre del empleado que realizó la solicitud
+// MODIFICACIÓN SOLUCIÓN: Notificación dirigida al correo del Jefe Inmediato asignado
 router.post('/', verificarToken, async (req, res) => {
   if (!req.usuario) {
     return res.status(401).json({
@@ -328,15 +328,23 @@ router.post('/', verificarToken, async (req, res) => {
   }
 
   try {
-    // MODIFICACIÓN SOLUCIÓN: Consultar nombre del empleado para personalizar la notificación por correo
+    // MODIFICACIÓN SOLUCIÓN: Obtener el nombre del solicitante y el correo de su jefe directo (e.id_manager)
     const [empRows] = await pool.query(`
-      SELECT TRIM(CONCAT(COALESCE(name, ''), ' ', COALESCE(last_name, ''))) AS nombre_completo
-      FROM employees WHERE id_employee = ? LIMIT 1
+      SELECT 
+        TRIM(CONCAT(COALESCE(e.name, ''), ' ', COALESCE(e.last_name, ''))) AS nombre_completo,
+        j.email AS correo_jefe
+      FROM employees e
+      LEFT JOIN employees j ON j.id_employee = e.id_manager
+      WHERE e.id_employee = ? LIMIT 1
     `, [idEmpleadoFinal]);
 
     const nombreEmpleadoCorreo = (empRows.length > 0 && empRows[0].nombre_completo.trim())
       ? empRows[0].nombre_completo.trim()
       : `Empleado ID #${idEmpleadoFinal}`;
+
+    const correoJefe = (empRows.length > 0 && empRows[0].correo_jefe)
+      ? empRows[0].correo_jefe
+      : CORREO_FALLBACK;
 
     const sqlInsert = `
       INSERT INTO vacaciones (
@@ -346,7 +354,6 @@ router.post('/', verificarToken, async (req, res) => {
 
     const [insertResult] = await pool.query(sqlInsert, [idEmpleadoFinal, fecha_inicio, fecha_fin, diasTomadosFinal]);
 
-    // MODIFICACIÓN SOLUCIÓN: Plantilla personalizada indicando el nombre del colaborador que solicita
     const htmlCorreo = `
       <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 600px; padding: 20px; border: 1px solid #cbd5e1; border-radius: 8px;">
         <h2 style="color: #2563eb; margin-top: 0;">Nueva Solicitud de Vacaciones</h2>
@@ -357,7 +364,7 @@ router.post('/', verificarToken, async (req, res) => {
     `;
 
     enviarCorreoGmail({
-      to: CORREO_PRUEBAS,
+      to: correoJefe,
       subject: 'Nueva Solicitud de Vacaciones Pendiente de Autorizar',
       html: htmlCorreo
     }).catch(err => console.error('❌ Error enviando correo:', err));
@@ -377,7 +384,7 @@ router.post('/', verificarToken, async (req, res) => {
   }
 });
 
-// MODIFICACIÓN SOLUCIÓN: Actualización de estado por nivel con validación de id_manager, comentarios opcionales y correo limpio
+// MODIFICACIÓN SOLUCIÓN: Notificación dirigida al correo del empleado solicitante
 router.patch('/:id/estado', verificarToken, async (req, res) => {
   const idVacacion = req.params.id;
   const { estado, observaciones, nivel } = req.body;
@@ -388,13 +395,11 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
 
   const estadoLimpio = estado.toLowerCase().trim();
   const estadoParaBD = (estadoLimpio === 'autorizada' || estadoLimpio === 'aprobada') ? 'autorizada' : (estadoLimpio === 'rechazada' ? 'rechazada' : 'pendiente');
-  
-  // Si no ingresan texto de observaciones, asignar por defecto "Sin comentarios adicionales"
   const comentarioFinal = (observaciones && observaciones.trim().length > 0) ? observaciones.trim() : 'Sin comentarios adicionales';
 
   try {
     const [filas] = await pool.query(`
-      SELECT v.*, e.id_manager 
+      SELECT v.*, e.id_manager, e.email AS correo_empleado 
       FROM vacaciones v 
       INNER JOIN employees e ON e.id_employee = v.id_employee 
       WHERE v.id_vacacion = ?
@@ -413,7 +418,6 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
     const params = [];
 
     if (nivel === 'jefe') {
-      // Ciberseguridad: Validar que el usuario autenticado sea el id_manager asignado o un rol administrativo global
       const esJefeDirecto = String(vac.id_manager) === String(idUsuarioSesion);
       if (!esJefeDirecto && !esAdminGlobal) {
         return res.status(403).json({
@@ -440,7 +444,6 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
 
     await pool.query(sqlUpdate, params);
 
-    // Consultar estado actualizado para calcular estado global de la solicitud
     const [filasActual] = await pool.query('SELECT * FROM vacaciones WHERE id_vacacion = ?', [idVacacion]);
     const vAct = filasActual[0];
 
@@ -456,7 +459,6 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
 
     await pool.query('UPDATE vacaciones SET estado = ? WHERE id_vacacion = ?', [estadoGlobal, idVacacion]);
 
-    // MODIFICACIÓN SOLUCIÓN: Plantilla de correo limpia, sin número de solicitud ni MODISA ERP, desglosando jefe y dirección
     const htmlCorreo = `
       <div style="font-family: Arial, sans-serif; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 550px; background: #ffffff;">
         <h2 style="color: #0f172a; margin-top: 0; font-size: 20px;">Actualización de Solicitud</h2>
@@ -472,8 +474,9 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
       </div>
     `;
 
+    // MODIFICACIÓN SOLUCIÓN: Enviar el correo dinámicamente al email del empleado solicitante (vac.correo_empleado)
     enviarCorreoGmail({
-      to: CORREO_PRUEBAS,
+      to: vac.correo_empleado || CORREO_FALLBACK,
       subject: 'Actualización de Solicitud',
       html: htmlCorreo
     }).catch(err => console.error('❌ Error enviando correo:', err));
