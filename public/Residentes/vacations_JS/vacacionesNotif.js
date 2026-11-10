@@ -1,4 +1,3 @@
-// MODIFICACIÓN SOLUCIÓN: Definición local de escapeHTML para evitar errores de resolución de módulos ES6
 function escapeHTML(str) {
   if (!str) return '';
   return String(str)
