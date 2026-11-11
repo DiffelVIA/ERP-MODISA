@@ -36,6 +36,11 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
   const cuerpo = document.getElementById('cuerpoTablaVacaciones');
   if (!cuerpo) return;
 
+  if (lista.length === 0) {
+    cuerpo.innerHTML = `<tr><td colspan="12" style="text-align:center; padding: 20px;">No hay registros de vacaciones con el filtro seleccionado.</td></tr>`;
+    return;
+  }
+
   const jwtDatos = obtenerDatosDesdeJWT() || {};
   const userRolRaw = localStorage.getItem('userRol') || jwtDatos.rol || jwtDatos.role || jwtDatos.job_title || '';
   const userRolNormalizado = userRolRaw.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -56,28 +61,7 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
     (userRolNormalizado.includes('director') && userRolNormalizado.includes('operativ'))
   );
 
-  // MODIFICACIÓN SOLUCIÓN: Ajuste dinámico del encabezado para agregar/quitar columna 'Acción' exclusiva para Director Operativo
-  const thead = cuerpo.closest('table')?.querySelector('thead tr');
-  if (thead) {
-    let colAccion = thead.querySelector('.col-accion-director');
-    if (esDirectorOperativo && !colAccion) {
-      const thAccion = document.createElement('th');
-      thAccion.className = 'col-accion-director';
-      thAccion.style.cssText = 'text-align: center; width: 40px;';
-      thAccion.textContent = 'Acción';
-      thead.appendChild(thAccion);
-    } else if (!esDirectorOperativo && colAccion) {
-      colAccion.remove();
-    }
-  }
-
-  if (lista.length === 0) {
-    const colspan = esDirectorOperativo ? 13 : 12;
-    cuerpo.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center; padding: 20px;">No hay registros de vacaciones con el filtro seleccionado.</td></tr>`;
-    return;
-  }
-
-  // MODIFICACIÓN SOLUCIÓN: Mapeo de días autorizados acumulados por empleado para calcular Días Faltantes
+  // Mapeo de días autorizados acumulados por empleado para calcular Días Faltantes
   const mapaGozadosAprobados = {};
   (datosVacaciones || lista).forEach(v => {
     const idEmp = String(v.id_employee);
@@ -114,7 +98,7 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
     const idEmpKey = String(item.id_employee);
     const totalGozados = mapaGozadosAprobados[idEmpKey] || 0;
     
-    // MODIFICACIÓN SOLUCIÓN: Cálculo dinámico de Días Faltantes (Restantes por disfrutar)
+    // Cálculo dinámico de Días Faltantes (Restantes por disfrutar)
     const diasFaltantes = Math.max(0, diasLey - totalGozados);
 
     const estadoJefe = String(item.estado_jefe || 'pendiente').toLowerCase();
@@ -181,26 +165,12 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
       expedienteHTML = `<span style="color:#94a3b8; font-size:11px; font-weight:600;">---</span>`;
     }
 
-    // MODIFICACIÓN SOLUCIÓN: Tachecito (✕) exclusivo para Director Operativo para eliminar un registro individual por equivocación
-    const celdaEliminarHTML = esDirectorOperativo ? `
-      <td style="text-align: center;">
-        <button type="button" 
-                onclick="window.eliminarRegistroVacacion(${idVacacion})" 
-                title="Eliminar este registro individual"
-                style="background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; border-radius: 50%; width: 24px; height: 24px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1; transition: background 0.2s;"
-                onmouseover="this.style.background='#fca5a5'" 
-                onmouseout="this.style.background='#fee2e2'">
-          ✕
-        </button>
-      </td>` : '';
-
     return `
       <tr data-id="${idVacacion}">
         <td><strong>${empNombre}</strong></td>
         <td style="text-align: center;">${fechaSolicitud}</td>
         <td style="text-align: center; color: #2563eb; font-weight: bold;">${diasLey}</td>
         
-        <!-- MODIFICACIÓN SOLUCIÓN: Renderizado de la columna Días Faltantes ajustada -->
         <td style="text-align: center; color: #16a34a; font-weight: bold;">${diasFaltantes}</td>
         
         <td style="text-align: center;">${fechaInicio}</td>
@@ -214,116 +184,16 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
         <td style="font-size: 11px; color: #475569;">${escapeHTML(item.observaciones_director || '-')}</td>
 
         <td style="text-align: center;">${expedienteHTML}</td> 
-        ${celdaEliminarHTML}
       </tr>
     `;
   }).join('');
 }
 
-// MODIFICACIÓN SOLUCIÓN: Tacómetro SVG sin el botón global de restablecer/renovar
-export function generarHTMLTacometroIndividual(emp) {
-  const diasLey = Number(emp.dias_ley || 0);
-  const diasTomados = Number(emp.dias_tomados || emp.dias_gozados || 0);
-  const diasRestantes = Math.max(0, diasLey - diasTomados);
-
-  const porcentaje = diasLey > 0 ? Math.min(100, Math.max(0, (diasTomados / diasLey) * 100)) : 0;
-  const dashOffset = 220 * ((100 - porcentaje) / 100);
-
-  return `
-    <div style="background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); text-align: center; max-width: 450px; margin: 0 auto;">
-      <h3 style="margin: 0 0 15px 0; font-size: 18px; color: #1e293b; font-weight: 600;">${escapeHTML(emp.nombre_empleado || emp.empleado)}</h3>
-      
-      <div style="position: relative; width: 180px; height: 105px; margin: 0 auto;">
-        <svg width="180" height="100" viewBox="0 0 160 90">
-          <path d="M 10 80 A 70 70 0 0 1 150 80" fill="none" stroke="#e2e8f0" stroke-width="14" stroke-linecap="round" />
-          <path d="M 10 80 A 70 70 0 0 1 150 80" fill="none" stroke="#2563eb" stroke-width="14" stroke-linecap="round" 
-                stroke-dasharray="220" stroke-dashoffset="${dashOffset}" />
-        </svg>
-        <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: bold; color: #1e293b;">
-          ${diasRestantes} <span style="font-size: 11px; color: #64748b; font-weight: normal;">días rest.</span>
-        </div>
-      </div>
-
-      <div style="display: flex; justify-content: space-around; margin-top: 20px; border-top: 1px solid #f1f5f9; padding-top: 15px; font-size: 13px;">
-        <div>
-          <span style="color: #64748b; display: block; font-size: 11px;">Por Ley</span>
-          <strong style="color: #2563eb; font-size: 16px;">${diasLey}</strong>
-        </div>
-        <div>
-          <span style="color: #64748b; display: block; font-size: 11px;">Gozados</span>
-          <strong style="color: #dc2626; font-size: 16px;">${diasTomados}</strong>
-        </div>
-        <div>
-          <span style="color: #64748b; display: block; font-size: 11px;">Disponibles</span>
-          <strong style="color: #16a34a; font-size: 16px;">${diasRestantes}</strong>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-// MODIFICACIÓN SOLUCIÓN: Reconstrucción de la vista estatus filtrando solo días efectivamente autorizados
-export function renderizarVistaEstatus(datosEstatus, empleadosSeleccionados, obtenerDatosDesdeJWT) {
+// MODIFICACIÓN SOLUCIÓN: Función neutra para mantener compatibilidad si es invocada dinámicamente
+export function renderizarVistaEstatus() {
   const contenedor = document.getElementById('contenedorVistaEstatus');
-  if (!contenedor) return;
-
-  if (!datosEstatus || datosEstatus.length === 0) {
-    contenedor.innerHTML = `<div style="text-align: center; padding: 40px; color: #64748b;">No hay datos de estatus de vacaciones disponibles.</div>`;
-    return;
-  }
-
-  const jwtDatos = obtenerDatosDesdeJWT() || {};
-  const userRolRaw = localStorage.getItem('userRol') || jwtDatos.rol || jwtDatos.role || jwtDatos.job_title || '';
-  const userRolNormalizado = userRolRaw.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-  const esGerenteAdmin = (
-    userRolNormalizado === 'gerente administracion' || 
-    userRolNormalizado === 'gerente de administracion' ||
-    (userRolNormalizado.includes('gerente') && userRolNormalizado.includes('administrac'))
-  );
-
-  const esDirectorOperativo = (
-    userRolNormalizado === 'director operativo' || 
-    userRolNormalizado === 'director_operativo' ||
-    userRolNormalizado === 'director general' ||
-    (userRolNormalizado.includes('director') && userRolNormalizado.includes('operativ'))
-  );
-
-  const puedeVerEstatusGlobal = esGerenteAdmin || esDirectorOperativo;
-  const idUsuarioLogueado = jwtDatos.id_employee || jwtDatos.id || jwtDatos.userId;
-
-  if (puedeVerEstatusGlobal) {
-    const arrSeleccionados = Array.from(empleadosSeleccionados || []);
-
-    if (arrSeleccionados.length === 1) {
-      const nombreBuscado = arrSeleccionados[0];
-      const empDatos = datosEstatus.find(emp => (emp.nombre_empleado || emp.empleado) === nombreBuscado);
-
-      if (empDatos) {
-        contenedor.innerHTML = generarHTMLTacometroIndividual(empDatos);
-      } else {
-        contenedor.innerHTML = `
-          <div style="text-align: center; padding: 40px; color: #64748b; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">
-            ⚠️ No se encontraron acumulados de días para el empleado seleccionado.
-          </div>`;
-      }
-    } else {
-      contenedor.innerHTML = `
-        <div style="text-align: center; padding: 40px; color: #64748b; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">
-          👆 Por favor, selecciona un empleado para visualizar su estado.
-        </div>`;
-    }
-  } else {
-    const empDatosPropio = datosEstatus.find(emp => Number(emp.id_employee) === Number(idUsuarioLogueado)) || datosEstatus[0];
-    
-    if (empDatosPropio) {
-      contenedor.innerHTML = `
-        <div style="max-width: 450px; margin: 0 auto;">
-          ${generarHTMLTacometroIndividual(empDatosPropio)}
-        </div>`;
-    } else {
-      contenedor.innerHTML = `<div style="text-align: center; padding: 40px; color: #64748b;">No se encontraron registros de vacaciones para su usuario.</div>`;
-    }
+  if (contenedor) {
+    contenedor.innerHTML = '';
   }
 }
 
@@ -418,7 +288,7 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
       const estadoJefe = String(v.estado_jefe || 'pendiente').toLowerCase();
       const estadoDir = String(v.estado_director || 'pendiente').toLowerCase();
 
-      // MODIFICACIÓN SOLUCIÓN: Únicamente si AMBOS están autorizados se pinta verde en el Gantt
+      // Únicamente si AMBOS están autorizados se pinta verde en el Gantt
       const esAutorizada = (
         (estadoJefe === 'autorizada' || estadoJefe === 'aprobada') &&
         (estadoDir === 'autorizada' || estadoDir === 'aprobada')
