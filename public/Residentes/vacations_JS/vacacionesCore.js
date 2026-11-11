@@ -1,10 +1,8 @@
-// public/Residentes/vacations_JS/vacacionesCore.js
-// MODIFICACIÓN SOLUCIÓN: Se remueve escapeHTML del import de vacacionesUi.js para resolver el SyntaxError de ES6
 import { renderizarTabla, renderizarVistaEstatus, renderizarGanttVacaciones } from './vacacionesUi.js';
 import { inicializarHandlersGlobales } from './vacacionesNotif.js';
 import { inicializarHandlersPDF } from './vacacionesPdf.js';
 
-// MODIFICACIÓN SOLUCIÓN: Definición local de escapeHTML para saneamiento contra XSS sin dependencias externas
+
 function escapeHTML(str) {
   if (!str) return '';
   return String(str)
@@ -213,28 +211,41 @@ async function cargarGanttEmpleado() {
   }
 }
 
+// MODIFICACIÓN SOLUCIÓN: Renderizado inicial garantizado de la vista de estatus tras la carga de datos
 document.addEventListener('DOMContentLoaded', async () => {
   configurarDropdownsUI();
   configurarAlternadorVistasUI();
 
-  // MODIFICACIÓN SOLUCIÓN: Selector Mi área / General y apertura directa desde el formulario (?vista=gantt)
+  // Selector Mi área / General y apertura directa si viene el parámetro ?vista=gantt
   configurarToggleVistaGantt();
-  if (new URLSearchParams(window.location.search).get('vista') === 'gantt') {
-    const btnGanttAuto = document.getElementById('btnVistaGantt');
-    if (btnGanttAuto) btnGanttAuto.click();
-  }
   
   // Registrar handlers globales en la ventana
-  inicializarHandlersGlobales(API_URL, getDatosVacaciones, setDatosVacaciones, cargarDatosVacaciones, cargarDatosEstatus, actualizarFiltrosYTabla, () => renderizarVistaEstatus(datosEstatusVacaciones, empleadosSeleccionados, obtenerDatosDesdeJWT));
+  inicializarHandlersGlobales(
+    API_URL, 
+    getDatosVacaciones, 
+    setDatosVacaciones, 
+    cargarDatosVacaciones, 
+    cargarDatosEstatus, 
+    actualizarFiltrosYTabla, 
+    () => renderizarVistaEstatus(datosEstatusVacaciones, empleadosSeleccionados, obtenerDatosDesdeJWT)
+  );
   inicializarHandlersPDF(API_URL, getDatosVacaciones, cargarDatosVacaciones);
 
   await cargarDatosVacaciones();
   await cargarDatosEstatus();
 
-  // MODIFICACIÓN SOLUCIÓN: Se agrega el año siguiente al selector para poder planear a futuro
+  // MODIFICACIÓN SOLUCIÓN: Pre-renderizar estatus una vez obtenidos los datos para evitar pantalla vacía
+  renderizarVistaEstatus(datosEstatusVacaciones, empleadosSeleccionados, obtenerDatosDesdeJWT);
+
+  if (new URLSearchParams(window.location.search).get('vista') === 'gantt') {
+    const btnGanttAuto = document.getElementById('btnVistaGantt');
+    if (btnGanttAuto) btnGanttAuto.click();
+  }
+
   if (!esRolAdministrativo()) asegurarOpcionesAnioGantt();
 });
 
+// MODIFICACIÓN SOLUCIÓN: Garantizar la ejecución de renderizado al hacer clic en las pestañas Gantt y Estatus
 function configurarAlternadorVistasUI() {
   const btnTabla = document.getElementById('btnVistaTabla');
   const btnGantt = document.getElementById('btnVistaGantt');
@@ -245,8 +256,6 @@ function configurarAlternadorVistasUI() {
   const vistaEstatus = document.getElementById('contenedorVistaEstatus');
 
   const selectAnio = document.getElementById('selectAnioGantt');
-
-  // MODIFICACIÓN SOLUCIÓN: Grupo de filtros que se oculta en el Gantt de empleados (no les aplican)
   const grupoFiltros = document.getElementById('grupoFiltrosVacaciones');
 
   if (!btnTabla || !btnGantt || !vistaTabla || !vistaGantt) return;
@@ -303,7 +312,10 @@ function configurarAlternadorVistasUI() {
     btnGantt.style.color = '#ffffff';
     vistaGantt.style.display = 'block';
 
-    if (!puedeVerGantt) {
+    // MODIFICACIÓN SOLUCIÓN: Invocar inmediatamente la carga/renderizado del Gantt al activar la pestaña
+    if (puedeVerGantt) {
+      renderizarGanttVacaciones(datosVacaciones, anioGanttSeleccionado);
+    } else {
       if (grupoFiltros) grupoFiltros.style.display = 'none';
       asegurarOpcionesAnioGantt();
       cargarGanttEmpleado();
@@ -317,6 +329,8 @@ function configurarAlternadorVistasUI() {
       btnEstatus.style.background = '#2563eb';
       btnEstatus.style.color = '#ffffff';
       vistaEstatus.style.display = 'block';
+
+      // MODIFICACIÓN SOLUCIÓN: Renderizado explícito garantizado al activar la pestaña de estatus
       renderizarVistaEstatus(datosEstatusVacaciones, empleadosSeleccionados, obtenerDatosDesdeJWT);
     });
   }
