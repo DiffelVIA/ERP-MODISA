@@ -61,6 +61,28 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
     (userRolNormalizado.includes('director') && userRolNormalizado.includes('operativ'))
   );
 
+  // MODIFICACIÓN SOLUCIÓN: Mapeo de días autorizados acumulados por empleado para calcular Días Faltantes
+  const mapaGozadosAprobados = {};
+  (datosVacaciones || lista).forEach(v => {
+    const idEmp = String(v.id_employee);
+    const estJefe = String(v.estado_jefe || 'pendiente').toLowerCase();
+    const estDir = String(v.estado_director || 'pendiente').toLowerCase();
+    const estGlobal = String(v.estado || 'pendiente').toLowerCase();
+
+    const esTotalmenteAprobada = (
+      ((estJefe === 'autorizada' || estJefe === 'aprobada') && (estDir === 'autorizada' || estDir === 'aprobada')) ||
+      estGlobal === 'aprobada' || estGlobal === 'autorizada'
+    );
+
+    if (esTotalmenteAprobada) {
+      const dTomados = (v.fecha_inicio && v.fecha_fin)
+        ? calcularDiasHabilesEfectivos(v.fecha_inicio, v.fecha_fin)
+        : Number(v.dias_tomados || 0);
+
+      mapaGozadosAprobados[idEmp] = (mapaGozadosAprobados[idEmp] || 0) + dTomados;
+    }
+  });
+
   cuerpo.innerHTML = lista.map(item => {
     const idVacacion = item.id_vacacion;
     const empNombre = escapeHTML(item.nombre_empleado || item.empleado || `Empleado ID #${item.id_employee}`);
@@ -73,6 +95,12 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
       : Number(item.dias_tomados || 0);
 
     const diasLey = Number(item.dias_vacaciones_ley || item.dias_ley || 0);
+    const idEmpKey = String(item.id_employee);
+    const totalGozados = mapaGozadosAprobados[idEmpKey] || 0;
+    
+    // MODIFICACIÓN SOLUCIÓN: Cálculo dinámico de Días Faltantes (Restantes por disfrutar)
+    const diasFaltantes = Math.max(0, diasLey - totalGozados);
+
     const estadoJefe = String(item.estado_jefe || 'pendiente').toLowerCase();
     const estadoDir = String(item.estado_director || 'pendiente').toLowerCase();
 
@@ -142,7 +170,10 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
         <td><strong>${empNombre}</strong></td>
         <td style="text-align: center;">${fechaSolicitud}</td>
         <td style="text-align: center; color: #2563eb; font-weight: bold;">${diasLey}</td>
-        <td style="text-align: center; color: #059669; font-weight: bold;">-</td>
+        
+        <!-- MODIFICACIÓN SOLUCIÓN: Renderizado de la columna Días Faltantes ajustada -->
+        <td style="text-align: center; color: #16a34a; font-weight: bold;">${diasFaltantes}</td>
+        
         <td style="text-align: center;">${fechaInicio}</td>
         <td style="text-align: center;">${fechaFin}</td>
         <td style="text-align: center;"><strong>${diasTomados}</strong></td>
@@ -159,10 +190,10 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
   }).join('');
 }
 
-// MODIFICACIÓN SOLUCIÓN: Tacómetro SVG recuperado para la vista de estatus
+// MODIFICACIÓN SOLUCIÓN: Tacómetro SVG recuperado con cálculo exacto de días autorizados gozados
 export function generarHTMLTacometroIndividual(emp, esDirectorOperativo) {
   const diasLey = Number(emp.dias_ley || 0);
-  const diasTomados = Number(emp.dias_tomados || 0);
+  const diasTomados = Number(emp.dias_tomados || emp.dias_gozados || 0);
   const diasRestantes = Math.max(0, diasLey - diasTomados);
 
   const porcentaje = diasLey > 0 ? Math.min(100, Math.max(0, (diasTomados / diasLey) * 100)) : 0;
@@ -170,7 +201,7 @@ export function generarHTMLTacometroIndividual(emp, esDirectorOperativo) {
 
   return `
     <div style="background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); text-align: center; max-width: 450px; margin: 0 auto;">
-      <h3 style="margin: 0 0 15px 0; font-size: 18px; color: #1e293b; font-weight: 600;">${escapeHTML(emp.nombre_empleado)}</h3>
+      <h3 style="margin: 0 0 15px 0; font-size: 18px; color: #1e293b; font-weight: 600;">${escapeHTML(emp.nombre_empleado || emp.empleado)}</h3>
       
       <div style="position: relative; width: 180px; height: 105px; margin: 0 auto;">
         <svg width="180" height="100" viewBox="0 0 160 90">
@@ -200,7 +231,7 @@ export function generarHTMLTacometroIndividual(emp, esDirectorOperativo) {
 
       ${esDirectorOperativo ? `
         <div style="margin-top: 20px;">
-          <button type="button" class="btn" data-action="renovar" onclick="window.forzarRenovacionDias(${emp.id_employee}, '${escapeHTML(emp.nombre_empleado)}')">
+          <button type="button" class="btn" data-action="renovar" onclick="window.forzarRenovacionDias(${emp.id_employee}, '${escapeHTML(emp.nombre_empleado || emp.empleado)}')">
             🔄 Forzar Renovación de Días
           </button>
         </div>
@@ -209,7 +240,7 @@ export function generarHTMLTacometroIndividual(emp, esDirectorOperativo) {
   `;
 }
 
-// MODIFICACIÓN SOLUCIÓN: Reconstrucción de la vista estatus conservando roles y tacómetro
+// MODIFICACIÓN SOLUCIÓN: Reconstrucción de la vista estatus filtrando solo días efectivamente autorizados
 export function renderizarVistaEstatus(datosEstatus, empleadosSeleccionados, obtenerDatosDesdeJWT) {
   const contenedor = document.getElementById('contenedorVistaEstatus');
   if (!contenedor) return;
@@ -274,7 +305,7 @@ export function renderizarVistaEstatus(datosEstatus, empleadosSeleccionados, obt
   }
 }
 
-// MODIFICACIÓN SOLUCIÓN: Reconstrucción del Gantt con barras nativas y tooltips/emergentes CSS
+// MODIFICACIÓN SOLUCIÓN: Reconstrucción del Gantt alineando estrictamente el color verde a la doble autorización
 export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
   const { ocultarSaldos = false, idEmpleadoActual = null } = opciones;
   const grid = document.getElementById('ganttGrid');
@@ -364,12 +395,12 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
       const duracion = (idxFin - idxInicio) + 1;
       const estadoJefe = String(v.estado_jefe || 'pendiente').toLowerCase();
       const estadoDir = String(v.estado_director || 'pendiente').toLowerCase();
-      const estadoGlobal = String(v.estado || 'pendiente').toLowerCase();
 
+      // MODIFICACIÓN SOLUCIÓN: Únicamente si AMBOS están autorizados se pinta verde en el Gantt
       const esAutorizada = (
         (estadoJefe === 'autorizada' || estadoJefe === 'aprobada') &&
         (estadoDir === 'autorizada' || estadoDir === 'aprobada')
-      ) || estadoGlobal === 'aprobada' || estadoGlobal === 'autorizada';
+      );
 
       const diasTomadosGantt = (v.fecha_inicio && v.fecha_fin)
         ? calcularDiasHabilesEfectivos(v.fecha_inicio, v.fecha_fin)
