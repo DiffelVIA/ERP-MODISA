@@ -178,7 +178,8 @@ router.post('/request-reset', async (req, res) => {
     }
 
     const usuario = resultado[0];
-    const rawtoken = crypto.randomBytes(32).toString('hex');
+    // MODIFICACIÓN SOLUCIÓN: Corregir coincidencia de identificador rawToken
+    const rawToken = crypto.randomBytes(32).toString('hex');
     const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
     const expires = new Date(Date.now() + 5 * 60 * 1000);
 
@@ -188,7 +189,7 @@ router.post('/request-reset', async (req, res) => {
     );
 
     const baseUrl = process.env.FRONTEND_URL || 'https://erp-modisa.onrender.com';
-    const resetUrl = `${baseUrl}/recuperar.html?token=${rawtoken}`;
+    const resetUrl = `${baseUrl}/recuperar.html?token=${rawToken}`;
 
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
@@ -202,7 +203,7 @@ router.post('/request-reset', async (req, res) => {
       </div>
     `;
 
-    const senderEmail = process.env.GMAIL_USER || 'dvillalva@modisa.com.mx';
+    const senderEmail = process.env.GMAIL_FROM_EMAIL || process.env.GMAIL_USER;
 
     const rawMessage = createRawMessage({
       from: senderEmail,
