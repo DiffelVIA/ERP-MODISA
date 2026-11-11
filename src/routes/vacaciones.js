@@ -156,9 +156,11 @@ router.get('/', verificarToken, async (req, res) => {
   }
 });
 
+// MODIFICACIÓN SOLUCIÓN: Extracción segura del ID de sesión para resolver pantalla de carga en vista Gantt
 router.get('/gantt', verificarToken, async (req, res) => {
   try {
-    const idEmpleadoToken = parseInt(req.usuario && req.usuario.id_employee, 10);
+    const idEmpleadoBruto = req.usuario ? (req.usuario.id_employee || req.usuario.id || req.usuario.userId) : null;
+    const idEmpleadoToken = parseInt(idEmpleadoBruto, 10);
 
     if (!Number.isInteger(idEmpleadoToken) || idEmpleadoToken <= 0) {
       return res.status(403).json({
@@ -235,6 +237,7 @@ router.get('/gantt', verificarToken, async (req, res) => {
   }
 });
 
+// MODIFICACIÓN SOLUCIÓN: Mantener restricción propia estricta en la vista estatus para no administradores
 router.get('/estatus', verificarToken, async (req, res) => {
   try {
     const rolUsuario = req.usuario ? req.usuario.rol : '';
@@ -310,7 +313,7 @@ router.get('/estatus', verificarToken, async (req, res) => {
   }
 });
 
-// MODIFICACIÓN SOLUCIÓN: Notificación dirigida al correo del Jefe Inmediato asignado
+// MODIFICACIÓN SOLUCIÓN (Ciberseguridad): Priorizar ID de sesión para prevenir ID Spoofing en solicitudes
 router.post('/', verificarToken, async (req, res) => {
   if (!req.usuario) {
     return res.status(401).json({
