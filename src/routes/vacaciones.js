@@ -28,15 +28,19 @@ const ROLES_AUTORIZADORES = [
   'Director General'
 ];
 
-// MODIFICACIÓN SOLUCIÓN: Correo de respaldo en caso de que un usuario en BD no tenga correo capturado
-const CORREO_FALLBACK = 'dvillalva@modisa.com.mx';
+// MODIFICACIÓN SOLUCIÓN (Ciberseguridad): Parametrización mediante variables de entorno (.env) para evitar datos hardcodeados
+const CORREO_FALLBACK = process.env.GMAIL_FALLBACK_EMAIL || 'dvillalva@modisa.com.mx';
+const REMITENTE_EMAIL = process.env.GMAIL_FROM_EMAIL || 'no-reply@modisa.com.mx';
+const REMITENTE_NOMBRE = process.env.GMAIL_FROM_NAME || 'Notificaciones MODISA';
 
-// MODIFICACIÓN SOLUCIÓN: Enviar correo dinámico al destinatario especificado en "to"
+// MODIFICACIÓN SOLUCIÓN: Enviar correo dinámico utilizando cabecera From no-reply formal
 async function enviarCorreoGmail({ to, subject, html }) {
   try {
     const destinatarioFinal = (to && typeof to === 'string' && to.includes('@')) ? to.trim() : CORREO_FALLBACK;
     const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
+    
     const messageParts = [
+      `From: "${REMITENTE_NOMBRE}" <${REMITENTE_EMAIL}>`,
       `To: ${destinatarioFinal}`,
       'Content-Type: text/html; charset=utf-8',
       'MIME-Version: 1.0',
@@ -55,7 +59,7 @@ async function enviarCorreoGmail({ to, subject, html }) {
       userId: 'me',
       requestBody: { raw: encodedMessage }
     });
-    console.log(`✉️ Correo enviado exitosamente a: ${destinatarioFinal}`);
+    console.log(`✉️ Correo enviado exitosamente desde ${REMITENTE_EMAIL} a: ${destinatarioFinal}`);
   } catch (err) {
     console.error('❌ Error al enviar correo mediante Gmail API:', err);
   }
@@ -328,7 +332,6 @@ router.post('/', verificarToken, async (req, res) => {
   }
 
   try {
-    // MODIFICACIÓN SOLUCIÓN: Obtener el nombre del solicitante y el correo de su jefe directo (e.id_manager)
     const [empRows] = await pool.query(`
       SELECT 
         TRIM(CONCAT(COALESCE(e.name, ''), ' ', COALESCE(e.last_name, ''))) AS nombre_completo,
@@ -476,7 +479,6 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
 
     if (nivel === 'jefe') {
       if (estadoParaBD === 'autorizada') {
-        // a) Notificar al Solicitante que el Jefe Inmediato autorizó y pasa a Dirección
         const htmlSolicitante = `
           <div style="font-family: Arial, sans-serif; padding: 24px; border: 1px solid #cbd5e1; border-radius: 12px; max-width: 550px;">
             <h2 style="color: #2563eb; margin-top: 0;">Actualización de Solicitud</h2>
@@ -488,7 +490,6 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
         `;
         enviarCorreoGmail({ to: correoSolicitante, subject: 'Actualización de Solicitud - Autorización de Jefe Inmediato', html: htmlSolicitante }).catch(err => console.error(err));
 
-        // b) Notificar al Director Operativo que la solicitud requiere su autorización
         const htmlDirector = `
           <div style="font-family: Arial, sans-serif; padding: 24px; border: 1px solid #cbd5e1; border-radius: 12px; max-width: 550px;">
             <h2 style="color: #2563eb; margin-top: 0;">Solicitud de vacaciones pendiente</h2>
@@ -501,7 +502,6 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
         enviarCorreoGmail({ to: correoDirectorOperativo, subject: 'Solicitud de Vacaciones Pendiente de Autorizar (Dirección Operativa)', html: htmlDirector }).catch(err => console.error(err));
 
       } else if (estadoParaBD === 'rechazada') {
-        // Notificar al Solicitante que fue Rechazada por el Jefe y concluye el flujo
         const htmlSolicitanteRechazo = `
           <div style="font-family: Arial, sans-serif; padding: 24px; border: 1px solid #cbd5e1; border-radius: 12px; max-width: 550px;">
             <h2 style="color: #dc2626; margin-top: 0;">Actualización de Solicitud</h2>
@@ -517,7 +517,6 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
     } else if (nivel === 'director') {
       if (estadoParaBD === 'autorizada') {
         if (estadoGlobal === 'aprobada') {
-          // Solicitud totalmente aprobada por ambos niveles
           const htmlAprobadaTotal = `
             <div style="font-family: Arial, sans-serif; padding: 24px; border: 1px solid #cbd5e1; border-radius: 12px; max-width: 550px;">
               <h2 style="color: #16a34a; margin-top: 0;">¡Solicitud Autorizada Completamente!</h2>
@@ -530,7 +529,6 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
           enviarCorreoGmail({ to: correoSolicitante, subject: 'Actualización de Solicitud - Autorización Final Completa', html: htmlAprobadaTotal }).catch(err => console.error(err));
         }
       } else if (estadoParaBD === 'rechazada') {
-        // Notificar al Solicitante que la Dirección Rechazó
         const htmlDirectorRechazo = `
           <div style="font-family: Arial, sans-serif; padding: 24px; border: 1px solid #cbd5e1; border-radius: 12px; max-width: 550px;">
             <h2 style="color: #dc2626; margin-top: 0;">Actualización de Solicitud</h2>
