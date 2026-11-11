@@ -384,7 +384,6 @@ router.post('/', verificarToken, async (req, res) => {
   }
 });
 
-// MODIFICACIÓN SOLUCIÓN: Notificación dirigida al correo del empleado solicitante
 router.patch('/:id/estado', verificarToken, async (req, res) => {
   const idVacacion = req.params.id;
   const { estado, observaciones, nivel } = req.body;
@@ -399,7 +398,11 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
 
   try {
     const [filas] = await pool.query(`
-      SELECT v.*, e.id_manager, e.email AS correo_empleado 
+      SELECT 
+        v.*, 
+        e.id_manager, 
+        e.email AS correo_empleado,
+        TRIM(CONCAT(COALESCE(e.name, ''), ' ', COALESCE(e.last_name, ''))) AS nombre_empleado
       FROM vacaciones v 
       INNER JOIN employees e ON e.id_employee = v.id_employee 
       WHERE v.id_vacacion = ?
@@ -413,6 +416,13 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
     const rolLimpio = rolUsuarioRaw.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
     const esAdminGlobal = ROLES_VISUALIZACION_GLOBAL.some(r => r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === rolLimpio);
+
+    const [dirRows] = await pool.query(`
+      SELECT email FROM employees 
+      WHERE job_title = 'Director Operativo' AND email IS NOT NULL AND email != '' 
+      LIMIT 1
+    `);
+    const correoDirectorOperativo = (dirRows.length > 0 && dirRows[0].email) ? dirRows[0].email : CORREO_FALLBACK;
 
     let sqlUpdate = '';
     const params = [];
@@ -459,27 +469,80 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
 
     await pool.query('UPDATE vacaciones SET estado = ? WHERE id_vacacion = ?', [estadoGlobal, idVacacion]);
 
-    const htmlCorreo = `
-      <div style="font-family: Arial, sans-serif; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; max-width: 550px; background: #ffffff;">
-        <h2 style="color: #0f172a; margin-top: 0; font-size: 20px;">Actualización de Solicitud</h2>
-        <p style="font-size: 14px; color: #334155;">Estimado colaborador, te informamos sobre el estatus de tu solicitud de vacaciones:</p>
-        
-        <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin: 16px 0; border: 1px solid #cbd5e1;">
-          <p style="margin: 6px 0; font-size: 13px;">El estado de tu jefe inmediato es: <strong style="color: ${vAct.estado_jefe === 'autorizada' ? '#16a34a' : (vAct.estado_jefe === 'rechazada' ? '#dc2626' : '#d97706')};">${(vAct.estado_jefe || 'pendiente').toUpperCase()}</strong></p>
-          <p style="margin: 6px 0; font-size: 13px;">El estado de dirección es: <strong style="color: ${vAct.estado_director === 'autorizada' ? '#16a34a' : (vAct.estado_director === 'rechazada' ? '#dc2626' : '#d97706')};">${(vAct.estado_director || 'pendiente').toUpperCase()}</strong></p>
-        </div>
+    const correoSolicitante = vac.correo_empleado || CORREO_FALLBACK;
+    const nombreEmpleado = vac.nombre_empleado || `Empleado ID #${vac.id_employee}`;
+    const fechaInicio = vac.fecha_inicio ? String(vac.fecha_inicio).split('T')[0] : '-';
+    const fechaFin = vac.fecha_fin ? String(vac.fecha_fin).split('T')[0] : '-';
 
-        <p style="font-size: 13px; color: #475569;"><strong>Observaciones:</strong> "${comentarioFinal}"</p>
-        <p style="font-size: 13px; color: #0f172a;"><strong>Estado Global:</strong> ${estadoGlobal.toUpperCase()}</p>
-      </div>
-    `;
+    if (nivel === 'jefe') {
+      if (estadoParaBD === 'autorizada') {
+        // a) Notificar al Solicitante que el Jefe Inmediato autorizó y pasa a Dirección
+        const htmlSolicitante = `
+          <div style="font-family: Arial, sans-serif; padding: 24px; border: 1px solid #cbd5e1; border-radius: 12px; max-width: 550px;">
+            <h2 style="color: #2563eb; margin-top: 0;">Actualización de Solicitud</h2>
+            <p>Buena tarde,</p>
+            <p>Tu <strong>Jefe Inmediato</strong> ha <strong style="color: #16a34a;">AUTORIZADO</strong> tu solicitud del period vacacional (<strong>${fechaInicio}</strong> al <strong>${fechaFin}</strong>).</p>
+            <p>Tu solicitud se encuentra actualmente <strong>pendiente de autorización por la Dirección Operativa</strong>.</p>
+            <p style="font-size: 13px; color: #475569;">Observaciones de Jefatura: "${comentarioFinal}"</p>
+          </div>
+        `;
+        enviarCorreoGmail({ to: correoSolicitante, subject: 'Actualización de Solicitud - Autorización de Jefe Inmediato', html: htmlSolicitante }).catch(err => console.error(err));
 
-    // MODIFICACIÓN SOLUCIÓN: Enviar el correo dinámicamente al email del empleado solicitante (vac.correo_empleado)
-    enviarCorreoGmail({
-      to: vac.correo_empleado || CORREO_FALLBACK,
-      subject: 'Actualización de Solicitud',
-      html: htmlCorreo
-    }).catch(err => console.error('❌ Error enviando correo:', err));
+        // b) Notificar al Director Operativo que la solicitud requiere su autorización
+        const htmlDirector = `
+          <div style="font-family: Arial, sans-serif; padding: 24px; border: 1px solid #cbd5e1; border-radius: 12px; max-width: 550px;">
+            <h2 style="color: #2563eb; margin-top: 0;">Solicitud de vacaciones pendiente</h2>
+            <p>Buena tarde,</p>
+            <p>El Jefe Inmediato de <strong>${nombreEmpleado}</strong> ha autorizado su solicitud de vacaciones (<strong>${fechaInicio}</strong> al <strong>${fechaFin}</strong>).</p>
+            <p>Por favor ingresa al sistema para revisar y otorgar la autorización de Dirección.</p>
+            <p style="font-size: 13px; color: #475569;">Observaciones del Jefe: "${comentarioFinal}"</p>
+          </div>
+        `;
+        enviarCorreoGmail({ to: correoDirectorOperativo, subject: 'Solicitud de Vacaciones Pendiente de Autorizar (Dirección Operativa)', html: htmlDirector }).catch(err => console.error(err));
+
+      } else if (estadoParaBD === 'rechazada') {
+        // Notificar al Solicitante que fue Rechazada por el Jefe y concluye el flujo
+        const htmlSolicitanteRechazo = `
+          <div style="font-family: Arial, sans-serif; padding: 24px; border: 1px solid #cbd5e1; border-radius: 12px; max-width: 550px;">
+            <h2 style="color: #dc2626; margin-top: 0;">Actualización de Solicitud</h2>
+            <p>Buena tarde,</p>
+            <p>Lamentamos informarte que tu solicitud de vacaciones (<strong>${fechaInicio}</strong> al <strong>${fechaFin}</strong>) ha sido <strong style="color: #dc2626;">RECHAZADA</strong> por tu Jefe Inmediato.</p>
+            <p>Puedes ingresar al sistema para realizar una nueva solicitud atendiendo las observaciones.</p>
+            <p style="font-size: 13px; color: #475569;">Observaciones del Jefe: "${comentarioFinal}"</p>
+          </div>
+        `;
+        enviarCorreoGmail({ to: correoSolicitante, subject: 'Actualización de Solicitud - Rechazada por Jefe Inmediato', html: htmlSolicitanteRechazo }).catch(err => console.error(err));
+      }
+
+    } else if (nivel === 'director') {
+      if (estadoParaBD === 'autorizada') {
+        if (estadoGlobal === 'aprobada') {
+          // Solicitud totalmente aprobada por ambos niveles
+          const htmlAprobadaTotal = `
+            <div style="font-family: Arial, sans-serif; padding: 24px; border: 1px solid #cbd5e1; border-radius: 12px; max-width: 550px;">
+              <h2 style="color: #16a34a; margin-top: 0;">¡Solicitud Autorizada Completamente!</h2>
+              <p>Buena tarde,</p>
+              <p>Te informamos que tu solicitud de vacaciones del <strong>${fechaInicio}</strong> al <strong>${fechaFin}</strong> cuenta con la <strong style="color: #16a34a;">AUTORIZACIÓN FINAL COMPLETA</strong> (Jefe Inmediato y Dirección Operativa).</p>
+              <p>El departamento de Administración procederá a la impresión del formato para firma de expediente.</p>
+              <p style="font-size: 13px; color: #475569;">Observaciones de Dirección: "${comentarioFinal}"</p>
+            </div>
+          `;
+          enviarCorreoGmail({ to: correoSolicitante, subject: 'Actualización de Solicitud - Autorización Final Completa', html: htmlAprobadaTotal }).catch(err => console.error(err));
+        }
+      } else if (estadoParaBD === 'rechazada') {
+        // Notificar al Solicitante que la Dirección Rechazó
+        const htmlDirectorRechazo = `
+          <div style="font-family: Arial, sans-serif; padding: 24px; border: 1px solid #cbd5e1; border-radius: 12px; max-width: 550px;">
+            <h2 style="color: #dc2626; margin-top: 0;">Actualización de Solicitud</h2>
+            <p>Buena tarde,</p>
+            <p>Te informamos que tu solicitud de vacaciones (<strong>${fechaInicio}</strong> al <strong>${fechaFin}</strong>) ha sido <strong style="color: #dc2626;">RECHAZADA</strong> por la Dirección Operativa.</p>
+            <p>Puedes ingresar al sistema para coordinar y realizar una nueva solicitud atendiendo las observaciones.</p>
+            <p style="font-size: 13px; color: #475569;">Observaciones de Dirección: "${comentarioFinal}"</p>
+          </div>
+        `;
+        enviarCorreoGmail({ to: correoSolicitante, subject: 'Actualización de Solicitud - Rechazada por Dirección Operativa', html: htmlDirectorRechazo }).catch(err => console.error(err));
+      }
+    }
 
     res.json({
       success: true,
