@@ -9,10 +9,18 @@ function escapeHTML(str) {
     .replace(/'/g, '&#039;');
 }
 
+// MODIFICACIÓN SOLUCIÓN: Parseo robusto concatenando hora local T00:00:00 para evitar desfases UTC/Local
 function calcularDiasHabilesEfectivos(inicio, fin) {
   if (!inicio || !fin) return 0;
-  const fInicio = new Date(inicio);
-  const fFin = new Date(fin);
+  
+  const strInicio = String(inicio).split('T')[0];
+  const strFin = String(fin).split('T')[0];
+
+  const fInicio = new Date(`${strInicio}T00:00:00`);
+  const fFin = new Date(`${strFin}T00:00:00`);
+
+  if (isNaN(fInicio.getTime()) || isNaN(fFin.getTime()) || fInicio > fFin) return 0;
+
   let dias = 0;
   let cursor = new Date(fInicio);
   while (cursor <= fFin) {
@@ -75,9 +83,9 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
     );
 
     if (esTotalmenteAprobada) {
-      const dTomados = (v.fecha_inicio && v.fecha_fin)
-        ? calcularDiasHabilesEfectivos(v.fecha_inicio, v.fecha_fin)
-        : Number(v.dias_tomados || 0);
+      const dTomados = (v.dias_tomados !== undefined && v.dias_tomados !== null)
+        ? Number(v.dias_tomados)
+        : ((v.fecha_inicio && v.fecha_fin) ? calcularDiasHabilesEfectivos(v.fecha_inicio, v.fecha_fin) : 0);
 
       mapaGozadosAprobados[idEmp] = (mapaGozadosAprobados[idEmp] || 0) + dTomados;
     }
@@ -90,9 +98,9 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
     const fechaInicio = escapeHTML(item.fecha_inicio ? item.fecha_inicio.split('T')[0] : '-');
     const fechaFin = escapeHTML(item.fecha_fin ? item.fecha_fin.split('T')[0] : '-');
 
-    const diasTomados = (item.fecha_inicio && item.fecha_fin)
-      ? calcularDiasHabilesEfectivos(item.fecha_inicio, item.fecha_fin)
-      : Number(item.dias_tomados || 0);
+    const diasTomados = (item.dias_tomados !== undefined && item.dias_tomados !== null)
+      ? Number(item.dias_tomados)
+      : ((item.fecha_inicio && item.fecha_fin) ? calcularDiasHabilesEfectivos(item.fecha_inicio, item.fecha_fin) : 0);
 
     const diasLey = Number(item.dias_vacaciones_ley || item.dias_ley || 0);
     const idEmpKey = String(item.id_employee);
@@ -197,7 +205,7 @@ export function renderizarVistaEstatus() {
   }
 }
 
-// MODIFICACIÓN SOLUCIÓN: Reconstrucción del Gantt alineando estrictamente el color verde a la doble autorización
+// MODIFICACIÓN SOLUCIÓN: Reconstrucción del Gantt alineando la doble autorización y eliminando etiquetas 0d
 export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
   const { ocultarSaldos = false, idEmpleadoActual = null } = opciones;
   const grid = document.getElementById('ganttGrid');
@@ -242,7 +250,7 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
 
   function fechaADiaAnual(fStr) {
     if (!fStr) return null;
-    const partes = fStr.split('T')[0].split('-');
+    const partes = String(fStr).split('T')[0].split('-');
     if (partes.length !== 3) return null;
     
     const fAnio = parseInt(partes[0], 10);
@@ -294,9 +302,14 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
         (estadoDir === 'autorizada' || estadoDir === 'aprobada')
       );
 
-      const diasTomadosGantt = (v.fecha_inicio && v.fecha_fin)
-        ? calcularDiasHabilesEfectivos(v.fecha_inicio, v.fecha_fin)
-        : Number(v.dias_tomados || 0);
+      // MODIFICACIÓN SOLUCIÓN: Toma prioritaria de dias_tomados de MySQL y prevención de la etiqueta 0d
+      let diasTomadosGantt = 0;
+      if (v.dias_tomados !== undefined && v.dias_tomados !== null && Number(v.dias_tomados) > 0) {
+        diasTomadosGantt = Number(v.dias_tomados);
+      } else {
+        const habiles = calcularDiasHabilesEfectivos(v.fecha_inicio, v.fecha_fin);
+        diasTomadosGantt = Math.max(1, habiles);
+      }
 
       mapaCeldasAnual[idxInicio] = {
         duracion: duracion,
