@@ -575,4 +575,46 @@ router.post('/:id/expediente', verificarToken, uploadMemory.single('expediente')
   }
 });
 
+// MODIFICACIÓN SOLUCIÓN (Ciberseguridad & RBAC): Endpoint de eliminación atómica exclusivo para Director Operativo
+router.delete('/:id', verificarToken, async (req, res) => {
+  try {
+    const rolUsuarioRaw = req.usuario ? (req.usuario.rol || req.usuario.role || req.usuario.job_title || '') : '';
+    const rolLimpio = rolUsuarioRaw.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    const esDirector = (
+      rolLimpio === 'director operativo' ||
+      rolLimpio === 'director_operativo' ||
+      rolLimpio === 'director general' ||
+      (rolLimpio.includes('director') && rolLimpio.includes('operativ'))
+    );
+
+    if (!esDirector) {
+      return res.status(403).json({
+        success: false,
+        error: '⛔ Acción denegada. Solo la Dirección Operativa puede eliminar registros de vacaciones.'
+      });
+    }
+
+    const idVacacion = parseInt(req.params.id, 10);
+    if (isNaN(idVacacion) || idVacacion <= 0) {
+      return res.status(400).json({ success: false, error: 'ID de vacación inválido.' });
+    }
+
+    const [result] = await pool.query('DELETE FROM vacaciones WHERE id_vacacion = ?', [idVacacion]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, error: 'El registro de vacaciones no existe o ya fue eliminado.' });
+    }
+
+    res.json({
+      success: true,
+      message: '🗑️ Registro de vacación eliminado correctamente.'
+    });
+
+  } catch (error) {
+    console.error('❌ Error al eliminar vacación:', error);
+    res.status(500).json({ success: false, error: 'Error interno del servidor al eliminar la vacación.' });
+  }
+});
+
 module.exports = router;

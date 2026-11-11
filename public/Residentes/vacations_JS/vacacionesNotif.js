@@ -159,4 +159,35 @@ export function inicializarHandlersGlobales(API_URL, getDatosVacaciones, setDato
       alert(`❌ Error: ${escapeHTML(err.message)}`);
     }
   };
+
+  // MODIFICACIÓN SOLUCIÓN: Tachecito (✕) exclusivo para Director Operativo para eliminar un registro individual por equivocación
+  window.eliminarRegistroVacacion = async function(idVacacion) {
+    if (!confirm(`⚠️ ¿Estás seguro de que deseas eliminar este registro de vacación (#${idVacacion})? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    const token = localStorage.getItem('jwtToken') || '';
+    try {
+      const res = await fetch(`${API_URL}/vacaciones/${idVacacion}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'No se pudo eliminar el registro.');
+      }
+
+      alert(`✅ ${data.message}`);
+      await cargarDatosVacaciones();
+      await cargarDatosEstatus();
+
+    } catch (err) {
+      console.error("❌ Error al eliminar el registro de vacación:", err);
+      alert(`❌ Error: ${escapeHTML(err.message)}`);
+    }
+  };
 }
