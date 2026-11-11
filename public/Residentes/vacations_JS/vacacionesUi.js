@@ -83,7 +83,7 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
     );
 
     if (esTotalmenteAprobada) {
-      const dTomados = (v.dias_tomados !== undefined && v.dias_tomados !== null)
+      const dTomados = (v.dias_tomados !== undefined && v.dias_tomados !== null && Number(v.dias_tomados) > 0)
         ? Number(v.dias_tomados)
         : ((v.fecha_inicio && v.fecha_fin) ? calcularDiasHabilesEfectivos(v.fecha_inicio, v.fecha_fin) : 0);
 
@@ -98,7 +98,7 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
     const fechaInicio = escapeHTML(item.fecha_inicio ? item.fecha_inicio.split('T')[0] : '-');
     const fechaFin = escapeHTML(item.fecha_fin ? item.fecha_fin.split('T')[0] : '-');
 
-    const diasTomados = (item.dias_tomados !== undefined && item.dias_tomados !== null)
+    const diasTomados = (item.dias_tomados !== undefined && item.dias_tomados !== null && Number(item.dias_tomados) > 0)
       ? Number(item.dias_tomados)
       : ((item.fecha_inicio && item.fecha_fin) ? calcularDiasHabilesEfectivos(item.fecha_inicio, item.fecha_fin) : 0);
 
@@ -205,7 +205,7 @@ export function renderizarVistaEstatus() {
   }
 }
 
-// MODIFICACIÓN SOLUCIÓN: Reconstrucción del Gantt alineando la doble autorización y eliminando etiquetas 0d
+// MODIFICACIÓN SOLUCIÓN: Reconstrucción del Gantt con cálculo global acumulado en Tooltips y corrección de desborde visual
 export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
   const { ocultarSaldos = false, idEmpleadoActual = null } = opciones;
   const grid = document.getElementById('ganttGrid');
@@ -236,7 +236,10 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
     return;
   }
 
+  // MODIFICACIÓN SOLUCIÓN: Agrupar solicitudes y precalcular total acumulado de días por empleado (autorizadas Y pendientes)
   const vacacionesPorEmpleado = {};
+  const mapaTotalComprometidoEmpleado = {};
+
   datos.forEach(item => {
     const nombreBase = item.nombre_empleado || item.empleado || `Empleado ID #${item.id_employee}`;
     const esPropio = idEmpleadoActual !== null && Number(item.id_employee) === Number(idEmpleadoActual);
@@ -246,6 +249,17 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
       vacacionesPorEmpleado[empNombre] = [];
     }
     vacacionesPorEmpleado[empNombre].push(item);
+
+    // Sumar días de todas las solicitudes del periodo independientemente de su estado
+    let dVal = 0;
+    if (item.dias_tomados !== undefined && item.dias_tomados !== null && Number(item.dias_tomados) > 0) {
+      dVal = Number(item.dias_tomados);
+    } else if (item.fecha_inicio && item.fecha_fin) {
+      dVal = calcularDiasHabilesEfectivos(item.fecha_inicio, item.fecha_fin);
+    }
+    
+    const keyEmp = String(item.id_employee || empNombre);
+    mapaTotalComprometidoEmpleado[keyEmp] = (mapaTotalComprometidoEmpleado[keyEmp] || 0) + Math.max(1, dVal);
   });
 
   function fechaADiaAnual(fStr) {
@@ -302,7 +316,6 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
         (estadoDir === 'autorizada' || estadoDir === 'aprobada')
       );
 
-      // MODIFICACIÓN SOLUCIÓN: Toma prioritaria de dias_tomados de MySQL y prevención de la etiqueta 0d
       let diasTomadosGantt = 0;
       if (v.dias_tomados !== undefined && v.dias_tomados !== null && Number(v.dias_tomados) > 0) {
         diasTomadosGantt = Number(v.dias_tomados);
@@ -311,12 +324,20 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
         diasTomadosGantt = Math.max(1, habiles);
       }
 
+      const keyEmp = String(v.id_employee || empNombre);
+      const diasLeyGlobal = Number(v.dias_vacaciones_ley || v.dias_ley || 0);
+      const totalTomadosComprometidos = mapaTotalComprometidoEmpleado[keyEmp] || diasTomadosGantt;
+      
+      // MODIFICACIÓN SOLUCIÓN: Días pendientes a gozar globales (Días Ley menos el acumulado de solicitudes del periodo)
+      const diasRestantesGlobales = Math.max(0, diasLeyGlobal - totalTomadosComprometidos);
+
       mapaCeldasAnual[idxInicio] = {
         duracion: duracion,
         estado: esAutorizada ? 'autorizada' : 'pendiente',
         diasTomados: diasTomadosGantt,
-        diasLey: Number(v.dias_vacaciones_ley || v.dias_ley || 0),
-        diasRestantes: Math.max(0, Number(v.dias_vacaciones_ley || v.dias_ley || 0) - diasTomadosGantt),
+        diasLey: diasLeyGlobal,
+        totalTomadosComprometidos: totalTomadosComprometidos,
+        diasRestantes: diasRestantesGlobales,
         fechaInicio: String(v.fecha_inicio).split('T')[0],
         fechaFin: String(v.fecha_fin).split('T')[0]
       };
@@ -325,7 +346,10 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
     const totalEmpleados = listaEmpleadosClaves.length;
     let claseTooltipPosicion = '';
 
-    if (totalEmpleados === 1 || filaIdx === 0) {
+    // MODIFICACIÓN SOLUCIÓN: Si solo hay 1 empleado en la lista, forzar 'tooltip-arriba' para evitar el desborde inferior
+    if (totalEmpleados === 1) {
+      claseTooltipPosicion = 'tooltip-arriba';
+    } else if (filaIdx === 0) {
       claseTooltipPosicion = 'tooltip-abajo';
     } else {
       claseTooltipPosicion = 'tooltip-arriba';
@@ -347,14 +371,14 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
           : `
                 <strong style="color: #60a5fa; font-size: 12px;">${empNombreEscaped}</strong><br/>
                 <span>📜 Días por Ley: <strong>${info.diasLey}</strong></span><br/>
-                <span>🏖 Días Tomados: <strong>${info.diasTomados}</strong></span><br/>
+                <span>🏖 Días Tomados: <strong>${info.totalTomadosComprometidos}</strong></span><br/>
                 <span>⏳ Días Pendientes: <strong>${info.diasRestantes}</strong></span>`;
 
         const atributosAccesibilidad = `tabindex="0" role="img" aria-label="${escapeHTML(`${empNombre}: ${nombreEstado}, ${info.diasTomados} días hábiles, del ${info.fechaInicio} al ${info.fechaFin}`)}"`;
 
         htmlFilasEmpleados += `
           <div class="gantt-celda-dia" style="grid-column: span ${span};">
-            <div class="gantt-barra-container">
+            <div class="gantt-barra-container" style="position: relative; z-index: ${totalEmpleados === 1 ? '50' : '1'};">
               <div class="gantt-barra ${info.estado}" ${atributosAccesibilidad}>
                 ${info.diasTomados}d
               </div>
@@ -373,5 +397,6 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
     htmlFilasEmpleados += '</div>';
   });
 
-  grid.innerHTML = `<div class="gantt-wrapper-anual" style="--total-dias-anio: ${totalDiasAnio};">` + htmlHeaderMeses + htmlHeaderDias + htmlFilasEmpleados + `</div>`;
+  // MODIFICACIÓN SOLUCIÓN: Inyección de padding-bottom de resguardo en la cuadrícula para evitar el corte visual de tooltips
+  grid.innerHTML = `<div class="gantt-wrapper-anual" style="--total-dias-anio: ${totalDiasAnio}; padding-bottom: 70px; margin-bottom: 20px;">` + htmlHeaderMeses + htmlHeaderDias + htmlFilasEmpleados + `</div>`;
 }
