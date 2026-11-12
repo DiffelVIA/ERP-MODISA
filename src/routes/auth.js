@@ -6,11 +6,27 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const { gmail, oauth2Client, SCOPES } = require('../config/google');
 
+// MODIFICACIÓN SOLUCIÓN (Ciberseguridad): Helper para escapar HTML y prevenir XSS en plantillas de correo y vistas de callback
+function escapeHTMLAuth(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 const createRawMessage = ({ from, to, subject, html }) => {
-  const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
+  const fromNombre = (process.env.GMAIL_FROM_NAME || 'Notificaciones MODISA').replace(/[\r\n"]/g, '').trim();
+  const utf8FromName = `=?utf-8?B?${Buffer.from(fromNombre).toString('base64')}?=`;
+  const utf8Subject = `=?utf-8?B?${Buffer.from(String(subject).replace(/[\r\n]/g, ' ').trim()).toString('base64')}?=`;
+  const cleanTo = String(to).replace(/[\r\n]/g, '').trim();
+
   const messageParts = [
-    `From: MODISA ERP <${from}>`,
-    `To: ${to}`,
+    `From: ${utf8FromName} <${from}>`,
+    `Reply-To: <${from}>`,
+    `To: ${cleanTo}`,
     `Subject: ${utf8Subject}`,
     'MIME-Version: 1.0',
     'Content-Type: text/html; charset=utf-8',
@@ -28,35 +44,68 @@ const createRawMessage = ({ from, to, subject, html }) => {
     .replace(/=+$/, '');
 };
 
+// MODIFICACIÓN SOLUCIÓN (Ciberseguridad): Generar parámetro 'state' firmado anti-CSRF para el flujo OAuth2 de Google
 router.get('/google/login', (req, res) => {
+  const stateToken = jwt.sign(
+    { purpose: 'google_oauth_connect', nonce: crypto.randomBytes(16).toString('hex') },
+    process.env.JWT_SECRET || 'secreto_fallback_temp',
+    { expiresIn: '10m' }
+  );
+
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent',
-    scope: SCOPES
+    scope: SCOPES,
+    state: stateToken
   });
   res.redirect(authUrl);
 });
 
+// MODIFICACIÓN SOLUCIÓN (Ciberseguridad & UX): Validar parámetro 'state' anti-CSRF, escapar salida HTML y añadir botón de copiado rápido
 router.get('/google/callback', async (req, res) => {
-  const code = req.query.code;
+  const { code, state } = req.query;
   if (!code) {
     return res.status(400).send('No se recibió el código de autorización desde Google.');
   }
 
+  if (!state) {
+    return res.status(400).send('Falta el parámetro de seguridad state en la respuesta de Google.');
+  }
+
+  try {
+    const decodedState = jwt.verify(
+      String(state),
+      process.env.JWT_SECRET || 'secreto_fallback_temp'
+    );
+    if (!decodedState || decodedState.purpose !== 'google_oauth_connect') {
+      return res.status(403).send('Estado de autorización inválido.');
+    }
+  } catch (stateErr) {
+    return res.status(403).send('La sesión de autorización con Google ha expirado o es inválida. Vuelve a intentar en /api/auth/google/login');
+  }
+
   try {
     const { tokens } = await oauth2Client.getToken(code);
+    const tokenSeguro = escapeHTMLAuth(
+      tokens.refresh_token || 'Atención: No se generó refresh_token. Reintenta entrando de nuevo a /api/auth/google/login'
+    );
     
     res.send(`
-      <div style="font-family: Arial, sans-serif; padding: 30px; line-height: 1.6;">
-        <h2 style="color: #28a745;">¡Autenticación con Google completada con éxito!</h2>
-        <p>Copia el siguiente <strong>refresh_token</strong> y actualízalo en la variable de entorno <code>GOOGLE_TOKEN</code> de tu panel de Render:</p>
-        <textarea style="width: 100%; height: 100px; font-family: monospace; padding: 10px;" readonly>${tokens.refresh_token || 'Atención: No se generó refresh_token. Reintenta entrando de nuevo a /api/auth/google/login'}</textarea>
-        <p style="color: #666; font-size: 0.9rem;">Una vez actualizado en Render y redeplegado el backend, la subida de tickets a Google Drive funcionará inmediatamente sin error 403/500.</p>
+      <div style="font-family: Arial, sans-serif; padding: 30px; line-height: 1.6; max-width: 720px; margin: 0 auto;">
+        <h2 style="color: #16a34a;">¡Autenticación con Google completada con éxito!</h2>
+        <p>Copia el siguiente <strong>refresh_token</strong> y actualízalo en la variable de entorno <code>GOOGLE_TOKEN</code> de tu panel de Render y en tu archivo <code>.env</code> local:</p>
+        <textarea id="refreshTokenBox" style="width: 100%; height: 110px; font-family: monospace; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc;" readonly>${tokenSeguro}</textarea>
+        <div style="margin-top: 12px;">
+          <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('refreshTokenBox').value); this.innerText='✅ ¡Token copiado!';" style="background: #2563eb; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: bold;">
+            Copiar Refresh Token
+          </button>
+        </div>
+        <p style="color: #475569; font-size: 0.9rem; margin-top: 16px;">Recuerda asegurarte de que la carpeta de Google Drive de vacaciones esté compartida como <strong>Editor</strong> con la cuenta autorizada (<code>noreply@modisa.com.mx</code>).</p>
       </div>
     `);
   } catch (err) {
     console.error('❌ Error al canjear token de Google:', err);
-    res.status(500).send(`Error al autenticar con Google: ${err.message}`);
+    res.status(500).send(`Error al autenticar con Google: ${escapeHTMLAuth(err.message)}`);
   }
 });
 
@@ -190,10 +239,11 @@ router.post('/request-reset', async (req, res) => {
 
     const baseUrl = process.env.FRONTEND_URL || 'https://erp-modisa.onrender.com';
     const resetUrl = `${baseUrl}/recuperar.html?token=${rawToken}`;
+    const nombreUsuarioSeguro = escapeHTMLAuth(usuario.name);
 
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-        <h2>Hola, ${usuario.name}</h2>
+        <h2>Hola, ${nombreUsuarioSeguro}</h2>
         <p>Has solicitado restablecer tu contraseña en el sistema <strong>MODISA ERP</strong>.</p>
         <p>Haz clic en el siguiente botón para completar el proceso. Este enlace expirará en 5 minutos:</p>
         <a href="${resetUrl}" style="background-color: #007bff; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 15px 0;">
@@ -203,7 +253,8 @@ router.post('/request-reset', async (req, res) => {
       </div>
     `;
 
-    const senderEmail = process.env.GMAIL_FROM_EMAIL || process.env.GMAIL_USER;
+    // MODIFICACIÓN SOLUCIÓN: Usar GMAIL_USER (noreply@modisa.com.mx) como remitente oficial
+    const senderEmail = (process.env.GMAIL_USER || process.env.GMAIL_FROM_EMAIL || 'noreply@modisa.com.mx').trim();
 
     const rawMessage = createRawMessage({
       from: senderEmail,
@@ -267,9 +318,10 @@ router.put('/reset-password', async (req, res) => {
 
     const hashContrasena = await bcrypt.hash(nuevaContrasena.trim(), 10);
 
+    // MODIFICACIÓN SOLUCIÓN: Filtrar UPDATE usando hashedToken.trim() (coincidiendo con el valor almacenado en BD)
     await pool.query(
       'UPDATE employees SET password = ?, reset_token = NULL, reset_expires = NULL, first_entry = 0 WHERE reset_token = ?',
-      [hashContrasena, token.trim()]
+      [hashContrasena, hashedToken.trim()]
     );
 
     res.json({ mensaje: 'Contraseña restablecida con éxito' });

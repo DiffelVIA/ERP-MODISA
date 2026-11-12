@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
+const nodemailer = require('nodemailer');
 
 const { gmail } = require('../config/google');
 const { verificarToken, verificarRol } = require('../middlewares/authMiddleware');
@@ -28,12 +29,26 @@ const ROLES_AUTORIZADORES = [
   'Director General'
 ];
 
-// Parametrización mediante variables de entorno (.env) para evitar datos hardcodeados
-const CORREO_FALLBACK = process.env.GMAIL_FALLBACK_EMAIL || 'dvillalva@modisa.com.mx';
-const REMITENTE_EMAIL = process.env.GMAIL_FROM_EMAIL || 'no-reply@modisa.com.mx';
-const REMITENTE_NOMBRE = process.env.GMAIL_FROM_NAME || 'Notificaciones MODISA';
+// MODIFICACIÓN SOLUCIÓN: Sincronización exacta con las variables reales de tu .env (GMAIL_USER, GMAIL_FROM_NAME, GMAIL_FALLBACK_EMAIL)
+const CORREO_FALLBACK = (process.env.GMAIL_FALLBACK_EMAIL || 'dvillalva@modisa.com.mx').trim();
+const REMITENTE_EMAIL = (process.env.GMAIL_USER || 'noreply@modisa.com.mx').trim();
+const REMITENTE_NOMBRE = (process.env.GMAIL_FROM_NAME || 'Notificaciones MODISA').replace(/[\r\n"]/g, '').trim();
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
-// MODIFICACIÓN SOLUCIÓN (Ciberseguridad): Helper de saneamiento HTML para evitar inyección en correos electrónicos
+// Transporte SMTP dedicado opcional (se activa automáticamente si defines GMAIL_APP_PASSWORD en .env)
+const smtpTransporter = process.env.GMAIL_APP_PASSWORD
+  ? nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: REMITENTE_EMAIL,
+        pass: process.env.GMAIL_APP_PASSWORD
+      }
+    })
+  : null;
+
+// Helper de saneamiento HTML para evitar inyección en correos electrónicos
 function escapeHTMLCorreo(str) {
   if (!str) return '';
   return String(str)
@@ -44,14 +59,31 @@ function escapeHTMLCorreo(str) {
     .replace(/'/g, '&#039;');
 }
 
-// Enviar correo dinámico utilizando cabecera From no-reply formal
+// MODIFICACIÓN SOLUCIÓN (Ciberseguridad & Remitente No-Reply): Validación estricta anti Header-Injection y envío vía SMTP dedicado o Gmail API
 async function enviarCorreoGmail({ to, subject, html }) {
   try {
-    const destinatarioFinal = (to && typeof to === 'string' && to.includes('@')) ? to.trim() : CORREO_FALLBACK;
-    const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
+    const candidatoTo = (to && typeof to === 'string') ? to.replace(/[\r\n]/g, '').trim() : '';
+    const destinatarioFinal = EMAIL_REGEX.test(candidatoTo) ? candidatoTo : CORREO_FALLBACK;
+    const asuntoLimpio = String(subject || 'Notificación MODISA').replace(/[\r\n]/g, ' ').trim();
+
+    if (smtpTransporter) {
+      await smtpTransporter.sendMail({
+        from: `"${REMITENTE_NOMBRE}" <${REMITENTE_EMAIL}>`,
+        replyTo: REMITENTE_EMAIL,
+        to: destinatarioFinal,
+        subject: asuntoLimpio,
+        html
+      });
+      console.log(`✉️ Correo enviado vía SMTP desde ${REMITENTE_EMAIL} a: ${destinatarioFinal}`);
+      return;
+    }
+
+    const utf8Subject = `=?utf-8?B?${Buffer.from(asuntoLimpio).toString('base64')}?=`;
+    const utf8FromName = `=?utf-8?B?${Buffer.from(REMITENTE_NOMBRE).toString('base64')}?=`;
     
     const messageParts = [
-      `From: "${REMITENTE_NOMBRE}" <${REMITENTE_EMAIL}>`,
+      `From: ${utf8FromName} <${REMITENTE_EMAIL}>`,
+      `Reply-To: <${REMITENTE_EMAIL}>`,
       `To: ${destinatarioFinal}`,
       'Content-Type: text/html; charset=utf-8',
       'MIME-Version: 1.0',
@@ -70,9 +102,9 @@ async function enviarCorreoGmail({ to, subject, html }) {
       userId: 'me',
       requestBody: { raw: encodedMessage }
     });
-    console.log(`✉️ Correo enviado exitosamente desde ${REMITENTE_EMAIL} a: ${destinatarioFinal}`);
+    console.log(`✉️ Correo enviado vía Gmail API desde ${REMITENTE_EMAIL} a: ${destinatarioFinal}`);
   } catch (err) {
-    console.error('❌ Error al enviar correo mediante Gmail API:', err);
+    console.error('❌ Error al enviar correo:', err);
   }
 }
 
@@ -401,8 +433,7 @@ router.post('/', verificarToken, async (req, res) => {
   }
 });
 
-// MODIFICACIÓN SOLUCIÓN (Ciberseguridad & RBAC): Validación estricta de id_manager para 'jefe',
-// restricción exclusiva de Dirección Operativa para 'director' y rechazo de parámetros inválidos.
+// Validación estricta de id_manager para 'jefe', restricción exclusiva de Dirección Operativa para 'director' y rechazo de parámetros inválidos.
 router.patch('/:id/estado', verificarToken, async (req, res) => {
   const idVacacion = parseInt(req.params.id, 10);
   if (!Number.isInteger(idVacacion) || idVacacion <= 0) {
@@ -455,7 +486,6 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
     const params = [];
 
     if (nivelLimpio === 'jefe') {
-      // Validación estricta: Únicamente el jefe inmediato asignado en employees.id_manager puede actualizar este nivel
       const esJefeDirecto = (
         idUsuarioSesion !== null &&
         vac.id_manager !== null &&
@@ -471,7 +501,6 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
       sqlUpdate = `UPDATE vacaciones SET estado_jefe = ?, observaciones_jefe = ? WHERE id_vacacion = ?`;
       params.push(estadoParaBD, comentarioFinal, idVacacion);
     } else if (nivelLimpio === 'director') {
-      // Validación estricta: Únicamente Dirección Operativa / Dirección General puede actualizar este nivel
       const esDirector = ROLES_AUTORIZADORES.some(r => r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === rolLimpio);
       if (!esDirector) {
         return res.status(403).json({
@@ -582,7 +611,7 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
   }
 });
 
-// MODIFICACIÓN SOLUCIÓN (Ciberseguridad): Validación de entero en ID y restricción RBAC para subir expedientes PDF
+// Validación de entero en ID y restricción RBAC para subir expedientes PDF
 router.post('/:id/expediente', verificarToken, uploadMemory.single('expediente'), async (req, res) => {
   const idVacacion = parseInt(req.params.id, 10);
   if (!Number.isInteger(idVacacion) || idVacacion <= 0) {

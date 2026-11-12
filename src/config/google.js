@@ -1,12 +1,28 @@
 const fs = require('fs');
 const path = require('path');
 const { google } = require('googleapis');
-const credentialsPath = path.join(__dirname, '../../credentials.json');
-const credentials = JSON.parse(fs.readFileSync(credentialsPath));
-const { client_id, client_secret, redirect_uris } = credentials.web;
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || client_id;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || client_secret;
+// MODIFICACIÓN SOLUCIÓN (Ciberseguridad): Priorizar variables de entorno (.env) y proteger lectura de credentials.json con try/catch
+let fileClientId = null;
+let fileClientSecret = null;
+
+if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+  try {
+    const credentialsPath = path.join(__dirname, '../../credentials.json');
+    if (fs.existsSync(credentialsPath)) {
+      const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'));
+      if (credentials && credentials.web) {
+        fileClientId = credentials.web.client_id;
+        fileClientSecret = credentials.web.client_secret;
+      }
+    }
+  } catch (err) {
+    console.warn('⚠️ No se pudo leer credentials.json local, usando variables de entorno:', err.message);
+  }
+}
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || fileClientId;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || fileClientSecret;
 
 const redirectUri = process.env.NODE_ENV === 'production' 
   ? 'https://erp-modisa.onrender.com/api/auth/google/callback' 
