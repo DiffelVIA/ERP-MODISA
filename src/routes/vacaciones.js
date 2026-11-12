@@ -28,12 +28,23 @@ const ROLES_AUTORIZADORES = [
   'Director General'
 ];
 
-// MODIFICACIÓN SOLUCIÓN (Ciberseguridad): Parametrización mediante variables de entorno (.env) para evitar datos hardcodeados
+// Parametrización mediante variables de entorno (.env) para evitar datos hardcodeados
 const CORREO_FALLBACK = process.env.GMAIL_FALLBACK_EMAIL || 'dvillalva@modisa.com.mx';
 const REMITENTE_EMAIL = process.env.GMAIL_FROM_EMAIL || 'no-reply@modisa.com.mx';
 const REMITENTE_NOMBRE = process.env.GMAIL_FROM_NAME || 'Notificaciones MODISA';
 
-// MODIFICACIÓN SOLUCIÓN: Enviar correo dinámico utilizando cabecera From no-reply formal
+// MODIFICACIÓN SOLUCIÓN (Ciberseguridad): Helper de saneamiento HTML para evitar inyección en correos electrónicos
+function escapeHTMLCorreo(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// Enviar correo dinámico utilizando cabecera From no-reply formal
 async function enviarCorreoGmail({ to, subject, html }) {
   try {
     const destinatarioFinal = (to && typeof to === 'string' && to.includes('@')) ? to.trim() : CORREO_FALLBACK;
@@ -156,7 +167,7 @@ router.get('/', verificarToken, async (req, res) => {
   }
 });
 
-// MODIFICACIÓN SOLUCIÓN: Extracción segura del ID de sesión para resolver pantalla de carga en vista Gantt
+// Extracción segura del ID de sesión para resolver pantalla de carga en vista Gantt
 router.get('/gantt', verificarToken, async (req, res) => {
   try {
     const idEmpleadoBruto = req.usuario ? (req.usuario.id_employee || req.usuario.id || req.usuario.userId) : null;
@@ -237,7 +248,7 @@ router.get('/gantt', verificarToken, async (req, res) => {
   }
 });
 
-// MODIFICACIÓN SOLUCIÓN: Mantener restricción propia estricta en la vista estatus para no administradores
+// Mantener restricción propia estricta en la vista estatus para no administradores
 router.get('/estatus', verificarToken, async (req, res) => {
   try {
     const rolUsuario = req.usuario ? req.usuario.rol : '';
@@ -313,7 +324,7 @@ router.get('/estatus', verificarToken, async (req, res) => {
   }
 });
 
-// MODIFICACIÓN SOLUCIÓN (Ciberseguridad): Priorizar ID de sesión para prevenir ID Spoofing en solicitudes
+// Priorizar ID de sesión para prevenir ID Spoofing en solicitudes
 router.post('/', verificarToken, async (req, res) => {
   if (!req.usuario) {
     return res.status(401).json({
@@ -345,7 +356,7 @@ router.post('/', verificarToken, async (req, res) => {
     `, [idEmpleadoFinal]);
 
     const nombreEmpleadoCorreo = (empRows.length > 0 && empRows[0].nombre_completo.trim())
-      ? empRows[0].nombre_completo.trim()
+      ? escapeHTMLCorreo(empRows[0].nombre_completo.trim())
       : `Empleado ID #${idEmpleadoFinal}`;
 
     const correoJefe = (empRows.length > 0 && empRows[0].correo_jefe)
@@ -364,7 +375,7 @@ router.post('/', verificarToken, async (req, res) => {
       <div style="font-family: Arial, sans-serif; color: #1e293b; max-width: 600px; padding: 20px; border: 1px solid #cbd5e1; border-radius: 8px;">
         <h2 style="color: #2563eb; margin-top: 0;">Nueva Solicitud de Vacaciones</h2>
         <p style="font-size: 14px;">Buena tarde,</p>
-        <p style="font-size: 14px;"><strong>${nombreEmpleadoCorreo}</strong>, ha registrado una nueva solicitud del <strong>${fecha_inicio}</strong> al <strong>${fecha_fin}</strong> (${diasTomadosFinal} días hábiles).</p>
+        <p style="font-size: 14px;"><strong>${nombreEmpleadoCorreo}</strong>, ha registrado una nueva solicitud del <strong>${escapeHTMLCorreo(fecha_inicio)}</strong> al <strong>${escapeHTMLCorreo(fecha_fin)}</strong> (${diasTomadosFinal} días hábiles).</p>
         <p style="font-size: 14px;">Por favor ingresa al sistema para revisar y autorizar.</p>
       </div>
     `;
@@ -390,17 +401,29 @@ router.post('/', verificarToken, async (req, res) => {
   }
 });
 
+// MODIFICACIÓN SOLUCIÓN (Ciberseguridad & RBAC): Validación estricta de id_manager para 'jefe',
+// restricción exclusiva de Dirección Operativa para 'director' y rechazo de parámetros inválidos.
 router.patch('/:id/estado', verificarToken, async (req, res) => {
-  const idVacacion = req.params.id;
-  const { estado, observaciones, nivel } = req.body;
-
-  if (!estado) {
-    return res.status(400).json({ success: false, error: 'El estado es obligatorio.' });
+  const idVacacion = parseInt(req.params.id, 10);
+  if (!Number.isInteger(idVacacion) || idVacacion <= 0) {
+    return res.status(400).json({ success: false, error: 'ID de vacación inválido.' });
   }
 
-  const estadoLimpio = estado.toLowerCase().trim();
+  const { estado, observaciones, nivel } = req.body;
+
+  if (!estado || !nivel) {
+    return res.status(400).json({ success: false, error: 'El estado y el nivel de autorización son obligatorios.' });
+  }
+
+  const nivelLimpio = String(nivel).toLowerCase().trim();
+  if (nivelLimpio !== 'jefe' && nivelLimpio !== 'director') {
+    return res.status(400).json({ success: false, error: 'Nivel de autorización no válido.' });
+  }
+
+  const estadoLimpio = String(estado).toLowerCase().trim();
   const estadoParaBD = (estadoLimpio === 'autorizada' || estadoLimpio === 'aprobada') ? 'autorizada' : (estadoLimpio === 'rechazada' ? 'rechazada' : 'pendiente');
-  const comentarioFinal = (observaciones && observaciones.trim().length > 0) ? observaciones.trim() : 'Sin comentarios adicionales';
+  const comentarioFinal = (observaciones && String(observaciones).trim().length > 0) ? String(observaciones).trim() : 'Sin comentarios adicionales';
+  const comentarioCorreoSeguro = escapeHTMLCorreo(comentarioFinal);
 
   try {
     const [filas] = await pool.query(`
@@ -418,10 +441,8 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
 
     const vac = filas[0];
     const idUsuarioSesion = req.usuario ? (req.usuario.id_employee || req.usuario.id || req.usuario.userId) : null;
-    const rolUsuarioRaw = req.usuario ? (req.usuario.rol || req.usuario.role || '') : '';
+    const rolUsuarioRaw = req.usuario ? (req.usuario.rol || req.usuario.role || req.usuario.job_title || '') : '';
     const rolLimpio = rolUsuarioRaw.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-    const esAdminGlobal = ROLES_VISUALIZACION_GLOBAL.some(r => r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === rolLimpio);
 
     const [dirRows] = await pool.query(`
       SELECT email FROM employees 
@@ -433,28 +454,32 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
     let sqlUpdate = '';
     const params = [];
 
-    if (nivel === 'jefe') {
-      const esJefeDirecto = String(vac.id_manager) === String(idUsuarioSesion);
-      if (!esJefeDirecto && !esAdminGlobal) {
+    if (nivelLimpio === 'jefe') {
+      // Validación estricta: Únicamente el jefe inmediato asignado en employees.id_manager puede actualizar este nivel
+      const esJefeDirecto = (
+        idUsuarioSesion !== null &&
+        vac.id_manager !== null &&
+        vac.id_manager !== undefined &&
+        String(vac.id_manager) === String(idUsuarioSesion)
+      );
+      if (!esJefeDirecto) {
         return res.status(403).json({
           success: false,
-          error: '⛔ No tienes permisos para modificar el estado del Jefe Inmediato de este empleado.'
+          error: '⛔ Acceso denegado. Solo el Jefe Inmediato asignado a este colaborador puede modificar este estatus.'
         });
       }
       sqlUpdate = `UPDATE vacaciones SET estado_jefe = ?, observaciones_jefe = ? WHERE id_vacacion = ?`;
       params.push(estadoParaBD, comentarioFinal, idVacacion);
-    } else if (nivel === 'director') {
+    } else if (nivelLimpio === 'director') {
+      // Validación estricta: Únicamente Dirección Operativa / Dirección General puede actualizar este nivel
       const esDirector = ROLES_AUTORIZADORES.some(r => r.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === rolLimpio);
-      if (!esDirector && !esAdminGlobal) {
+      if (!esDirector) {
         return res.status(403).json({
           success: false,
-          error: '⛔ No tienes permisos de Dirección Operativa para autorizar este nivel.'
+          error: '⛔ Acceso denegado. Solo la Dirección Operativa puede modificar este nivel de autorización.'
         });
       }
       sqlUpdate = `UPDATE vacaciones SET estado_director = ?, observaciones_director = ? WHERE id_vacacion = ?`;
-      params.push(estadoParaBD, comentarioFinal, idVacacion);
-    } else {
-      sqlUpdate = `UPDATE vacaciones SET estado_jefe = ?, observaciones_jefe = ? WHERE id_vacacion = ?`;
       params.push(estadoParaBD, comentarioFinal, idVacacion);
     }
 
@@ -476,19 +501,19 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
     await pool.query('UPDATE vacaciones SET estado = ? WHERE id_vacacion = ?', [estadoGlobal, idVacacion]);
 
     const correoSolicitante = vac.correo_empleado || CORREO_FALLBACK;
-    const nombreEmpleado = vac.nombre_empleado || `Empleado ID #${vac.id_employee}`;
-    const fechaInicio = vac.fecha_inicio ? String(vac.fecha_inicio).split('T')[0] : '-';
-    const fechaFin = vac.fecha_fin ? String(vac.fecha_fin).split('T')[0] : '-';
+    const nombreEmpleado = escapeHTMLCorreo(vac.nombre_empleado || `Empleado ID #${vac.id_employee}`);
+    const fechaInicio = escapeHTMLCorreo(vac.fecha_inicio ? String(vac.fecha_inicio).split('T')[0] : '-');
+    const fechaFin = escapeHTMLCorreo(vac.fecha_fin ? String(vac.fecha_fin).split('T')[0] : '-');
 
-    if (nivel === 'jefe') {
+    if (nivelLimpio === 'jefe') {
       if (estadoParaBD === 'autorizada') {
         const htmlSolicitante = `
           <div style="font-family: Arial, sans-serif; padding: 24px; border: 1px solid #cbd5e1; border-radius: 12px; max-width: 550px;">
             <h2 style="color: #2563eb; margin-top: 0;">Actualización de Solicitud</h2>
             <p>Buena tarde,</p>
-            <p>Tu <strong>Jefe Inmediato</strong> ha <strong style="color: #16a34a;">AUTORIZADO</strong> tu solicitud del period vacacional (<strong>${fechaInicio}</strong> al <strong>${fechaFin}</strong>).</p>
+            <p>Tu <strong>Jefe Inmediato</strong> ha <strong style="color: #16a34a;">AUTORIZADO</strong> tu solicitud del periodo vacacional (<strong>${fechaInicio}</strong> al <strong>${fechaFin}</strong>).</p>
             <p>Tu solicitud se encuentra actualmente <strong>pendiente de autorización por la Dirección Operativa</strong>.</p>
-            <p style="font-size: 13px; color: #475569;">Observaciones de Jefatura: "${comentarioFinal}"</p>
+            <p style="font-size: 13px; color: #475569;">Observaciones de Jefatura: "${comentarioCorreoSeguro}"</p>
           </div>
         `;
         enviarCorreoGmail({ to: correoSolicitante, subject: 'Actualización de Solicitud - Autorización de Jefe Inmediato', html: htmlSolicitante }).catch(err => console.error(err));
@@ -499,7 +524,7 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
             <p>Buena tarde,</p>
             <p>El Jefe Inmediato de <strong>${nombreEmpleado}</strong> ha autorizado su solicitud de vacaciones (<strong>${fechaInicio}</strong> al <strong>${fechaFin}</strong>).</p>
             <p>Por favor ingresa al sistema para revisar y otorgar la autorización de Dirección.</p>
-            <p style="font-size: 13px; color: #475569;">Observaciones del Jefe: "${comentarioFinal}"</p>
+            <p style="font-size: 13px; color: #475569;">Observaciones del Jefe: "${comentarioCorreoSeguro}"</p>
           </div>
         `;
         enviarCorreoGmail({ to: correoDirectorOperativo, subject: 'Solicitud de Vacaciones Pendiente de Autorizar (Dirección Operativa)', html: htmlDirector }).catch(err => console.error(err));
@@ -511,13 +536,13 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
             <p>Buena tarde,</p>
             <p>Lamentamos informarte que tu solicitud de vacaciones (<strong>${fechaInicio}</strong> al <strong>${fechaFin}</strong>) ha sido <strong style="color: #dc2626;">RECHAZADA</strong> por tu Jefe Inmediato.</p>
             <p>Puedes ingresar al sistema para realizar una nueva solicitud atendiendo las observaciones.</p>
-            <p style="font-size: 13px; color: #475569;">Observaciones del Jefe: "${comentarioFinal}"</p>
+            <p style="font-size: 13px; color: #475569;">Observaciones del Jefe: "${comentarioCorreoSeguro}"</p>
           </div>
         `;
         enviarCorreoGmail({ to: correoSolicitante, subject: 'Actualización de Solicitud - Rechazada por Jefe Inmediato', html: htmlSolicitanteRechazo }).catch(err => console.error(err));
       }
 
-    } else if (nivel === 'director') {
+    } else if (nivelLimpio === 'director') {
       if (estadoParaBD === 'autorizada') {
         if (estadoGlobal === 'aprobada') {
           const htmlAprobadaTotal = `
@@ -526,7 +551,7 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
               <p>Buena tarde,</p>
               <p>Te informamos que tu solicitud de vacaciones del <strong>${fechaInicio}</strong> al <strong>${fechaFin}</strong> cuenta con la <strong style="color: #16a34a;">AUTORIZACIÓN FINAL COMPLETA</strong> (Jefe Inmediato y Dirección Operativa).</p>
               <p>El departamento de Administración procederá a la impresión del formato para firma de expediente.</p>
-              <p style="font-size: 13px; color: #475569;">Observaciones de Dirección: "${comentarioFinal}"</p>
+              <p style="font-size: 13px; color: #475569;">Observaciones de Dirección: "${comentarioCorreoSeguro}"</p>
             </div>
           `;
           enviarCorreoGmail({ to: correoSolicitante, subject: 'Actualización de Solicitud - Autorización Final Completa', html: htmlAprobadaTotal }).catch(err => console.error(err));
@@ -538,7 +563,7 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
             <p>Buena tarde,</p>
             <p>Te informamos que tu solicitud de vacaciones (<strong>${fechaInicio}</strong> al <strong>${fechaFin}</strong>) ha sido <strong style="color: #dc2626;">RECHAZADA</strong> por la Dirección Operativa.</p>
             <p>Puedes ingresar al sistema para coordinar y realizar una nueva solicitud atendiendo las observaciones.</p>
-            <p style="font-size: 13px; color: #475569;">Observaciones de Dirección: "${comentarioFinal}"</p>
+            <p style="font-size: 13px; color: #475569;">Observaciones de Dirección: "${comentarioCorreoSeguro}"</p>
           </div>
         `;
         enviarCorreoGmail({ to: correoSolicitante, subject: 'Actualización de Solicitud - Rechazada por Dirección Operativa', html: htmlDirectorRechazo }).catch(err => console.error(err));
@@ -557,8 +582,27 @@ router.patch('/:id/estado', verificarToken, async (req, res) => {
   }
 });
 
+// MODIFICACIÓN SOLUCIÓN (Ciberseguridad): Validación de entero en ID y restricción RBAC para subir expedientes PDF
 router.post('/:id/expediente', verificarToken, uploadMemory.single('expediente'), async (req, res) => {
-  const idVacacion = req.params.id;
+  const idVacacion = parseInt(req.params.id, 10);
+  if (!Number.isInteger(idVacacion) || idVacacion <= 0) {
+    return res.status(400).json({ success: false, error: 'ID de vacación inválido.' });
+  }
+
+  const rolUsuarioRaw = req.usuario ? (req.usuario.rol || req.usuario.role || req.usuario.job_title || '') : '';
+  const rolLimpio = rolUsuarioRaw.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  const puedeSubirExpediente = ROLES_VISUALIZACION_GLOBAL.some(r => {
+    const rLimpio = r.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return rLimpio === rolLimpio || (rolLimpio.includes('gerente') && rolLimpio.includes('administrac'));
+  });
+
+  if (!puedeSubirExpediente) {
+    return res.status(403).json({
+      success: false,
+      error: '⛔ No tienes permisos para subir expedientes firmados.'
+    });
+  }
 
   if (!req.file || req.file.mimetype !== 'application/pdf') {
     return res.status(400).json({ success: false, error: 'Debe seleccionar un archivo PDF válido.' });
@@ -575,7 +619,7 @@ router.post('/:id/expediente', verificarToken, uploadMemory.single('expediente')
   }
 });
 
-// MODIFICACIÓN SOLUCIÓN (Ciberseguridad & RBAC): Endpoint de eliminación atómica exclusivo para Director Operativo
+// Endpoint de eliminación atómica exclusivo para Director Operativo
 router.delete('/:id', verificarToken, async (req, res) => {
   try {
     const rolUsuarioRaw = req.usuario ? (req.usuario.rol || req.usuario.role || req.usuario.job_title || '') : '';

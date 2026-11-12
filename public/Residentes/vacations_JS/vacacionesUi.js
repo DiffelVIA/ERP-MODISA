@@ -9,7 +9,7 @@ function escapeHTML(str) {
     .replace(/'/g, '&#039;');
 }
 
-// MODIFICACIÓN SOLUCIÓN: Parseo robusto concatenando hora local T00:00:00 para evitar desfases UTC/Local
+// Parseo robusto concatenando hora local T00:00:00 para evitar desfases UTC/Local
 function calcularDiasHabilesEfectivos(inicio, fin) {
   if (!inicio || !fin) return 0;
   
@@ -40,10 +40,10 @@ function formatearFechaCorta(fStr) {
   return `${escapeHTML(partes[2])}/${escapeHTML(partes[1])}/${escapeHTML(partes[0])}`;
 }
 
-// MODIFICACIÓN SOLUCIÓN: Caché maestro por año para conservar totales globales aunque la vista esté filtrada
+// Caché maestro por año para conservar totales globales aunque la vista esté filtrada
 const cacheDatosCompletosPorAnio = {};
 
-// MODIFICACIÓN SOLUCIÓN: Portal de Tooltip flotante global en document.body para escapar del overflow del scroll
+// Portal de Tooltip flotante global en document.body para escapar del overflow del scroll
 function inicializarTooltipGlobalGantt() {
   let tooltipEl = document.getElementById('ganttTooltipFlotanteGlobal');
   if (!tooltipEl) {
@@ -69,7 +69,6 @@ function inicializarTooltipGlobalGantt() {
     const rectBarra = barra.getBoundingClientRect();
     const rectTooltip = tooltipEl.getBoundingClientRect();
 
-    // Calcular posición horizontal centrada sin salirse de los bordes de la ventana
     let left = rectBarra.left + (rectBarra.width / 2) - (rectTooltip.width / 2);
     const margenSeguridad = 12;
     if (left < margenSeguridad) left = margenSeguridad;
@@ -77,9 +76,8 @@ function inicializarTooltipGlobalGantt() {
       left = window.innerWidth - rectTooltip.width - margenSeguridad;
     }
 
-    // Decidir dinámicamente si sale arriba o abajo según espacio disponible respecto al encabezado
     const espacioArriba = rectBarra.top;
-    const umbralSuperior = 165; // Espacio ocupado por filtros y cabecera sticky
+    const umbralSuperior = 165;
 
     if (espacioArriba < umbralSuperior) {
       tooltipEl.style.top = `${rectBarra.bottom + 8}px`;
@@ -130,7 +128,6 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
   const cuerpo = document.getElementById('cuerpoTablaVacaciones');
   if (!cuerpo) return;
 
-  // Resguardar dataset maestro para que el Gantt conozca el acumulado real aunque se apliquen filtros
   if (Array.isArray(datosVacaciones) && datosVacaciones.length > 0) {
     datosVacaciones.forEach(v => {
       const fStr = String(v.fecha_inicio || '');
@@ -221,9 +218,15 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
       return 'background: #fef3c7; color: #b45309; border: 1px solid #fde68a;'; // Pendiente
     };
 
-    // Seguridad: Solo el jefe directo asignado (e.id_manager) o Admin puede interactuar con el select
-    const esJefeAsignado = String(item.id_manager) === String(idUsuarioSesion);
-    const puedeEditarJefe = esJefeAsignado || esGerenteAdmin;
+    // MODIFICACIÓN SOLUCIÓN: Solo el jefe directo asignado (id_manager === idUsuarioSesion) puede editar Jefe Inmediato.
+    // Gerente de Administración ya no tiene permiso global sobre esta columna, solo sobre sus subordinados directos.
+    const esJefeAsignado = (
+      idUsuarioSesion !== null &&
+      item.id_manager !== null &&
+      item.id_manager !== undefined &&
+      String(item.id_manager) === String(idUsuarioSesion)
+    );
+    const puedeEditarJefe = esJefeAsignado;
 
     let selectJefeHTML = '';
     if (puedeEditarJefe) {
@@ -234,10 +237,10 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
           <option value="rechazada" ${estadoJefe === 'rechazada' ? 'selected' : ''}>🔴 Rechazada</option>
         </select>`;
     } else {
-      selectJefeHTML = `<span style="padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; display: inline-block; ${obtenerEstiloEstado(estadoJefe)}">${estadoJefe.toUpperCase()}</span>`;
+      selectJefeHTML = `<span style="padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; display: inline-block; ${obtenerEstiloEstado(estadoJefe)}">${escapeHTML(estadoJefe.toUpperCase())}</span>`;
     }
 
-    // Solo Director Operativo o Admin pueden editar la columna de Dirección Operativa
+    // Solo Director Operativo puede editar la columna de Dirección Operativa
     let selectDirHTML = '';
     if (esDirectorOperativo) {
       selectDirHTML = `
@@ -247,10 +250,9 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
           <option value="rechazada" ${estadoDir === 'rechazada' ? 'selected' : ''}>🔴 Rechazada</option>
         </select>`;
     } else {
-      selectDirHTML = `<span style="padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; display: inline-block; ${obtenerEstiloEstado(estadoDir)}">${estadoDir.toUpperCase()}</span>`;
+      selectDirHTML = `<span style="padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; display: inline-block; ${obtenerEstiloEstado(estadoDir)}">${escapeHTML(estadoDir.toUpperCase())}</span>`;
     }
 
-    // MODIFICACIÓN SOLUCIÓN: Se añade rel="noopener noreferrer" por seguridad contra reverse tabnabbing
     let expedienteHTML = '<span style="color:#94a3b8; font-size:12px;">---</span>';
     if (item.documento_firmado_url) {
       expedienteHTML = `<a href="${escapeHTML(item.documento_firmado_url)}" target="_blank" rel="noopener noreferrer" style="padding:4px 8px; background:#eff6ff; color:#2563eb; border-radius:4px; font-weight:bold; font-size:11px; text-decoration:none;">📎 Ver Expediente</a>`;
@@ -303,7 +305,6 @@ export function renderizarVistaEstatus() {
   }
 }
 
-// MODIFICACIÓN SOLUCIÓN: Gantt con Portal Tooltip Global y sumatoria maestra independiente de filtros
 export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
   const { ocultarSaldos = false, idEmpleadoActual = null, datosCompletos = null } = opciones;
   const grid = document.getElementById('ganttGrid');
@@ -336,7 +337,6 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
     return;
   }
 
-  // Usar dataset completo (si viene en opciones o caché) para sumar TODAS las solicitudes aunque haya filtros activos
   const fuenteGlobal = Array.isArray(datosCompletos) && datosCompletos.length > 0
     ? datosCompletos
     : (cacheDatosCompletosPorAnio[String(anioActual)] || datos);
@@ -348,7 +348,6 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
     const fStr = String(item.fecha_inicio || '');
     if (!fStr.startsWith(String(anioActual))) return;
 
-    // Deduplicar por id_vacacion si existe
     if (item.id_vacacion !== undefined && item.id_vacacion !== null) {
       if (solicitudesContadas.has(item.id_vacacion)) return;
       solicitudesContadas.add(item.id_vacacion);
@@ -358,7 +357,6 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
     const estDir = String(item.estado_director || 'pendiente').toLowerCase();
     const estGlobal = String(item.estado || 'pendiente').toLowerCase();
 
-    // Excluir únicamente las explícitamente rechazadas; sumar autorizadas Y pendientes
     if (estJefe === 'rechazada' || estDir === 'rechazada' || estGlobal === 'rechazada') return;
 
     let dVal = 0;
@@ -448,8 +446,6 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
       const keyEmp = String(v.id_employee || v.nombre_empleado || v.empleado);
       const diasLeyGlobal = Number(v.dias_vacaciones_ley || v.dias_ley || 0);
       const totalTomadosComprometidos = mapaTotalComprometidoEmpleado[keyEmp] || diasTomadosGantt;
-      
-      // Días pendientes a gozar globales (Días Ley menos el acumulado de todas las solicitudes del periodo)
       const diasRestantesGlobales = Math.max(0, diasLeyGlobal - totalTomadosComprometidos);
 
       mapaCeldasAnual[idxInicio] = {
