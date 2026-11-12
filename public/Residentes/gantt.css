@@ -258,3 +258,41 @@
   outline: 2px solid #2563eb;
   outline-offset: 2px;
 }
+
+/* MODIFICACIÓN SOLUCIÓN: Portal de Tooltip Flotante Global independiente del scroll del Gantt */
+.gantt-tooltip-global {
+  visibility: hidden;
+  opacity: 0;
+  position: fixed;
+  background-color: #0f172a;
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.45);
+  z-index: 99999;
+  pointer-events: none;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+  line-height: 1.5;
+  border: 1px solid #334155;
+}
+
+.gantt-tooltip-global::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+}
+
+.gantt-tooltip-global.flecha-abajo::after {
+  top: 100%;
+  border-color: #0f172a transparent transparent transparent;
+}
+
+.gantt-tooltip-global.flecha-arriba::after {
+  bottom: 100%;
+  border-color: transparent transparent #0f172a transparent;
+}

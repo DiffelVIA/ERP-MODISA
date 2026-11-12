@@ -40,9 +40,106 @@ function formatearFechaCorta(fStr) {
   return `${escapeHTML(partes[2])}/${escapeHTML(partes[1])}/${escapeHTML(partes[0])}`;
 }
 
+// MODIFICACIÓN SOLUCIÓN: Caché maestro por año para conservar totales globales aunque la vista esté filtrada
+const cacheDatosCompletosPorAnio = {};
+
+// MODIFICACIÓN SOLUCIÓN: Portal de Tooltip flotante global en document.body para escapar del overflow del scroll
+function inicializarTooltipGlobalGantt() {
+  let tooltipEl = document.getElementById('ganttTooltipFlotanteGlobal');
+  if (!tooltipEl) {
+    tooltipEl = document.createElement('div');
+    tooltipEl.id = 'ganttTooltipFlotanteGlobal';
+    tooltipEl.className = 'gantt-tooltip-global';
+    tooltipEl.setAttribute('role', 'tooltip');
+    document.body.appendChild(tooltipEl);
+  }
+
+  if (document.body.dataset.ganttTooltipDelegado === 'true') return;
+  document.body.dataset.ganttTooltipDelegado = 'true';
+
+  const mostrarTooltip = (barra) => {
+    const htmlContenido = barra.getAttribute('data-tooltip-html');
+    if (!htmlContenido) return;
+
+    tooltipEl.innerHTML = htmlContenido;
+    tooltipEl.style.visibility = 'hidden';
+    tooltipEl.style.opacity = '0';
+    tooltipEl.style.display = 'block';
+
+    const rectBarra = barra.getBoundingClientRect();
+    const rectTooltip = tooltipEl.getBoundingClientRect();
+
+    // Calcular posición horizontal centrada sin salirse de los bordes de la ventana
+    let left = rectBarra.left + (rectBarra.width / 2) - (rectTooltip.width / 2);
+    const margenSeguridad = 12;
+    if (left < margenSeguridad) left = margenSeguridad;
+    if (left + rectTooltip.width > window.innerWidth - margenSeguridad) {
+      left = window.innerWidth - rectTooltip.width - margenSeguridad;
+    }
+
+    // Decidir dinámicamente si sale arriba o abajo según espacio disponible respecto al encabezado
+    const espacioArriba = rectBarra.top;
+    const umbralSuperior = 165; // Espacio ocupado por filtros y cabecera sticky
+
+    if (espacioArriba < umbralSuperior) {
+      tooltipEl.style.top = `${rectBarra.bottom + 8}px`;
+      tooltipEl.classList.remove('flecha-abajo');
+      tooltipEl.classList.add('flecha-arriba');
+    } else {
+      tooltipEl.style.top = `${rectBarra.top - rectTooltip.height - 8}px`;
+      tooltipEl.classList.remove('flecha-arriba');
+      tooltipEl.classList.add('flecha-abajo');
+    }
+
+    tooltipEl.style.left = `${left}px`;
+    tooltipEl.style.visibility = 'visible';
+    tooltipEl.style.opacity = '1';
+  };
+
+  const ocultarTooltip = () => {
+    tooltipEl.style.visibility = 'hidden';
+    tooltipEl.style.opacity = '0';
+  };
+
+  document.addEventListener('mouseover', (e) => {
+    const barra = e.target.closest('.gantt-barra[data-tooltip-html]');
+    if (barra) mostrarTooltip(barra);
+  });
+
+  document.addEventListener('mouseout', (e) => {
+    const barra = e.target.closest('.gantt-barra[data-tooltip-html]');
+    if (barra && !barra.contains(e.relatedTarget)) {
+      ocultarTooltip();
+    }
+  });
+
+  document.addEventListener('focusin', (e) => {
+    const barra = e.target.closest('.gantt-barra[data-tooltip-html]');
+    if (barra) mostrarTooltip(barra);
+  });
+
+  document.addEventListener('focusout', (e) => {
+    const barra = e.target.closest('.gantt-barra[data-tooltip-html]');
+    if (barra) ocultarTooltip();
+  });
+
+  window.addEventListener('scroll', ocultarTooltip, true);
+}
+
 export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
   const cuerpo = document.getElementById('cuerpoTablaVacaciones');
   if (!cuerpo) return;
+
+  // Resguardar dataset maestro para que el Gantt conozca el acumulado real aunque se apliquen filtros
+  if (Array.isArray(datosVacaciones) && datosVacaciones.length > 0) {
+    datosVacaciones.forEach(v => {
+      const fStr = String(v.fecha_inicio || '');
+      const anioReg = fStr.split('-')[0];
+      if (anioReg && anioReg.length === 4) {
+        cacheDatosCompletosPorAnio[anioReg] = datosVacaciones;
+      }
+    });
+  }
 
   if (lista.length === 0) {
     cuerpo.innerHTML = `<tr><td colspan="12" style="text-align:center; padding: 20px;">No hay registros de vacaciones con el filtro seleccionado.</td></tr>`;
@@ -153,9 +250,10 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
       selectDirHTML = `<span style="padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; display: inline-block; ${obtenerEstiloEstado(estadoDir)}">${estadoDir.toUpperCase()}</span>`;
     }
 
+    // MODIFICACIÓN SOLUCIÓN: Se añade rel="noopener noreferrer" por seguridad contra reverse tabnabbing
     let expedienteHTML = '<span style="color:#94a3b8; font-size:12px;">---</span>';
     if (item.documento_firmado_url) {
-      expedienteHTML = `<a href="${escapeHTML(item.documento_firmado_url)}" target="_blank" style="padding:4px 8px; background:#eff6ff; color:#2563eb; border-radius:4px; font-weight:bold; font-size:11px; text-decoration:none;">📎 Ver Expediente</a>`;
+      expedienteHTML = `<a href="${escapeHTML(item.documento_firmado_url)}" target="_blank" rel="noopener noreferrer" style="padding:4px 8px; background:#eff6ff; color:#2563eb; border-radius:4px; font-weight:bold; font-size:11px; text-decoration:none;">📎 Ver Expediente</a>`;
     } else if (totalmenteAutorizada) {
       if (esGerenteAdmin) {
         expedienteHTML = `
@@ -197,7 +295,7 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
   }).join('');
 }
 
-// MODIFICACIÓN SOLUCIÓN: Función neutra para mantener compatibilidad si es invocada dinámicamente
+// Función neutra para mantener compatibilidad si es invocada dinámicamente
 export function renderizarVistaEstatus() {
   const contenedor = document.getElementById('contenedorVistaEstatus');
   if (contenedor) {
@@ -205,11 +303,13 @@ export function renderizarVistaEstatus() {
   }
 }
 
-// MODIFICACIÓN SOLUCIÓN: Reconstrucción del Gantt con cálculo global acumulado en Tooltips y corrección de desborde visual
+// MODIFICACIÓN SOLUCIÓN: Gantt con Portal Tooltip Global y sumatoria maestra independiente de filtros
 export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
-  const { ocultarSaldos = false, idEmpleadoActual = null } = opciones;
+  const { ocultarSaldos = false, idEmpleadoActual = null, datosCompletos = null } = opciones;
   const grid = document.getElementById('ganttGrid');
   if (!grid) return;
+
+  inicializarTooltipGlobalGantt();
 
   const nombresMeses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const anioActual = parseInt(anio, 10) || new Date().getFullYear();
@@ -236,10 +336,43 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
     return;
   }
 
-  // MODIFICACIÓN SOLUCIÓN: Agrupar solicitudes y precalcular total acumulado de días por empleado (autorizadas Y pendientes)
-  const vacacionesPorEmpleado = {};
-  const mapaTotalComprometidoEmpleado = {};
+  // Usar dataset completo (si viene en opciones o caché) para sumar TODAS las solicitudes aunque haya filtros activos
+  const fuenteGlobal = Array.isArray(datosCompletos) && datosCompletos.length > 0
+    ? datosCompletos
+    : (cacheDatosCompletosPorAnio[String(anioActual)] || datos);
 
+  const mapaTotalComprometidoEmpleado = {};
+  const solicitudesContadas = new Set();
+
+  fuenteGlobal.forEach(item => {
+    const fStr = String(item.fecha_inicio || '');
+    if (!fStr.startsWith(String(anioActual))) return;
+
+    // Deduplicar por id_vacacion si existe
+    if (item.id_vacacion !== undefined && item.id_vacacion !== null) {
+      if (solicitudesContadas.has(item.id_vacacion)) return;
+      solicitudesContadas.add(item.id_vacacion);
+    }
+
+    const estJefe = String(item.estado_jefe || 'pendiente').toLowerCase();
+    const estDir = String(item.estado_director || 'pendiente').toLowerCase();
+    const estGlobal = String(item.estado || 'pendiente').toLowerCase();
+
+    // Excluir únicamente las explícitamente rechazadas; sumar autorizadas Y pendientes
+    if (estJefe === 'rechazada' || estDir === 'rechazada' || estGlobal === 'rechazada') return;
+
+    let dVal = 0;
+    if (item.dias_tomados !== undefined && item.dias_tomados !== null && Number(item.dias_tomados) > 0) {
+      dVal = Number(item.dias_tomados);
+    } else if (item.fecha_inicio && item.fecha_fin) {
+      dVal = calcularDiasHabilesEfectivos(item.fecha_inicio, item.fecha_fin);
+    }
+
+    const keyEmp = String(item.id_employee || item.nombre_empleado || item.empleado);
+    mapaTotalComprometidoEmpleado[keyEmp] = (mapaTotalComprometidoEmpleado[keyEmp] || 0) + Math.max(1, dVal);
+  });
+
+  const vacacionesPorEmpleado = {};
   datos.forEach(item => {
     const nombreBase = item.nombre_empleado || item.empleado || `Empleado ID #${item.id_employee}`;
     const esPropio = idEmpleadoActual !== null && Number(item.id_employee) === Number(idEmpleadoActual);
@@ -249,17 +382,6 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
       vacacionesPorEmpleado[empNombre] = [];
     }
     vacacionesPorEmpleado[empNombre].push(item);
-
-    // Sumar días de todas las solicitudes del periodo independientemente de su estado
-    let dVal = 0;
-    if (item.dias_tomados !== undefined && item.dias_tomados !== null && Number(item.dias_tomados) > 0) {
-      dVal = Number(item.dias_tomados);
-    } else if (item.fecha_inicio && item.fecha_fin) {
-      dVal = calcularDiasHabilesEfectivos(item.fecha_inicio, item.fecha_fin);
-    }
-    
-    const keyEmp = String(item.id_employee || empNombre);
-    mapaTotalComprometidoEmpleado[keyEmp] = (mapaTotalComprometidoEmpleado[keyEmp] || 0) + Math.max(1, dVal);
   });
 
   function fechaADiaAnual(fStr) {
@@ -283,7 +405,7 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
   let htmlFilasEmpleados = '';
   const listaEmpleadosClaves = Object.keys(vacacionesPorEmpleado).sort();
 
-  listaEmpleadosClaves.forEach((empNombre, filaIdx) => {
+  listaEmpleadosClaves.forEach((empNombre) => {
     const empNombreEscaped = escapeHTML(empNombre);
     htmlFilasEmpleados += `<div class="gantt-fila-emp"><div class="gantt-emp-nombre" title="${empNombreEscaped}">${empNombreEscaped}</div>`;
 
@@ -310,7 +432,6 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
       const estadoJefe = String(v.estado_jefe || 'pendiente').toLowerCase();
       const estadoDir = String(v.estado_director || 'pendiente').toLowerCase();
 
-      // Únicamente si AMBOS están autorizados se pinta verde en el Gantt
       const esAutorizada = (
         (estadoJefe === 'autorizada' || estadoJefe === 'aprobada') &&
         (estadoDir === 'autorizada' || estadoDir === 'aprobada')
@@ -324,11 +445,11 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
         diasTomadosGantt = Math.max(1, habiles);
       }
 
-      const keyEmp = String(v.id_employee || empNombre);
+      const keyEmp = String(v.id_employee || v.nombre_empleado || v.empleado);
       const diasLeyGlobal = Number(v.dias_vacaciones_ley || v.dias_ley || 0);
       const totalTomadosComprometidos = mapaTotalComprometidoEmpleado[keyEmp] || diasTomadosGantt;
       
-      // MODIFICACIÓN SOLUCIÓN: Días pendientes a gozar globales (Días Ley menos el acumulado de solicitudes del periodo)
+      // Días pendientes a gozar globales (Días Ley menos el acumulado de todas las solicitudes del periodo)
       const diasRestantesGlobales = Math.max(0, diasLeyGlobal - totalTomadosComprometidos);
 
       mapaCeldasAnual[idxInicio] = {
@@ -342,18 +463,6 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
         fechaFin: String(v.fecha_fin).split('T')[0]
       };
     });
-
-    const totalEmpleados = listaEmpleadosClaves.length;
-    let claseTooltipPosicion = '';
-
-    // MODIFICACIÓN SOLUCIÓN: Si solo hay 1 empleado en la lista, forzar 'tooltip-arriba' para evitar el desborde inferior
-    if (totalEmpleados === 1) {
-      claseTooltipPosicion = 'tooltip-arriba';
-    } else if (filaIdx === 0) {
-      claseTooltipPosicion = 'tooltip-abajo';
-    } else {
-      claseTooltipPosicion = 'tooltip-arriba';
-    }
 
     let d = 0;
     while (d < totalDiasAnio) {
@@ -374,15 +483,14 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
                 <span>🏖 Días Tomados: <strong>${info.totalTomadosComprometidos}</strong></span><br/>
                 <span>⏳ Días Pendientes: <strong>${info.diasRestantes}</strong></span>`;
 
-        const atributosAccesibilidad = `tabindex="0" role="img" aria-label="${escapeHTML(`${empNombre}: ${nombreEstado}, ${info.diasTomados} días hábiles, del ${info.fechaInicio} al ${info.fechaFin}`)}"`;
+        const tooltipEscapedAttr = escapeHTML(contenidoTooltip);
+        const atributosAccesibilidad = `tabindex="0" role="img" aria-label="${escapeHTML(`${empNombre}: ${nombreEstado}, ${info.diasTomados} días hábiles, del ${info.fechaInicio} al ${info.fechaFin}`)}" data-tooltip-html="${tooltipEscapedAttr}"`;
 
         htmlFilasEmpleados += `
           <div class="gantt-celda-dia" style="grid-column: span ${span};">
-            <div class="gantt-barra-container" style="position: relative; z-index: ${totalEmpleados === 1 ? '50' : '1'};">
+            <div class="gantt-barra-container">
               <div class="gantt-barra ${info.estado}" ${atributosAccesibilidad}>
                 ${info.diasTomados}d
-              </div>
-              <div class="gantt-tooltip ${claseTooltipPosicion}">${contenidoTooltip}
               </div>
             </div>
           </div>
@@ -397,6 +505,5 @@ export function renderizarGanttVacaciones(datos, anio, opciones = {}) {
     htmlFilasEmpleados += '</div>';
   });
 
-  // MODIFICACIÓN SOLUCIÓN: Inyección de padding-bottom de resguardo en la cuadrícula para evitar el corte visual de tooltips
-  grid.innerHTML = `<div class="gantt-wrapper-anual" style="--total-dias-anio: ${totalDiasAnio}; padding-bottom: 70px; margin-bottom: 20px;">` + htmlHeaderMeses + htmlHeaderDias + htmlFilasEmpleados + `</div>`;
+  grid.innerHTML = `<div class="gantt-wrapper-anual" style="--total-dias-anio: ${totalDiasAnio};">` + htmlHeaderMeses + htmlHeaderDias + htmlFilasEmpleados + `</div>`;
 }
