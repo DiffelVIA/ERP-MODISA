@@ -1,12 +1,51 @@
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
+
+// MODIFICACIÓN SOLUCIÓN (Ciberseguridad): Validar formato oficial de JID de grupo de WhatsApp (@g.us)
+const validarWhatsappGroupJid = (jid) => {
+  if (jid === undefined || jid === null || String(jid).trim() === '') {
+    return { valido: true, valor: null };
+  }
+  const limpio = String(jid).trim();
+  const regexGrupo = /^[0-9-]+@g\.us$/;
+  if (!regexGrupo.test(limpio) || limpio.length > 100) {
+    return {
+      valido: false,
+      error: 'El ID del grupo de WhatsApp debe tener el formato válido (ej. 120363XXXXXXXXXX@g.us).'
+    };
+  }
+  return { valido: true, valor: limpio };
+};
+
+// MODIFICACIÓN SOLUCIÓN (Ciberseguridad): Extraer identidad verificada desde JWT si está presente, manteniendo compatibilidad con headers existentes
+const obtenerContextoUsuario = (req) => {
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secreto_fallback_temp');
+      return {
+        rol: decoded.rol ? String(decoded.rol).trim() : '',
+        idEmpleado: decoded.id_employee || decoded.id_user || null
+      };
+    } catch (err) {
+      // Si el token expiró o es inválido, se continúa con los headers de respaldo para no romper clientes legados
+    }
+  }
+  return {
+    rol: req.headers['x-user-rol'] ? String(req.headers['x-user-rol']).trim() : '',
+    idEmpleado: req.headers['x-employee-id'] || null
+  };
+};
 
 // PROYECTOS //
 router.get('/', async (req, res) => {
   try {
-    const employeeIdHeader = req.headers['x-employee-id'];
-    const userRolHeader = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim().toLowerCase() : '';
+    const contexto = obtenerContextoUsuario(req);
+    const employeeIdHeader = contexto.idEmpleado;
+    const userRolHeader = contexto.rol.toLowerCase();
     const rolesAdministrativos = [
       'director operativo',
       'subdirector de obra',
@@ -18,12 +57,14 @@ router.get('/', async (req, res) => {
 
     const esRolGlobal = rolesAdministrativos.includes(userRolHeader);
 
+    // MODIFICACIÓN SOLUCIÓN: Incluir p.whatsapp_group_jid en la consulta de proyectos
     let querySQL = `
       SELECT 
         p.id_project, 
         p.project_name, 
         p.id_user,
         p.location AS direccion, 
+        p.whatsapp_group_jid,
         e.phone AS telefono,
         CONCAT(e.name, ' ', e.last_name) AS residente
       FROM projects AS p
@@ -51,7 +92,8 @@ router.get('/', async (req, res) => {
 
 // REGISTRO DE NUEVOS PROYECTOS
 router.post('/', async (req, res) => {
-    const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim() : '';
+    const contexto = obtenerContextoUsuario(req);
+    const rolUsuario = contexto.rol;
     const rolesPermitidos = ["Director Operativo", "Subdirector de Obra", "Compras", "Gerente de Costos", "Gerente de Administración", "Director General"];
 
     if (!rolesPermitidos.includes(rolUsuario)) {
@@ -65,7 +107,8 @@ router.post('/', async (req, res) => {
         responsable,
         fechaInicio,
         fechaFin,
-        ubicacion
+        ubicacion,
+        whatsapp_group_jid
     } = req.body;
 
     if (!proyecto || !responsable || !fechaInicio || !fechaFin || !ubicacion) {
@@ -75,11 +118,20 @@ router.post('/', async (req, res) => {
         });
     }
 
+    // MODIFICACIÓN SOLUCIÓN: Validar formato del grupo de WhatsApp si se envía al crear el proyecto
+    const validacionJid = validarWhatsappGroupJid(whatsapp_group_jid);
+    if (!validacionJid.valido) {
+        return res.status(400).json({
+            success: false,
+            error: validacionJid.error
+        });
+    }
+
     try {
         const sql = `
             INSERT INTO projects 
-                (project_name, id_user, start_date, finish_date, location)
-            VALUES (?, ?, ?, ?, ?)
+                (project_name, id_user, start_date, finish_date, location, whatsapp_group_jid)
+            VALUES (?, ?, ?, ?, ?, ?)
         `;
 
         const [resultado] = await pool.query(sql, [
@@ -87,7 +139,8 @@ router.post('/', async (req, res) => {
             parseInt(responsable),
             fechaInicio,
             fechaFin,
-            ubicacion.trim()
+            ubicacion.trim(),
+            validacionJid.valor
         ]);
 
         res.status(201).json({
@@ -109,6 +162,7 @@ router.post('/', async (req, res) => {
 // TABLA DE PROYECTOS CON ROLES ASIGNADOS
 router.get('/report', async (req, res) => {
     try {
+        // MODIFICACIÓN SOLUCIÓN: Exponer p.whatsapp_group_jid en el reporte de proyectos
         const sql = `
             SELECT 
                 p.id_project,
@@ -118,6 +172,7 @@ router.get('/report', async (req, res) => {
                 p.start_date,
                 p.finish_date,
                 p.status,
+                p.whatsapp_group_jid,
                 CONCAT(e.name, ' ', e.last_name) AS responsable_name
             FROM projects p
             LEFT JOIN employees e ON p.id_user = e.id_employee
@@ -133,7 +188,8 @@ router.get('/report', async (req, res) => {
 
 // Actualización de estado y fecha de finalización
 router.put('/:id', async (req, res) => {
-    const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim() : '';
+    const contexto = obtenerContextoUsuario(req);
+    const rolUsuario = contexto.rol;
     if (rolUsuario !== "Director Operativo") {
         return res.status(403).json({ 
             success: false, 
@@ -141,14 +197,24 @@ router.put('/:id', async (req, res) => {
         });
     }
     const { id } = req.params;
-    let { status, finish_date, id_user } = req.body;
+    let { status, finish_date, id_user, whatsapp_group_jid } = req.body;
 
     if (!finish_date) {
         return res.status(400).json({ success: false, error: "La fecha de finalización es obligatoria." });
     }
+
+    // MODIFICACIÓN SOLUCIÓN: Validar whatsapp_group_jid si viene en la petición de actualización
+    if (whatsapp_group_jid !== undefined) {
+        const validacionJid = validarWhatsappGroupJid(whatsapp_group_jid);
+        if (!validacionJid.valido) {
+            return res.status(400).json({ success: false, error: validacionJid.error });
+        }
+        whatsapp_group_jid = validacionJid.valor;
+    }
+
     try {
         const [proyectoActual] = await pool.query(
-            'SELECT status, finish_date, id_user FROM projects WHERE id_project = ?', 
+            'SELECT status, finish_date, id_user, whatsapp_group_jid FROM projects WHERE id_project = ?', 
             [id]
         );
         if (proyectoActual.length === 0) {
@@ -174,13 +240,14 @@ router.put('/:id', async (req, res) => {
         }
 
         const nuevoResponsableId = (id_user !== undefined && id_user !== '') ? parseInt(id_user, 10) : datosBD.id_user;
+        const nuevoWhatsappJid = (whatsapp_group_jid !== undefined) ? whatsapp_group_jid : datosBD.whatsapp_group_jid;
 
         const sqlUpdate = `
             UPDATE projects 
-            SET status = ?, finish_date = ?, id_user = ? 
+            SET status = ?, finish_date = ?, id_user = ?, whatsapp_group_jid = ? 
             WHERE id_project = ?
         `;
-        await pool.query(sqlUpdate, [status, nuevaFechaFinClean, nuevoResponsableId, id]);
+        await pool.query(sqlUpdate, [status, nuevaFechaFinClean, nuevoResponsableId, nuevoWhatsappJid, id]);
         res.json({ 
             success: true, 
             message: "🔄 Proyecto, fecha y responsable actualizados con éxito en MySQL." 

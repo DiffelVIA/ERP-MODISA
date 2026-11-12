@@ -190,7 +190,7 @@ const verificarYNotificarContratosSinFirma = async () => {
 
         console.log('🔍 Ejecutando revisión automática de contratos sin seguimiento (≥ 7 días)...');
 
-        // Consulta filtrada estrictamente por contratos con 7 o más días de registrados
+        // MODIFICACIÓN SOLUCIÓN: Incluir p.project_name para trazabilidad clara en consola por proyecto
         const sql = `
             SELECT 
                 c.id_contract,
@@ -199,6 +199,7 @@ const verificarYNotificarContratosSinFirma = async () => {
                 c.estado_costos,
                 c.status_direccion,
                 c.firma,
+                p.project_name,
                 p.whatsapp_group_jid,
                 DATEDIFF(NOW(), c.created_at) AS dias_transcurridos
             FROM contracts c
@@ -225,9 +226,10 @@ const verificarYNotificarContratosSinFirma = async () => {
         const gruposNotificación = new Map();
 
         for (const contrato of contratos) {
-            const targetJid = contrato.whatsapp_group_jid || process.env.WHATSAPP_GROUP_JID;
+            // MODIFICACIÓN SOLUCIÓN (Ciberseguridad / Aislamiento): Usar exclusivamente el JID del proyecto en BD para evitar enviar contratos de un proyecto al grupo de otro
+            const targetJid = contrato.whatsapp_group_jid ? String(contrato.whatsapp_group_jid).trim() : null;
             if (!targetJid) {
-                console.warn(`⚠️ No hay JID de grupo configurado para el contrato: ${contrato.contract_key}`);
+                console.warn(`⚠️ Contrato ${contrato.contract_key} omitido: el proyecto "${contrato.project_name || 'Sin Proyecto'}" aún no tiene whatsapp_group_jid configurado.`);
                 continue;
             }
 
