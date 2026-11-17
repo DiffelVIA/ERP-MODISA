@@ -2,9 +2,11 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 
-const { vereficarToken, verificarRol, verificarToken } = require('../middlewares/authMiddleware');
+// MODIFICACIÓN SOLUCIÓN: Limpieza de importación duplicada/typo manteniendo verificarToken
+const { verificarToken } = require('../middlewares/authMiddleware');
 
-router.get('/tabla_minutas', async (req, res) => {
+// MODIFICACIÓN SOLUCIÓN: Proteger consulta de minutas con verificarToken
+router.get('/tabla_minutas', verificarToken, async (req, res) => {
   try {
     const fechaActual = new Date();
     const anio = fechaActual.getFullYear();
@@ -12,7 +14,7 @@ router.get('/tabla_minutas', async (req, res) => {
     const dia = String(fechaActual.getDate()).padStart(2, '0');
     const hoyFormateado = `${anio}-${mes}-${dia}`;
 
-    // MODIFICACIÓN: Se permite que tareas 'aplazadas' cuya nueva fecha venció se marquen como 'atrasada'
+    // Se permite que tareas 'aplazadas' cuya nueva fecha venció se marquen como 'atrasada'
     await pool.query(`
       UPDATE minutas 
       SET estado = 'atrasada' 
@@ -43,16 +45,18 @@ router.get('/tabla_minutas', async (req, res) => {
   }
 });
 
-// MODIFICACIÓN: Middleware ABAC/RBAC flexible que permite la actualización a responsables asignados
+// MODIFICACIÓN SOLUCIÓN: Middleware ABAC/RBAC estricto usando solo datos verificados del JWT y validando todas las filas (.every)
 router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
   const usuarioSesion = req.usuario || {};
   const minutas = req.body;
   const listaMinutas = Array.isArray(minutas) ? minutas : [minutas];
 
-  const rolRaw = usuarioSesion.rol 
-    ? usuarioSesion.rol 
-    : (req.headers['x-user-rol'] ? req.headers['x-user-rol'] : '');
+  if (listaMinutas.length === 0) {
+    return res.status(400).json({ error: 'No se recibieron minutas para procesar.' });
+  }
 
+  // Priorizar exclusivamente el rol firmado en el JWT para evitar suplantación por headers
+  const rolRaw = usuarioSesion.rol || usuarioSesion.role || usuarioSesion.job_title || '';
   const rolLimpio = rolRaw.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
   // Roles administrativos o directivos con acceso global de escritura
@@ -63,28 +67,27 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
     return next();
   }
 
-  // Validación ABAC: Si no es director/residente, verificar si el usuario es el responsable asignado a la minuta
+  // Validación ABAC: Verificar que TODAS las minutas enviadas pertenezcan al responsable de la sesión
   const nombreUsuarioSesion = (
     usuarioSesion.nombre || 
     usuarioSesion.nombre_empleado || 
     usuarioSesion.name || 
     usuarioSesion.usuario || 
-    req.headers['x-usuario-nombre'] || 
     ''
   ).toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
   if (nombreUsuarioSesion !== '') {
-    const esResponsableDeAlguna = listaMinutas.some(item => {
+    const todasSonPropias = listaMinutas.every(item => {
       const respItem = (item.responsable || '').toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
       return respItem !== '' && (respItem.includes(nombreUsuarioSesion) || nombreUsuarioSesion.includes(respItem));
     });
 
-    if (esResponsableDeAlguna) {
+    if (todasSonPropias) {
       return next();
     }
   }
 
-  return res.status(403).json({ error: '⛔ Acceso denegado: No tienes permisos para actualizar esta minuta.'});
+  return res.status(403).json({ error: '⛔ Acceso denegado: Solo puedes actualizar las minutas asignadas a tu nombre.' });
 
 }, async (req, res) => {
   const minutas = req.body;
@@ -94,21 +97,29 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
     for (const item of listaMinutas) {
       
       const [registroPrevio] = await pool.query(
-        'SELECT fecha, semana, estado, comentarioDirector FROM minutas WHERE id = ?', 
+        'SELECT fecha, semana, estado, comentarioDirector, aviso_vencimiento_enviado, ultima_notificacion_wa FROM minutas WHERE id = ?', 
         [item.id]
       );
       
       let comentarioFinal = item.comentarioDirector || item.comentariodirector || '';
       let fechaDestino = item.fecha ? item.fecha.split('T')[0] : new Date().toISOString().split('T')[0];
       let semanaOriginal;
+      let avisoVencimientoEnviado = 0;
+      let ultimaNotificacionWa = null;
 
       if (registroPrevio.length > 0) {
         const datosOriginales = registroPrevio[0];
 
         semanaOriginal = datosOriginales.semana;
+        avisoVencimientoEnviado = datosOriginales.aviso_vencimiento_enviado || 0;
+        ultimaNotificacionWa = datosOriginales.ultima_notificacion_wa || null;
 
         if (item.estado !== 'aplazada') {
           fechaDestino = datosOriginales.fecha ? new Date(datosOriginales.fecha).toISOString().split('T')[0] : fechaDestino;
+        } else {
+          // MODIFICACIÓN SOLUCIÓN: Si se aplaza la actividad a una nueva fecha, reiniciar contadores de aviso WhatsApp
+          avisoVencimientoEnviado = 0;
+          ultimaNotificacionWa = null;
         }
 
         if (item.estado === 'completada' && datosOriginales.estado !== 'completada') {
@@ -145,8 +156,8 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
       }
 
       const querySQL = `
-        INSERT INTO minutas (id, proyecto, avance, responsable, semana, fecha, descripcion, estado, comentarioDirector)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO minutas (id, proyecto, avance, responsable, semana, fecha, descripcion, estado, comentarioDirector, aviso_vencimiento_enviado, ultima_notificacion_wa)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
           estado = ?,
           comentarioDirector = ?,
@@ -154,7 +165,9 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
           avance = ?,
           responsable = ?,
           fecha = ?, 
-          descripcion = ?;
+          descripcion = ?,
+          aviso_vencimiento_enviado = ?,
+          ultima_notificacion_wa = ?;
       `;
 
       const valoresControlados = [
@@ -167,13 +180,17 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
         item.descripcion, 
         item.estado, 
         comentarioFinal,
+        avisoVencimientoEnviado,
+        ultimaNotificacionWa,
         item.estado,
         comentarioFinal,
         item.proyecto,
         item.avance !== undefined && item.avance !== null ? Number(item.avance) : 0,
         item.responsable,
         fechaDestino,
-        item.descripcion
+        item.descripcion,
+        avisoVencimientoEnviado,
+        ultimaNotificacionWa
       ];
 
       await pool.query(querySQL, valoresControlados);
@@ -186,7 +203,8 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
   }
 });
 
-router.get('/notificaciones/minutas-resumen', async (req, res) => {
+// MODIFICACIÓN SOLUCIÓN: Proteger endpoint de resumen con verificarToken y usar identidad del JWT
+router.get('/notificaciones/minutas-resumen', verificarToken, async (req, res) => {
   try {
     const fechaActual = new Date();
     const anio = fechaActual.getFullYear();
@@ -194,20 +212,27 @@ router.get('/notificaciones/minutas-resumen', async (req, res) => {
     const dia = String(fechaActual.getDate()).padStart(2, '0');
     const hoyFormateado = `${anio}-${mes}-${dia}`;
 
-    // MODIFICACIÓN: Se unifica la regla para volver a marcar 'atrasada' una tarea aplazada con fecha vencida
+    // Se unifica la regla para volver a marcar 'atrasada' una tarea aplazada con fecha vencida
     await pool.query(`
       UPDATE minutas 
       SET estado = 'atrasada' 
       WHERE fecha < ? AND estado NOT IN ('completada', 'atrasada')
     `, [hoyFormateado]);
 
-    const responsableReq = req.headers['x-usuario-nombre'] ? req.headers['x-usuario-nombre'].trim() : '';
-    const rolUsuario = req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim().toLowerCase() : '';
+    const usuarioSesion = req.usuario || {};
+    const rolUsuario = (usuarioSesion.rol || usuarioSesion.role || usuarioSesion.job_title || '').toString().trim().toLowerCase();
+    const responsableReq = (
+      usuarioSesion.nombre || 
+      usuarioSesion.nombre_empleado || 
+      usuarioSesion.name || 
+      usuarioSesion.usuario || 
+      ''
+    ).toString().trim();
 
     let querySQL = '';
     let parametrosSQL = [];
 
-    if (rolUsuario === 'director operativo' || rolUsuario === 'director_operativo' || !responsableReq) {
+    if (rolUsuario === 'director operativo' || rolUsuario === 'director_operativo' || rolUsuario === 'director general' || !responsableReq) {
       querySQL = `
         SELECT 
           COUNT(CASE WHEN estado = 'atrasada' THEN 1 END) AS atrasadas,
