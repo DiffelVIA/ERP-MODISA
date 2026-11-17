@@ -1,6 +1,10 @@
 (() => {
+    function obtenerTokenActivo() {
+        return localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
+    }
+
     function obtenerRolDesdeJWT() {
-        const token = localStorage.getItem('jwtToken');
+        const token = obtenerTokenActivo();
         if (!token) return '';
         try {
             const base64Url = token.split('.')[1];
@@ -12,9 +16,19 @@
             const payload = JSON.parse(jsonPayload);
             return payload.rol || payload.role || payload.job_title || '';
         } catch (e) {
-            console.error("❌ Error al decodificar JWT en categorías:", e);
+            console.error("❌ Error al decodificar JWT en categorías:", e.message);
             return '';
         }
+    }
+
+    function escapeHTML(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
     const limpiarTexto = (texto) => {
@@ -39,14 +53,15 @@
     ];
 
     document.addEventListener("DOMContentLoaded", () => {
+        const tokenActivo = obtenerTokenActivo();
         const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-        const ROL_RAW = (usuarioToken && usuarioToken.rol) 
-            ? usuarioToken.rol 
-            : (obtenerRolDesdeJWT() || localStorage.getItem('userRol') || '');
+        const ROL_RAW = tokenActivo
+            ? ((usuarioToken && (usuarioToken.rol || usuarioToken.role || usuarioToken.job_title)) || obtenerRolDesdeJWT())
+            : '';
 
         const rolActualLimpio = limpiarTexto(ROL_RAW);
 
-        const tienePermiso = ROL_AUTORIZADO.some(rolPermitido => {
+        const tienePermiso = Boolean(tokenActivo) && ROL_AUTORIZADO.some(rolPermitido => {
             const permitidoLimpio = limpiarTexto(rolPermitido);
             return rolActualLimpio === permitidoLimpio || (rolActualLimpio.includes("gerente") && rolActualLimpio.includes("administrac"));
         });
@@ -54,7 +69,6 @@
         if (!rolActualLimpio || !tienePermiso) {
             const contenedorPrincipal = document.querySelector('.form_main');
             if (contenedorPrincipal) {
-                window.stop();
                 contenedorPrincipal.innerHTML = `
                   <div style="text-align: center; padding: 60px 20px; font-family: system-ui, sans-serif;">
                     <div style="font-size: 70px; margin-bottom: 15px;">🔒</div>
@@ -64,9 +78,9 @@
                     </p>
                   </div>
                 `;
-                neutralizarEntorno();
-                return;
             }
+            neutralizarEntorno();
+            return;
         }
 
         cargarProyectosDestino();
@@ -81,6 +95,7 @@
         configurarManejadoresInterfaz = () => {};
         configurarManejadorArchivo = () => {};
         configurarCalculosTotales = () => {};
+        configurarFiltrosCascadaDatalists = () => {};
     }
 
     const BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:3000' : 'https://erp-modisa.onrender.com';
@@ -91,8 +106,9 @@
 
     async function cargarProyectosDestino() {
         const select = document.getElementById("selectProyecto");
+        if (!select) return;
         try {
-            const token = localStorage.getItem('jwtToken') || '';
+            const token = obtenerTokenActivo();
             const res = await fetch(`${BASE_URL}/api/projects-report`, {
                 headers: {
                     "Authorization": token ? `Bearer ${token}` : ''
@@ -121,6 +137,8 @@
         const modSelectCategoria = document.getElementById("modSelectCategoria");
         const modSelectSubcategoria = document.getElementById("modSelectSubcategoria");
         const camposEdicion = document.getElementById("camposEdicion");
+
+        if (!selectProyecto || !selectAccion) return;
 
         selectProyecto.addEventListener("change", async () => {
             const idProject = selectProyecto.value;
@@ -200,7 +218,7 @@
             }
 
             idRegistroSeleccionado = idFila;
-            const filaEncontrada = listaCategoriasCache.find(c => c.id_project_category == idFila);
+            const filaEncontrada = listaCategoriasCache.find(c => String(c.id_project_category) === String(idFila));
             
             if (filaEncontrada) {
                 document.getElementById("editGrupo").value = filaEncontrada.grupo || "";
@@ -229,7 +247,13 @@
         const btnGuardar = document.querySelector('[data-accion="guardar"]');
         if (btnGuardar) {
             btnGuardar.addEventListener("click", async () => {
+                if (btnGuardar.disabled) return;
                 const idProject = selectProyecto.value;
+                if (!idProject) {
+                    alert("⚠️ Selecciona primero un proyecto.");
+                    return;
+                }
+
                 const grupo = document.getElementById("addGrupo").value.trim();
                 const categoria = document.getElementById("addCategoria").value.trim();
                 const subcategoria = document.getElementById("addSubcategoria").value.trim();
@@ -247,14 +271,17 @@
                     return;
                 }
 
+                const textoOriginal = btnGuardar.textContent;
+                btnGuardar.disabled = true;
+                btnGuardar.textContent = "Guardando...";
+
                 try {
-                    const token = localStorage.getItem('jwtToken') || '';
+                    const token = obtenerTokenActivo();
                     const res = await fetch(`${BASE_URL}/api/project-categories`, {
                         method: "POST",
                         headers: { 
                             "Content-Type": "application/json",
-                            "Authorization": token ? `Bearer ${token}` : '',
-                            "x-user-rol": localStorage.getItem('userRol') || '' 
+                            "Authorization": token ? `Bearer ${token}` : ''
                         },
                         body: JSON.stringify({ 
                             id_project: idProject, grupo, categoria, subcategoria, 
@@ -269,6 +296,9 @@
                     await cargarCategoriasProyecto(idProject);
                 } catch (err) {
                     alert(`❌ Error: ${err.message}`);
+                } finally {
+                    btnGuardar.disabled = false;
+                    btnGuardar.textContent = textoOriginal;
                 }
             });
         }
@@ -276,30 +306,35 @@
         const btnActualizar = document.querySelector('[data-accion="actualizar"]');
         if (btnActualizar) {
             btnActualizar.addEventListener("click", async () => {
-                if (!idRegistroSeleccionado) return;
+                if (!idRegistroSeleccionado || btnActualizar.disabled) return;
                 const grupo = document.getElementById("editGrupo").value.trim();
                 const categoria = document.getElementById("editCategoria").value.trim();
                 const subcategoria = document.getElementById("editSubcategoria").value.trim();
+                const esDeductiva = document.getElementById("editEsDeductiva")?.checked || false;
+                const factor = esDeductiva ? -1 : 1;
                 
-                const mano_obra = parseFloat(document.getElementById("editManoObra").value) || 0;
-                const materiales = parseFloat(document.getElementById("editMateriales").value) || 0;
-                const maquinaria_equipo = parseFloat(document.getElementById("editMaquinaria").value) || 0;
-                const contratos = parseFloat(document.getElementById("editContratos").value) || 0;
-                const total = parseFloat(document.getElementById("editTotal").value) || 0;
+                const mano_obra = (Math.abs(parseFloat(document.getElementById("editManoObra").value)) || 0) * factor;
+                const materiales = (Math.abs(parseFloat(document.getElementById("editMateriales").value)) || 0) * factor;
+                const maquinaria_equipo = (Math.abs(parseFloat(document.getElementById("editMaquinaria").value)) || 0) * factor;
+                const contratos = (Math.abs(parseFloat(document.getElementById("editContratos").value)) || 0) * factor;
+                const total = (Math.abs(parseFloat(document.getElementById("editTotal").value)) || 0) * factor;
 
                 if (!grupo || !categoria) {
                     alert("⚠️ El Grupo y la Categoría no pueden quedar vacíos.");
                     return;
                 }
 
+                const textoOriginal = btnActualizar.textContent;
+                btnActualizar.disabled = true;
+                btnActualizar.textContent = "Actualizando...";
+
                 try {
-                    const token = localStorage.getItem('jwtToken') || '';
+                    const token = obtenerTokenActivo();
                     const res = await fetch(`${BASE_URL}/api/project-categories/${idRegistroSeleccionado}`, {
                         method: "PUT",
                         headers: { 
                             "Content-Type": "application/json",
-                            "Authorization": token ? `Bearer ${token}` : '',
-                            "x-user-rol": localStorage.getItem('userRol') || ''
+                            "Authorization": token ? `Bearer ${token}` : ''
                         },
                         body: JSON.stringify({ 
                             grupo, categoria, subcategoria, 
@@ -315,6 +350,9 @@
                     poblarSelectGrupos();
                 } catch (err) {
                     alert(`❌ Error: ${err.message}`);
+                } finally {
+                    btnActualizar.disabled = false;
+                    btnActualizar.textContent = textoOriginal;
                 }
             });
         }
@@ -322,16 +360,19 @@
         const btnEliminar = document.querySelector('[data-accion="eliminar"]');
         if (btnEliminar) {
             btnEliminar.addEventListener("click", async () => {
-                if (!idRegistroSeleccionado) return;
+                if (!idRegistroSeleccionado || btnEliminar.disabled) return;
                 if (!confirm("⚠️ ¿Estás completamente seguro de eliminar esta línea de categoría y sus costos?")) return;
 
+                const textoOriginal = btnEliminar.textContent;
+                btnEliminar.disabled = true;
+                btnEliminar.textContent = "Eliminando...";
+
                 try {
-                    const token = localStorage.getItem('jwtToken') || '';
+                    const token = obtenerTokenActivo();
                     const res = await fetch(`${BASE_URL}/api/project-categories/${idRegistroSeleccionado}`, { 
                         method: "DELETE",
                         headers: { 
-                            "Authorization": token ? `Bearer ${token}` : '',
-                            "x-user-rol": localStorage.getItem('userRol') || '' 
+                            "Authorization": token ? `Bearer ${token}` : ''
                         }
                     });
                     const data = await res.json();
@@ -343,6 +384,9 @@
                     poblarSelectGrupos();
                 } catch (err) {
                     alert(`❌ Error: ${err.message}`);
+                } finally {
+                    btnEliminar.disabled = false;
+                    btnEliminar.textContent = textoOriginal;
                 }
             });
         }
@@ -386,7 +430,7 @@
 
     async function cargarCategoriasProyecto(idProject) {
         try {
-            const token = localStorage.getItem('jwtToken') || '';
+            const token = obtenerTokenActivo();
             const res = await fetch(`${BASE_URL}/api/project-categories/${idProject}`, {
                 headers: {
                     "Authorization": token ? `Bearer ${token}` : ''
@@ -412,9 +456,9 @@
         const catsUnicas = [...new Set(listaCategoriasCache.map(c => c.categoria).filter(Boolean))].sort();
         const subcatsUnicas = [...new Set(listaCategoriasCache.map(c => c.subcategoria).filter(Boolean))].sort();
 
-        dlGrupos.innerHTML = gruposUnicos.map(g => `<option value="${g}">`).join("");
-        dlCats.innerHTML = catsUnicas.map(c => `<option value="${c}">`).join("");
-        dlSubcats.innerHTML = subcatsUnicas.map(s => `<option value="${s}">`).join("");
+        dlGrupos.innerHTML = gruposUnicos.map(g => `<option value="${escapeHTML(g)}">`).join("");
+        dlCats.innerHTML = catsUnicas.map(c => `<option value="${escapeHTML(c)}">`).join("");
+        dlSubcats.innerHTML = subcatsUnicas.map(s => `<option value="${escapeHTML(s)}">`).join("");
     }
 
     function configurarFiltrosCascadaDatalists() {
@@ -437,7 +481,7 @@
             )].sort();
 
             if (dlCats) {
-                dlCats.innerHTML = catsFiltradas.map(c => `<option value="${c}">`).join("");
+                dlCats.innerHTML = catsFiltradas.map(c => `<option value="${escapeHTML(c)}">`).join("");
             }
         });
 
@@ -458,7 +502,7 @@
             )].sort();
 
             if (dlSubcats) {
-                dlSubcats.innerHTML = subcatsFiltradas.map(s => `<option value="${s}">`).join("");
+                dlSubcats.innerHTML = subcatsFiltradas.map(s => `<option value="${escapeHTML(s)}">`).join("");
             }
         });
     }
@@ -516,7 +560,15 @@
 
         fileInput.addEventListener("change", (e) => {
             if (e.target.files.length > 0) {
-                archivoSeleccionado = e.target.files[0];
+                const archivo = e.target.files[0];
+                if (!archivo.name.toLowerCase().endsWith('.csv')) {
+                    alert("⚠️ Por favor selecciona un archivo válido con extensión .csv");
+                    fileInput.value = '';
+                    archivoSeleccionado = null;
+                    dropZone.querySelector("span").textContent = "Arrastra tu archivo .csv aquí o haz clic para buscar";
+                    return;
+                }
+                archivoSeleccionado = archivo;
                 dropZone.querySelector("span").textContent = `Archivo cargado: ${archivoSeleccionado.name}`;
             }
         });
@@ -524,21 +576,33 @@
         form.addEventListener("submit", async (e) => {
             e.preventDefault();
             const idProject = document.getElementById("selectProyecto").value;
-            if (!archivoSeleccionado) return;
+            if (!idProject) {
+                alert("⚠️ Selecciona primero un proyecto antes de subir el archivo.");
+                return;
+            }
+            if (!archivoSeleccionado) {
+                alert("⚠️ Selecciona un archivo .csv para procesar.");
+                return;
+            }
+
+            const btnSubmit = form.querySelector('button[type="submit"]');
+            const textoOriginal = btnSubmit ? btnSubmit.textContent : '';
+            if (btnSubmit) {
+                if (btnSubmit.disabled) return;
+                btnSubmit.disabled = true;
+                btnSubmit.textContent = "Procesando...";
+            }
 
             const reader = new FileReader();
             reader.onload = async function (evt) {
                 const contenidoTexto = evt.target.result;
                 try {
-                    const token = localStorage.getItem('jwtToken') || '';
-                    const usuarioObj = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-                    const rolEnvio = (usuarioObj && usuarioObj.rol) ? usuarioObj.rol : (localStorage.getItem('userRol') || '');
+                    const token = obtenerTokenActivo();
                     const response = await fetch(`${BASE_URL}/api/upload-hierarchy`, {
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json',
-                            "Authorization": token ? `Bearer ${token}` : '',
-                            "x-user-rol": rolEnvio || ''
+                            "Authorization": token ? `Bearer ${token}` : ''
                         },
                         body: JSON.stringify({ id_project: idProject, csvData: contenidoTexto })
                     });
@@ -554,6 +618,18 @@
                     }
                 } catch (err) {
                     alert(`❌ Error en carga masiva: ${err.message}`);
+                } finally {
+                    if (btnSubmit) {
+                        btnSubmit.disabled = false;
+                        btnSubmit.textContent = textoOriginal;
+                    }
+                }
+            };
+            reader.onerror = function () {
+                alert("❌ No se pudo leer el archivo seleccionado.");
+                if (btnSubmit) {
+                    btnSubmit.disabled = false;
+                    btnSubmit.textContent = textoOriginal;
                 }
             };
             reader.readAsText(archivoSeleccionado, 'UTF-8');
