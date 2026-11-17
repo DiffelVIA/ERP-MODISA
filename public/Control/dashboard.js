@@ -5,8 +5,12 @@
         ? 'http://localhost:3000/api' 
         : 'https://erp-modisa.onrender.com/api';
 
+    function obtenerTokenActivo() {
+        return localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
+    }
+
     function obtenerRolDesdeJWT() {
-        const token = localStorage.getItem('jwtToken');
+        const token = obtenerTokenActivo();
         if (!token) return '';
         try {
             const base64Url = token.split('.')[1];
@@ -18,7 +22,7 @@
             const payload = JSON.parse(jsonPayload);
             return payload.rol || payload.role || payload.job_title || '';
         } catch (e) {
-            console.error("❌ Error al decodificar JWT en dashboard:", e);
+            console.error("❌ Error al decodificar JWT en dashboard:", e.message);
             return '';
         }
     }
@@ -47,32 +51,21 @@
             'Gerente de Costos'
         ];
 
-        let userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-        
-        if (!userToken) {
-            try {
-                const sesionStorageUsuario = sessionStorage.getItem('usuarioMODISA');
-                if (sesionStorageUsuario) {
-                    userToken = JSON.parse(sesionStorageUsuario);
-                }
-            } catch (e) {
-                console.error('Error al parsear usuarioMODISA en dashboard:', e);
-            }
-        }
-
-        const ROL_RAW = (userToken && userToken.rol) 
-            ? userToken.rol 
-            : (obtenerRolDesdeJWT() || localStorage.getItem('userRol') || '');
+        const tokenActivo = obtenerTokenActivo();
+        const userToken = (tokenActivo && window.obtenerUsuarioDesdeToken) ? window.obtenerUsuarioDesdeToken() : null;
+        const ROL_RAW = tokenActivo
+            ? ((userToken && (userToken.rol || userToken.role || userToken.job_title)) || obtenerRolDesdeJWT())
+            : '';
 
         const rolUsuarioLimpio = limpiarTexto(ROL_RAW);
 
-        const tienePermiso = ROLES_PERMITIDOS.some(rolPermitido => {
+        const tienePermiso = Boolean(tokenActivo) && ROLES_PERMITIDOS.some(rolPermitido => {
             const permitidoLimpio = limpiarTexto(rolPermitido);
             return rolUsuarioLimpio === permitidoLimpio || (rolUsuarioLimpio.includes("gerente") && rolUsuarioLimpio.includes("administrac"));
         });
 
         if (!rolUsuarioLimpio || !tienePermiso) {
-            const mainContent = document.querySelector('main') || document.querySelector('.dashboard-container') || document.body;
+            const mainContent = document.querySelector('main') || document.querySelector('.dashboard-container');
             if (mainContent) {
                 mainContent.innerHTML = `
                   <div style="text-align: center; padding: 60px 20px; font-family: sans-serif;">
@@ -83,13 +76,16 @@
                     </p>
                   </div>
                 `;
-                return;
             }
+            return;
         }
+
         let chartPresupuesto = null;
         let chartRubros = null;
+        let solicitudActualId = 0;
 
         const selectProyecto = document.getElementById('select-proyecto-dashboard');
+        if (!selectProyecto) return;
 
         cargarProyectos();
 
@@ -97,15 +93,17 @@
             const idProyecto = e.target.value;
             if (idProyecto) {
                 cargarDatosDashboard(idProyecto);
+            } else {
+                solicitudActualId++;
+                actualizarKPIs({});
+                renderizarGraficoDona([]);
+                renderizarGraficoBarras([]);
             }
         });
 
         async function cargarProyectos() {
             try {
-                const token = localStorage.getItem('jwtToken') || '';
-                const usuarioMODISA = JSON.parse(sessionStorage.getItem('usuarioMODISA')) || {};
-                const idEmployee = usuarioMODISA.id_employee || localStorage.getItem('id_employee') || '';
-
+                const token = obtenerTokenActivo();
                 const res = await fetch(`${API_URL}/proyectos`, {
                     headers: {
                         'Authorization': token ? `Bearer ${token}` : ''
@@ -119,16 +117,18 @@
                 const proyectos = await res.json();
 
                 selectProyecto.innerHTML = '<option value="">-- Selecciona un Proyecto --</option>';
-                proyectos.forEach(proj => {
-                    const opt = document.createElement('option');
-                    opt.value = proj.id_project;
-                    opt.textContent = proj.project_name;
-                    selectProyecto.appendChild(opt);
-                });
+                if (Array.isArray(proyectos)) {
+                    proyectos.forEach(proj => {
+                        const opt = document.createElement('option');
+                        opt.value = proj.id_project;
+                        opt.textContent = proj.project_name;
+                        selectProyecto.appendChild(opt);
+                    });
 
-                if (proyectos.length > 0) {
-                    selectProyecto.value = proyectos[0].id_project;
-                    cargarDatosDashboard(proyectos[0].id_project);
+                    if (proyectos.length > 0) {
+                        selectProyecto.value = proyectos[0].id_project;
+                        cargarDatosDashboard(proyectos[0].id_project);
+                    }
                 }
             } catch (err) {
                 console.error('Error al cargar proyectos:', err);
@@ -136,11 +136,12 @@
         }
 
         async function cargarDatosDashboard(idProyecto) {
+            const idEstaSolicitud = ++solicitudActualId;
             try {
-                const token = localStorage.getItem('jwtToken') || '';
-                const res = await fetch(`${API_URL}/dashboardBackend/metrics/${idProyecto}`, {
+                const token = obtenerTokenActivo();
+                const res = await fetch(`${API_URL}/dashboardBackend/metrics/${encodeURIComponent(idProyecto)}`, {
                     headers: {
-                        'Authorization': token ? `Bearer ${token}` : '',
+                        'Authorization': token ? `Bearer ${token}` : ''
                     }
                 });
                 
@@ -151,33 +152,45 @@
                 }
                 const data = await res.json();
 
-                actualizarKPIs(data.totales);
-                renderizarGraficoDona(data.rubros);
-                renderizarGraficoBarras(data.rubros);
+                if (idEstaSolicitud !== solicitudActualId) return;
+
+                actualizarKPIs(data && data.totales ? data.totales : {});
+                renderizarGraficoDona(data && Array.isArray(data.rubros) ? data.rubros : []);
+                renderizarGraficoBarras(data && Array.isArray(data.rubros) ? data.rubros : []);
             } catch (err) {
-                console.error('Error al cargar datos del dashboard:', err);
+                if (idEstaSolicitud === solicitudActualId) {
+                    console.error('Error al cargar datos del dashboard:', err);
+                }
             }
         }
 
-        function actualizarKPIs(totales) {
+        function actualizarKPIs(totales = {}) {
             const auth = parseFloat(totales.autorizado) || 0;
             const ejec = parseFloat(totales.ejecutado) || 0;
             const saldo = auth - ejec;
-            const pct = auth > 0 ? ((ejec / auth) * 100).toFixed(1) : 0;
+            const pct = auth > 0 ? ((ejec / auth) * 100).toFixed(1) : '0.0';
 
-            document.getElementById('kpi-autorizado').textContent = `$${auth.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
-            document.getElementById('kpi-ejecutado').textContent = `$${ejec.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
-            document.getElementById('kpi-porcentaje').textContent = `${pct}%`;
-            document.getElementById('kpi-saldo').textContent = `$${saldo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+            const elAutorizado = document.getElementById('kpi-autorizado');
+            const elEjecutado = document.getElementById('kpi-ejecutado');
+            const elPorcentaje = document.getElementById('kpi-porcentaje');
+            const elSaldo = document.getElementById('kpi-saldo');
+
+            if (elAutorizado) elAutorizado.textContent = `$${auth.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            if (elEjecutado) elEjecutado.textContent = `$${ejec.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            if (elPorcentaje) elPorcentaje.textContent = `${pct}%`;
+            if (elSaldo) elSaldo.textContent = `$${saldo.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
 
-        function renderizarGraficoDona(rubros) {
-            const ctx = document.getElementById('chartPresupuestoVsEjecutado').getContext('2d');
+        function renderizarGraficoDona(rubros = []) {
+            const canvas = document.getElementById('chartPresupuestoVsEjecutado');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
 
             if (chartPresupuesto) chartPresupuesto.destroy();
 
-            const totalAuth = rubros.reduce((acc, r) => acc + parseFloat(r.autorizado), 0);
-            const totalEjec = rubros.reduce((acc, r) => acc + parseFloat(r.ejecutado), 0);
+            const listaSegura = Array.isArray(rubros) ? rubros : [];
+            const totalAuth = listaSegura.reduce((acc, r) => acc + (parseFloat(r.autorizado) || 0), 0);
+            const totalEjec = listaSegura.reduce((acc, r) => acc + (parseFloat(r.ejecutado) || 0), 0);
             const porEjercer = Math.max(0, totalAuth - totalEjec);
 
             chartPresupuesto = new Chart(ctx, {
@@ -200,14 +213,17 @@
             });
         }
 
-        function renderizarGraficoBarras(rubros) {
-            const ctx = document.getElementById('chartRubros').getContext('2d');
+        function renderizarGraficoBarras(rubros = []) {
+            const canvas = document.getElementById('chartRubros');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
 
             if (chartRubros) chartRubros.destroy();
 
-            const etiquetas = rubros.map(r => r.nombre);
-            const datosAuth = rubros.map(r => parseFloat(r.autorizado));
-            const datosEjec = rubros.map(r => parseFloat(r.ejecutado));
+            const listaSegura = Array.isArray(rubros) ? rubros : [];
+            const etiquetas = listaSegura.map(r => r.nombre || 'Sin rubro');
+            const datosAuth = listaSegura.map(r => parseFloat(r.autorizado) || 0);
+            const datosEjec = listaSegura.map(r => parseFloat(r.ejecutado) || 0);
 
             chartRubros = new Chart(ctx, {
                 type: 'bar',
