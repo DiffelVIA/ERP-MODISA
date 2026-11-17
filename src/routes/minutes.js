@@ -176,7 +176,7 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
 
             if (comentarioFinal) {
               if (!comentarioFinal.includes(`con ${diasRetrasados} días retrasados`)) {
-                comentarioFinal = `${comentarioFinal} \vert{}${prefijoRetraso}`;
+                comentarioFinal = `${comentarioFinal} | ${prefijoRetraso}`;
               }
             } else {
               comentarioFinal = prefijoRetraso;
