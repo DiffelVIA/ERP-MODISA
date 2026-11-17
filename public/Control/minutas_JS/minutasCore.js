@@ -1,4 +1,3 @@
-// public/Residentes/minutas_JS/minutasCore.js
 import { 
   filtroOpciones, 
   renderizarTabla, 
@@ -24,6 +23,33 @@ let actividadesFiltradas = [];
 let listaEmpleados = [];
 let filtroProyecto, filtroEstado, filtroResponsable, filtroSemana, cuerpoTabla;
 let criterioOrden = 'proyecto';
+let interceptorNavegacionActivo = false;
+
+function obtenerTokenStorage() {
+  return localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
+}
+
+function obtenerSesionActual() {
+  if (window.obtenerUsuarioDesdeToken) {
+    const usuario = window.obtenerUsuarioDesdeToken();
+    if (usuario) return usuario;
+  }
+
+  const token = obtenerTokenStorage();
+  if (!token) return null;
+
+  try {
+    const base64Url = token.split('.')[1];
+    if (!base64Url) return null;
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
   cuerpoTabla = document.querySelector('.cuerpoTabla');
@@ -45,7 +71,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       e.target.classList.contains('chk-responsable') ||
       e.target.classList.contains('chk-semana')
     ) {
-      console.log(`Filtro cambiado: ${e.target.value} -> Estado actual: ${e.target.checked}`); 
       aplicarFiltros();
     }
   });
@@ -57,22 +82,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function ordenarDatos(lista) {
+  const compararFechasAsc = (a, b) => {
+    const fechaA = a.fecha ? new Date(a.fecha).getTime() : 0;
+    const fechaB = b.fecha ? new Date(b.fecha).getTime() : 0;
+    return (isNaN(fechaA) ? 0 : fechaA) - (isNaN(fechaB) ? 0 : fechaB);
+  };
+
   if (criterioOrden === 'proyecto') {
-    lista.sort((a, b) => a.proyecto.localeCompare(b.proyecto, 'es', { sensitivity: 'base' }));
+    lista.sort((a, b) => {
+      const compProyecto = a.proyecto.localeCompare(b.proyecto, 'es', { sensitivity: 'base' });
+      return compProyecto !== 0 ? compProyecto : compararFechasAsc(a, b);
+    });
   } else if (criterioOrden === 'alfabetico') {
-    lista.sort((a, b) => a.responsable.localeCompare(b.responsable, 'es', { sensitivity: 'base' }));
+    lista.sort((a, b) => {
+      const compResponsable = a.responsable.localeCompare(b.responsable, 'es', { sensitivity: 'base' });
+      return compResponsable !== 0 ? compResponsable : compararFechasAsc(a, b);
+    });
   } else if (criterioOrden === 'fecha') {
     lista.sort((a, b) => {
-      const fechaA = a.fecha ? new Date(a.fecha) : new Date(0);
-      const fechaB = b.fecha ? new Date(b.fecha) : new Date(0);
-      return fechaB - fechaA;
+      const fechaA = a.fecha ? new Date(a.fecha).getTime() : 0;
+      const fechaB = b.fecha ? new Date(b.fecha).getTime() : 0;
+      return (isNaN(fechaB) ? 0 : fechaB) - (isNaN(fechaA) ? 0 : fechaA);
     });
   }
 }
 
 async function cargarActividades() {
   try {
-    const token = localStorage.getItem('jwtToken') || '';
+    const token = obtenerTokenStorage();
     const respuesta = await fetch(`${API_URL}/tabla_minutas`, {
       headers: {
         'Authorization': token ? `Bearer ${token}` : ''
@@ -242,117 +279,106 @@ function asignarEventosInteractivos() {
 }
 
 function procesarFiltrosUrl() {
-  setTimeout(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const origenParam = urlParams.get('origen');
+  const urlParams = new URLSearchParams(window.location.search);
+  const origenParam = urlParams.get('origen');
 
-    const obtenerRolDesdeJWT = () => {
-      const token = localStorage.getItem('jwtToken') || '';
-      if (!token) return '';
-      
-      try {
-        const base64Url = token.split('.')[1];
-        if (!base64Url) return '';
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        const payload = JSON.parse(jsonPayload);
-        return (payload.rol || payload.role || '').toLowerCase();
-      } catch (e) {
-        return '';
+  const usuarioToken = obtenerSesionActual();
+  const rolUsuarioRaw = usuarioToken ? (usuarioToken.rol || usuarioToken.role || usuarioToken.job_title || '') : '';
+  const rolUsuario = rolUsuarioRaw.toString().trim().toLowerCase();
+
+  const esResidente = origenParam === 'residentes' || rolUsuario.includes('residente');
+  
+  if (esResidente && !interceptorNavegacionActivo) {
+    interceptorNavegacionActivo = true;
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('.cuerpoTabla')) return;
+
+      const objetivo = e.target.closest('a, button, .btn, div[onclick]');
+      if (!objetivo) return;
+
+      const texto = (objetivo.innerText || objetivo.textContent || '').toLowerCase();
+      const href = (objetivo.getAttribute('href') || '').toLowerCase();
+
+      if (
+        texto.includes('regresar') || 
+        texto.includes('volver') || 
+        texto.includes('panel') || 
+        href.includes('principal') || 
+        href.includes('control')
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.location.href = '../principal.html?panel=residentes';
       }
-    };
+    }, true);
+  }
+  
+  let estadoParam = urlParams.get('estado');
+  let responsableParam = urlParams.get('responsable');
 
-    const esResidente = origenParam === 'residentes' || obtenerRolDesdeJWT().includes('residente');
-    
-    if (esResidente) {
-      document.addEventListener('click', (e) => {
-        const objetivo = e.target.closest('a, button, .btn, div[onclick]');
-        if (!objetivo) return;
+  const esDirector = (rolUsuario === "director operativo" || rolUsuario === "director_operativo" || rolUsuario.includes("director"));
 
-        const texto = (objetivo.innerText || objetivo.textContent || '').toLowerCase();
-        const href = (objetivo.getAttribute('href') || '').toLowerCase();
+  if (!responsableParam && !esDirector && usuarioToken) {
+    responsableParam = (
+      usuarioToken.nombre || 
+      usuarioToken.nombre_empleado || 
+      usuarioToken.name || 
+      usuarioToken.usuario || 
+      ''
+    ).toString().trim();
+  }
 
-        if (
-          texto.includes('regresar') || 
-          texto.includes('volver') || 
-          texto.includes('panel') || 
-          href.includes('principal') || 
-          href.includes('control')
-        ) {
-          e.preventDefault();
-          e.stopPropagation();
-          window.location.href = '../principal.html?panel=residentes';
-        }
-      }, true);
-    }
-    
-    let estadoParam = urlParams.get('estado');
-    let responsableParam = urlParams.get('responsable');
+  let hayFiltrosUrl = false;
 
-    const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-    const rolUsuario = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
-    const esDirector = (rolUsuario.toLowerCase() === "director operativo" || rolUsuario.toLowerCase() === "director_operativo");
-
-    if (!responsableParam && !esDirector) {
-      try {
-        const rawSesion = sessionStorage.getItem('usuarioMODISA');
-        if (rawSesion && rawSesion.trim().startsWith('{')) {
-          const parsed = JSON.parse(rawSesion);
-          responsableParam = parsed.nombre || parsed.nombre_empleado || parsed.usuario || '';
-        } else if (rawSesion) {
-          responsableParam = rawSesion;
-        }
-      } catch (e) {
-        console.error("Error al leer sesión:", e);
-      }
-    }
-
-    let hayFiltrosUrl = false;
-
-    const normalizarTexto = (texto) => {
-      if (!texto) return '';
+  const normalizarTexto = (texto) => {
+    if (!texto) return '';
+    try {
       return decodeURIComponent(texto)
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase()
         .trim();
-    };
+    } catch (e) {
+      return String(texto)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+    }
+  };
 
-    if (estadoParam) {
-      const estadoLimpio = normalizarTexto(estadoParam);
-      const checkboxesEstado = document.querySelectorAll('.chk-estado');
-      checkboxesEstado.forEach(chk => {
-        if (normalizarTexto(chk.value) === estadoLimpio) {
+  if (estadoParam) {
+    const estadoLimpio = normalizarTexto(estadoParam);
+    const checkboxesEstado = document.querySelectorAll('.chk-estado');
+    checkboxesEstado.forEach(chk => {
+      if (normalizarTexto(chk.value) === estadoLimpio) {
+        chk.checked = true;
+        hayFiltrosUrl = true;
+      }
+    });
+  }
+
+  if (responsableParam) {
+    const respLimpio = normalizarTexto(responsableParam);
+    const checkboxesResp = document.querySelectorAll('.chk-responsable');
+
+    if (respLimpio !== '') {
+      checkboxesResp.forEach(chk => {
+        const valorChkLimpio = normalizarTexto(chk.value);
+        
+        if (
+          valorChkLimpio === respLimpio ||
+          valorChkLimpio.includes(respLimpio) ||
+          respLimpio.includes(valorChkLimpio)
+        ) {
           chk.checked = true;
           hayFiltrosUrl = true;
         }
       });
     }
+  }
 
-    if (responsableParam) {
-      const respLimpio = normalizarTexto(responsableParam);
-      const checkboxesResp = document.querySelectorAll('.chk-responsable');
-
-      if (respLimpio !== '') {
-        checkboxesResp.forEach(chk => {
-          const valorChkLimpio = normalizarTexto(chk.value);
-          
-          if (
-            valorChkLimpio === respLimpio ||
-            valorChkLimpio.includes(respLimpio) ||
-            respLimpio.includes(valorChkLimpio)
-          ) {
-            chk.checked = true;
-            hayFiltrosUrl = true;
-          }
-        });
-      }
-    }
-
-    if (hayFiltrosUrl) {
-      aplicarFiltros();
-    }
-  }, 50);
+  if (hayFiltrosUrl) {
+    aplicarFiltros();
+  }
 }
