@@ -3,7 +3,7 @@ const router = express.Router();
 const pool = require('../config/db');
 
 const { verificarToken } = require('../middlewares/authMiddleware');
-const { notificarNuevasMinutas } = require('../services/whatsapp');
+const { notificarNuevasMinutas, notificarMinutasAplazadas } = require('../services/whatsapp');
 
 router.get('/tabla_minutas', verificarToken, async (req, res) => {
   try {
@@ -87,6 +87,7 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
   const minutas = req.body;
   const listaMinutas = Array.isArray(minutas) ? minutas : [minutas];
   const minutasRecienCreadas = [];
+  const minutasAplazadas = [];
 
   try {
     for (const item of listaMinutas) {
@@ -101,20 +102,25 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
       let semanaOriginal;
       let avisoVencimientoEnviado = 0;
       let ultimaNotificacionWa = null;
+      let fueAplazadaAhora = false;
       const esRegistroNuevo = registroPrevio.length === 0;
 
       if (!esRegistroNuevo) {
         const datosOriginales = registroPrevio[0];
+        const fechaOriginalStr = datosOriginales.fecha ? new Date(datosOriginales.fecha).toISOString().split('T')[0] : fechaDestino;
 
         semanaOriginal = datosOriginales.semana;
         avisoVencimientoEnviado = datosOriginales.aviso_vencimiento_enviado || 0;
         ultimaNotificacionWa = datosOriginales.ultima_notificacion_wa || null;
 
         if (item.estado !== 'aplazada') {
-          fechaDestino = datosOriginales.fecha ? new Date(datosOriginales.fecha).toISOString().split('T')[0] : fechaDestino;
+          fechaDestino = fechaOriginalStr;
         } else {
           avisoVencimientoEnviado = 0;
           ultimaNotificacionWa = null;
+          if (datosOriginales.estado !== 'aplazada' || fechaDestino !== fechaOriginalStr) {
+            fueAplazadaAhora = true;
+          }
         }
 
         if (item.estado === 'completada' && datosOriginales.estado !== 'completada') {
@@ -199,12 +205,27 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
           descripcion: item.descripcion,
           comentarioDirector: comentarioFinal
         });
+      } else if (fueAplazadaAhora) {
+        minutasAplazadas.push({
+          id: item.id,
+          proyecto: item.proyecto,
+          responsable: item.responsable,
+          fecha: fechaDestino,
+          descripcion: item.descripcion,
+          comentarioDirector: comentarioFinal
+        });
       }
     }
 
     if (minutasRecienCreadas.length > 0) {
       notificarNuevasMinutas(minutasRecienCreadas).catch(err => {
-        console.error('❌ Error en notificación asíncrona de minutas:', err.message);
+        console.error('❌ Error en notificación asíncrona de minutas nuevas:', err.message);
+      });
+    }
+
+    if (minutasAplazadas.length > 0) {
+      notificarMinutasAplazadas(minutasAplazadas).catch(err => {
+        console.error('❌ Error en notificación asíncrona de minutas aplazadas:', err.message);
       });
     }
 
