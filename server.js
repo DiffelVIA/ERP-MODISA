@@ -7,12 +7,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// MODIFICACIÓN SOLUCIÓN: Importar también verificarYNotificarMinutasPendientes
-const {
-  iniciarWhatsApp,
-  verificarYNotificarContratosSinFirma,
-  verificarYNotificarMinutasPendientes
-} = require('./src/services/whatsapp');
+const { iniciarWhatsApp, verificarYNotificarContratosSinFirma } = require('./src/services/whatsapp');
 const authRouter = require('./src/routes/auth');
 const projectsRouter = require('./src/routes/projects');
 const categoriesRouter = require('./src/routes/categories');
@@ -62,58 +57,35 @@ app.listen(PORT, () => {
   const PROGRAMAR_MINUTO = 30;
   const ZONA_HORARIA = 'America/Mexico_City';
 
-  // MODIFICACIÓN SOLUCIÓN: Cálculo exacto de siguiente ejecución respetando zona horaria dinámica sin offset fijo
   const calcularTiempoSiguienteEjecucion = () => {
       const ahora = new Date();
-      const partes = new Intl.DateTimeFormat('en-US', {
-          timeZone: ZONA_HORARIA,
-          hour12: false,
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
-      }).formatToParts(ahora);
 
-      const mapa = {};
-      for (const p of partes) {
-          mapa[p.type] = parseInt(p.value, 10);
+      const opciones = { timeZone: ZONA_HORARIA, year: 'numeric', month: '2-digit', day: '2-digit' };
+      const partesFecha = new Intl.DateTimeFormat('en-US', opciones).formatToParts(ahora);
+      
+      let year, month, day;
+      for (const part of partesFecha) {
+          if (part.type === 'year') year = part.value;
+          if (part.type === 'month') month = part.value;
+          if (part.type === 'day') day = part.value;
       }
 
-      const horaActualMx = mapa.hour === 24 ? 0 : mapa.hour;
-      const ahoraMxEnMs = Date.UTC(mapa.year, mapa.month - 1, mapa.day, horaActualMx, mapa.minute, mapa.second);
-      let objetivoMxEnMs = Date.UTC(mapa.year, mapa.month - 1, mapa.day, PROGRAMAR_HORA, PROGRAMAR_MINUTO, 0);
+      let siguienteEjecucion = new Date(`${year}-${month}-${day}T${String(PROGRAMAR_HORA).padStart(2, '0')}:${String(PROGRAMAR_MINUTO).padStart(2, '0')}:00-06:00`);
 
-      if (ahoraMxEnMs >= objetivoMxEnMs) {
-          objetivoMxEnMs += 24 * 60 * 60 * 1000;
+      if (ahora >= siguienteEjecucion) {
+          siguienteEjecucion.setDate(siguienteEjecucion.getDate() + 1);
       }
 
-      return objetivoMxEnMs - ahoraMxEnMs;
-  };
-
-  // MODIFICACIÓN SOLUCIÓN: Ejecución secuencial de revisión de contratos y recordatorios de minutas
-  const ejecutarRevisionesDiarias = async () => {
-      try {
-          await verificarYNotificarContratosSinFirma();
-      } catch (err) {
-          console.error('❌ Error en tarea programada de contratos:', err.message);
-      }
-
-      try {
-          await verificarYNotificarMinutasPendientes();
-      } catch (err) {
-          console.error('❌ Error en tarea programada de minutas:', err.message);
-      }
+      return siguienteEjecucion.getTime() - ahora.getTime();
   };
 
   const iniciarCronDiario = () => {
       const msFaltantes = calcularTiempoSiguienteEjecucion();
-      console.log(`⏱️ Próxima verificación automática (contratos y minutas) programada en ${(msFaltantes / 1000 / 60 / 60).toFixed(2)} horas (8:30 AM hora México).`);
+      console.log(`⏱️ Próxima verificación de firmas programada en ${(msFaltantes / 1000 / 60 / 60).toFixed(2)} horas (8:30 AM hora México).`);
 
       setTimeout(() => {
-          ejecutarRevisionesDiarias();
-          setInterval(ejecutarRevisionesDiarias, 24 * 60 * 60 * 1000);
+          verificarYNotificarContratosSinFirma();
+          setInterval(verificarYNotificarContratosSinFirma, 24 * 60 * 60 * 1000);
       }, msFaltantes);
   };
 
