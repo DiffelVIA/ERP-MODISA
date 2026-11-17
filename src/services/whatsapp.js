@@ -72,9 +72,6 @@ const useMySQLAuthState = async (sessionId) => {
     };
 };
 
-// ==========================================
-// INICIO MODIFICACIÓN: MANEJO SEGURO DE CONEXIÓN, BACKOFF EXPONENCIAL IMPRESIÓN DE JIDS DE GRUPOS
-// ==========================================
 const iniciarWhatsApp = async () => {
     try {
         const sessionId = process.env.SESSION_ID || 'session_modisa_erp';
@@ -190,7 +187,6 @@ const verificarYNotificarContratosSinFirma = async () => {
 
         console.log('🔍 Ejecutando revisión automática de contratos sin seguimiento (≥ 7 días)...');
 
-        // MODIFICACIÓN SOLUCIÓN: Incluir p.project_name para trazabilidad clara en consola por proyecto
         const sql = `
             SELECT 
                 c.id_contract,
@@ -226,7 +222,6 @@ const verificarYNotificarContratosSinFirma = async () => {
         const gruposNotificación = new Map();
 
         for (const contrato of contratos) {
-            // MODIFICACIÓN SOLUCIÓN (Ciberseguridad / Aislamiento): Usar exclusivamente el JID del proyecto en BD para evitar enviar contratos de un proyecto al grupo de otro
             const targetJid = contrato.whatsapp_group_jid ? String(contrato.whatsapp_group_jid).trim() : null;
             if (!targetJid) {
                 console.warn(`⚠️ Contrato ${contrato.contract_key} omitido: el proyecto "${contrato.project_name || 'Sin Proyecto'}" aún no tiene whatsapp_group_jid configurado.`);

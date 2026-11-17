@@ -273,9 +273,37 @@ export function renderizarTabla(lista, datosVacaciones, obtenerDatosDesdeJWT) {
       expedienteHTML = `<span style="color:#94a3b8; font-size:11px; font-weight:600;">---</span>`;
     }
 
+    // MODIFICACIÓN SOLUCIÓN (UX & Seguridad): Mostrar tache discreto (✕) al inicio de la fila solo al empleado dueño mientras la solicitud esté pendiente
+    const esSolicitantePropio = (
+      idUsuarioSesion !== null &&
+      item.id_employee !== null &&
+      item.id_employee !== undefined &&
+      Number(item.id_employee) === Number(idUsuarioSesion)
+    );
+
+    const estadoGlobalItem = String(item.estado || 'pendiente').toLowerCase().trim();
+    const puedeEliminarFila = (
+      esSolicitantePropio &&
+      estadoGlobalItem === 'pendiente' &&
+      estadoJefe === 'pendiente' &&
+      estadoDir === 'pendiente' &&
+      !item.documento_firmado_url
+    );
+
+    const botonEliminarHTML = puedeEliminarFila
+      ? `<button 
+           type="button" 
+           onclick="window.eliminarRegistroVacacion(${idVacacion}, '${fechaInicio}', '${fechaFin}', this)" 
+           title="Eliminar mi solicitud (${fechaInicio} al ${fechaFin})" 
+           aria-label="Eliminar solicitud de vacaciones del ${fechaInicio} al ${fechaFin}"
+           onmouseover="this.style.color='#dc2626'; this.style.background='#fee2e2';"
+           onmouseout="this.style.color='#94a3b8'; this.style.background='transparent';"
+           style="display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; margin-right:6px; border:none; border-radius:50%; background:transparent; color:#94a3b8; font-size:12px; font-weight:bold; line-height:1; cursor:pointer; transition:all 0.15s ease; vertical-align:middle;">✕</button>`
+      : '';
+
     return `
       <tr data-id="${idVacacion}">
-        <td><strong>${empNombre}</strong></td>
+        <td><div style="display:flex; align-items:center;">${botonEliminarHTML}<strong>${empNombre}</strong></div></td>
         <td style="text-align: center;">${fechaSolicitud}</td>
         <td style="text-align: center; color: #2563eb; font-weight: bold;">${diasLey}</td>
         

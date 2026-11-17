@@ -651,37 +651,72 @@ router.post('/:id/expediente', verificarToken, uploadMemory.single('expediente')
 // Endpoint de eliminación atómica exclusivo para Director Operativo
 router.delete('/:id', verificarToken, async (req, res) => {
   try {
-    const rolUsuarioRaw = req.usuario ? (req.usuario.rol || req.usuario.role || req.usuario.job_title || '') : '';
-    const rolLimpio = rolUsuarioRaw.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const idEmpleadoBruto = req.usuario ? (req.usuario.id_employee || req.usuario.id || req.usuario.userId) : null;
+    const idEmpleadoToken = parseInt(idEmpleadoBruto, 10);
 
-    const esDirector = (
-      rolLimpio === 'director operativo' ||
-      rolLimpio === 'director_operativo' ||
-      rolLimpio === 'director general' ||
-      (rolLimpio.includes('director') && rolLimpio.includes('operativ'))
-    );
-
-    if (!esDirector) {
-      return res.status(403).json({
+    if (!Number.isInteger(idEmpleadoToken) || idEmpleadoToken <= 0) {
+      return res.status(401).json({
         success: false,
-        error: '⛔ Acción denegada. Solo la Dirección Operativa puede eliminar registros de vacaciones.'
+        error: '⛔ No se pudo verificar tu identidad de empleado en la sesión.'
       });
     }
 
     const idVacacion = parseInt(req.params.id, 10);
-    if (isNaN(idVacacion) || idVacacion <= 0) {
+    if (!Number.isInteger(idVacacion) || idVacacion <= 0) {
       return res.status(400).json({ success: false, error: 'ID de vacación inválido.' });
     }
 
-    const [result] = await pool.query('DELETE FROM vacaciones WHERE id_vacacion = ?', [idVacacion]);
+    // Consultar la solicitud para verificar propiedad y estado actual antes de borrar
+    const [filas] = await pool.query(
+      'SELECT id_vacacion, id_employee, estado, estado_jefe, estado_director, documento_firmado_url FROM vacaciones WHERE id_vacacion = ? LIMIT 1',
+      [idVacacion]
+    );
+
+    if (filas.length === 0) {
+      return res.status(404).json({ success: false, error: 'El registro de vacaciones no existe o ya fue eliminado.' });
+    }
+
+    const vacacion = filas[0];
+
+    // Ciberseguridad: Ningún otro empleado (ni jefes ni administradores) puede eliminar una solicitud ajena
+    if (Number(vacacion.id_employee) !== idEmpleadoToken) {
+      return res.status(403).json({
+        success: false,
+        error: '⛔ Acción denegada. Solo el empleado que registró esta solicitud puede eliminarla.'
+      });
+    }
+
+    // Integridad de datos: No permitir borrar solicitudes ya aprobadas/autorizadas o con expediente firmado
+    const estGlobal = String(vacacion.estado || 'pendiente').toLowerCase().trim();
+    const estJefe = String(vacacion.estado_jefe || 'pendiente').toLowerCase().trim();
+    const estDir = String(vacacion.estado_director || 'pendiente').toLowerCase().trim();
+
+    const yaFueProcesada = (
+      ['aprobada', 'autorizada'].includes(estGlobal) ||
+      ['aprobada', 'autorizada'].includes(estJefe) ||
+      ['aprobada', 'autorizada'].includes(estDir) ||
+      Boolean(vacacion.documento_firmado_url)
+    );
+
+    if (yaFueProcesada) {
+      return res.status(409).json({
+        success: false,
+        error: '🔒 No puedes eliminar esta solicitud porque ya cuenta con autorización o expediente archivado.'
+      });
+    }
+
+    const [result] = await pool.query(
+      'DELETE FROM vacaciones WHERE id_vacacion = ? AND id_employee = ?',
+      [idVacacion, idEmpleadoToken]
+    );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, error: 'El registro de vacaciones no existe o ya fue eliminado.' });
+      return res.status(404).json({ success: false, error: 'No se pudo eliminar el registro de vacaciones.' });
     }
 
     res.json({
       success: true,
-      message: '🗑️ Registro de vacación eliminado correctamente.'
+      message: '🗑️ Tu solicitud de vacaciones ha sido eliminada correctamente.'
     });
 
   } catch (error) {
