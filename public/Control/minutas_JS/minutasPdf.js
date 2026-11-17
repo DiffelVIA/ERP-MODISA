@@ -1,26 +1,38 @@
-// public/Residentes/minutas_JS/minutasPdf.js
 import { formatearFechaHTML } from './minutasUi.js';
 
 export function MinutasPDF(actividadesFiltradas) {
-  if (actividadesFiltradas.length === 0) {
+  const token = localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
+  if (!token) {
+    alert('Tu sesión ha expirado. Inicia sesión nuevamente para descargar el reporte.');
+    return;
+  }
+
+  if (!Array.isArray(actividadesFiltradas) || actividadesFiltradas.length === 0) {
     alert('No hay actividades para generar el PDF. Aplica filtros que muestren actividades o elimina los filtros.');
     return;
   }
 
   let doc;
-  try {
-    const { jsPDF } = window.jspdf;
-    doc = new jsPDF('p','pt','a4');
-  } catch (e) {
-    try {
-      doc = new window.jsPDF('p','pt','a4');
-    } catch(e2) {
-      doc = new jspdf.jsPDF('p','pt','a4');
-    }
+  if (window.jspdf && typeof window.jspdf.jsPDF === 'function') {
+    doc = new window.jspdf.jsPDF('p', 'pt', 'a4');
+  } else if (typeof window.jsPDF === 'function') {
+    doc = new window.jsPDF('p', 'pt', 'a4');
+  } else {
+    alert('No se pudo inicializar el generador de PDF. Recarga la página e inténtalo de nuevo.');
+    return;
   }
 
   const margenIzquierdo = 40;
+  const anchoUtil = 510;
+  const limiteInferior = 780;
   let y = 50;
+
+  const verificarSaltoPagina = (alturaRequerida) => {
+    if (y + alturaRequerida > limiteInferior) {
+      doc.addPage();
+      y = 55;
+    }
+  };
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(26);
@@ -31,84 +43,111 @@ export function MinutasPDF(actividadesFiltradas) {
 
   const obtenerValoresCheckboxes = (selector) => {
     return Array.from(document.querySelectorAll(selector))
-                .filter(chk => chk.checked)
-                .map(chk => chk.value);
+      .filter(chk => chk.checked)
+      .map(chk => chk.value);
   };
 
   const proyectosSeleccionados = obtenerValoresCheckboxes('.chk-proyecto');
   const semanasSeleccionadas = obtenerValoresCheckboxes('.chk-semana');
+  const estadosSeleccionados = obtenerValoresCheckboxes('.chk-estado');
+  const responsablesSeleccionados = obtenerValoresCheckboxes('.chk-responsable');
 
   const proyFormateado = proyectosSeleccionados.length === 0 ? "Todos" : proyectosSeleccionados.join(', ');
   const semFormateada = semanasSeleccionadas.length === 0 ? "Todas" : semanasSeleccionadas.map(s => `Semana ${s}`).join(', ');
-  
-  const textoFiltros = `Filtros aplicados - Proyecto: ${proyFormateado} | ${semFormateada}`;
+
+  const partesFiltros = [
+    `Proyecto: ${proyFormateado}`,
+    semFormateada
+  ];
+
+  if (estadosSeleccionados.length > 0) {
+    partesFiltros.push(`Estado: ${estadosSeleccionados.join(', ')}`);
+  }
+
+  if (responsablesSeleccionados.length > 0) {
+    partesFiltros.push(`Responsable: ${responsablesSeleccionados.join(', ')}`);
+  }
+
+  const textoFiltros = `Filtros aplicados - ${partesFiltros.join(' | ')}`;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
   doc.setTextColor(71, 85, 105);
-  doc.text(textoFiltros, margenIzquierdo, y);
 
-  y += 15;
+  const lineasFiltros = doc.splitTextToSize(textoFiltros, anchoUtil);
+  doc.text(lineasFiltros, margenIzquierdo, y);
+  y += (lineasFiltros.length * 14) + 6;
 
-  doc.setDrawColor(226,232,240);
+  doc.setDrawColor(226, 232, 240);
   doc.setLineWidth(1.5);
   doc.line(margenIzquierdo, y, 550, y);
 
-  y += 35;
+  y += 30;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.setTextColor(30,41,59);
+  doc.setTextColor(30, 41, 59);
   doc.text("Resumen de Actividades Asignadas", margenIzquierdo, y);
 
-  y+= 25;
+  y += 25;
 
   actividadesFiltradas.forEach((actividad, indice) => {
-    if (y > 720) {
-      doc.addPage();
-      y = 60;
+    const fechaLimpia = actividad.fecha ? String(actividad.fecha).split('T')[0] : '';
+    const fechaFormateada = formatearFechaHTML(fechaLimpia);
+    const textoEstatus = actividad.estado ? String(actividad.estado).toUpperCase() : 'PENDIENTE';
+    const metadatos = `Proyecto: ${actividad.proyecto || 'Sin proyecto'} | Responsable: ${actividad.responsable || 'Sin responsable'} | Límite: ${fechaFormateada} | Estado: ${textoEstatus}`;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    const metadatosLineas = doc.splitTextToSize(metadatos, 445);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const descTexto = String(actividad.descripcion || 'Sin descripción');
+    const descLineas = doc.splitTextToSize(`Descripción: ${descTexto}`, anchoUtil);
+
+    const tieneComentario = Boolean(actividad.comentarioDirector && String(actividad.comentarioDirector).trim() !== "");
+    let comentarioLineas = [];
+    if (tieneComentario) {
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(9.5);
+      comentarioLineas = doc.splitTextToSize(`Comentario: ${String(actividad.comentarioDirector)}`, anchoUtil);
     }
+
+    const alturaBloque = (metadatosLineas.length * 13) + 6 + (descLineas.length * 13) + (tieneComentario ? (comentarioLineas.length * 13) : 0) + 40;
+    verificarSaltoPagina(Math.min(alturaBloque, 140));
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.setTextColor(30,41,59);
+    doc.setTextColor(30, 41, 59);
     doc.text(`Actividad ${indice + 1}:`, margenIzquierdo, y);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9.5);
     doc.setTextColor(71, 85, 105);
+    doc.text(metadatosLineas, margenIzquierdo + 65, y);
 
-    const fechaLimpia = actividad.fecha ? actividad.fecha.split('T')[0] : '';
-    const fechaFormateada = formatearFechaHTML(fechaLimpia);
-    const textoEstatus = actividad.estado ? actividad.estado.toUpperCase() : 'PENDIENTE';
+    y += (metadatosLineas.length * 13) + 4;
 
-    const metadatos = `Proyecto: ${actividad.proyecto} | Responsable: ${actividad.responsable} | Límite: ${fechaFormateada} | Estado: ${textoEstatus}`;
-    doc.text(metadatos, margenIzquierdo + 65, y);
-
-    y += 16;
-
+    verificarSaltoPagina((descLineas.length * 13) + 10);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.setTextColor(100, 116, 139);
-
-    const descTexto = String(actividad.descripcion || 'Sin descripción');
-    const descLineas = doc.splitTextToSize(`Descripción: ${descTexto}`, 510);
     doc.text(descLineas, margenIzquierdo, y);
     y += (descLineas.length * 13);
 
-    if (actividad.comentarioDirector && actividad.comentarioDirector.trim() !== "") {
+    if (tieneComentario) {
+      verificarSaltoPagina((comentarioLineas.length * 13) + 10);
       doc.setFont("helvetica", "italic");
       doc.setFontSize(9.5);
       doc.setTextColor(2, 132, 199);
-
-      const comentarioTexto = String(actividad.comentarioDirector);
-      const comentarioLineas = doc.splitTextToSize(`Comentario: ${comentarioTexto}`, 510);
       doc.text(comentarioLineas, margenIzquierdo, y);
       y += (comentarioLineas.length * 13);
     }
 
     y += 12;
 
-    doc.setDrawColor(241,245,249);
+    verificarSaltoPagina(20);
+    doc.setDrawColor(241, 245, 249);
     doc.setLineWidth(1);
     doc.line(margenIzquierdo, y, 550, y);
 
@@ -116,15 +155,13 @@ export function MinutasPDF(actividadesFiltradas) {
   });
 
   const nombreProyectoBase = proyectosSeleccionados.length === 0 ? 'General' : proyectosSeleccionados.join('_');
-  
+
   const nombreProyectoLimpio = nombreProyectoBase
-    .replace(/á/g, 'a')
-    .replace(/é/g, 'e')
-    .replace(/í/g, 'i')
-    .replace(/ó/g, 'o')
-    .replace(/ú/g, 'u')
-    .replace(/ñ/g, 'n')
-    .replace(/\s+/g, '_');
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, '_')
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .slice(0, 60) || 'General';
 
   const nombreArchivo = `Reporte_Minutas_${nombreProyectoLimpio}.pdf`;
   doc.save(nombreArchivo);
