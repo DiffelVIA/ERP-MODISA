@@ -1,23 +1,59 @@
 const enviosEnCurso = new Map();
 
+function obtenerTokenActivo() {
+  return localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
+}
+
+function obtenerRolDesdeToken(token) {
+  if (window.obtenerUsuarioDesdeToken) {
+    const usuario = window.obtenerUsuarioDesdeToken();
+    if (usuario && (usuario.rol || usuario.role || usuario.job_title)) {
+      return String(usuario.rol || usuario.role || usuario.job_title).toLowerCase().trim();
+    }
+  }
+
+  if (!token) return '';
+
+  try {
+    const base64Url = token.split('.')[1];
+    if (!base64Url) return '';
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    const payload = JSON.parse(jsonPayload);
+    return String(payload.rol || payload.role || payload.job_title || '').toLowerCase().trim();
+  } catch (e) {
+    return '';
+  }
+}
+
 export async function cargarCatalogoEmpleados(API_URL) {
   try {
-    const token = localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
+    const token = obtenerTokenActivo();
+    if (!token) return [];
+
+    const rolActual = obtenerRolDesdeToken(token)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+    if (!rolActual.includes('director') && !rolActual.includes('auxiliar')) {
+      return [];
+    }
 
     const respuesta = await fetch(`${API_URL}/empleados/gestion`, {
       headers: {
-        'Authorization': token ? `Bearer ${token}` : ''
+        'Authorization': `Bearer ${token}`
       }
     });
 
     if (respuesta.ok) {
       return await respuesta.json();
-    } else {
-      console.warn('⚠️ No se pudo obtener la lista de empleados para el selector de minutas.');
-      return [];
     }
+
+    return [];
   } catch (error) {
-    console.error('❌ Error crítico al cargar empleados en minutas:', error);
+    console.error('❌ Error al cargar empleados en minutas:', error.message);
     return [];
   }
 }
@@ -28,15 +64,25 @@ export async function guardarEnNubeUrgente(API_URL, actividadActualizada, concen
   if (enviosEnCurso.has(idClave)) {
     try {
       await enviosEnCurso.get(idClave);
-    } catch (_) {
+    } catch (e) {
+      void e;
     }
   }
 
   const promesaGuardado = (async () => {
+    const indice = Array.isArray(concentradoMinutas)
+      ? concentradoMinutas.findIndex(item => String(item.id) === idClave)
+      : -1;
+    const respaldoActividad = indice !== -1 ? { ...concentradoMinutas[indice] } : null;
+
     try {
+      const token = obtenerTokenActivo();
+      if (!token) {
+        throw new Error('Tu sesión ha expirado. Inicia sesión nuevamente.');
+      }
+
       const url = `${API_URL}/tabla_minutas`;
 
-      const indice = concentradoMinutas.findIndex(item => String(item.id) === idClave);
       if (indice !== -1) {
         concentradoMinutas[indice] = { ...actividadActualizada };
       }
@@ -55,40 +101,50 @@ export async function guardarEnNubeUrgente(API_URL, actividadActualizada, concen
         fecha: fechaLimpia,
         descripcion: actividadActualizada.descripcion,
         estado: actividadActualizada.estado,
-        comentariodirector: actividadActualizada.comentarioDirector || ''
+        comentarioDirector: actividadActualizada.comentarioDirector || ''
       };
 
       const payloadParaBackend = [objetoFormateado];
 
-      const token = localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
       const respuesta = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(payloadParaBackend)
       });
 
       if (!respuesta.ok) {
-        let mensajeServidor = 'Error al actualizar datos en el servidor';
+        let mensajeServidor = 'No se pudieron guardar los cambios en la nube.';
         try {
           const errData = await respuesta.json();
           if (errData && (errData.detalle || errData.error)) {
             mensajeServidor = errData.detalle || errData.error;
           }
-        } catch (_) {
+        } catch (e) {
+          void e;
         }
+
+        if (respuesta.status === 401) {
+          mensajeServidor = 'Tu sesión expiró. Por favor vuelve a iniciar sesión.';
+        }
+
         throw new Error(mensajeServidor);
       }
 
       await respuesta.json();
     } catch (error) {
+      if (indice !== -1 && respaldoActividad) {
+        concentradoMinutas[indice] = respaldoActividad;
+      }
       console.error('Error al guardar cambios en la nube:', error.message);
-      alert('No se pudieron guardar los cambios en la nube.');
+      alert(error.message || 'No se pudieron guardar los cambios en la nube.');
       throw error;
     } finally {
-      enviosEnCurso.delete(idClave);
+      if (enviosEnCurso.get(idClave) === promesaGuardado) {
+        enviosEnCurso.delete(idClave);
+      }
     }
   })();
 
