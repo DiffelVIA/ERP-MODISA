@@ -428,7 +428,7 @@ const enviarNotificacionMinutasPorTipo = async (listaMinutas, tipoEvento) => {
                 }
 
                 const encabezado = tipoEvento === 'aplazada'
-                    ? `Hola ${datosEmp.nombre}, la(s) siguiente(s) actividad(es) ha(n) sido aplazada(s):`
+                    ? `Hola ${datosEmp.nombre}, la siguiente actividad ha sido aplazada:`
                     : `Hola ${datosEmp.nombre}, se te ha asignado la(s) siguiente(s) actividad(es) :`;
 
                 const mensaje = `${encabezado}\n\n${datosEmp.actividades.join('\n\n')}`;
