@@ -2,10 +2,9 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 
-// MODIFICACIÓN SOLUCIÓN: Limpieza de importación duplicada/typo manteniendo verificarToken
 const { verificarToken } = require('../middlewares/authMiddleware');
+const { notificarNuevasMinutas } = require('../services/whatsapp');
 
-// MODIFICACIÓN SOLUCIÓN: Proteger consulta de minutas con verificarToken
 router.get('/tabla_minutas', verificarToken, async (req, res) => {
   try {
     const fechaActual = new Date();
@@ -14,7 +13,6 @@ router.get('/tabla_minutas', verificarToken, async (req, res) => {
     const dia = String(fechaActual.getDate()).padStart(2, '0');
     const hoyFormateado = `${anio}-${mes}-${dia}`;
 
-    // Se permite que tareas 'aplazadas' cuya nueva fecha venció se marquen como 'atrasada'
     await pool.query(`
       UPDATE minutas 
       SET estado = 'atrasada' 
@@ -45,7 +43,6 @@ router.get('/tabla_minutas', verificarToken, async (req, res) => {
   }
 });
 
-// MODIFICACIÓN SOLUCIÓN: Middleware ABAC/RBAC estricto usando solo datos verificados del JWT y validando todas las filas (.every)
 router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
   const usuarioSesion = req.usuario || {};
   const minutas = req.body;
@@ -55,11 +52,9 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
     return res.status(400).json({ error: 'No se recibieron minutas para procesar.' });
   }
 
-  // Priorizar exclusivamente el rol firmado en el JWT para evitar suplantación por headers
   const rolRaw = usuarioSesion.rol || usuarioSesion.role || usuarioSesion.job_title || '';
   const rolLimpio = rolRaw.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
-  // Roles administrativos o directivos con acceso global de escritura
   const esDirector = rolLimpio.includes('director') || rolLimpio.includes('auxiliar');
   const esResidente = rolLimpio.includes('residente');
 
@@ -67,7 +62,6 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
     return next();
   }
 
-  // Validación ABAC: Verificar que TODAS las minutas enviadas pertenezcan al responsable de la sesión
   const nombreUsuarioSesion = (
     usuarioSesion.nombre || 
     usuarioSesion.nombre_empleado || 
@@ -92,6 +86,7 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
 }, async (req, res) => {
   const minutas = req.body;
   const listaMinutas = Array.isArray(minutas) ? minutas : [minutas];
+  const minutasRecienCreadas = [];
 
   try {
     for (const item of listaMinutas) {
@@ -106,8 +101,9 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
       let semanaOriginal;
       let avisoVencimientoEnviado = 0;
       let ultimaNotificacionWa = null;
+      const esRegistroNuevo = registroPrevio.length === 0;
 
-      if (registroPrevio.length > 0) {
+      if (!esRegistroNuevo) {
         const datosOriginales = registroPrevio[0];
 
         semanaOriginal = datosOriginales.semana;
@@ -117,7 +113,6 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
         if (item.estado !== 'aplazada') {
           fechaDestino = datosOriginales.fecha ? new Date(datosOriginales.fecha).toISOString().split('T')[0] : fechaDestino;
         } else {
-          // MODIFICACIÓN SOLUCIÓN: Si se aplaza la actividad a una nueva fecha, reiniciar contadores de aviso WhatsApp
           avisoVencimientoEnviado = 0;
           ultimaNotificacionWa = null;
         }
@@ -194,6 +189,23 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
       ];
 
       await pool.query(querySQL, valoresControlados);
+
+      if (esRegistroNuevo && String(item.estado || 'pendiente').toLowerCase() !== 'completada') {
+        minutasRecienCreadas.push({
+          id: item.id,
+          proyecto: item.proyecto,
+          responsable: item.responsable,
+          fecha: fechaDestino,
+          descripcion: item.descripcion,
+          comentarioDirector: comentarioFinal
+        });
+      }
+    }
+
+    if (minutasRecienCreadas.length > 0) {
+      notificarNuevasMinutas(minutasRecienCreadas).catch(err => {
+        console.error('❌ Error en notificación asíncrona de minutas:', err.message);
+      });
     }
 
     res.json({ mensaje: 'Minutas sincronizadas con éxito en Aiven' });
@@ -203,7 +215,6 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
   }
 });
 
-// MODIFICACIÓN SOLUCIÓN: Proteger endpoint de resumen con verificarToken y usar identidad del JWT
 router.get('/notificaciones/minutas-resumen', verificarToken, async (req, res) => {
   try {
     const fechaActual = new Date();
@@ -212,7 +223,6 @@ router.get('/notificaciones/minutas-resumen', verificarToken, async (req, res) =
     const dia = String(fechaActual.getDate()).padStart(2, '0');
     const hoyFormateado = `${anio}-${mes}-${dia}`;
 
-    // Se unifica la regla para volver a marcar 'atrasada' una tarea aplazada con fecha vencida
     await pool.query(`
       UPDATE minutas 
       SET estado = 'atrasada' 

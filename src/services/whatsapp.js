@@ -87,7 +87,6 @@ const iniciarWhatsApp = async () => {
 
         sock.ev.on('creds.update', saveCreds);
 
-        // Captura de JID si alguien escribe en un grupo
         sock.ev.on('messages.upsert', async (m) => {
             const msg = m.messages[0];
             if (msg && msg.key && msg.key.remoteJid && msg.key.remoteJid.endsWith('@g.us')) {
@@ -109,8 +108,6 @@ const iniciarWhatsApp = async () => {
             if (connection === 'close') {
                 whatsappConectado = false;
                 const statusCode = lastDisconnect?.error?.output?.statusCode;
-                
-                // Si el status es 440 (Conflict) o 401/loggedOut, detener el bucle automático inmediato
                 const esConflictoSesion = statusCode === 440 || statusCode === 405;
                 const esCierreSesion = statusCode === DisconnectReason.loggedOut || statusCode === 401;
 
@@ -131,7 +128,7 @@ const iniciarWhatsApp = async () => {
 
                 if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                     reconnectAttempts++;
-                    const delayMs = Math.min(30000, 5000 * reconnectAttempts); // Backoff progresivo
+                    const delayMs = Math.min(30000, 5000 * reconnectAttempts);
                     console.log(`🔄 Reintentando conexión de WhatsApp en ${delayMs / 1000} segundos (Intento ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
                     setTimeout(iniciarWhatsApp, delayMs);
                 } else {
@@ -142,8 +139,7 @@ const iniciarWhatsApp = async () => {
                 whatsappConectado = true;
                 reconnectAttempts = 0;
                 console.log('✅ Conexión con WhatsApp establecida exitosamente.');
-                
-                // MODIFICACIÓN SOLUCIÓN: Imprimir la lista de grupos y sus JIDs al conectar
+
                 try {
                     const grupos = await sock.groupFetchAllParticipating();
                     console.log('\n======================================================');
@@ -163,13 +159,12 @@ const iniciarWhatsApp = async () => {
     }
 };
 
-// MODIFICACIÓN SOLUCIÓN: Helpers de normalización de teléfonos mexicanos, saneamiento de texto y pausa antispam
 const esperarPausaAleatoria = (minMs = 8000, maxMs = 14000) => {
     const ms = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
     return new Promise(resolve => setTimeout(resolve, ms));
 };
 
-const sanearTextoWhatsApp = (texto, maxLen = 140) => {
+const sanearTextoWhatsApp = (texto, maxLen = 160) => {
     if (!texto) return '';
     return String(texto)
         .replace(/[*_~`]/g, '')
@@ -200,6 +195,15 @@ const esperarConexionWhatsApp = async (maxEsperaMs = 25000) => {
         await new Promise(resolve => setTimeout(resolve, 2500));
     }
     return Boolean(sock && whatsappConectado);
+};
+
+const obtenerFechaHoyMexico = () => {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Mexico_City',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(new Date());
 };
 
 const notificarModificacionContrato = async (contractKey, targetGroupJid) => {
@@ -262,7 +266,6 @@ const verificarYNotificarContratosSinFirma = async () => {
             return { success: true, message: 'No hay contratos con falta de seguimiento hoy.' };
         }
 
-        // Agrupar los contratos por grupo de WhatsApp para enviar un único mensaje por chat
         const gruposNotificación = new Map();
 
         for (const contrato of contratos) {
@@ -272,7 +275,6 @@ const verificarYNotificarContratosSinFirma = async () => {
                 continue;
             }
 
-            // Sanitización contra caracteres de control de Markdown en WhatsApp
             const claveLimpia = String(contrato.contract_key || `ID #${contrato.id_contract}`)
                 .replace(/[*_~`]/g, '')
                 .trim();
@@ -295,7 +297,6 @@ const verificarYNotificarContratosSinFirma = async () => {
 
             if (faltantes.length === 0) continue;
 
-            // Ensamblar la descripción de faltantes formateada
             let textoFaltantes = '';
             if (faltantes.length === 1) {
                 textoFaltantes = faltantes[0].charAt(0).toUpperCase() + faltantes[0].slice(1);
@@ -315,7 +316,6 @@ const verificarYNotificarContratosSinFirma = async () => {
 
         let mensajesEnviados = 0;
 
-        // Construir y enviar un mensaje único por grupo de WhatsApp
         for (const [jidGrupo, listaLineas] of gruposNotificación.entries()) {
             if (listaLineas.length === 0) continue;
 
@@ -339,8 +339,120 @@ const verificarYNotificarContratosSinFirma = async () => {
     }
 };
 
-// MODIFICACIÓN SOLUCIÓN: Notificación automática consolidada al WhatsApp personal del responsable de minutas
-// Regla: 1 aviso cuando está por vencer (hoy o mañana) y 1 recordatorio cada 5 días mientras siga vencida sin completarse
+const notificarNuevasMinutas = async (nuevasMinutas) => {
+    try {
+        if (!Array.isArray(nuevasMinutas) || nuevasMinutas.length === 0) {
+            return;
+        }
+
+        const listo = await esperarConexionWhatsApp(15000);
+        if (!listo) {
+            console.warn('⚠️ No se pudo notificar la nueva minuta al instante: WhatsApp no está conectado.');
+            return;
+        }
+
+        const [empleados] = await pool.query(`
+            SELECT id_employee, name, last_name, phone
+            FROM employees
+            WHERE phone IS NOT NULL AND TRIM(phone) != ''
+        `);
+
+        const mapaEmpleados = new Map();
+        for (const emp of empleados) {
+            const nombreCompleto = `${emp.name || ''} ${emp.last_name || ''}`
+                .toLowerCase()
+                .replace(/\s+/g, ' ')
+                .trim();
+            if (nombreCompleto) {
+                mapaEmpleados.set(nombreCompleto, emp);
+            }
+        }
+
+        const hoyMexico = obtenerFechaHoyMexico();
+        const agrupadoPorEmpleado = new Map();
+
+        for (const item of nuevasMinutas) {
+            const respKey = String(item.responsable || '').toLowerCase().replace(/\s+/g, ' ').trim();
+            const empleado = mapaEmpleados.get(respKey);
+
+            if (!empleado) {
+                console.warn(`⚠️ No se encontró empleado con teléfono para responsable: "${item.responsable}"`);
+                continue;
+            }
+
+            const numeroNormalizado = normalizarTelefonoMexico(empleado.phone);
+            if (!numeroNormalizado) {
+                console.warn(`⚠️ Teléfono inválido para empleado "${empleado.name} ${empleado.last_name}"`);
+                continue;
+            }
+
+            if (!agrupadoPorEmpleado.has(empleado.id_employee)) {
+                agrupadoPorEmpleado.set(empleado.id_employee, {
+                    nombre: sanearTextoWhatsApp(empleado.name, 60),
+                    numero: numeroNormalizado,
+                    actividades: [],
+                    ids: [],
+                    idsVencimientoInmediato: []
+                });
+            }
+
+            const grupo = agrupadoPorEmpleado.get(empleado.id_employee);
+            const proyectoLimpio = sanearTextoWhatsApp(item.proyecto, 80);
+            const actividadLimpia = sanearTextoWhatsApp(item.descripcion, 180);
+            const fechaLimpia = sanearTextoWhatsApp(item.fecha, 20);
+            const comentarioRaw = sanearTextoWhatsApp(item.comentarioDirector || item.comentariodirector, 180);
+            const comentarioLimpio = comentarioRaw !== '' ? comentarioRaw : 'Sin comentarios';
+
+            grupo.actividades.push(
+                `- Proyecto: ${proyectoLimpio}\n` +
+                `- Actividad: ${actividadLimpia}\n` +
+                `- Fecha de vencimiento: ${fechaLimpia}\n` +
+                `- Comentarios: ${comentarioLimpio}`
+            );
+
+            grupo.ids.push(item.id);
+
+            const diffDias = Math.round((new Date(`${fechaLimpia}T00:00:00`) - new Date(`${hoyMexico}T00:00:00`)) / (1000 * 60 * 60 * 24));
+            if (diffDias === 0 || diffDias === 1) {
+                grupo.idsVencimientoInmediato.push(item.id);
+            }
+        }
+
+        for (const [, datosEmp] of agrupadoPorEmpleado.entries()) {
+            try {
+                const [verificacionWa] = await sock.onWhatsApp(`${datosEmp.numero}@s.whatsapp.net`);
+                if (!verificacionWa || !verificacionWa.exists) {
+                    console.warn(`⚠️ Número ${datosEmp.numero} (${datosEmp.nombre}) no tiene cuenta activa de WhatsApp.`);
+                    continue;
+                }
+
+                const mensaje =
+                    `Hola ${datosEmp.nombre}, se te ha asignado la(s) siguiente(s) actividad(es) :\n\n` +
+                    datosEmp.actividades.join('\n\n');
+
+                await sock.sendMessage(verificacionWa.jid, { text: mensaje });
+
+                if (datosEmp.idsVencimientoInmediato.length > 0) {
+                    await pool.query(
+                        `UPDATE minutas SET aviso_vencimiento_enviado = 1 WHERE id IN (?)`,
+                        [datosEmp.idsVencimientoInmediato]
+                    );
+                }
+
+                console.log(`📲 Notificación de nueva(s) minuta(s) enviada a ${datosEmp.nombre} (${verificacionWa.jid}).`);
+
+                if (agrupadoPorEmpleado.size > 1) {
+                    await esperarPausaAleatoria(5000, 9000);
+                }
+            } catch (errEnvio) {
+                console.error(`❌ Error al notificar nueva minuta a ${datosEmp.nombre}:`, errEnvio.message);
+            }
+        }
+    } catch (error) {
+        console.error('❌ Error en notificarNuevasMinutas:', error.message);
+    }
+};
+
 const verificarYNotificarMinutasPendientes = async () => {
     try {
         const listo = await esperarConexionWhatsApp();
@@ -349,14 +461,8 @@ const verificarYNotificarMinutasPendientes = async () => {
             return { success: false, message: 'WhatsApp no está conectado.' };
         }
 
-        const hoyMexico = new Intl.DateTimeFormat('en-CA', {
-            timeZone: 'America/Mexico_City',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        }).format(new Date());
+        const hoyMexico = obtenerFechaHoyMexico();
 
-        // Sincronizar automáticamente en MySQL las actividades vencidas a estado 'atrasada' sin depender de que abran la página
         await pool.query(`
             UPDATE minutas
             SET estado = 'atrasada'
@@ -374,6 +480,7 @@ const verificarYNotificarMinutasPendientes = async () => {
                 m.semana,
                 DATE_FORMAT(m.fecha, '%Y-%m-%d') AS fecha_compromiso,
                 m.descripcion,
+                m.comentarioDirector,
                 m.estado,
                 m.avance,
                 m.aviso_vencimiento_enviado,
@@ -390,10 +497,8 @@ const verificarYNotificarMinutasPendientes = async () => {
             WHERE LOWER(TRIM(IFNULL(m.estado, 'pendiente'))) != 'completada'
               AND COALESCE(m.avance, 0) < 100
               AND (
-                  -- Caso 1: Actividad por vencer hoy o mañana y aún no recibe su aviso preventivo
                   (DATEDIFF(m.fecha, ?) IN (0, 1) AND COALESCE(m.aviso_vencimiento_enviado, 0) = 0)
                   OR
-                  -- Caso 2: Actividad ya vencida y pasaron >= 5 días desde el último WhatsApp (o nunca se notificó)
                   (m.fecha < ? AND (m.ultima_notificacion_wa IS NULL OR DATEDIFF(?, DATE(m.ultima_notificacion_wa)) >= 5))
               )
             ORDER BY e.id_employee ASC, m.fecha ASC
@@ -406,7 +511,6 @@ const verificarYNotificarMinutasPendientes = async () => {
             return { success: true, message: 'Sin minutas por notificar hoy.' };
         }
 
-        // Consolidar todas las actividades por empleado para mandar un único mensaje por persona
         const notificacionesPorEmpleado = new Map();
 
         for (const act of actividades) {
@@ -430,15 +534,17 @@ const verificarYNotificarMinutasPendientes = async () => {
 
             const grupoEmp = notificacionesPorEmpleado.get(act.id_employee);
             const proyectoLimpio = sanearTextoWhatsApp(act.proyecto, 60);
-            const descLimpia = sanearTextoWhatsApp(act.descripcion, 130);
+            const descLimpia = sanearTextoWhatsApp(act.descripcion, 140);
+            const comentarioRaw = sanearTextoWhatsApp(act.comentarioDirector, 120);
+            const comentarioLimpio = comentarioRaw !== '' ? comentarioRaw : 'Sin comentarios';
             const diasAtraso = Number(act.dias_atraso || 0);
 
             if (diasAtraso <= 0) {
                 const cuando = diasAtraso === 0 ? 'Vence HOY' : 'Vence MAÑANA';
-                grupoEmp.porVencer.push(`• *[${proyectoLimpio}]* (${cuando} - ${act.fecha_compromiso}): ${descLimpia}`);
+                grupoEmp.porVencer.push(`- ${proyectoLimpio} (${cuando} - ${act.fecha_compromiso}): ${descLimpia} | Comentarios: ${comentarioLimpio}`);
                 grupoEmp.idsPorVencer.push(act.id);
             } else {
-                grupoEmp.vencidas.push(`• *[${proyectoLimpio}]* (Venció hace ${diasAtraso} día(s) - ${act.fecha_compromiso}): ${descLimpia}`);
+                grupoEmp.vencidas.push(`- ${proyectoLimpio} (Venció hace ${diasAtraso} día(s) - ${act.fecha_compromiso}): ${descLimpia} | Comentarios: ${comentarioLimpio}`);
                 grupoEmp.idsVencidas.push(act.id);
             }
         }
@@ -447,7 +553,6 @@ const verificarYNotificarMinutasPendientes = async () => {
 
         for (const [, datosEmp] of notificacionesPorEmpleado.entries()) {
             try {
-                // Verificar en WhatsApp que el número exista antes de enviar y obtener su JID oficial
                 const [verificacionWa] = await sock.onWhatsApp(`${datosEmp.numero}@s.whatsapp.net`);
                 if (!verificacionWa || !verificacionWa.exists) {
                     console.warn(`⚠️ Número ${datosEmp.numero} (${datosEmp.nombre}) no tiene cuenta activa de WhatsApp.`);
@@ -455,22 +560,19 @@ const verificarYNotificarMinutasPendientes = async () => {
                 }
 
                 const secciones = [];
-                secciones.push(`Hola *${datosEmp.nombre}*, tienes acuerdos de minuta que requieren tu atención en el ERP MODISA:`);
+                secciones.push(`Hola ${datosEmp.nombre}, tienes actividades pendientes de seguimiento:`);
 
                 if (datosEmp.porVencer.length > 0) {
-                    secciones.push(`\n⏳ *Próximos a vencer:*\n${datosEmp.porVencer.join('\n')}`);
+                    secciones.push(`\n⏳ Próximas a vencer:\n${datosEmp.porVencer.join('\n')}`);
                 }
 
                 if (datosEmp.vencidas.length > 0) {
-                    secciones.push(`\n⚠️ *Actividades vencidas (recordatorio cada 5 días):*\n${datosEmp.vencidas.join('\n')}`);
+                    secciones.push(`\n⚠️ Actividades vencidas:\n${datosEmp.vencidas.join('\n')}`);
                 }
-
-                secciones.push(`\nPor favor ingresa al sistema para actualizar tu avance o marcar como completada la actividad.`);
 
                 await sock.sendMessage(verificacionWa.jid, { text: secciones.join('\n') });
                 mensajesEnviados++;
 
-                // Registrar bitácora en MySQL inmediatamente después del envío exitoso
                 if (datosEmp.idsPorVencer.length > 0) {
                     await pool.query(
                         `UPDATE minutas SET aviso_vencimiento_enviado = 1, ultima_notificacion_wa = NOW() WHERE id IN (?)`,
@@ -487,7 +589,6 @@ const verificarYNotificarMinutasPendientes = async () => {
 
                 console.log(`📲 Recordatorio consolidado de minutas enviado a ${datosEmp.nombre} (${verificacionWa.jid}).`);
 
-                // Pausa aleatoria antispam entre envíos individuales
                 await esperarPausaAleatoria(8000, 14000);
 
             } catch (errEnvio) {
@@ -511,5 +612,6 @@ module.exports = {
     iniciarWhatsApp,
     notificarModificacionContrato,
     verificarYNotificarContratosSinFirma,
+    notificarNuevasMinutas,
     verificarYNotificarMinutasPendientes
 };
