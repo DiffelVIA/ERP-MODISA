@@ -5,6 +5,30 @@ const pool = require('../config/db');
 const { verificarToken } = require('../middlewares/authMiddleware');
 const { notificarNuevasMinutas, notificarMinutasAplazadas } = require('../services/whatsapp');
 
+const normalizarFechaSQL = (valorFecha, fechaRespaldo = null) => {
+  if (!valorFecha) return fechaRespaldo;
+
+  if (valorFecha instanceof Date) {
+    if (isNaN(valorFecha.getTime())) return fechaRespaldo;
+    return valorFecha.toISOString().split('T')[0];
+  }
+
+  const texto = String(valorFecha).trim();
+  if (!texto || texto.startsWith('0000-00-00')) return fechaRespaldo;
+
+  const soloFecha = texto.includes('T') ? texto.split('T')[0] : texto.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(soloFecha)) {
+    return soloFecha;
+  }
+
+  const fechaParseada = new Date(texto);
+  if (!isNaN(fechaParseada.getTime())) {
+    return fechaParseada.toISOString().split('T')[0];
+  }
+
+  return fechaRespaldo;
+};
+
 router.get('/tabla_minutas', verificarToken, async (req, res) => {
   try {
     const fechaActual = new Date();
@@ -88,32 +112,48 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
   const listaMinutas = Array.isArray(minutas) ? minutas : [minutas];
   const minutasRecienCreadas = [];
   const minutasAplazadas = [];
+  const hoyIso = new Date().toISOString().split('T')[0];
 
   try {
     for (const item of listaMinutas) {
-      
+      if (!item || !item.id) continue;
+
       const [registroPrevio] = await pool.query(
-        'SELECT fecha, semana, estado, comentarioDirector, aviso_vencimiento_enviado, ultima_notificacion_wa FROM minutas WHERE id = ?', 
+        'SELECT proyecto, responsable, descripcion, avance, fecha, semana, estado, comentarioDirector, aviso_vencimiento_enviado, ultima_notificacion_wa FROM minutas WHERE id = ?', 
         [item.id]
       );
       
-      let comentarioFinal = item.comentarioDirector || item.comentariodirector || '';
-      let fechaDestino = item.fecha ? item.fecha.split('T')[0] : new Date().toISOString().split('T')[0];
+      let comentarioFinal = item.comentarioDirector !== undefined
+        ? item.comentarioDirector
+        : (item.comentariodirector !== undefined ? item.comentariodirector : '');
+      let fechaDestino = normalizarFechaSQL(item.fecha, hoyIso);
       let semanaOriginal;
       let avisoVencimientoEnviado = 0;
       let ultimaNotificacionWa = null;
       let fueAplazadaAhora = false;
       const esRegistroNuevo = registroPrevio.length === 0;
 
+      let proyectoFinal = item.proyecto;
+      let responsableFinal = item.responsable;
+      let descripcionFinal = item.descripcion;
+      let avanceFinal = item.avance !== undefined && item.avance !== null ? Number(item.avance) : 0;
+      let estadoFinal = item.estado || 'pendiente';
+
       if (!esRegistroNuevo) {
         const datosOriginales = registroPrevio[0];
-        const fechaOriginalStr = datosOriginales.fecha ? new Date(datosOriginales.fecha).toISOString().split('T')[0] : fechaDestino;
+        const fechaOriginalStr = normalizarFechaSQL(datosOriginales.fecha, fechaDestino);
+
+        proyectoFinal = proyectoFinal !== undefined && proyectoFinal !== null ? proyectoFinal : datosOriginales.proyecto;
+        responsableFinal = responsableFinal !== undefined && responsableFinal !== null ? responsableFinal : datosOriginales.responsable;
+        descripcionFinal = descripcionFinal !== undefined && descripcionFinal !== null ? descripcionFinal : datosOriginales.descripcion;
+        avanceFinal = item.avance !== undefined && item.avance !== null ? Number(item.avance) : Number(datosOriginales.avance || 0);
+        estadoFinal = item.estado || datosOriginales.estado || 'pendiente';
 
         semanaOriginal = datosOriginales.semana;
         avisoVencimientoEnviado = datosOriginales.aviso_vencimiento_enviado || 0;
         ultimaNotificacionWa = datosOriginales.ultima_notificacion_wa || null;
 
-        if (item.estado !== 'aplazada') {
+        if (estadoFinal !== 'aplazada') {
           fechaDestino = fechaOriginalStr;
         } else {
           avisoVencimientoEnviado = 0;
@@ -123,14 +163,12 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
           }
         }
 
-        if (item.estado === 'completada' && datosOriginales.estado !== 'completada') {
-          const fechaLimiteOriginal = new Date(datosOriginales.fecha);
+        if (estadoFinal === 'completada' && datosOriginales.estado !== 'completada') {
+          const fechaLimiteOriginal = new Date(`${fechaOriginalStr}T00:00:00`);
           const fechaCompletadoHoy = new Date();
-
-          fechaLimiteOriginal.setHours(0, 0, 0, 0);
           fechaCompletadoHoy.setHours(0, 0, 0, 0);
 
-          if (fechaCompletadoHoy > fechaLimiteOriginal) {
+          if (!isNaN(fechaLimiteOriginal.getTime()) && fechaCompletadoHoy > fechaLimiteOriginal) {
             const diferenciaMilisegundos = fechaCompletadoHoy.getTime() - fechaLimiteOriginal.getTime();
             const diasRetrasados = Math.floor(diferenciaMilisegundos / (1000 * 60 * 60 * 24));
             
@@ -173,45 +211,45 @@ router.post('/tabla_minutas', verificarToken, async (req, res, next) => {
 
       const valoresControlados = [
         item.id, 
-        item.proyecto, 
-        item.avance !== undefined && item.avance !== null ? Number(item.avance) : 0, 
-        item.responsable, 
+        proyectoFinal, 
+        isNaN(avanceFinal) ? 0 : avanceFinal, 
+        responsableFinal, 
         semanaOriginal, 
         fechaDestino, 
-        item.descripcion, 
-        item.estado, 
+        descripcionFinal, 
+        estadoFinal, 
         comentarioFinal,
         avisoVencimientoEnviado,
         ultimaNotificacionWa,
-        item.estado,
+        estadoFinal,
         comentarioFinal,
-        item.proyecto,
-        item.avance !== undefined && item.avance !== null ? Number(item.avance) : 0,
-        item.responsable,
+        proyectoFinal,
+        isNaN(avanceFinal) ? 0 : avanceFinal,
+        responsableFinal,
         fechaDestino,
-        item.descripcion,
+        descripcionFinal,
         avisoVencimientoEnviado,
         ultimaNotificacionWa
       ];
 
       await pool.query(querySQL, valoresControlados);
 
-      if (esRegistroNuevo && String(item.estado || 'pendiente').toLowerCase() !== 'completada') {
+      if (esRegistroNuevo && String(estadoFinal).toLowerCase() !== 'completada') {
         minutasRecienCreadas.push({
           id: item.id,
-          proyecto: item.proyecto,
-          responsable: item.responsable,
+          proyecto: proyectoFinal,
+          responsable: responsableFinal,
           fecha: fechaDestino,
-          descripcion: item.descripcion,
+          descripcion: descripcionFinal,
           comentarioDirector: comentarioFinal
         });
       } else if (fueAplazadaAhora) {
         minutasAplazadas.push({
           id: item.id,
-          proyecto: item.proyecto,
-          responsable: item.responsable,
+          proyecto: proyectoFinal,
+          responsable: responsableFinal,
           fecha: fechaDestino,
-          descripcion: item.descripcion,
+          descripcion: descripcionFinal,
           comentarioDirector: comentarioFinal
         });
       }

@@ -339,15 +339,15 @@ const verificarYNotificarContratosSinFirma = async () => {
     }
 };
 
-const notificarNuevasMinutas = async (nuevasMinutas) => {
+const enviarNotificacionMinutasPorTipo = async (listaMinutas, tipoEvento) => {
     try {
-        if (!Array.isArray(nuevasMinutas) || nuevasMinutas.length === 0) {
+        if (!Array.isArray(listaMinutas) || listaMinutas.length === 0) {
             return;
         }
 
         const listo = await esperarConexionWhatsApp(15000);
         if (!listo) {
-            console.warn('⚠️ No se pudo notificar la nueva minuta al instante: WhatsApp no está conectado.');
+            console.warn(`⚠️ No se pudo notificar minuta (${tipoEvento}) al instante: WhatsApp no está conectado.`);
             return;
         }
 
@@ -370,8 +370,9 @@ const notificarNuevasMinutas = async (nuevasMinutas) => {
 
         const hoyMexico = obtenerFechaHoyMexico();
         const agrupadoPorEmpleado = new Map();
+        const etiquetaFecha = tipoEvento === 'aplazada' ? 'Nueva fecha de vencimiento' : 'Fecha de vencimiento';
 
-        for (const item of nuevasMinutas) {
+        for (const item of listaMinutas) {
             const respKey = String(item.responsable || '').toLowerCase().replace(/\s+/g, ' ').trim();
             const empleado = mapaEmpleados.get(respKey);
 
@@ -406,7 +407,7 @@ const notificarNuevasMinutas = async (nuevasMinutas) => {
             grupo.actividades.push(
                 `- Proyecto: ${proyectoLimpio}\n` +
                 `- Actividad: ${actividadLimpia}\n` +
-                `- Fecha de vencimiento: ${fechaLimpia}\n` +
+                `- ${etiquetaFecha}: ${fechaLimpia}\n` +
                 `- Comentarios: ${comentarioLimpio}`
             );
 
@@ -426,9 +427,11 @@ const notificarNuevasMinutas = async (nuevasMinutas) => {
                     continue;
                 }
 
-                const mensaje =
-                    `Hola ${datosEmp.nombre}, se te ha asignado la(s) siguiente(s) actividad(es) :\n\n` +
-                    datosEmp.actividades.join('\n\n');
+                const encabezado = tipoEvento === 'aplazada'
+                    ? `Hola ${datosEmp.nombre}, la(s) siguiente(s) actividad(es) ha(n) sido aplazada(s):`
+                    : `Hola ${datosEmp.nombre}, se te ha asignado la(s) siguiente(s) actividad(es) :`;
+
+                const mensaje = `${encabezado}\n\n${datosEmp.actividades.join('\n\n')}`;
 
                 await sock.sendMessage(verificacionWa.jid, { text: mensaje });
 
@@ -439,18 +442,26 @@ const notificarNuevasMinutas = async (nuevasMinutas) => {
                     );
                 }
 
-                console.log(`📲 Notificación de nueva(s) minuta(s) enviada a ${datosEmp.nombre} (${verificacionWa.jid}).`);
+                console.log(`📲 Notificación de minuta (${tipoEvento}) enviada a ${datosEmp.nombre} (${verificacionWa.jid}).`);
 
                 if (agrupadoPorEmpleado.size > 1) {
                     await esperarPausaAleatoria(5000, 9000);
                 }
             } catch (errEnvio) {
-                console.error(`❌ Error al notificar nueva minuta a ${datosEmp.nombre}:`, errEnvio.message);
+                console.error(`❌ Error al notificar minuta (${tipoEvento}) a ${datosEmp.nombre}:`, errEnvio.message);
             }
         }
     } catch (error) {
-        console.error('❌ Error en notificarNuevasMinutas:', error.message);
+        console.error(`❌ Error en enviarNotificacionMinutasPorTipo (${tipoEvento}):`, error.message);
     }
+};
+
+const notificarNuevasMinutas = async (nuevasMinutas) => {
+    await enviarNotificacionMinutasPorTipo(nuevasMinutas, 'nueva');
+};
+
+const notificarMinutasAplazadas = async (minutasAplazadas) => {
+    await enviarNotificacionMinutasPorTipo(minutasAplazadas, 'aplazada');
 };
 
 const verificarYNotificarMinutasPendientes = async () => {
@@ -482,7 +493,6 @@ const verificarYNotificarMinutasPendientes = async () => {
                 m.descripcion,
                 m.comentarioDirector,
                 m.estado,
-                m.avance,
                 m.aviso_vencimiento_enviado,
                 m.ultima_notificacion_wa,
                 DATEDIFF(?, m.fecha) AS dias_atraso,
@@ -495,7 +505,6 @@ const verificarYNotificarMinutasPendientes = async () => {
                 ON LOWER(TRIM(REPLACE(CONCAT(COALESCE(e.name, ''), ' ', COALESCE(e.last_name, '')), '  ', ' ')))
                  = LOWER(TRIM(REPLACE(COALESCE(m.responsable, ''), '  ', ' ')))
             WHERE LOWER(TRIM(IFNULL(m.estado, 'pendiente'))) != 'completada'
-              AND COALESCE(m.avance, 0) < 100
               AND (
                   (DATEDIFF(m.fecha, ?) IN (0, 1) AND COALESCE(m.aviso_vencimiento_enviado, 0) = 0)
                   OR
@@ -613,5 +622,6 @@ module.exports = {
     notificarModificacionContrato,
     verificarYNotificarContratosSinFirma,
     notificarNuevasMinutas,
+    notificarMinutasAplazadas,
     verificarYNotificarMinutasPendientes
 };

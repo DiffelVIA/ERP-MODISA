@@ -1,5 +1,3 @@
-// public/Residentes/minutas_JS/minutasUi.js
-
 export function escapeHTML(str) {
   if (!str) return '';
   return String(str)
@@ -115,23 +113,9 @@ export function renderizarTabla(actividadesAFiltrar, contexto) {
   const rolUsuarioRaw = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol : '';
   const rolUsuarioLimpio = normalizarTextoComp(rolUsuarioRaw);
 
-  let nombreUsuarioSesion = '';
-  if (usuarioToken) {
-    nombreUsuarioSesion = usuarioToken.nombre || usuarioToken.nombre_empleado || usuarioToken.name || usuarioToken.usuario || '';
-  }
-  if (!nombreUsuarioSesion) {
-    try {
-      const rawSesion = sessionStorage.getItem('usuarioMODISA');
-      if (rawSesion && rawSesion.trim().startsWith('{')) {
-        const parsed = JSON.parse(rawSesion);
-        nombreUsuarioSesion = parsed.nombre || parsed.nombre_empleado || parsed.usuario || '';
-      } else if (rawSesion) {
-        nombreUsuarioSesion = rawSesion;
-      }
-    } catch (e) {
-      console.error("Error al leer datos de sesión:", e);
-    }
-  }
+  const nombreUsuarioSesion = usuarioToken
+    ? (usuarioToken.nombre || usuarioToken.nombre_empleado || usuarioToken.name || usuarioToken.usuario || '')
+    : '';
 
   const nombreUsuarioLimpio = normalizarTextoComp(nombreUsuarioSesion);
   const esDirector = rolUsuarioLimpio.includes("director");
@@ -293,6 +277,12 @@ export function configurarDropdowns() {
 }
 
 export function nuevaFechaEstado(actividad, selectElement, guardarEnNubeUrgente, aplicarFiltros) {
+  const estadoPrevio = actividad.estado;
+  const fechaPrevia = actividad.fecha;
+
+  const hoyLocal = new Date();
+  const hoyMin = `${hoyLocal.getFullYear()}-${String(hoyLocal.getMonth() + 1).padStart(2, '0')}-${String(hoyLocal.getDate()).padStart(2, '0')}`;
+
   const modalBg = document.createElement('div');
   modalBg.style.position = 'fixed';
   modalBg.style.top = '0';
@@ -321,7 +311,7 @@ export function nuevaFechaEstado(actividad, selectElement, guardarEnNubeUrgente,
     </p>
     
     <label style="display: block; font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px;">Nueva fecha límite:</label>
-    <input type="date" id="modalFechaInput" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; margin-bottom: 24px; font-size: 14px; outline: none;">
+    <input type="date" id="modalFechaInput" min="${hoyMin}" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; margin-bottom: 24px; font-size: 14px; outline: none;">
     
     <div style="display: flex; justify-content: flex-end; gap: 12px;">
       <button id="btnModalCancelar" style="padding: 10px 16px; background-color: #f1f5f9; color: #334155; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background 0.2s;">Cancelar</button>
@@ -333,16 +323,22 @@ export function nuevaFechaEstado(actividad, selectElement, guardarEnNubeUrgente,
   document.body.appendChild(modalBg);
 
   const fechaIn = modalBox.querySelector('#modalFechaInput');
+  const btnCancelar = modalBox.querySelector('#btnModalCancelar');
+  const btnGuardar = modalBox.querySelector('#btnModalGuardar');
+
   if (actividad.fecha) {
-    fechaIn.value = actividad.fecha.split('T')[0];
+    const fechaActualVal = actividad.fecha.split('T')[0];
+    fechaIn.value = fechaActualVal >= hoyMin ? fechaActualVal : hoyMin;
+  } else {
+    fechaIn.value = hoyMin;
   }
 
-  modalBox.querySelector('#btnModalCancelar').addEventListener('click', () => {
-    selectElement.value = actividad.estado;
+  btnCancelar.addEventListener('click', () => {
+    selectElement.value = estadoPrevio;
     document.body.removeChild(modalBg);
   });
 
-  modalBox.querySelector('#btnModalGuardar').addEventListener('click', async () => {
+  btnGuardar.addEventListener('click', async () => {
     const nuevaFecha = fechaIn.value;
 
     if (!nuevaFecha) {
@@ -350,12 +346,31 @@ export function nuevaFechaEstado(actividad, selectElement, guardarEnNubeUrgente,
       return;
     }
 
+    if (nuevaFecha < hoyMin) {
+      alert('⚠️ La nueva fecha de entrega no puede ser anterior al día de hoy.');
+      return;
+    }
+
+    btnGuardar.disabled = true;
+    btnCancelar.disabled = true;
+    btnGuardar.textContent = 'Guardando...';
+
     actividad.estado = 'aplazada';
     actividad.fecha = nuevaFecha;
 
-    document.body.removeChild(modalBg);
-
-    await guardarEnNubeUrgente(actividad);
-    aplicarFiltros();
+    try {
+      await guardarEnNubeUrgente(actividad);
+      if (document.body.contains(modalBg)) {
+        document.body.removeChild(modalBg);
+      }
+      aplicarFiltros();
+    } catch (_) {
+      actividad.estado = estadoPrevio;
+      actividad.fecha = fechaPrevia;
+      selectElement.value = estadoPrevio;
+      btnGuardar.disabled = false;
+      btnCancelar.disabled = false;
+      btnGuardar.textContent = 'Confirmar Cambio';
+    }
   });
 }
