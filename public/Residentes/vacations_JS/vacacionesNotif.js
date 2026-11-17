@@ -160,10 +160,17 @@ export function inicializarHandlersGlobales(API_URL, getDatosVacaciones, setDato
     }
   };
 
-  // MODIFICACIÓN SOLUCIÓN: Tachecito (✕) exclusivo para Director Operativo para eliminar un registro individual por equivocación
-  window.eliminarRegistroVacacion = async function(idVacacion) {
-    if (!confirm(`⚠️ ¿Estás seguro de que deseas eliminar este registro de vacación (#${idVacacion})? Esta acción no se puede deshacer.`)) {
+  // MODIFICACIÓN SOLUCIÓN (UX & Seguridad): Confirmación clara con fechas para el empleado solicitante y bloqueo anti-doble clic
+  window.eliminarRegistroVacacion = async function(idVacacion, fechaInicio = '', fechaFin = '', btnElemento = null) {
+    const rangoTexto = (fechaInicio && fechaFin) ? ` del ${fechaInicio} al ${fechaFin}` : '';
+    if (!confirm(`¿Deseas eliminar tu solicitud de vacaciones${rangoTexto}?\n\nEsta acción borrará el registro definitivamente.`)) {
       return;
+    }
+
+    if (btnElemento) {
+      btnElemento.disabled = true;
+      btnElemento.style.opacity = '0.4';
+      btnElemento.style.cursor = 'wait';
     }
 
     const token = localStorage.getItem('jwtToken') || '';
@@ -188,6 +195,11 @@ export function inicializarHandlersGlobales(API_URL, getDatosVacaciones, setDato
     } catch (err) {
       console.error("❌ Error al eliminar el registro de vacación:", err);
       alert(`❌ Error: ${escapeHTML(err.message)}`);
+      if (btnElemento) {
+        btnElemento.disabled = false;
+        btnElemento.style.opacity = '1';
+        btnElemento.style.cursor = 'pointer';
+      }
     }
   };
 }

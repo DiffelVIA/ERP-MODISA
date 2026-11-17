@@ -1,205 +1,125 @@
-// MODIFICACIÓN SOLUCIÓN: Definición local de helpers utilitarios para evitar SyntaxError por importaciones de módulos ES6
-function escapeHTML(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
+// public/Finanzas/pagos_Js/pagosNotif.js
 
-function calcularDiasHabilesEfectivos(inicio, fin) {
-  if (!inicio || !fin) return 0;
-  const fInicio = new Date(inicio);
-  const fFin = new Date(fin);
-  let dias = 0;
-  let cursor = new Date(fInicio);
-  while (cursor <= fFin) {
-    const diaSemana = cursor.getDay();
-    if (diaSemana !== 0 && diaSemana !== 6) { // Excluir sábados (6) y domingos (0)
-      dias++;
-    }
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return dias;
-}
-
-export function inicializarHandlersGlobales(API_URL, getDatosVacaciones, setDatosVacaciones, cargarDatosVacaciones, cargarDatosEstatus, actualizarFiltrosYTabla, renderizarVistaEstatus) {
-  
-  // MODIFICACIÓN SOLUCIÓN: Modal estilizado sin menciones a roles y con comentarios opcionales
-  function obtenerOCrearModal() {
-    let modal = document.getElementById('modalComentariosVacaciones');
-    if (!modal) {
-      modal = document.createElement('div');
-      modal.id = 'modalComentariosVacaciones';
-      modal.style.cssText = 'display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.6); z-index:9999; align-items:center; justify-content:center;';
-      modal.innerHTML = `
-        <div style="background:#ffffff; border-radius:12px; width:90%; max-width:480px; padding:24px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1); border:1px solid #e2e8f0;">
-          <h3 id="modalComentarioTitulo" style="margin-top:0; color:#0f172a; font-size:18px; font-weight:bold;">Autorización de Solicitud</h3>
-          <p id="modalComentarioDesc" style="color:#64748b; font-size:13px; margin-bottom:12px;">Ingresa tus observaciones (opcional):</p>
-          <textarea id="modalTxtObservaciones" style="width:100%; height:90px; border:1px solid #cbd5e1; border-radius:6px; padding:10px; font-size:13px; font-family:sans-serif;" placeholder="Escribe los comentarios aquí..."></textarea>
-          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
-            <button type="button" id="modalBtnCancelar" style="padding:8px 16px; background:#f1f5f9; color:#475569; border:none; border-radius:6px; cursor:pointer; font-weight:600;">Cancelar</button>
-            <button type="button" id="modalBtnGuardar" style="padding:8px 16px; background:#2563eb; color:#ffffff; border:none; border-radius:6px; cursor:pointer; font-weight:600;">Guardar y Notificar</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(modal);
-    }
-    return modal;
-  }
-
-  function abrirModalObservaciones({ valorInicial, onConfirmar, onCancelar }) {
-    const modal = obtenerOCrearModal();
-    const txtArea = document.getElementById('modalTxtObservaciones');
-    const btnGuardar = document.getElementById('modalBtnGuardar');
-    const btnCancelar = document.getElementById('modalBtnCancelar');
-
-    if (txtArea) txtArea.value = valorInicial || '';
-    modal.style.display = 'flex';
-
-    const cerrar = () => { modal.style.display = 'none'; };
-
-    btnGuardar.onclick = () => {
-      const val = txtArea ? txtArea.value.trim() : '';
-      // MODIFICACIÓN SOLUCIÓN: Ya no se exige texto obligatorio; si está vacío se envía 'Sin comentarios adicionales'
-      const comentarioEnviado = val.length > 0 ? val : 'Sin comentarios adicionales';
-      cerrar();
-      if (onConfirmar) onConfirmar(comentarioEnviado);
-    };
-
-    btnCancelar.onclick = () => {
-      cerrar();
-      if (onCancelar) onCancelar();
-    };
-  }
-
-  window.actualizarEstadoVacacion = async function(idVacacion, nuevoEstado, elementoInput, nivelParam = 'jefe') {
-    const token = localStorage.getItem('jwtToken') || '';
-
-    if (nuevoEstado === 'pendiente') {
-      await enviarActualizacion(idVacacion, nuevoEstado, 'Sin comentarios adicionales', nivelParam, token);
-      return;
-    }
-
-    abrirModalObservaciones({
-      valorInicial: '',
-      onConfirmar: async (obsTexto) => {
-        await enviarActualizacion(idVacacion, nuevoEstado, obsTexto, nivelParam, token);
-      },
-      onCancelar: () => {
-        if (elementoInput) cargarDatosVacaciones();
-      }
-    });
-  };
-
-  async function enviarActualizacion(idVacacion, estadoVal, obsTexto, nivelVal, token) {
+export async function cargarSelectoresIniciales(API_URL, obtenerRolActualLimpio, obtenerRolDesdeJWT, llenarSelect) {
     try {
-      const res = await fetch(`${API_URL}/vacaciones/${idVacacion}/estado`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify({
-          estado: estadoVal,
-          observaciones: obsTexto || 'Sin comentarios adicionales',
-          nivel: nivelVal
-        })
-      });
+        const token = localStorage.getItem('jwtToken') || '';
+        const usuarioSesion = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
+        const idEmp = usuarioSesion ? (usuarioSesion.id_employee || usuarioSesion.id) : null;
+        const userRolRaw = usuarioSesion ? usuarioSesion.rol : (obtenerRolDesdeJWT() || localStorage.getItem('userRol') || '');
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'No se pudo actualizar el estado.');
-      }
+        const rolesConAccesoGlobal = [
+            'compras',
+            'director operativo',
+            'subdirector de obra',
+            'gerente administracion',
+            'gerente administracion y compras',
+            'gerente costos',
+            'gerente de costos'
+        ];
 
-      await cargarDatosVacaciones();
-      await cargarDatosEstatus();
+        const rolLimpio = obtenerRolActualLimpio();
+        
+        const esRolGlobal = rolesConAccesoGlobal.some(r => {
+            const rLimpio = r.toLowerCase().trim();
+            return rolLimpio === rLimpio || 
+                   (rolLimpio.includes('gerente') && rolLimpio.includes('costo')) ||
+                   (rolLimpio.includes('gerente') && rolLimpio.includes('administrac')) ||
+                   (rolLimpio.includes('director') && rolLimpio.includes('operativ'));
+        });
 
-    } catch (err) {
-      console.error("❌ Error al actualizar estado:", err);
-      alert(`❌ Error: ${escapeHTML(err.message)}`);
-    }
-  }
+        const headersPeticion = {
+            'Authorization': token ? `Bearer ${token}` : ''
+        };
+        if (idEmp) headersPeticion['x-employee-id'] = idEmp;
+        if (userRolRaw) headersPeticion['x-user-rol'] = userRolRaw;
 
-  window.actualizarObservacionVacacion = async function(idVacacion, nuevaObservacion, elementoInput, nivelParam = 'jefe') {
-    if (!nuevaObservacion || !nuevaObservacion.trim()) return;
+        const resProyectos = await fetch(`${API_URL}/proyectos`, {
+            headers: headersPeticion
+        });
 
-    if (confirm("¿Quieres cambiar también el estado de la solicitud al actualizar el comentario?")) {
-      const trFila = elementoInput ? elementoInput.closest('tr') : null;
-      const selectEstado = trFila ? trFila.querySelector('.select-estado-tabla') : null;
-      const estadoActual = selectEstado ? selectEstado.value : 'autorizada';
-      
-      window.actualizarEstadoVacacion(idVacacion, estadoActual, elementoInput, nivelParam);
-    } else {
-      const token = localStorage.getItem('jwtToken') || '';
-      await enviarActualizacion(idVacacion, 'autorizada', nuevaObservacion.trim(), nivelParam, token);
-    }
-  };
+        let proyectosFiltrados = [];
+        if (resProyectos.ok) {
+            const proyectos = await resProyectos.json();
+            
+            proyectosFiltrados = proyectos.filter(p => {
+                if (esRolGlobal) return true;
+                if (!idEmp) return true;
+                if (p.id_employee !== undefined) return String(p.id_employee) === String(idEmp);
+                if (p.id_user !== undefined) return String(p.id_user) === String(idEmp);
+                if (Array.isArray(p.empleados)) return p.empleados.includes(Number(idEmp));
+                return true;
+            });
 
-  window.forzarRenovacionDias = async function(idEmployee, nombreEmpleado) {
-    if (!confirm(`⚠️ ¿Estás segura de forzar la renovación de días para "${nombreEmpleado}"?`)) return;
-
-    const token = localStorage.getItem('jwtToken') || '';
-    try {
-      const res = await fetch(`${API_URL}/vacaciones/renovar/${idEmployee}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'No se pudo realizar la renovación.');
-
-      alert(`✅ ${data.message}`);
-      await cargarDatosVacaciones();
-      await cargarDatosEstatus();
-      renderizarVistaEstatus();
-    } catch (err) {
-      console.error("❌ Error al renovar días:", err);
-      alert(`❌ Error: ${escapeHTML(err.message)}`);
-    }
-  };
-
-  // MODIFICACIÓN SOLUCIÓN (UX & Seguridad): Confirmación clara con fechas para el empleado solicitante y bloqueo anti-doble clic
-  window.eliminarRegistroVacacion = async function(idVacacion, fechaInicio = '', fechaFin = '', btnElemento = null) {
-    const rangoTexto = (fechaInicio && fechaFin) ? ` del ${fechaInicio} al ${fechaFin}` : '';
-    if (!confirm(`¿Deseas eliminar tu solicitud de vacaciones${rangoTexto}?\n\nEsta acción borrará el registro definitivamente.`)) {
-      return;
-    }
-
-    if (btnElemento) {
-      btnElemento.disabled = true;
-      btnElemento.style.opacity = '0.4';
-      btnElemento.style.cursor = 'wait';
-    }
-
-    const token = localStorage.getItem('jwtToken') || '';
-    try {
-      const res = await fetch(`${API_URL}/vacaciones/${idVacacion}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-          'Content-Type': 'application/json'
+            const lista = proyectosFiltrados.map(p => ({ 
+                id: p.id_project,
+                nombre: p.project_name
+            }));
+            
+            llenarSelect('proyecto', lista);
         }
-      });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'No se pudo eliminar el registro.');
-      }
+        const resContratos = await fetch(`${API_URL}/contratos`, {
+            headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+        });
+        
+        let contratosCargados = [];
+        if (resContratos.ok) {
+            contratosCargados = await resContratos.json();
+        }
 
-      alert(`✅ ${data.message}`);
-      await cargarDatosVacaciones();
-      await cargarDatosEstatus();
-
-    } catch (err) {
-      console.error("❌ Error al eliminar el registro de vacación:", err);
-      alert(`❌ Error: ${escapeHTML(err.message)}`);
-      if (btnElemento) {
-        btnElemento.disabled = false;
-        btnElemento.style.opacity = '1';
-        btnElemento.style.cursor = 'pointer';
-      }
+        return { proyectos: proyectosFiltrados, contratos: contratosCargados };
+    } catch (error) {
+        console.error("❌ Error inicial:", error);
+        return { proyectos: [], contratos: [] };
     }
-  };
+}
+
+export async function obtenerSaldoContrato(API_URL, idContratoActivo) {
+    const token = localStorage.getItem('jwtToken') || '';
+    const resSaldo = await fetch(`${API_URL}/contratos/${idContratoActivo}/saldo`, {
+        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+    });
+
+    if (resSaldo.ok) {
+        const dataSaldo = await resSaldo.json();
+        return parseFloat(dataSaldo.monto_solicitado_total) || 0;
+    }
+    return 0;
+}
+
+export async function obtenerCategoriasProyecto(API_URL, idProyecto) {
+    const token = localStorage.getItem('jwtToken') || '';
+    const res = await fetch(`${API_URL}/proyectos/${idProyecto}/categorias`, {
+        headers: {'Authorization': token ? `Bearer ${token}` : ''}
+    });
+
+    if (res.ok) {
+        return await res.json();
+    }
+    return [];
+}
+
+export async function enviarPagosServidor(API_URL, formData) {
+    const token = localStorage.getItem('jwtToken') || '';
+    const res = await fetch(`${API_URL}/pagos`, {
+        method: 'POST',
+        headers: {
+            'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: formData
+    });
+
+    const contentType = res.headers.get('content-type') || '';
+    let datos = {};
+
+    if (contentType.includes('application/json')) {
+        datos = await res.json();
+    } else {
+        const textoError = await res.text();
+        throw new Error(`El servidor respondió con un error no estructurado (${res.status}). Detalle: ${textoError.substring(0, 150)}...`);
+    }
+
+    if (!res.ok) throw new Error(datos.error || 'Error en el servidor.');
+
+    return datos;
 }
