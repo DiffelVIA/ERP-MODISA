@@ -1,3 +1,27 @@
+let dropdownsInicializados = false;
+
+function obtenerUsuarioTokenSeguro() {
+  if (window.obtenerUsuarioDesdeToken) {
+    const usuario = window.obtenerUsuarioDesdeToken();
+    if (usuario) return usuario;
+  }
+
+  const token = localStorage.getItem('jwtToken') || localStorage.getItem('token') || '';
+  if (!token) return null;
+
+  try {
+    const base64Url = token.split('.')[1];
+    if (!base64Url) return null;
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+}
+
 export function escapeHTML(str) {
   if (!str) return '';
   return String(str)
@@ -19,8 +43,9 @@ export function normalizarTextoComp(texto) {
 
 export function formatearFechaHTML(fechaInput) {
   if (!fechaInput) return '';
-  const partes = fechaInput.split('-');
-  if (partes.length !== 3) return fechaInput;
+  const textoFecha = String(fechaInput).split('T')[0];
+  const partes = textoFecha.split('-');
+  if (partes.length !== 3) return textoFecha;
   return `${partes[2]}/${partes[1]}/${partes[0]}`;
 }
 
@@ -44,12 +69,17 @@ export function extraerComentarios(textoComentario) {
 }
 
 export function construirComentarioFinal(comentarioResidente, comentarioDirector) {
+  const limpiarDelimitadores = (texto) => String(texto)
+    .replace(/\[/g, '(')
+    .replace(/\]/g, ')')
+    .trim();
+
   const partes = [];
   if (comentarioResidente && comentarioResidente.trim() !== '') {
-    partes.push(`[Residente: ${comentarioResidente.trim()}]`);
+    partes.push(`[Residente: ${limpiarDelimitadores(comentarioResidente)}]`);
   }
   if (comentarioDirector && comentarioDirector.trim() !== '') {
-    partes.push(`[Director: ${comentarioDirector.trim()}]`);
+    partes.push(`[Director: ${limpiarDelimitadores(comentarioDirector)}]`);
   }
   return partes.join(' | ');
 }
@@ -109,8 +139,10 @@ export function renderizarTabla(actividadesAFiltrar, contexto) {
     return;
   }
 
-  const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-  const rolUsuarioRaw = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol : '';
+  const usuarioToken = obtenerUsuarioTokenSeguro();
+  const rolUsuarioRaw = (usuarioToken && (usuarioToken.rol || usuarioToken.role || usuarioToken.job_title))
+    ? (usuarioToken.rol || usuarioToken.role || usuarioToken.job_title)
+    : '';
   const rolUsuarioLimpio = normalizarTextoComp(rolUsuarioRaw);
 
   const nombreUsuarioSesion = usuarioToken
@@ -123,7 +155,7 @@ export function renderizarTabla(actividadesAFiltrar, contexto) {
 
   actividadesAFiltrar.forEach((actividad) => {
     const fila = document.createElement('tr');
-    const fechaLimpia = actividad.fecha ? actividad.fecha.split('T')[0] : '';
+    const fechaLimpia = actividad.fecha ? String(actividad.fecha).split('T')[0] : '';
     const { residente: comRes, director: comDir } = extraerComentarios(actividad.comentarioDirector);
 
     const responsableTareaLimpio = normalizarTextoComp(actividad.responsable);
@@ -252,7 +284,8 @@ export function configurarDropdowns() {
     const boton = dropdown.querySelector('.btn-dropdown');
     const contenido = dropdown.querySelector('.contenido-dropdown');
 
-    if (boton && contenido) {
+    if (boton && contenido && !boton.dataset.dropdownBound) {
+      boton.dataset.dropdownBound = 'true';
       boton.addEventListener('click', (e) => {
         e.stopPropagation();
         
@@ -269,11 +302,14 @@ export function configurarDropdowns() {
     }
   });
 
-  document.addEventListener('click', () => {
-    document.querySelectorAll('.contenido-dropdown').forEach(c => {
-      c.classList.remove('mostrar');
+  if (!dropdownsInicializados) {
+    dropdownsInicializados = true;
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.contenido-dropdown').forEach(c => {
+        c.classList.remove('mostrar');
+      });
     });
-  });
+  }
 }
 
 export function nuevaFechaEstado(actividad, selectElement, guardarEnNubeUrgente, aplicarFiltros) {
@@ -327,16 +363,31 @@ export function nuevaFechaEstado(actividad, selectElement, guardarEnNubeUrgente,
   const btnGuardar = modalBox.querySelector('#btnModalGuardar');
 
   if (actividad.fecha) {
-    const fechaActualVal = actividad.fecha.split('T')[0];
+    const fechaActualVal = String(actividad.fecha).split('T')[0];
     fechaIn.value = fechaActualVal >= hoyMin ? fechaActualVal : hoyMin;
   } else {
     fechaIn.value = hoyMin;
   }
 
-  btnCancelar.addEventListener('click', () => {
+  fechaIn.focus();
+
+  const cerrarYRestaurar = () => {
+    document.removeEventListener('keydown', manejarEscape);
     selectElement.value = estadoPrevio;
-    document.body.removeChild(modalBg);
-  });
+    if (document.body.contains(modalBg)) {
+      document.body.removeChild(modalBg);
+    }
+  };
+
+  const manejarEscape = (e) => {
+    if (e.key === 'Escape' && !btnGuardar.disabled) {
+      cerrarYRestaurar();
+    }
+  };
+
+  document.addEventListener('keydown', manejarEscape);
+
+  btnCancelar.addEventListener('click', cerrarYRestaurar);
 
   btnGuardar.addEventListener('click', async () => {
     const nuevaFecha = fechaIn.value;
@@ -360,11 +411,13 @@ export function nuevaFechaEstado(actividad, selectElement, guardarEnNubeUrgente,
 
     try {
       await guardarEnNubeUrgente(actividad);
+      document.removeEventListener('keydown', manejarEscape);
       if (document.body.contains(modalBg)) {
         document.body.removeChild(modalBg);
       }
       aplicarFiltros();
-    } catch (_) {
+    } catch (e) {
+      void e;
       actividad.estado = estadoPrevio;
       actividad.fecha = fechaPrevia;
       selectElement.value = estadoPrevio;
