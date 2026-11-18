@@ -6,8 +6,9 @@
     <title>Control de Empleados - MODISA</title>
     <script src="/timeout.js"></script>
     <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
-    <link rel="stylesheet" href="/styles.css">
-
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/components.css">
 </head>
 <body>
     <header id="header">
@@ -20,12 +21,16 @@
     </header>
 
     <main class="main-tabla">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h1>👥 Control y Gestión de Empleados</h1>
-            <button id="btn-descargar-excel" class="btn" style="background-color: #21a366; color: white;">
-                📊 Descargar Excel
-            </button>
-            <button id="btn-nuevo-empleado" class="btn" style="background-color: var(--primary-color); color: var(--blanco);">➕ Agregar Empleado</button>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+            <h1 style="margin: 0;">👥 Control y Gestión de Empleados</h1>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button type="button" id="btn-descargar-excel" class="btn btn-success" style="width: auto;">
+                    📊 Descargar Excel
+                </button>
+                <button type="button" id="btn-nuevo-empleado" class="btn btn-primary" style="width: auto;">
+                    ➕ Agregar Empleado
+                </button>
+            </div>
         </div>
 
         <div class="tabla">
@@ -47,53 +52,53 @@
             </table>
         </div>
 
-        <div id="modalEmpleado" class="contenido-dropdown" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); min-width: 320px; max-width: 480px; max-height: 90vh; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border-radius: 8px;">
+        <div id="modalEmpleado" class="contenido-dropdown" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); min-width: 320px; max-width: 480px; width: 92%; max-height: 90vh; padding: 25px; box-shadow: var(--shadow-lg); border-radius: var(--radius-md); z-index: 1050;">
             <h2 id="modalTitulo" style="font-size: 18px; color: var(--primary-color); margin-top: 0;">Agregar Empleado</h2>
             <form id="formEmpleado" style="display: flex; flex-direction: column; gap: 12px;">
                 <input type="hidden" id="emp-id">
                 
-                <div class="contenedor-formulario">
-                    <label style="font-weight: 600; font-size: 12px;">Nombre(s):</label>
+                <div class="contenedor-formulario" style="margin-bottom: 0;">
+                    <label for="emp-nombre" style="font-size: 12px;">Nombre(s):</label>
                     <input type="text" id="emp-nombre" required>
                 </div>
-                <div class="contenedor-formulario">
-                    <label style="font-weight: 600; font-size: 12px;">Apellidos:</label>
+                <div class="contenedor-formulario" style="margin-bottom: 0;">
+                    <label for="emp-apellido" style="font-size: 12px;">Apellidos:</label>
                     <input type="text" id="emp-apellido" required>
                 </div>
-                <div class="contenedor-formulario">
-                    <label style="font-weight: 600; font-size: 12px;">Correo (Usuario):</label>
+                <div class="contenedor-formulario" style="margin-bottom: 0;">
+                    <label for="emp-email" style="font-size: 12px;">Correo (Usuario):</label>
                     <input type="email" id="emp-email" required>
                 </div>
-                <div class="contenedor-formulario">
-                    <label style="font-weight: 600; font-size: 12px;">Teléfono:</label>
+                <div class="contenedor-formulario" style="margin-bottom: 0;">
+                    <label for="emp-telefono" style="font-size: 12px;">Teléfono:</label>
                     <input type="text" id="emp-telefono">
                 </div>
-                <div class="contenedor-formulario">
-                    <label style="font-weight: 600; font-size: 12px;">Puesto / Rol:</label>
+                <div class="contenedor-formulario" style="margin-bottom: 0;">
+                    <label for="emp-puesto" style="font-size: 12px;">Puesto / Rol:</label>
                     <input type="text" id="emp-puesto" placeholder="Ej: Residente de Obra" required>
                 </div>
-                <div class="contenedor-formulario">
-                    <label style="font-weight: 600; font-size: 12px;">Departamento:</label>
+                <div class="contenedor-formulario" style="margin-bottom: 0;">
+                    <label for="emp-depto" style="font-size: 12px;">Departamento:</label>
                     <input type="text" id="emp-depto">
                 </div>
-                <div class="contenedor-formulario">
-                    <label style="font-weight: 600; font-size: 12px;">Fecha de Ingreso:</label>
+                <div class="contenedor-formulario" style="margin-bottom: 0;">
+                    <label for="emp-hire-date" style="font-size: 12px;">Fecha de Ingreso:</label>
                     <input type="date" id="emp-hire-date">
                 </div>
                 
-                <div class="contenedor-formulario">
-                    <label style="font-weight: 600; font-size: 12px;">Sueldo Mensual ($):</label>
+                <div class="contenedor-formulario" style="margin-bottom: 0;">
+                    <label for="emp-sueldo" style="font-size: 12px;">Sueldo Mensual ($):</label>
                     <input type="number" id="emp-sueldo" step="0.01" min="0" placeholder="0.00">
                 </div>
 
-                <div class="contenedor-formulario" id="grupo-pass">
-                    <label style="font-weight: 600; font-size: 12px;">Contraseña Inicial:</label>
+                <div class="contenedor-formulario" id="grupo-pass" style="margin-bottom: 0;">
+                    <label for="emp-pass" style="font-size: 12px;">Contraseña Inicial:</label>
                     <input type="password" id="emp-pass">
                 </div>
 
-                <div class="contenedor-botones" style="justify-content: flex-end; margin-top: 10px;">
-                    <button type="button" class="btn" id="btnCerrarModal" style="background-color: var(--text-muted); color: var(--blanco);">Cancelar</button>
-                    <button type="submit" class="btn" id="guardar">Guardar</button>
+                <div class="modal-acciones">
+                    <button type="button" class="btn btn-secondary" id="btnCerrarModal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="guardar">Guardar</button>
                 </div>
             </form>
         </div>

@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solicitud de Pagos</title>
-    <script src="/timeout.js"> </script>
+    <script src="/timeout.js"></script>
     <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/components.css">
 </head>
 <body>
     <header id="header">
@@ -24,7 +26,7 @@
         <form id="form-requisicion" novalidate>
             <div class="contenedor-formulario">
                 <label for="solicitante">Solicitante</label>
-                <input type="text" id="solicitante" name="solicitante" readonly style="cursor: not-allowed;">
+                <input type="text" id="solicitante" name="solicitante" readonly>
             </div>
             <div class="contenedor-formulario">
                 <label for="proyecto">Proyecto</label>
@@ -34,11 +36,11 @@
             </div>
             <div class="contenedor-formulario">
                 <label for="fecha">Fecha</label>
-                <input type="date" id="fecha" name="fecha" readonly style="cursor: not-allowed;">
+                <input type="date" id="fecha" name="fecha" readonly>
             </div>
             <div class="contenedor-formulario">
                 <label for="semana-fiscal">Semana</label>
-                <input type="text" id="semana-fiscal" name="semana" readonly style="cursor: not-allowed;">
+                <input type="text" id="semana-fiscal" name="semana" readonly>
             </div>
             <div class="contenedor-formulario">
                 <label for="tipo">Tipo</label>
@@ -128,15 +130,15 @@
                         </tr>
                     </thead>
                     <tbody id="cuerpo-mini-tabla">
-                        </tbody>
+                    </tbody>
                 </table>
             </div>
 
             <div class="contenedor-botones">
-                <button type="button" data-action="añadir" class="btn">
+                <button type="button" data-action="añadir" class="btn btn-secondary">
                     ➕ Añadir Concepto a la Lista
                 </button>
-                <button type="submit" data-action="enviar" class="btn">
+                <button type="submit" data-action="enviar" class="btn btn-primary">
                    🚀 Enviar Solicitud
                 </button>
             </div>

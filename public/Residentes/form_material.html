@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Requisición de Material</title>
-    <script src="/timeout.js"> </script>
+    <script src="/timeout.js"></script>
     <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/components.css">
 </head>
 <body>
     <header id="header">
@@ -19,13 +21,12 @@
             </ul>
         </nav>
     </header>
-<!---->
     <main class="form_main">
         <h1>📝 Requisición de Materiales</h1>
         <form id="form-requisicion" data-accion="requisicion" novalidate>
             <div class="contenedor-formulario">
                 <label for="solicitante">Solicitante</label>
-                <input type="text" id="solicitante" name="solicitante" readonly style="cursor: not-allowed" required>
+                <input type="text" id="solicitante" name="solicitante" readonly required>
             </div>
             <div class="contenedor-formulario">
                 <label for="proyecto">Proyecto</label>
@@ -35,11 +36,11 @@
             </div>
             <div class="contenedor-formulario">
                 <label for="fecha">Fecha</label>
-                <input type="date" id="fecha" name="fecha" readonly style="cursor: not-allowed;">
+                <input type="date" id="fecha" name="fecha" readonly>
             </div>
             <div class="contenedor-formulario">
                 <label for="semana-fiscal">Semana</label>
-                <input type="text" id="semana-fiscal" name="semana" readonly style="cursor: not-allowed;">
+                <input type="text" id="semana-fiscal" name="semana" readonly>
             </div>
             <div class="contenedor-formulario">
                 <label for="grupo">Grupo</label>
@@ -107,15 +108,15 @@
                         </tr>
                     </thead>
                     <tbody id="cuerpo-mini-tabla">
-                        </tbody>
+                    </tbody>
                 </table>
             </div>
 
             <div class="contenedor-botones">
-                <button type="button" id="descargar" data-accion="añadir" class="btn">
+                <button type="button" id="descargar" data-accion="añadir" class="btn btn-secondary">
                     ➕ Añadir Material a la Lista
                 </button>
-                <button type="submit" id="descargar" data-accion="enviar" class="btn">
+                <button type="submit" id="descargar" data-accion="enviar" class="btn btn-primary">
                    🚀 Enviar Solicitud
                 </button>
             </div>
@@ -129,7 +130,5 @@
     <script src="/authClient.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="formMateriales.js"></script>
-    
-
 </body>
 </html>

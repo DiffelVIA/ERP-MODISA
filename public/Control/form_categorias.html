@@ -4,15 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Categorías MODISA</title>
-    <script src="/timeout.js"> </script>
+    <script src="/timeout.js"></script>
     <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/components.css">
     <style>
         .seccion-accion { display: none; margin-top: 20px; }
         .visible { display: block; }
         .grupo-campos { margin-bottom: 15px; }
-        .btn-danger { background-color: #dc3545 !important; }
-        .btn-warning { background-color: #ffc107 !important; color: black !important; }
         .grid-costos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
     </style>
 </head>
@@ -58,7 +58,7 @@
                         <input type="file" id="fileInput" accept=".csv">
                     </div>
                     <div class="contenedor-botones" style="margin-top: 15px;">
-                        <button type="submit" id="descargar" data-accion="iniciar" class="btn">⚡ Iniciar Categorización</button>
+                        <button type="submit" data-accion="iniciar" class="btn btn-primary">⚡ Iniciar Categorización</button>
                     </div>
                 </form>
             </div>
@@ -109,11 +109,11 @@
                 </div>
                 <div class="contenedor-formulario grupo-campos" style="margin-top: 10px;">
                     <label for="addTotal">Total ($)</label>
-                    <input type="number" id="addTotal" step="0.01" value="0.00" class="input_form" readonly style="background-color: #f0f0f0;">
+                    <input type="number" id="addTotal" step="0.01" value="0.00" class="input_form" readonly>
                 </div>
 
                 <div class="contenedor-botones" style="margin-top: 15px;">
-                    <button type="button" id="descargar" data-accion="guardar" class="btn">💾 Guardar Registro</button>
+                    <button type="button" data-accion="guardar" class="btn btn-success">💾 Guardar Registro</button>
                 </div>
             </div>
 
@@ -142,7 +142,6 @@
                 </div>
 
                 <div id="camposEdicion" style="display: none; margin-top: 20px;">
-                    <!-- MODIFICADO: Atributos list="..." en inputs de edición para facilitar cambios -->
                     <div class="contenedor-formulario grupo-campos">
                         <label for="editGrupo">Editar Nombre de Grupo</label>
                         <input type="text" id="editGrupo" list="dlGruposAdd" class="input_form">
@@ -182,12 +181,12 @@
                     </div>
                     <div class="contenedor-formulario grupo-campos" style="margin-top: 10px;">
                         <label for="editTotal">Editar Total ($)</label>
-                        <input type="number" id="editTotal" step="0.01" class="input_form" readonly style="background-color: #f0f0f0;">
+                        <input type="number" id="editTotal" step="0.01" class="input_form" readonly>
                     </div>
                     
                     <div class="contenedor-botones" style="gap: 10px; display: flex; margin-top: 15px;">
-                        <button type="button" id="descargar" data-accion="actualizar" class="btn">✏️ Aplicar Cambios</button>
-                        <button type="button" id="descargar" data-accion="eliminar" class="btn">🗑️ Eliminar Fila</button>
+                        <button type="button" data-accion="actualizar" class="btn btn-warning">✏️ Aplicar Cambios</button>
+                        <button type="button" data-accion="eliminar" class="btn btn-danger">🗑️ Eliminar Fila</button>
                     </div>
                 </div>
             </div>

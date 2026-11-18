@@ -4,12 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MODISA</title>
-    <script src="/timeout.js"> </script>
+    <script src="/timeout.js"></script>
     <link class="favicon" rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/principal.css">
 </head>
 <body>
-   <header id="header">
+    <header id="header">
         <div>
             <img src="/img/logo.png" alt="logo" id="logo">
         </div>
@@ -45,40 +48,34 @@
             <div class="carrusel-ventana">
                 <div class="contenedor-tarjetas vista-menu" id="carrusel-track">
                     
-                    <!-- ==========================================
-                         NIVEL 0: LAS 4 TARJETAS MÁSTER
-                         ========================================== -->
                     <div class="tarjeta tarjeta-master" data-target="control">
                         <img src="img/director.png" alt="Control" class="icono-tarjeta">
                         <h2>Control Operativo</h2>
                         <p>Control de Minutas, Control de Proyectos, Supervisión, Categorización</p>
-                        <button class="btn-tarjeta">Abrir Módulos</button>
+                        <button type="button" class="btn-tarjeta">Abrir Módulos</button>
                     </div>
 
                     <div class="tarjeta tarjeta-master" data-target="finanzas">
                         <img src="img/creditos.png" alt="Finanzas" class="icono-tarjeta">
                         <h2>Administración</h2>
                         <p>Gestión de Materiales, Control de Pagos y Créditos, Control de Empleados</p>
-                        <button class="btn-tarjeta">Abrir Módulos</button>
+                        <button type="button" class="btn-tarjeta">Abrir Módulos</button>
                     </div>
 
                     <div class="tarjeta tarjeta-master" data-target="obra">
                         <img src="img/proyectos.png" alt="Obra" class="icono-tarjeta">
                         <h2>Obra</h2>
                         <p>Dashboard de Obra, Indicadores de Rendimiento y Reportes de Supervisión</p>
-                        <button class="btn-tarjeta">Abrir Módulos</button>
+                        <button type="button" class="btn-tarjeta">Abrir Módulos</button>
                     </div>
 
                     <div class="tarjeta tarjeta-master" data-target="residentes">
                         <img src="img/workers.png" alt="residentes" class="icono-tarjeta">
                         <h2>Empleados</h2>
                         <p>Registro de Contratos, Solicitud de Materiales, Solicitud de Pagos, Envío de Archivos, Solicitud de Vacaciones, Tabla de vacaciones</p>
-                        <button class="btn-tarjeta">Abrir Módulos</button>
+                        <button type="button" class="btn-tarjeta">Abrir Módulos</button>
                     </div>
 
-                    <!-- ==========================================
-                         NIVEL 1: SUB-PANEL DE CONTROL
-                         ========================================== -->
                     <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="control">
                         <img src="img/reg-minuta.png" alt="Registrar Minuta" class="icono-tarjeta">
                         <h2>Registrar Minuta</h2>
@@ -128,9 +125,6 @@
                         <a href="Control/dashboard.html" class="btn-tarjeta">Ir a Dashboard</a>
                     </div>
 
-                    <!-- ==========================================
-                         NIVEL 1: SUB-PANEL DE FINANZAS
-                         ========================================== -->
                     <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="finanzas">
                         <img src="img/materiales-Consulta.png" alt="Material-Consulta" class="icono-tarjeta">
                         <h2>Consulta de Materiales</h2>
@@ -150,9 +144,6 @@
                         <a href="Finanzas/tabla_pagos.html" class="btn-tarjeta">Ir a Pagos</a>
                     </div>
 
-                    <!-- ==========================================
-                         NIVEL 1: SUB-PANEL DE OBRA
-                         ========================================== -->
                     <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="obra">
                         <img src="img/dashboard.png" alt="Dashboard Obra" class="icono-tarjeta">
                         <h2>Dashboard Obra</h2>
@@ -184,9 +175,6 @@
                         <a href="Obra/tabla_supervision.html" class="btn-tarjeta">Ir a Histórico</a>
                     </div>
 
-                    <!-- ==========================================
-                         NIVEL 1: SUB-PANEL DE Trabajadores
-                         ========================================== -->
                     <div class="tarjeta tarjeta-sub panel-oculto" data-seccion="residentes">
                         <img src="img/vacations.png" alt="solicitud vacaciones" class="icono-tarjeta">
                         <h2>Solicitud de Vacaciones</h2>

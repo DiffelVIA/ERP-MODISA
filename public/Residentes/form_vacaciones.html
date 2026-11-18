@@ -6,7 +6,9 @@
     <title>Solicitud de Vacaciones - MODISA</title>
     <script src="/timeout.js"></script>
     <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/components.css">
 </head>
 <body>
 
@@ -28,7 +30,7 @@
             <input type="hidden" id="id_employee" name="id_employee">
             <div class="contenedor-formulario">
                 <label for="nombre_solicitante">Empleado</label>
-                <input type="text" id="nombre_solicitante" name="nombre_solicitante" readonly style="background-color: #e9ecef; cursor: not-allowed;" placeholder="Cargando datos del usuario...">
+                <input type="text" id="nombre_solicitante" name="nombre_solicitante" readonly placeholder="Cargando datos del usuario...">
             </div>
 
             <div class="contenedor-formulario">
@@ -43,16 +45,15 @@
 
             <div class="contenedor-formulario">
                 <label for="dias_tomados">Días Solicitados</label>
-                <input type="number" id="dias_tomados" name="dias_tomados" readonly style="background-color: #e9ecef; cursor: not-allowed;" placeholder="Pendiente" required>
+                <input type="number" id="dias_tomados" name="dias_tomados" readonly placeholder="Pendiente" required>
             </div>
 
-            <!-- MODIFICACIÓN SOLUCIÓN: Botón-Enlace sin navegación externa para evitar redirección al Login -->
             <div class="contenedor-formulario">
-                <a href="tabla_vacaciones.html?vista=gantt" id="btnIrGanttVacaciones" style="color: #2563eb; text-decoration: underline; font-weight: 500; cursor: pointer;">📅 Ver calendario de vacaciones antes de elegir fechas</a>
+                <a href="tabla_vacaciones.html?vista=gantt" id="btnIrGanttVacaciones" style="color: var(--accent-color); text-decoration: underline; font-weight: 500; cursor: pointer;">📅 Ver calendario de vacaciones antes de elegir fechas</a>
             </div>
 
             <div class="contenedor-botones">
-                <button type="submit" id="guardar" class="btn">Enviar Solicitud</button>
+                <button type="submit" id="guardar" class="btn btn-primary">Enviar Solicitud</button>
             </div>
         </form>
     </main>
@@ -64,8 +65,6 @@
 
     <script src="/authClient.js"></script>
     <script src="formVacaciones.js"></script>
-    
-    <!-- MODIFICACIÓN SOLUCIÓN: Manejador de navegación segura sin perder sesión JWT -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const btnGantt = document.getElementById('btnIrGanttVacaciones');

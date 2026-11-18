@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Restablecer Contraseña - MODISA</title>
     <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/components.css">
 </head>
 <body>
     <header id="header">
@@ -23,13 +25,13 @@
             <form id="form-verificar">
                 <div class="contenedor-formulario">
                     <label for="recuperar-correo">Correo Electrónico</label>
-                    <input type="email" id="recuperar-correo" placeholder="ejemplo@modisa.com" required>
+                    <input type="email" id="recuperar-correo" placeholder="ejemplo@modisa.com" autocomplete="email" required>
                 </div>
                 <div class="contenedor-botones">
-                    <button type="submit" id="descargar" class="btn">Solicitar Código</button>
-                    <a href="index.html" style="margin-top: 15px; display: block; text-align: center; color: #007bff; text-decoration: none">Volver al Login</a>
+                    <button type="submit" id="descargar" class="btn btn-primary">Solicitar Código</button>
+                    <a href="index.html" style="margin-top: 15px; display: block; text-align: center; color: #007bff; text-decoration: none;">Volver al Login</a>
                 </div>
-                <div id="error-verificar" class="error-msg" style="display: none;"></div>
+                <div id="error-verificar" class="error-msg" role="alert" aria-live="polite" style="display: none;"></div>
             </form>
         </div>
 
@@ -38,16 +40,16 @@
             <form id="form-nueva-pass">
                 <div class="contenedor-formulario">
                     <label for="nueva-pass">Nueva Contraseña</label>
-                    <input type="password" id="nueva-pass" placeholder="Mínimo 6 caracteres" minlength="6" required>
+                    <input type="password" id="nueva-pass" placeholder="Mínimo 6 caracteres" minlength="6" autocomplete="new-password" required>
                 </div>
                 <div class="contenedor-formulario">
                     <label for="confirmar-pass">Confirmar Contraseña</label>
-                    <input type="password" id="confirmar-pass" placeholder="Repite tu contraseña" minlength="6" required>
+                    <input type="password" id="confirmar-pass" placeholder="Repite tu contraseña" minlength="6" autocomplete="new-password" required>
                 </div>
                 <div class="contenedor-botones">
-                    <button type="submit" id="btn-actualizar" class="btn">Actualizar Contraseña</button>
+                    <button type="submit" id="btn-actualizar" class="btn btn-primary">Actualizar Contraseña</button>
                 </div>
-                <div id="error-nueva" class="error-msg" style="display: none;"></div>
+                <div id="error-nueva" class="error-msg" role="alert" aria-live="polite" style="display: none;"></div>
             </form>
         </div>
     </main>

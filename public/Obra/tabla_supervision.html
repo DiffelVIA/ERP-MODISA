@@ -6,7 +6,9 @@
   <title>Histórico de Supervisión - MODISA</title>
   <script src="/timeout.js"></script>
   <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
 </head>
 
 <body>
@@ -26,25 +28,21 @@
     
     <div class="contenedorFiltros">
 
-      <!-- Filtro Proyecto -->
       <div class="filtros" id="dropdownProyecto">
         <button type="button" class="btn-dropdown">Filtro Proyecto ▾</button>
         <div class="contenido-dropdown" id="filtroProyecto"></div>
       </div>
 
-      <!-- Filtro Residente -->
       <div class="filtros" id="dropdownResidente">
         <button type="button" class="btn-dropdown">Filtro Residente ▾</button>
         <div class="contenido-dropdown" id="filtroResidente"></div>
       </div>
 
-      <!-- Filtro Semana -->
       <div class="filtros" id="dropdownSemana">
         <button type="button" class="btn-dropdown">Filtro Semana ▾</button>
         <div class="contenido-dropdown" id="filtroSemana"></div>
       </div>
 
-      <!-- Filtro Fecha (Depende de Selección de Semana) -->
       <div class="filtros" id="dropdownFecha">
         <button type="button" class="btn-dropdown" id="btnFiltroFecha" disabled title="Selecciona primero una semana">Filtro Fecha ▾</button>
         <div class="contenido-dropdown" id="filtroFecha"></div>

@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registro de Contratos</title>
-    <script src="/timeout.js"> </script>
+    <script src="/timeout.js"></script>
     <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/components.css">
 </head>
 <body>
     <header id="header">
@@ -25,7 +27,7 @@
             
             <div class="contenedor-formulario">
                 <label for="solicitante">Solicitante</label>
-                <input type="text" name="solicitante" id="solicitante" readonly style="cursor: not-allowed;">
+                <input type="text" name="solicitante" id="solicitante" readonly>
             </div>
 
             <div class="contenedor-formulario">
@@ -58,12 +60,12 @@
 
             <div class="contenedor-formulario">
                 <label for="fecha">Fecha de Registro</label>
-                <input type="date" id="fecha" name="fecha" readonly style="cursor: not-allowed;">
+                <input type="date" id="fecha" name="fecha" readonly>
             </div>
 
             <div class="contenedor-formulario">
                 <label for="semana-fiscal">Semana</label>
-                <input type="text" id="semana-fiscal" name="semana" readonly style="cursor: not-allowed;">
+                <input type="text" id="semana-fiscal" name="semana" readonly>
             </div>
 
             <div class="contenedor-formulario">
@@ -92,7 +94,7 @@
             </div>
 
             <div class="contenedor-botones">
-                <button type="submit" id="descargar" class="btn">
+                <button type="submit" id="descargar" class="btn btn-primary">
                    🚀 Enviar Contrato
                 </button>
             </div>

@@ -1,0 +1,201 @@
+/* Vista Principal, Carrusel y Tarjetas */
+.principal-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  background-color: var(--bg-light);
+  padding: 60px 20px;
+  box-sizing: border-box;
+}
+
+.principal-main h1 {
+  color: var(--primary-color);
+  font-size: 28px;
+  margin-top: 0;
+  margin-bottom: 40px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.contenedor-saludo {
+  text-align: center;
+  margin: 15px auto 25px auto;
+}
+
+.contenedor-saludo h2 {
+  font-size: 20px;
+  color: var(--text-dark, #1e293b);
+  margin-bottom: 12px;
+}
+
+.kpi-minutas-grid {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.kpi-card {
+  background: var(--blanco);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--black--);
+}
+
+.kpi-num {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.kpi-lbl {
+  font-size: 13px;
+  color: var(--text-dark);
+}
+
+.kpi-atrasadas .kpi-num { color: var(--red--); }
+.kpi-pendientes .kpi-num { color: var(--amarillo--); }
+.kpi-aplazadas .kpi-num { color: var(--accent-color); }
+
+.carrusel {
+  position: relative;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1500px;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.carrusel-ventana {
+  width: 100%;
+  overflow-x: auto;
+  padding: 20px 5px 30px 5px;
+  box-sizing: border-box;
+  scroll-behavior: smooth;
+}
+
+.carrusel-ventana::-webkit-scrollbar {
+  height: 8px;
+}
+
+.carrusel-ventana::-webkit-scrollbar-track {
+  background: var(--box-shadow--);
+  border-radius: 10px;
+}
+
+.carrusel-ventana::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 10px;
+  transition: background 0.2s;
+}
+
+.carrusel-ventana::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color);
+}
+
+.contenedor-tarjetas {
+  display: flex;
+  gap: 20px;
+  width: max-content;
+  transition: justify-content 0.2 ease;
+}
+
+.contenedor-tarjetas.vista-menu {
+  width: 100%;
+  justify-content: center;
+}
+
+.tarjeta {
+  flex: 0 0 250px;
+  width: 250px;
+  background-color: var(--blanco);
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid var(--box-shadow--);
+  box-shadow: 0 10px 25px var(--box-shadow-2--);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-sizing: border-box;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tarjeta:hover {
+  transform: translateY(-11px);
+  box-shadow: 0 15px 35px var(--box-shadow-2--);
+}
+
+.icono-tarjeta {
+  width: 55px;
+  height: 55px;
+  object-fit: contain;
+  margin-bottom: 20px;
+}
+
+.tarjeta h2 {
+  font-size: 19px;
+  color: var(--primary-color);
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.tarjeta p {
+  font-size: 15px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-top: 0;
+  margin-bottom: 25px;
+  min-height: 72px;
+}
+
+.btn-tarjeta {
+  background-color: var(--primary-color);
+  color: var(--blanco);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 15px;
+  border-radius: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  display: block;
+  text-align: center;
+  margin-top: auto;
+  transition: background-color 0.2s ease;
+}
+
+.btn-tarjeta:hover {
+  background-color: var(--accent-color);
+}
+
+.tarjeta-master button {
+  pointer-events: auto;
+}
+
+@media (max-width: 767px) {
+  .carrusel-ventana {
+    overflow-x: auto;
+  }
+  .contenedor-tarjetas {
+    gap: 15px;
+  }
+  .contenedor-tarjetas.vista-menu {
+    justify-content: flex-start;
+    width: max-content;
+  }
+}

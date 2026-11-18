@@ -6,7 +6,9 @@
   <title>Registro de Vacaciones - MODISA</title>
   <script src="/timeout.js"></script>
   <link rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
   <link rel="stylesheet" href="gantt.css">
 </head>
 
@@ -28,7 +30,6 @@
     <div class="contenedorFiltros" style="display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 20px;">
 
       <div id="grupoFiltrosVacaciones" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-        <!-- Filtro Empleado -->
         <div class="filtros" id="dropdownEmpleado">
           <button type="button" class="btn-dropdown">Filtro Empleado ▾</button>
           <div class="contenido-dropdown" id="filtroEmpleado"></div>
@@ -138,11 +139,8 @@
       <div id="gaugeTooltip" style="display: none; position: absolute; z-index: 1000; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; padding: 15px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); pointer-events: none; width: 220px; text-align: center;">
         <div id="gaugeTooltipTitle" style="font-size: 12px; font-weight: bold; color: #1e293b; margin-bottom: 8px;"></div>
         <svg id="gaugeSvg" width="180" height="110" viewBox="0 0 180 110" style="overflow: visible;">
-          <!-- Arco de Fondo -->
           <path d="M 20 90 A 70 70 0 0 1 160 90" fill="none" stroke="#e2e8f0" stroke-width="14" stroke-linecap="round" />
-          <!-- Arco de Progreso (Consumo de Días) -->
           <path id="gaugeProgress" d="M 20 90 A 70 70 0 0 1 160 90" fill="none" stroke="#3b82f6" stroke-width="14" stroke-linecap="round" stroke-dasharray="220" stroke-dashoffset="220" style="transition: stroke-dashoffset 0.5s ease-in-out, stroke 0.3s;" />
-          <!-- Aguja Indicadora -->
           <g id="gaugeNeedleGroup" style="transform-origin: 90px 90px; transition: transform 0.5s ease-in-out;">
             <line x1="90" y1="90" x2="90" y2="30" stroke="#0f172a" stroke-width="3" stroke-linecap="round" />
             <circle cx="90" cy="90" r="6" fill="#0f172a" />
