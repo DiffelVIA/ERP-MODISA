@@ -7,7 +7,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// MODIFICACIÓN SOLUCIÓN: Importar también verificarYNotificarMinutasPendientes
 const {
   iniciarWhatsApp,
   verificarYNotificarContratosSinFirma,
@@ -25,10 +24,12 @@ const pagosRouter = require('./src/routes/payments');
 const dashboardRouter = require('./src/routes/dashboardBackend');
 const supervisionRouter = require('./src/routes/supervision');
 const kpiRouter = require('./src/routes/kpi');
-
 const vacacionesRouter = require('./src/routes/vacaciones');
+const {
+  router: prestamosRouter,
+  verificarYNotificarPrestamosPorVencer
+} = require('./src/routes/loans');
 
-// Vinculación de Rutas
 app.use('/api/auth/google', authRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/proyectos', projectsRouter);
@@ -48,11 +49,11 @@ app.use('/api/supervision', supervisionRouter);
 app.use('/api/kpi', kpiRouter);
 
 app.use('/api/vacaciones', vacacionesRouter);
+app.use('/api/prestamos', prestamosRouter);
 
 app.use('/api', categoriesRouter);
 app.use('/api', minutesRouter);
 
-// Arranque de Servidor
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
@@ -62,7 +63,6 @@ app.listen(PORT, () => {
   const PROGRAMAR_MINUTO = 30;
   const ZONA_HORARIA = 'America/Mexico_City';
 
-  // MODIFICACIÓN SOLUCIÓN: Cálculo exacto de siguiente ejecución respetando zona horaria dinámica sin offset fijo
   const calcularTiempoSiguienteEjecucion = () => {
       const ahora = new Date();
       const partes = new Intl.DateTimeFormat('en-US', {
@@ -92,7 +92,6 @@ app.listen(PORT, () => {
       return objetivoMxEnMs - ahoraMxEnMs;
   };
 
-  // MODIFICACIÓN SOLUCIÓN: Ejecución secuencial de revisión de contratos y recordatorios de minutas
   const ejecutarRevisionesDiarias = async () => {
       try {
           await verificarYNotificarContratosSinFirma();
@@ -105,11 +104,17 @@ app.listen(PORT, () => {
       } catch (err) {
           console.error('❌ Error en tarea programada de minutas:', err.message);
       }
+
+      try {
+          await verificarYNotificarPrestamosPorVencer();
+      } catch (err) {
+          console.error('❌ Error en tarea programada de préstamos:', err.message);
+      }
   };
 
   const iniciarCronDiario = () => {
       const msFaltantes = calcularTiempoSiguienteEjecucion();
-      console.log(`⏱️ Próxima verificación automática (contratos y minutas) programada en ${(msFaltantes / 1000 / 60 / 60).toFixed(2)} horas (8:30 AM hora México).`);
+      console.log(`⏱️ Próxima verificación automática (contratos, minutas y préstamos) programada en ${(msFaltantes / 1000 / 60 / 60).toFixed(2)} horas (8:30 AM hora México).`);
 
       setTimeout(() => {
           ejecutarRevisionesDiarias();
