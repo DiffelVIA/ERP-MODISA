@@ -309,7 +309,6 @@ router.get('/', verificarToken, async (req, res) => {
     }
 });
 
-// MODIFICACIÓN: Ruta PUT con verificación estricta e independiente de roles por cada campo de comentario
 router.put('/:id/actualizar-control', verificarToken, async (req, res) => {
     const { id } = req.params;
     const usuarioSesion = req.usuario;
@@ -325,7 +324,6 @@ router.put('/:id/actualizar-control', verificarToken, async (req, res) => {
         comentarios_administracion
     } = req.body;
 
-    // CIBERSEGURIDAD: Verificación estricta de roles autenticados
     const userRol = usuarioSesion && usuarioSesion.rol 
         ? usuarioSesion.rol.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') 
         : '';
@@ -335,10 +333,11 @@ router.put('/:id/actualizar-control', verificarToken, async (req, res) => {
     const esCompras = userRol.includes('compras') || (userRol.includes('gerente') && userRol.includes('administrac'));
 
     try {
-        // Consulta del estado actual para preservar comentarios si no corresponde la autorización
         const [contratoExistente] = await pool.query(
-            `SELECT comentarios_costos, comentarios_direccion, comentarios_administracion, total_amount 
-             FROM contracts WHERE id_contract = ?`,
+            `SELECT c.contract_key, c.comentarios_costos, c.comentarios_direccion, c.comentarios_administracion, c.total_amount, p.whatsapp_group_jid
+             FROM contracts c
+             LEFT JOIN projects p ON c.id_project = p.id_project
+             WHERE c.id_contract = ?`,
             [id]
         );
 
@@ -347,8 +346,8 @@ router.put('/:id/actualizar-control', verificarToken, async (req, res) => {
         }
 
         const datosActuales = contratoExistente[0];
+        const montoAnterior = Number(datosActuales.total_amount || 0);
 
-        // Validar intentos no autorizados de edición
         if (comentarios_costos !== undefined && comentarios_costos !== datosActuales.comentarios_costos && !esCostos) {
             return res.status(403).json({ error: "⛔ Acceso denegado: Solo el área de Costos puede editar sus comentarios." });
         }
@@ -361,7 +360,18 @@ router.put('/:id/actualizar-control', verificarToken, async (req, res) => {
             return res.status(403).json({ error: "⛔ Acceso denegado: Solo Compras / Administración pueden editar sus comentarios." });
         }
 
-        // Asignar los comentarios respetando permisos
+        let nuevoTotal = montoAnterior;
+        if (total_amount !== undefined && total_amount !== null) {
+            const totalParseado = Number(total_amount);
+            if (!Number.isFinite(totalParseado) || totalParseado < 0) {
+                return res.status(400).json({ error: "⚠️ El monto del contrato no es válido." });
+            }
+            if (totalParseado !== montoAnterior && !esCostos) {
+                return res.status(403).json({ error: "⛔ Acceso denegado: Solo el área de Costos puede modificar el monto del contrato." });
+            }
+            nuevoTotal = totalParseado;
+        }
+
         const comentarioCostosValido = esCostos ? (comentarios_costos !== undefined ? comentarios_costos : datosActuales.comentarios_costos) : datosActuales.comentarios_costos;
         const comentarioDireccionValido = esDireccion ? (comentarios_direccion !== undefined ? comentarios_direccion : datosActuales.comentarios_direccion) : datosActuales.comentarios_direccion;
         const comentarioAdministracionValido = esCompras ? (comentarios_administracion !== undefined ? comentarios_administracion : datosActuales.comentarios_administracion) : datosActuales.comentarios_administracion;
@@ -382,7 +392,6 @@ router.put('/:id/actualizar-control', verificarToken, async (req, res) => {
         const estadoCostosValido = estado_costos || 'Pendiente';
         const statusDireccionValido = status_direccion || 'Pendiente';
         const firmaValida = firma || 'Pendiente';
-        const nuevoTotal = (total_amount !== undefined && total_amount !== null) ? Number(total_amount) : null;
 
         const sql = `
             UPDATE contracts 
@@ -390,7 +399,7 @@ router.put('/:id/actualizar-control', verificarToken, async (req, res) => {
             WHERE id_contract = ?
         `;
         
-        const [result] = await pool.query(sql, [
+        await pool.query(sql, [
             estadoPagoValido, 
             estadoCostosValido, 
             statusDireccionValido, 
@@ -406,22 +415,14 @@ router.put('/:id/actualizar-control', verificarToken, async (req, res) => {
             enviarCorreoRechazoDireccion(id, comentarioDireccionValido);
         }
 
-        if (nuevoTotal !== null) {
-            const montoAnterior = Number(datosActuales.total_amount);
-            if (montoAnterior !== nuevoTotal) {
-                const [infoContrato] = await pool.query(
-                    `SELECT c.contract_key, p.whatsapp_group_jid 
-                     FROM contracts c
-                     LEFT JOIN projects p ON c.id_project = p.id_project
-                     WHERE c.id_contract = ?`,
-                    [id]
-                );
-                if (infoContrato.length > 0) {
-                    const clave = infoContrato[0].contract_key || `ID #${id}`;
-                    const targetGroupJid = infoContrato[0].whatsapp_group_jid;
-                    notificarModificacionContrato(clave, targetGroupJid);
-                }
-            }
+        if (montoAnterior !== nuevoTotal) {
+            const clave = datosActuales.contract_key || `ID #${id}`;
+            const targetGroupJid = datosActuales.whatsapp_group_jid;
+            notificarModificacionContrato(clave, targetGroupJid, {
+                tipo: 'monto',
+                valorAnterior: montoAnterior,
+                valorNuevo: nuevoTotal
+            });
         }
 
         res.json({ success: true, message: "Control del contrato actualizado con éxito." });
@@ -433,7 +434,28 @@ router.put('/:id/actualizar-control', verificarToken, async (req, res) => {
 
 router.put('/:id/actualizar-url', verificarToken, async (req, res) => {
     const { id } = req.params;
+    const usuarioSesion = req.usuario;
     const { contract_file_url } = req.body;
+
+    const userRol = usuarioSesion && usuarioSesion.rol 
+        ? usuarioSesion.rol.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') 
+        : '';
+
+    const esCostos = userRol.includes('costos');
+    if (!esCostos) {
+        return res.status(403).json({
+            success: false,
+            error: "⛔ Acceso denegado: Solo el área de Costos puede editar el enlace del contrato."
+        });
+    }
+
+    const urlLimpia = contract_file_url ? String(contract_file_url).trim() : '';
+    if (!urlLimpia || urlLimpia.length > 255 || !/^https?:\/\/\S+$/i.test(urlLimpia)) {
+        return res.status(400).json({
+            success: false,
+            error: "⚠️ Proporciona una URL válida (http:// o https://) de máximo 255 caracteres."
+        });
+    }
 
     try {
         const [contratoPrevio] = await pool.query(
@@ -444,26 +466,31 @@ router.put('/:id/actualizar-url', verificarToken, async (req, res) => {
             [id]
         );
 
+        if (contratoPrevio.length === 0) {
+            return res.status(404).json({ success: false, error: "No se encontró el contrato especificado." });
+        }
+
+        const urlAnterior = contratoPrevio[0].contract_file_url ? String(contratoPrevio[0].contract_file_url).trim() : '';
+
         const sql = `UPDATE contracts SET contract_file_url = ? WHERE id_contract = ?`;
-        const [result] = await pool.query(sql, [contract_file_url, id]);
+        const [result] = await pool.query(sql, [urlLimpia, id]);
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ success: false, error: "No se encontró el contrato especificado." });
         }
 
-        if (contratoPrevio.length > 0) {
-            const urlAnterior = contratoPrevio[0].contract_file_url;
-            if (urlAnterior !== contract_file_url) {
-                const clave = contratoPrevio[0].contract_key || `ID #${id}`;
-                const targetGroupJid = contratoPrevio[0].whatsapp_group_jid;
-                notificarModificacionContrato(clave, targetGroupJid);
-            }
+        if (urlAnterior !== urlLimpia) {
+            const clave = contratoPrevio[0].contract_key || `ID #${id}`;
+            const targetGroupJid = contratoPrevio[0].whatsapp_group_jid;
+            notificarModificacionContrato(clave, targetGroupJid, {
+                tipo: 'enlace'
+            });
         }
         
-        res.json( { success: true, message: "Contrato Actualizado con éxito." });    
+        res.json({ success: true, message: "Contrato Actualizado con éxito." });    
     } catch (error) {
         console.error("Error al actualizar la URL del contrato:", error);
-        res.status(500).json({ success: false, error: "Error interno del servidor al actualizar la URL del contrato."});
+        res.status(500).json({ success: false, error: "Error interno del servidor al actualizar la URL del contrato." });
     }
 });
 

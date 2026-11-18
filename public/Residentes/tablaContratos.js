@@ -169,7 +169,6 @@
             const diasPasados = Math.floor((fechaRef - inicioAño) / (24 * 60 * 60 * 1000));
             const numeroSemana = Math.ceil((diasPasados + inicioAño.getDay() + 1) / 7);
 
-            // MODIFICACIÓN: Identificación estricta de roles por área
             const esCostos = rolUsuarioLimpio.includes("costos");
             const esResidente = rolUsuarioLimpio.includes("residente");
             const esDireccion = rolUsuarioLimpio.includes("director operativo");
@@ -178,15 +177,17 @@
             const puedeEliminar = esCostos || esResidente;
 
             const botonEditarUrl = esCostos 
-                ? `<button type="button" onclick="editarUrlContrato(${c.id_contract}, '${c.contract_file_url || ''}')" title="Editar enlace de contrato" style="background:none; border:none; cursor:pointer; font-size:14px; margin-left:4px;">✏️</button>`
+                ? `<button type="button" onclick="editarUrlContrato(${c.id_contract}, '${escapeHTML(c.contract_file_url || '')}')" title="Editar enlace de contrato" style="background:none; border:none; cursor:pointer; font-size:14px; margin-left:4px;">✏️</button>`
                 : '';
 
             const botonEliminar = puedeEliminar 
-                ? `<button type="button" onclick="eliminarContrato(${c.id_contract}, '${c.contract_key}')" title="Eliminar contrato" style="background:none; border:none; cursor:pointer; font-size:13px; margin-left:6px; color:#ef4444; font-weight:bold;">❌</button>`
+                ? `<button type="button" onclick="eliminarContrato(${c.id_contract}, '${escapeHTML(c.contract_key)}')" title="Eliminar contrato" style="background:none; border:none; cursor:pointer; font-size:13px; margin-left:6px; color:#ef4444; font-weight:bold;">❌</button>`
                 : '';
 
-            const enlaceTexto = c.contract_file_url
-                ? `<a href="${c.contract_file_url}" target="_blank" style="color: #007bff; text-decoration: underline;"><strong>${escapeHTML(c.contract_key)}</strong></a>`
+            const urlSegura = c.contract_file_url && /^https?:\/\//i.test(c.contract_file_url.trim()) ? escapeHTML(c.contract_file_url.trim()) : '';
+
+            const enlaceTexto = urlSegura
+                ? `<a href="${urlSegura}" target="_blank" rel="noopener noreferrer" style="color: #007bff; text-decoration: underline;"><strong>${escapeHTML(c.contract_key)}</strong></a>`
                 : `<strong>${escapeHTML(c.contract_key)}</strong>`;
             
             const celdaClave = `${enlaceTexto}${botonEditarUrl}${botonEliminar}`;
@@ -219,7 +220,6 @@
                    </select>`
                 : `<span>${mapaCostos[currentCostos] || currentCostos}</span>`;
 
-            // MODIFICACIÓN: Comentarios de Costos SOLO editables por Costos
             const celdaComentarioCostos = esCostos
                 ? `<textarea id="comentario-costos-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Comentario Costos..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${escapeHTML(currentComentarioCostos)}</textarea>`
                 : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155; word-break: break-word; overflow-wrap: break-word;">${escapeHTML(currentComentarioCostos) || '---'}</span>`;
@@ -232,12 +232,10 @@
                    </select>`
                 : `<span>${mapaDireccion[currentDireccion] || currentDireccion}</span>`;
 
-            // MODIFICACIÓN: Comentarios de Dirección SOLO editables por Director Operativo
             const celdaComentarioDireccion = esDireccion
                 ? `<textarea id="comentario-direccion-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Comentario Dirección..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${escapeHTML(currentComentarioDireccion)}</textarea>`
                 : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155; word-break: break-word; overflow-wrap: break-word;">${escapeHTML(currentComentarioDireccion) || '---'}</span>`;
 
-            // MODIFICACIÓN: Comentarios de Administración SOLO editables por Compras / Administración
             const celdaComentarioAdministracion = esCompras
                 ? `<textarea id="comentario-administracion-${c.id_contract}" onchange="autoGuardarFila(${c.id_contract})" placeholder="Comentario..." style="width: 100%; height: 50px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12px; box-sizing: border-box; word-break: break-word; overflow-wrap: break-word; vertical-align: middle;">${escapeHTML(currentComentarioAdministracion)}</textarea>`
                 : `<span style="white-space: pre-wrap; font-size: 13px; color: #334155; word-break: break-word; overflow-wrap: break-word;">${escapeHTML(currentComentarioAdministracion) || '---'}</span>`;
@@ -455,8 +453,7 @@
         if (cellTotal) cellTotal.setAttribute('data-total', totalFilaNum);
 
         const montoPagado = cellMontoConsultar ? Number(cellMontoConsultar.getAttribute('data-monto-consultar') || 0) : 0;
-        
-        // MODIFICACIÓN: Si el usuario no tiene textarea (es span), mantiene su valor actual del caché
+
         const comentarioCostosVal = inputComentarioCostos ? inputComentarioCostos.value : (contratoEnCache ? contratoEnCache.comentarios_costos : null);
         const comentarioDireccionVal = inputComentarioDireccion ? inputComentarioDireccion.value : (contratoEnCache ? contratoEnCache.comentarios_direccion : null);
         const comentarioAdministracionVal = inputComentarioAdministracion ? inputComentarioAdministracion.value : (contratoEnCache ? contratoEnCache.comentarios_administracion : null);
@@ -588,6 +585,7 @@
         if (urlLimpia === urlActual.trim()) return;
         
         const token = localStorage.getItem('jwtToken') || '';
+        const contratoEnCache = todosLosContratos.find(c => c.id_contract === idContract);
 
         try {
             const response = await fetch(`${API_BASE}/contratos/${idContract}/actualizar-url`, {
@@ -611,7 +609,11 @@
                     body: JSON.stringify({
                         estado_costos: 'Pendiente',
                         status_direccion: 'Pendiente',
-                        firma: 'Pendiente'
+                        firma: 'Pendiente',
+                        total_amount: contratoEnCache ? Number(contratoEnCache.total_amount || 0) : undefined,
+                        comentarios_costos: contratoEnCache ? contratoEnCache.comentarios_costos : undefined,
+                        comentarios_direccion: contratoEnCache ? contratoEnCache.comentarios_direccion : undefined,
+                        comentarios_administracion: contratoEnCache ? contratoEnCache.comentarios_administracion : undefined
                     })
                 });
 

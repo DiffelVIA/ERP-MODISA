@@ -206,9 +206,19 @@ const obtenerFechaHoyMexico = () => {
     }).format(new Date());
 };
 
-const notificarModificacionContrato = async (contractKey, targetGroupJid) => {
+const formatearMonedaMXN = (valor) => {
+    const numero = Number(valor || 0);
+    return numero.toLocaleString('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+};
+
+const notificarModificacionContrato = async (contractKey, targetGroupJid, detalleCambio = null) => {
     try {
-        if (!sock) {
+        if (!sock || !whatsappConectado) {
             console.warn('⚠️ WhatsApp no está conectado.');
             return;
         }
@@ -217,9 +227,20 @@ const notificarModificacionContrato = async (contractKey, targetGroupJid) => {
             return;
         }
 
-        const mensaje = `El Contrato (${contractKey}) ha sido modificado, está pendiente de autorización y firma.`;
+        const claveLimpia = sanearTextoWhatsApp(contractKey, 80) || 'Sin clave';
+        let detalleTexto = '';
+
+        if (detalleCambio && detalleCambio.tipo === 'monto') {
+            const anteriorTxt = formatearMonedaMXN(detalleCambio.valorAnterior);
+            const nuevoTxt = formatearMonedaMXN(detalleCambio.valorNuevo);
+            detalleTexto = `\n• Campo modificado: Monto del contrato\n• Anterior: ${anteriorTxt}\n• Nuevo: ${nuevoTxt}`;
+        } else if (detalleCambio && detalleCambio.tipo === 'enlace') {
+            detalleTexto = `\n• Campo modificado: Enlace del documento del contrato`;
+        }
+
+        const mensaje = `El Contrato (${claveLimpia}) ha sido modificado, está pendiente de autorización y firma.${detalleTexto}`;
         await sock.sendMessage(targetGroupJid, { text: mensaje });
-        console.log(`📲 Notificación enviada al grupo ${targetGroupJid} para contrato: ${contractKey}`);
+        console.log(`📲 Notificación enviada al grupo ${targetGroupJid} para contrato: ${claveLimpia}`);
     } catch (error) {
         console.error('❌ Error al enviar notificación por WhatsApp:', error.message);
     }
