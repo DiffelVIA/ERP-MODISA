@@ -32,6 +32,31 @@
         }
     }
 
+    function normalizarRol(texto) {
+        if (!texto) return '';
+        return String(texto)
+            .trim()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9\s]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function tienePermisoPrestamos(rolTexto) {
+        const rolNorm = normalizarRol(rolTexto);
+        if (!rolNorm) return false;
+        const rolesPermitidos = [
+            'compras',
+            'gerente de administracion',
+            'gerente administracion',
+            'director operativo',
+            'director general'
+        ];
+        return rolesPermitidos.some(r => rolNorm === r || (rolNorm.includes('gerente') && rolNorm.includes('administrac')));
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         renderizarSaludoUsuario();
         cargarNotificacionesMinutas();
@@ -50,6 +75,8 @@
         const tarjetasMaster = document.querySelectorAll('.tarjeta-master');
         const tarjetasSub = document.querySelectorAll('.tarjeta-sub');
         const tarjetaEmpleados = document.getElementById('tarjeta-empleados');
+        const tarjetaPrestamos = document.getElementById('tarjeta-prestamos');
+
         if (tarjetaEmpleados) {
             const rolLimpio = rolUsuario ? rolUsuario.trim().toLowerCase() : '';
             
@@ -63,6 +90,14 @@
                 tarjetaEmpleados.style.display = 'block';
             } else {
                 tarjetaEmpleados.style.display = 'none';
+            }
+        }
+
+        if (tarjetaPrestamos) {
+            if (tienePermisoPrestamos(rolUsuario)) {
+                tarjetaPrestamos.style.display = '';
+            } else {
+                tarjetaPrestamos.style.display = 'none';
             }
         }
 
@@ -85,7 +120,12 @@
             tarjetasMaster.forEach(m => m.classList.add('panel-oculto'));
             tarjetasSub.forEach(sub => {
                 if (sub.getAttribute('data-seccion') === seccionObjetivo) {
-                    sub.classList.remove('panel-oculto');
+                    if (sub.id === 'tarjeta-prestamos' && !tienePermisoPrestamos(rolUsuario)) {
+                        sub.classList.add('panel-oculto');
+                        sub.style.display = 'none';
+                    } else {
+                        sub.classList.remove('panel-oculto');
+                    }
                 } else {
                     sub.classList.add('panel-oculto');
                 }
