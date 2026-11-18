@@ -145,7 +145,7 @@
         tbody.innerHTML = '';
 
         if (lista.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px;">🚫 No se encontraron préstamos registrados con los filtros seleccionados.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 20px;">🚫 No se encontraron préstamos registrados con los filtros seleccionados.</td></tr>`;
             return;
         }
 
@@ -176,10 +176,10 @@
             `;
 
             const botonRenovar = Number(p.renewed) === 0
-                ? `<button type="button" onclick="abrirModalRenovacion(${p.id_loan})" class="btn-dropdown" style="padding: 4px 10px; font-size: 12px; margin-right: 4px;" title="Renovar préstamo o detener alertas">🔄 Renovar</button>`
-                : '';
+                ? `<button type="button" onclick="abrirModalRenovacion(${p.id_loan})" class="btn-dropdown" style="padding: 4px 10px; font-size: 12px;" title="Renovar préstamo o detener alertas">🔄 Renovar</button>`
+                : '---';
 
-            const botonEliminar = `<button type="button" onclick="eliminarPrestamo(${p.id_loan}, '${escapeHTML(p.lender_name)}')" title="Eliminar préstamo" style="background:none; border:none; cursor:pointer; font-size:13px; color:#ef4444; font-weight:bold;">❌</button>`;
+            const botonEliminar = `<button type="button" class="btn-eliminar-prestamo" data-id="${Number(p.id_loan)}" data-acreedor="${escapeHTML(p.lender_name)}" title="Eliminar préstamo" style="background:none; border:none; cursor:pointer; font-size:13px; color:#ef4444; font-weight:bold; padding: 2px 4px; line-height: 1;">❌</button>`;
 
             tr.innerHTML = `
                 <td style="vertical-align: middle; font-weight: 600;">${escapeHTML(p.lender_name)}</td>
@@ -188,8 +188,16 @@
                 <td style="vertical-align: middle; text-align: right; font-weight: 600;">${Number(p.interest_rate || 0).toFixed(2)}%</td>
                 <td style="vertical-align: middle; text-align: center;">${celdaFirma}</td>
                 <td style="vertical-align: middle; text-align: center;">${badgeEstado}</td>
-                <td style="vertical-align: middle; text-align: center;">${botonRenovar}${botonEliminar}</td>
+                <td style="vertical-align: middle; text-align: center;">${botonRenovar}</td>
+                <td style="vertical-align: middle; text-align: right; padding-right: 10px; width: 44px;">${botonEliminar}</td>
             `;
+
+            const btnEliminarEl = tr.querySelector('.btn-eliminar-prestamo');
+            if (btnEliminarEl) {
+                btnEliminarEl.addEventListener('click', () => {
+                    eliminarPrestamo(Number(p.id_loan), p.lender_name);
+                });
+            }
 
             tbody.appendChild(tr);
         });
