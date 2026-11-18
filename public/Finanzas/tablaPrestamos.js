@@ -182,10 +182,10 @@
             const botonEliminar = `<button type="button" class="btn-eliminar-prestamo" data-id="${Number(p.id_loan)}" data-acreedor="${escapeHTML(p.lender_name)}" title="Eliminar préstamo" style="background:none; border:none; cursor:pointer; font-size:13px; color:#ef4444; font-weight:bold; padding: 2px 4px; line-height: 1;">❌</button>`;
 
             tr.innerHTML = `
-                <td style="vertical-align: middle; font-weight: 600;">${escapeHTML(p.lender_name)}</td>
+                <td style="vertical-align: middle; text-align: center; font-weight: 600;">${escapeHTML(p.lender_name)}</td>
                 <td style="vertical-align: middle; text-align: center;">${formatearFechaMX(p.loan_date)}</td>
                 <td style="vertical-align: middle; text-align: center; font-weight: 600;">${formatearFechaMX(p.due_date)}</td>
-                <td style="vertical-align: middle; text-align: right; font-weight: 600;">${Number(p.interest_rate || 0).toFixed(2)}%</td>
+                <td style="vertical-align: middle; text-align: center; font-weight: 600;">${Number(p.interest_rate || 0).toFixed(2)}%</td>
                 <td style="vertical-align: middle; text-align: center;">${celdaFirma}</td>
                 <td style="vertical-align: middle; text-align: center;">${badgeEstado}</td>
                 <td style="vertical-align: middle; text-align: center;">${botonRenovar}</td>
