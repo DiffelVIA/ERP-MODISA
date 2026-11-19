@@ -14,7 +14,6 @@
         document.addEventListener('change', (e) => {
             if (
                 e.target.classList.contains('chk-obra') ||
-                e.target.classList.contains('chk-estado') ||
                 e.target.classList.contains('chk-direccion') ||
                 e.target.classList.contains('chk-costos') ||
                 e.target.classList.contains('chk-firma')
@@ -91,7 +90,6 @@
 
         const cellTotal = trFila.querySelector('[data-campo="total"]');
         const cellMontoConsultar = trFila.querySelector('[data-campo="monto-consultar"]');
-        const cellStatusPago = trFila.querySelector('[data-campo="status-pago"]');
         const cellEstadoCostos = trFila.querySelector('[data-campo="estado-costos"]');
         const cellStatusDireccion = trFila.querySelector('[data-campo="status-direccion"]');
         const cellFirma = trFila.querySelector('[data-campo="firma"]');
@@ -127,9 +125,7 @@
             ? selectDireccion.value
             : (contratoEnCache ? (contratoEnCache.status_direccion || "Pendiente") : "Pendiente");
 
-        let statusGeneral = cellStatusPago
-            ? (cellStatusPago.getAttribute('data-valor-real') || "Pendiente")
-            : "Pendiente";
+        let statusGeneral = contratoEnCache ? (contratoEnCache.status || "Pendiente") : "Pendiente";
 
         let estadoCostos = selectCostos
             ? selectCostos.value
@@ -171,26 +167,15 @@
             } else if (cellFirma) {
                 cellFirma.innerHTML = `<span>⏳ No</span>`;
             }
-
-            if (cellStatusPago) {
-                cellStatusPago.innerHTML = `<span>❌ Rechazado</span>`;
-                cellStatusPago.setAttribute('data-valor-real', "Rechazado");
-            }
         } else if (estadoCostos === "Rechazado") {
             statusGeneral = "Rechazado";
-            if (cellStatusPago) {
-                cellStatusPago.innerHTML = `<span>❌ Rechazado</span>`;
-                cellStatusPago.setAttribute('data-valor-real', "Rechazado");
-            }
 
             if (selectFirma) selectFirma.disabled = false;
         } else {
             if (selectFirma) selectFirma.disabled = false;
 
-            if (statusGeneral === "Rechazado" && cellStatusPago) {
+            if (statusGeneral === "Rechazado") {
                 statusGeneral = "Pendiente";
-                cellStatusPago.innerHTML = `<span>⏳ Pendiente</span>`;
-                cellStatusPago.setAttribute('data-valor-real', "Pendiente");
             }
         }
 
@@ -212,9 +197,7 @@
                 const nuevoPorcentaje = totalFilaNum > 0 ? Math.round((montoPagado / totalFilaNum) * 100) : 0;
                 cellPorcentaje.innerHTML = `<strong>${nuevoPorcentaje}%</strong>`;
 
-                if (nuevoPorcentaje >= 100 && statusGeneral !== "Rechazado" && cellStatusPago) {
-                    cellStatusPago.innerHTML = `<span>💰 Pagado</span>`;
-                    cellStatusPago.setAttribute('data-valor-real', "Pagado");
+                if (nuevoPorcentaje >= 100 && statusGeneral !== "Rechazado") {
                     statusGeneral = "Pagado";
                 }
 

@@ -6,15 +6,13 @@
     function generarOpcionesFiltros(contratos) {
         const { escapeHTML } = window.ContratosApp.Auth;
         const contenedorObra = document.getElementById("filtroObra");
-        const contenedorEstado = document.getElementById("filtroEstado");
         const contenedorDireccion = document.getElementById("filtroDireccion");
         const contenedorCostos = document.getElementById("filtroCostos");
         const contenedorFirma = document.getElementById("filtroFirma");
 
-        if (!contenedorObra || !contenedorEstado) return;
+        if (!contenedorObra) return;
 
         const obrasUnicas = [...new Set(contratos.map(c => c.project_name).filter(Boolean))].sort();
-        const estadosUnicos = [...new Set(contratos.map(c => c.status).filter(Boolean))].sort();
         const direccionUnicos = [...new Set(contratos.map(c => c.status_direccion || 'Pendiente').filter(Boolean))].sort();
         const costosUnicos = [...new Set(contratos.map(c => c.estado_costos || 'Pendiente').filter(Boolean))].sort();
         const firmaUnicos = [...new Set(contratos.map(c => (c.firma === 'Firmado' || c.firma === 'Sí') ? 'Firmado' : 'Pendiente').filter(Boolean))].sort();
@@ -22,12 +20,6 @@
         contenedorObra.innerHTML = obrasUnicas.map(obra => `
           <label class="opcion-filtro" style="display: block; padding: 6px 12px; cursor: pointer; color: #1e293b;">
             <input type="checkbox" value="${escapeHTML(obra)}" class="chk-obra"> ${escapeHTML(obra)}
-          </label>
-        `).join('');
-
-        contenedorEstado.innerHTML = estadosUnicos.map(estado => `
-          <label class="opcion-filtro" style="display: block; padding: 6px 12px; cursor: pointer; color: #1e293b;">
-            <input type="checkbox" value="${escapeHTML(estado)}" class="chk-estado"> ${escapeHTML(estado)}
           </label>
         `).join('');
 
@@ -91,14 +83,12 @@
         };
 
         const obrasSeleccionadas = obtenerValoresCheckboxes('.chk-obra');
-        const estadosSeleccionados = obtenerValoresCheckboxes('.chk-estado');
         const direccionSeleccionada = obtenerValoresCheckboxes('.chk-direccion');
         const costosSeleccionados = obtenerValoresCheckboxes('.chk-costos');
         const firmaSeleccionada = obtenerValoresCheckboxes('.chk-firma');
 
         return todosLosContratos.filter(c => {
             const cumpleObra = obrasSeleccionadas.length === 0 || obrasSeleccionadas.includes(c.project_name);
-            const cumpleEstado = estadosSeleccionados.length === 0 || estadosSeleccionados.includes(c.status);
 
             const dirValor = c.status_direccion || 'Pendiente';
             const cumpleDireccion = direccionSeleccionada.length === 0 || direccionSeleccionada.includes(dirValor);
@@ -109,7 +99,7 @@
             const firValor = (c.firma === 'Firmado' || c.firma === 'Sí') ? 'Firmado' : 'Pendiente';
             const cumpleFirma = firmaSeleccionada.length === 0 || firmaSeleccionada.includes(firValor);
 
-            return cumpleObra && cumpleEstado && cumpleDireccion && cumpleCostos && cumpleFirma;
+            return cumpleObra && cumpleDireccion && cumpleCostos && cumpleFirma;
         });
     }
 

@@ -71,14 +71,13 @@
         tbody.innerHTML = "";
 
         if (listaContratos.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="18" style="text-align:center; padding: 20px;">🚫 No se encontraron contratos con los filtros seleccionados.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding: 20px;">🚫 No se encontraron contratos con los filtros seleccionados.</td></tr>`;
             return;
         }
 
         const universoColores = (todosLosContratos && todosLosContratos.length > 0) ? todosLosContratos : listaContratos;
         const mapaColoresContratos = calcularMapaColores(universoColores);
 
-        const mapaStatus = { "Pendiente": "⏳ Pendiente", "Pagado": "💰 Pagado", "Rechazado": "❌ Rechazado" };
         const mapaCostos = { "Pendiente": "⏳ Pendiente", "Revisado": "🔍 Revisado", "Rechazado": "❌ Rechazado" };
         const mapaDireccion = { "Pendiente": "⏳ Pendiente", "Autorizado": "✔️ Autorizado", "Rechazado": "❌ Rechazado" };
         const mapaFirma = { "Pendiente": "⏳ No", "No": "⏳ No", "Firmado": "✅ Sí", "Sí": "✅ Sí" };
@@ -113,7 +112,6 @@
 
             const celdaClave = `${enlaceTexto}${botonEditarUrl}${botonEliminar}`;
 
-            const currentStatus = c.status || "Pendiente";
             const currentCostos = c.estado_costos || "Pendiente";
             const currentComentarioCostos = c.comentarios_costos || "";
             const currentDireccion = c.status_direccion || "Pendiente";
@@ -122,7 +120,6 @@
             const currentFirma = c.firma || "Pendiente";
 
             const celdaMontoPagado = `<span>$${pagado.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>`;
-            const celdaStatusPago = `<span>${mapaStatus[currentStatus] || mapaStatus["Pendiente"]}</span>`;
 
             const celdaTotal = esCostos
                 ? `<input type="number" step="0.01" id="total-${c.id_contract}" class="input-tabla" value="${total}" onchange="autoGuardarFila(${c.id_contract})" style="width: 100%; font-weight: 700; color: ${colorFuente}; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; text-align: right; font-size: 13px;">`
@@ -177,7 +174,6 @@
                 <td id="porcentaje-${c.id_contract}" style="vertical-align: middle; text-align: center;"><strong>${porcentajePagado}%</strong></td>
                 <td data-campo="saldo-dinero" style="color: #64748b; font-weight: 500; vertical-align: middle; text-align: right;">$${saldoPendienteDinero.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
                 <td data-campo="saldo-porcentaje" style="color: #64748b; font-weight: bold; vertical-align: middle; text-align: center;">${saldoPendientePorcentaje}%</td>
-                <td data-campo="status-pago" data-valor-real="${escapeHTML(currentStatus)}" style="vertical-align: middle; text-align: center;">${celdaStatusPago}</td>
                 <td data-campo="estado-costos" style="vertical-align: middle; text-align: center;">${celdaCostos}</td>
                 <td data-campo="comentarios-costos" style="vertical-align: middle; word-break: break-word; overflow-wrap: break-word;">${celdaComentarioCostos}</td>
                 <td data-campo="status-direccion" style="vertical-align: middle; text-align: center;">${celdaDireccion}</td>
