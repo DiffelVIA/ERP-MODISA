@@ -85,11 +85,12 @@
                         <option value="Compras">Compras</option>
                         <option value="Residente de Obra">Residente de Obra</option>
                         <option value="Auxiliar">Auxiliar</option>
-                        <option value="__otro__">➕ Otro (especificar nuevo puesto)...</option>
+                        <option value="Becario">Becario</option>
+                        <option value="__otro__">+ Otro</option>
                     </select>
                 </div>
                 <div class="contenedor-formulario" id="grupo-puesto-otro" style="margin-bottom: 0; display: none;">
-                    <label for="emp-puesto-otro" style="font-size: 12px;">Especificar Nuevo Puesto / Rol:</label>
+                    <label for="emp-puesto-otro" style="font-size: 12px;">Especificar Puesto / Rol:</label>
                     <input type="text" id="emp-puesto-otro" placeholder="Ej: Coordinador de Seguridad">
                     <small style="font-size: 11px; color: #64748b; display: block; margin-top: 4px;">
                         Nota: Los puestos personalizados requieren configurarse en los permisos del sistema para acceder a los módulos.
@@ -97,7 +98,21 @@
                 </div>
                 <div class="contenedor-formulario" style="margin-bottom: 0;">
                     <label for="emp-depto" style="font-size: 12px;">Departamento:</label>
-                    <input type="text" id="emp-depto">
+                    <select id="emp-depto">
+                        <option value="">-- Selecciona un departamento --</option>
+                        <option value="Dirección">Dirección</option>
+                        <option value="Gerencia">Gerencia</option>
+                        <option value="Administración">Administración</option>
+                        <option value="Obra">Obra</option>
+                        <option value="Diseño">Diseño</option>
+                        <option value="Costos">Costos</option>
+                        <option value="Comercial">Comercial</option>
+                        <option value="__otro__">+ Otro</option>
+                    </select>
+                </div>
+                <div class="contenedor-formulario" id="grupo-depto-otro" style="margin-bottom: 0; display: none;">
+                    <label for="emp-depto-otro" style="font-size: 12px;">Especificar Departamento:</label>
+                    <input type="text" id="emp-depto-otro" placeholder="Ej: Recursos Humanos">
                 </div>
                 <div class="contenedor-formulario" style="margin-bottom: 0;">
                     <label for="emp-hire-date" style="font-size: 12px;">Fecha de Ingreso:</label>

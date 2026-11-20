@@ -134,9 +134,9 @@
         });
     }
 
-    function actualizarVisibilidadPuestoOtro(valorSelect) {
-        const grupoOtro = document.getElementById('grupo-puesto-otro');
-        const inputOtro = document.getElementById('emp-puesto-otro');
+    function actualizarVisibilidadCampoOtro(idGrupo, idInput, valorSelect) {
+        const grupoOtro = document.getElementById(idGrupo);
+        const inputOtro = document.getElementById(idInput);
         if (!grupoOtro || !inputOtro) return;
 
         if (valorSelect === '__otro__') {
@@ -149,20 +149,20 @@
         }
     }
 
-    function establecerPuestoEnFormulario(puestoActual) {
-        const selectPuesto = document.getElementById('emp-puesto');
-        const inputOtro = document.getElementById('emp-puesto-otro');
-        if (!selectPuesto) return;
+    function establecerValorEnSelectCatalogo(idSelect, idGrupoOtro, idInputOtro, valorActual) {
+        const selectEl = document.getElementById(idSelect);
+        const inputOtro = document.getElementById(idInputOtro);
+        if (!selectEl) return;
 
-        const valorLimpio = (puestoActual || '').trim();
+        const valorLimpio = (valorActual || '').trim();
         if (!valorLimpio) {
-            selectPuesto.value = '';
-            actualizarVisibilidadPuestoOtro('');
+            selectEl.value = '';
+            actualizarVisibilidadCampoOtro(idGrupoOtro, idInputOtro, '');
             return;
         }
 
         const valorNorm = normalizarTexto(valorLimpio);
-        const opciones = Array.from(selectPuesto.options);
+        const opciones = Array.from(selectEl.options);
         const opcionCoincidente = opciones.find(opt =>
             opt.value !== '' &&
             opt.value !== '__otro__' &&
@@ -170,11 +170,11 @@
         );
 
         if (opcionCoincidente) {
-            selectPuesto.value = opcionCoincidente.value;
-            actualizarVisibilidadPuestoOtro(opcionCoincidente.value);
+            selectEl.value = opcionCoincidente.value;
+            actualizarVisibilidadCampoOtro(idGrupoOtro, idInputOtro, opcionCoincidente.value);
         } else {
-            selectPuesto.value = '__otro__';
-            actualizarVisibilidadPuestoOtro('__otro__');
+            selectEl.value = '__otro__';
+            actualizarVisibilidadCampoOtro(idGrupoOtro, idInputOtro, '__otro__');
             if (inputOtro) {
                 inputOtro.value = valorLimpio;
             }
@@ -188,12 +188,23 @@
         const form = document.getElementById('formEmpleado');
         const btnExcel = document.getElementById('btn-descargar-excel');
         const selectPuesto = document.getElementById('emp-puesto');
+        const selectDepto = document.getElementById('emp-depto');
 
         if (selectPuesto) {
             selectPuesto.addEventListener('change', (e) => {
-                actualizarVisibilidadPuestoOtro(e.target.value);
+                actualizarVisibilidadCampoOtro('grupo-puesto-otro', 'emp-puesto-otro', e.target.value);
                 if (e.target.value === '__otro__') {
                     const inputOtro = document.getElementById('emp-puesto-otro');
+                    if (inputOtro) inputOtro.focus();
+                }
+            });
+        }
+
+        if (selectDepto) {
+            selectDepto.addEventListener('change', (e) => {
+                actualizarVisibilidadCampoOtro('grupo-depto-otro', 'emp-depto-otro', e.target.value);
+                if (e.target.value === '__otro__') {
+                    const inputOtro = document.getElementById('emp-depto-otro');
                     if (inputOtro) inputOtro.focus();
                 }
             });
@@ -207,7 +218,8 @@
             btnNuevo.addEventListener('click', () => {
                 form.reset();
                 document.getElementById('emp-id').value = '';
-                establecerPuestoEnFormulario('');
+                establecerValorEnSelectCatalogo('emp-puesto', 'grupo-puesto-otro', 'emp-puesto-otro', '');
+                establecerValorEnSelectCatalogo('emp-depto', 'grupo-depto-otro', 'emp-depto-otro', '');
 
                 const inputFecha = document.getElementById('emp-hire-date');
                 if (inputFecha) inputFecha.value = '';
@@ -241,8 +253,8 @@
                         document.getElementById('emp-apellido').value = emp.last_name;
                         document.getElementById('emp-email').value = emp.email;
                         document.getElementById('emp-telefono').value = emp.phone || '';
-                        establecerPuestoEnFormulario(emp.job_title || '');
-                        document.getElementById('emp-depto').value = emp.department || '';
+                        establecerValorEnSelectCatalogo('emp-puesto', 'grupo-puesto-otro', 'emp-puesto-otro', emp.job_title || '');
+                        establecerValorEnSelectCatalogo('emp-depto', 'grupo-depto-otro', 'emp-depto-otro', emp.department || '');
 
                         const inputFecha = document.getElementById('emp-hire-date');
                         if (inputFecha) {
@@ -287,6 +299,11 @@
                     return;
                 }
 
+                const seleccionDepto = document.getElementById('emp-depto').value;
+                const deptoFinal = seleccionDepto === '__otro__'
+                    ? document.getElementById('emp-depto-otro').value.trim()
+                    : seleccionDepto.trim();
+
                 const valSueldo = document.getElementById('emp-sueldo') ? document.getElementById('emp-sueldo').value : '0';
 
                 const payload = {
@@ -295,7 +312,7 @@
                     email: document.getElementById('emp-email').value.trim(),
                     phone: document.getElementById('emp-telefono').value.trim(),
                     job_title: puestoFinal,
-                    department: document.getElementById('emp-depto').value.trim(),
+                    department: deptoFinal,
                     hire_date: document.getElementById('emp-hire-date').value || null,
                     sueldo: valSueldo !== '' ? parseFloat(valSueldo) : 0
                 };
