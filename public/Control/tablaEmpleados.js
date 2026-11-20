@@ -3,6 +3,27 @@
         ? 'http://localhost:3000/api' 
         : 'https://erp-modisa.onrender.com/api';
 
+    function escapeHTML(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function normalizarTexto(texto) {
+        if (!texto) return '';
+        return String(texto)
+            .trim()
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/_/g, " ")
+            .replace(/\s+/g, " ");
+    }
+
     function obtenerRolDesdeJWT() {
         const token = localStorage.getItem('jwtToken');
         if (!token) return '';
@@ -27,25 +48,18 @@
     let listaEmpleados = [];
 
     document.addEventListener('DOMContentLoaded', () => {
-        const rolNormalizado = ROL_USUARIO
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/_/g, " ")
-            .replace(/\s+/g, " ");
+        const rolNormalizado = normalizarTexto(ROL_USUARIO);
 
         const rolesPermitidos = [
             'director operativo',
             'gerente administración',
             'gerente administracion',
+            'gerente de administracion',
             'compras'
         ];
 
         const tienePermiso = rolesPermitidos.some(rolPermitido => {
-            const permitidoLimpio = rolPermitido
-                .normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "")
-                .replace(/_/g, " ")
-                .replace(/\s+/g, " ");
+            const permitidoLimpio = normalizarTexto(rolPermitido);
             return ROL_USUARIO === rolPermitido || rolNormalizado === permitidoLimpio;
         });
 
@@ -104,20 +118,67 @@
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><strong>${emp.name} ${emp.last_name}</strong></td>
-                <td>${emp.email}</td>
-                <td>${emp.phone || '---'}</td>
-                <td><strong>${emp.job_title || '---'}</strong></td>
-                <td>${emp.department || '---'}</td>
+                <td><strong>${escapeHTML(emp.name)} ${escapeHTML(emp.last_name)}</strong></td>
+                <td>${escapeHTML(emp.email)}</td>
+                <td>${escapeHTML(emp.phone) || '---'}</td>
+                <td><strong>${escapeHTML(emp.job_title) || '---'}</strong></td>
+                <td>${escapeHTML(emp.department) || '---'}</td>
                 <td>${fechaIngresoFormatted}</td>
                 <td style="text-align: right; font-weight: 600; color: #2e7d32;">${sueldoFormatted}</td>
                 <td style="text-align: center; white-space: nowrap;">
-                    <button class="btn btn-editar" data-id="${emp.id_employee}" style="padding: 3px 8px; font-size: 11px;">✏️ Editar</button>
-                    <button class="btn btn-eliminar" data-id="${emp.id_employee}" style="padding: 3px 8px; font-size: 11px; background-color: #f0a351; color: #fff;">🗑️ Eliminar</button>
+                    <button class="btn btn-editar" data-id="${Number(emp.id_employee)}" style="padding: 3px 8px; font-size: 11px;">✏️ Editar</button>
+                    <button class="btn btn-eliminar" data-id="${Number(emp.id_employee)}" style="padding: 3px 8px; font-size: 11px; background-color: #f0a351; color: #fff;">🗑️ Eliminar</button>
                 </td>
             `;
             tbody.appendChild(tr);
         });
+    }
+
+    function actualizarVisibilidadPuestoOtro(valorSelect) {
+        const grupoOtro = document.getElementById('grupo-puesto-otro');
+        const inputOtro = document.getElementById('emp-puesto-otro');
+        if (!grupoOtro || !inputOtro) return;
+
+        if (valorSelect === '__otro__') {
+            grupoOtro.style.display = 'block';
+            inputOtro.setAttribute('required', 'true');
+        } else {
+            grupoOtro.style.display = 'none';
+            inputOtro.removeAttribute('required');
+            inputOtro.value = '';
+        }
+    }
+
+    function establecerPuestoEnFormulario(puestoActual) {
+        const selectPuesto = document.getElementById('emp-puesto');
+        const inputOtro = document.getElementById('emp-puesto-otro');
+        if (!selectPuesto) return;
+
+        const valorLimpio = (puestoActual || '').trim();
+        if (!valorLimpio) {
+            selectPuesto.value = '';
+            actualizarVisibilidadPuestoOtro('');
+            return;
+        }
+
+        const valorNorm = normalizarTexto(valorLimpio);
+        const opciones = Array.from(selectPuesto.options);
+        const opcionCoincidente = opciones.find(opt =>
+            opt.value !== '' &&
+            opt.value !== '__otro__' &&
+            normalizarTexto(opt.value) === valorNorm
+        );
+
+        if (opcionCoincidente) {
+            selectPuesto.value = opcionCoincidente.value;
+            actualizarVisibilidadPuestoOtro(opcionCoincidente.value);
+        } else {
+            selectPuesto.value = '__otro__';
+            actualizarVisibilidadPuestoOtro('__otro__');
+            if (inputOtro) {
+                inputOtro.value = valorLimpio;
+            }
+        }
     }
 
     function configurarEventos() {
@@ -126,6 +187,17 @@
         const btnCerrar = document.getElementById('btnCerrarModal');
         const form = document.getElementById('formEmpleado');
         const btnExcel = document.getElementById('btn-descargar-excel');
+        const selectPuesto = document.getElementById('emp-puesto');
+
+        if (selectPuesto) {
+            selectPuesto.addEventListener('change', (e) => {
+                actualizarVisibilidadPuestoOtro(e.target.value);
+                if (e.target.value === '__otro__') {
+                    const inputOtro = document.getElementById('emp-puesto-otro');
+                    if (inputOtro) inputOtro.focus();
+                }
+            });
+        }
 
         if (btnExcel) {
             btnExcel.addEventListener('click', descargarExcel);
@@ -135,6 +207,8 @@
             btnNuevo.addEventListener('click', () => {
                 form.reset();
                 document.getElementById('emp-id').value = '';
+                establecerPuestoEnFormulario('');
+
                 const inputFecha = document.getElementById('emp-hire-date');
                 if (inputFecha) inputFecha.value = '';
 
@@ -167,7 +241,7 @@
                         document.getElementById('emp-apellido').value = emp.last_name;
                         document.getElementById('emp-email').value = emp.email;
                         document.getElementById('emp-telefono').value = emp.phone || '';
-                        document.getElementById('emp-puesto').value = emp.job_title || '';
+                        establecerPuestoEnFormulario(emp.job_title || '');
                         document.getElementById('emp-depto').value = emp.department || '';
 
                         const inputFecha = document.getElementById('emp-hire-date');
@@ -203,6 +277,15 @@
                 const id = document.getElementById('emp-id').value;
                 const esEdicion = Boolean(id);
 
+                const seleccionPuesto = document.getElementById('emp-puesto').value;
+                const puestoFinal = seleccionPuesto === '__otro__'
+                    ? document.getElementById('emp-puesto-otro').value.trim()
+                    : seleccionPuesto.trim();
+
+                if (!puestoFinal) {
+                    alert('⚠️ Por favor selecciona o especifica un puesto válido.');
+                    return;
+                }
 
                 const valSueldo = document.getElementById('emp-sueldo') ? document.getElementById('emp-sueldo').value : '0';
 
@@ -211,7 +294,7 @@
                     last_name: document.getElementById('emp-apellido').value.trim(),
                     email: document.getElementById('emp-email').value.trim(),
                     phone: document.getElementById('emp-telefono').value.trim(),
-                    job_title: document.getElementById('emp-puesto').value.trim(),
+                    job_title: puestoFinal,
                     department: document.getElementById('emp-depto').value.trim(),
                     hire_date: document.getElementById('emp-hire-date').value || null,
                     sueldo: valSueldo !== '' ? parseFloat(valSueldo) : 0
@@ -254,8 +337,6 @@
     async function eliminarEmpleado(id) {
         try {
             const token = localStorage.getItem('jwtToken') || '';
-            const usuarioToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-            const rolActual = (usuarioToken && usuarioToken.rol) ? usuarioToken.rol.trim() : '';
             const res = await fetch(`${API_BASE}/empleados/${id}`, {
                 method: 'DELETE',
                 headers: { 

@@ -75,7 +75,25 @@
                 </div>
                 <div class="contenedor-formulario" style="margin-bottom: 0;">
                     <label for="emp-puesto" style="font-size: 12px;">Puesto / Rol:</label>
-                    <input type="text" id="emp-puesto" placeholder="Ej: Residente de Obra" required>
+                    <select id="emp-puesto" required>
+                        <option value="">-- Selecciona un puesto --</option>
+                        <option value="Director General">Director General</option>
+                        <option value="Director Operativo">Director Operativo</option>
+                        <option value="Subdirector de Obra">Subdirector de Obra</option>
+                        <option value="Gerente de Administración">Gerente de Administración</option>
+                        <option value="Gerente de Costos">Gerente de Costos</option>
+                        <option value="Compras">Compras</option>
+                        <option value="Residente de Obra">Residente de Obra</option>
+                        <option value="Auxiliar">Auxiliar</option>
+                        <option value="__otro__">➕ Otro (especificar nuevo puesto)...</option>
+                    </select>
+                </div>
+                <div class="contenedor-formulario" id="grupo-puesto-otro" style="margin-bottom: 0; display: none;">
+                    <label for="emp-puesto-otro" style="font-size: 12px;">Especificar Nuevo Puesto / Rol:</label>
+                    <input type="text" id="emp-puesto-otro" placeholder="Ej: Coordinador de Seguridad">
+                    <small style="font-size: 11px; color: #64748b; display: block; margin-top: 4px;">
+                        Nota: Los puestos personalizados requieren configurarse en los permisos del sistema para acceder a los módulos.
+                    </small>
                 </div>
                 <div class="contenedor-formulario" style="margin-bottom: 0;">
                     <label for="emp-depto" style="font-size: 12px;">Departamento:</label>
