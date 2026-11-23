@@ -5,10 +5,13 @@ if (!process.env.JWT_SECRET) {
 }
 
 const verificarToken = (req, res, next) => {
+  if (!process.env.JWT_SECRET) {
+    return res.status(500).json({ error: 'Error de configuración de seguridad en el servidor.' });
+  }
+
   const authHeader = req.headers['authorization'];
-  
-  const token = authHeader && authHeader.startsWith('Bearer ') 
-    ? authHeader.split(' ')[1] 
+  const token = authHeader && authHeader.startsWith('Bearer ')
+    ? authHeader.split(' ')[1]
     : null;
 
   if (!token) {
@@ -16,14 +19,12 @@ const verificarToken = (req, res, next) => {
   }
 
   try {
-    const decodificado = jwt.verify(
-      token, 
-      process.env.JWT_SECRET
-    );
-    
-    // CIBERSEGURIDAD: Desestructuración estricta para evitar inyección de propiedades en req.usuario
+    const decodificado = jwt.verify(token, process.env.JWT_SECRET, {
+      algorithms: ['HS256']
+    });
+
     req.usuario = {
-      id_employee: decodificado.id_employee || decodificado.id || decodificado.userId || null,
+      id_employee: decodificado.id_employee || decodificado.id_user || decodificado.id || decodificado.userId || null,
       rol: decodificado.rol || decodificado.role || decodificado.job_title || '',
       email: decodificado.email || '',
       name: decodificado.name || decodificado.nombre || ''
@@ -42,7 +43,9 @@ const normalizarTexto = (texto) => {
     .trim()
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ');
 };
 
 const verificarRol = (rolesPermitidos = []) => {
@@ -51,7 +54,7 @@ const verificarRol = (rolesPermitidos = []) => {
 
     if (req.usuario && req.usuario.rol) {
       const rolUsuarioNormalizado = normalizarTexto(req.usuario.rol);
-      
+
       const tienePermiso = roles.some(rolPermitido => {
         const rolPermitidoNormalizado = normalizarTexto(rolPermitido);
         return rolUsuarioNormalizado === rolPermitidoNormalizado ||

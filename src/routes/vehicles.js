@@ -4,7 +4,7 @@ const fs = require('fs');
 const pool = require('../config/db');
 const upload = require('../middlewares/uploads');
 const { subirArchivoADrive } = require('../services/drive');
-const { verificarToken } = require('../middlewares/authMiddleware');
+const { verificarToken, verificarRol } = require('../middlewares/authMiddleware');
 const {
     notificarAlertaFlotilla,
     notificarEstatusMatutinoFlotilla,
@@ -35,27 +35,16 @@ const limpiarArchivosTemporales = (files) => {
     });
 };
 
-const normalizarTextoRol = (texto) => {
-    if (!texto) return '';
-    return String(texto)
+const esUsuarioAdminFlotilla = (rol) => {
+    if (!rol) return false;
+    const rolNorm = String(rol)
         .trim()
         .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .replace(/_/g, ' ')
         .replace(/\s+/g, ' ');
-};
-
-const validarRolAdminFlotilla = (req, res, next) => {
-    if (!req.usuario || !req.usuario.rol) {
-        return res.status(403).json({ error: 'Acceso denegado: Se requiere una sesión válida.' });
-    }
-    const rolNorm = normalizarTextoRol(req.usuario.rol);
-    const autorizado = rolesAdminFlotilla.some(r => rolNorm === r || (rolNorm.includes('gerente') && rolNorm.includes('administrac')));
-    if (!autorizado) {
-        return res.status(403).json({ error: 'Acceso denegado: No tienes permisos administrativos sobre la flotilla.' });
-    }
-    next();
+    return rolesAdminFlotilla.some(r => rolNorm === r || (rolNorm.includes('gerente') && rolNorm.includes('administrac')));
 };
 
 const obtenerHoraMexico = () => {
@@ -103,9 +92,8 @@ router.get('/unidades', verificarToken, async (req, res) => {
 
 router.get('/proyectos-activos', verificarToken, async (req, res) => {
     try {
-        const idUsuario = req.usuario?.id_user || req.usuario?.id || null;
-        const rolNorm = normalizarTextoRol(req.usuario?.rol || '');
-        const esAdmin = rolesAdminFlotilla.some(r => rolNorm === r || (rolNorm.includes('gerente') && rolNorm.includes('administrac')));
+        const idEmpleado = req.usuario?.id_employee || null;
+        const esAdmin = esUsuarioAdminFlotilla(req.usuario?.rol);
 
         if (esAdmin) {
             const [rows] = await pool.query(`
@@ -117,7 +105,7 @@ router.get('/proyectos-activos', verificarToken, async (req, res) => {
             return res.json(rows);
         }
 
-        if (!idUsuario) {
+        if (!idEmpleado) {
             return res.json([]);
         }
 
@@ -126,7 +114,7 @@ router.get('/proyectos-activos', verificarToken, async (req, res) => {
             FROM projects 
             WHERE id_user = ? AND status = 'Active'
             ORDER BY project_name ASC
-        `, [idUsuario]);
+        `, [idEmpleado]);
         res.json(rows);
     } catch (error) {
         console.error('❌ Error al consultar proyectos para flotilla:', error);
@@ -134,7 +122,7 @@ router.get('/proyectos-activos', verificarToken, async (req, res) => {
     }
 });
 
-router.post('/unidades', verificarToken, validarRolAdminFlotilla, async (req, res) => {
+router.post('/unidades', verificarToken, verificarRol(rolesAdminFlotilla), async (req, res) => {
     const { unit_name, plate, brand_model, tank_capacity_liters, current_odometer } = req.body;
     if (!unit_name || !plate || !brand_model) {
         return res.status(400).json({ error: 'El nombre de unidad, placas y modelo son obligatorios.' });
@@ -157,7 +145,7 @@ router.post('/unidades', verificarToken, validarRolAdminFlotilla, async (req, re
     }
 });
 
-router.put('/unidades/:id', verificarToken, validarRolAdminFlotilla, async (req, res) => {
+router.put('/unidades/:id', verificarToken, verificarRol(rolesAdminFlotilla), async (req, res) => {
     const { id } = req.params;
     const { unit_name, plate, brand_model, tank_capacity_liters, current_odometer, status } = req.body;
     if (!unit_name || !plate || !brand_model) {
@@ -193,7 +181,7 @@ router.put('/unidades/:id', verificarToken, validarRolAdminFlotilla, async (req,
     }
 });
 
-router.post('/probar-whatsapp', verificarToken, validarRolAdminFlotilla, async (req, res) => {
+router.post('/probar-whatsapp', verificarToken, verificarRol(rolesAdminFlotilla), async (req, res) => {
     try {
         const { tipo } = req.body || {};
         if (tipo === 'matutino') {
@@ -228,7 +216,6 @@ router.post(
     async (req, res) => {
         const {
             id_vehicle,
-            id_employee,
             id_project,
             log_type,
             odometer_reading,
@@ -238,10 +225,18 @@ router.post(
             gps_coordinates
         } = req.body;
 
+        const idEmpleadoAutenticado = req.usuario?.id_employee || null;
+        const esAdmin = esUsuarioAdminFlotilla(req.usuario?.rol);
+
         const fileDashboard = req.files && req.files.photo_dashboard ? req.files.photo_dashboard[0] : null;
         const fileExterior = req.files && req.files.photo_exterior ? req.files.photo_exterior[0] : null;
 
-        if (!id_vehicle || !id_employee || !log_type || !odometer_reading || !fuel_level) {
+        if (!idEmpleadoAutenticado) {
+            limpiarArchivosTemporales(req.files);
+            return res.status(401).json({ error: 'Sesión de empleado no válida. Vuelve a iniciar sesión.' });
+        }
+
+        if (!id_vehicle || !log_type || !odometer_reading || !fuel_level) {
             limpiarArchivosTemporales(req.files);
             return res.status(400).json({ error: 'Completa todos los campos obligatorios de la bitácora.' });
         }
@@ -295,14 +290,23 @@ router.post(
             }
 
             let nombreObra = 'Uso General / Comisión';
+            let proyectoValidoId = null;
+
             if (id_project) {
-                const [projRows] = await connection.query(
-                    `SELECT project_name, location FROM projects WHERE id_project = ?`,
-                    [id_project]
-                );
-                if (projRows.length > 0 && projRows[0].project_name) {
-                    nombreObra = projRows[0].project_name.trim();
+                const sqlProyecto = esAdmin
+                    ? `SELECT id_project, project_name, location FROM projects WHERE id_project = ? AND status = 'Active'`
+                    : `SELECT id_project, project_name, location FROM projects WHERE id_project = ? AND id_user = ? AND status = 'Active'`;
+                const paramsProyecto = esAdmin ? [id_project] : [id_project, idEmpleadoAutenticado];
+
+                const [projRows] = await connection.query(sqlProyecto, paramsProyecto);
+                if (projRows.length === 0) {
+                    await connection.rollback();
+                    limpiarArchivosTemporales(req.files);
+                    return res.status(403).json({ error: 'La obra seleccionada no está activa o no está asignada a tu usuario.' });
                 }
+
+                proyectoValidoId = projRows[0].id_project;
+                nombreObra = projRows[0].project_name.trim();
             }
 
             const ubicacionFinal = log_type === 'Entrega'
@@ -320,8 +324,8 @@ router.post(
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     id_vehicle,
-                    id_employee,
-                    id_project || null,
+                    idEmpleadoAutenticado,
+                    proyectoValidoId,
                     log_type,
                     odometroNuevo,
                     fuel_level.trim(),
@@ -339,7 +343,7 @@ router.post(
                     `UPDATE vehicles 
                      SET status = 'En uso', current_odometer = ?, current_driver_id = ?, current_project_id = ?, last_location = ?
                      WHERE id_vehicle = ?`,
-                    [odometroNuevo, id_employee, id_project || null, ubicacionFinal, id_vehicle]
+                    [odometroNuevo, idEmpleadoAutenticado, proyectoValidoId, ubicacionFinal, id_vehicle]
                 );
             } else {
                 await connection.query(
@@ -356,9 +360,9 @@ router.post(
             try {
                 const [empRows] = await pool.query(
                     `SELECT CONCAT(name, ' ', last_name) AS nombre FROM employees WHERE id_employee = ?`,
-                    [id_employee]
+                    [idEmpleadoAutenticado]
                 );
-                const conductorNombre = empRows.length > 0 ? empRows[0].nombre.trim() : `ID ${id_employee}`;
+                const conductorNombre = empRows.length > 0 ? empRows[0].nombre.trim() : `ID ${idEmpleadoAutenticado}`;
                 const horaRegistro = obtenerHoraMexico();
 
                 let textoNotificacion = '';
@@ -405,7 +409,6 @@ router.post(
     async (req, res) => {
         const {
             id_vehicle,
-            id_employee,
             id_project,
             odometer_reading,
             liters,
@@ -416,10 +419,18 @@ router.post(
             gps_coordinates
         } = req.body;
 
+        const idEmpleadoAutenticado = req.usuario?.id_employee || null;
+        const esAdmin = esUsuarioAdminFlotilla(req.usuario?.rol);
+
         const fileTicket = req.files && req.files.photo_ticket ? req.files.photo_ticket[0] : null;
         const filePump = req.files && req.files.photo_pump ? req.files.photo_pump[0] : null;
 
-        if (!id_vehicle || !id_employee || !odometer_reading || !liters || !total_amount || !payment_source || !voucher_or_card_ref) {
+        if (!idEmpleadoAutenticado) {
+            limpiarArchivosTemporales(req.files);
+            return res.status(401).json({ error: 'Sesión de empleado no válida. Vuelve a iniciar sesión.' });
+        }
+
+        if (!id_vehicle || !odometer_reading || !liters || !total_amount || !payment_source || !voucher_or_card_ref) {
             limpiarArchivosTemporales(req.files);
             return res.status(400).json({ error: 'Completa todos los campos obligatorios de la carga de combustible.' });
         }
@@ -469,6 +480,22 @@ router.post(
                 });
             }
 
+            let proyectoValidoId = null;
+            if (id_project) {
+                const sqlProyecto = esAdmin
+                    ? `SELECT id_project FROM projects WHERE id_project = ? AND status = 'Active'`
+                    : `SELECT id_project FROM projects WHERE id_project = ? AND id_user = ? AND status = 'Active'`;
+                const paramsProyecto = esAdmin ? [id_project] : [id_project, idEmpleadoAutenticado];
+
+                const [projRows] = await connection.query(sqlProyecto, paramsProyecto);
+                if (projRows.length === 0) {
+                    await connection.rollback();
+                    limpiarArchivosTemporales(req.files);
+                    return res.status(403).json({ error: 'La obra seleccionada no está activa o no está asignada a tu usuario.' });
+                }
+                proyectoValidoId = projRows[0].id_project;
+            }
+
             const urlTicket = await subirArchivoADrive(fileTicket, ID_CARPETA_DRIVE_CAMIONETAS_GASOLINA);
             const urlPump = await subirArchivoADrive(filePump, ID_CARPETA_DRIVE_CAMIONETAS_GASOLINA);
 
@@ -481,8 +508,8 @@ router.post(
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     id_vehicle,
-                    id_employee,
-                    id_project || null,
+                    idEmpleadoAutenticado,
+                    proyectoValidoId,
                     odometroNuevo,
                     litrosNum,
                     montoNum,
@@ -505,8 +532,8 @@ router.post(
             limpiarArchivosTemporales(req.files);
 
             if (excedeCapacidad === 1) {
-                const [empRows] = await pool.query(`SELECT CONCAT(name, ' ', last_name) AS nombre FROM employees WHERE id_employee = ?`, [id_employee]);
-                const conductorNombre = empRows.length > 0 ? empRows[0].nombre : `ID ${id_employee}`;
+                const [empRows] = await pool.query(`SELECT CONCAT(name, ' ', last_name) AS nombre FROM employees WHERE id_employee = ?`, [idEmpleadoAutenticado]);
+                const conductorNombre = empRows.length > 0 ? empRows[0].nombre : `ID ${idEmpleadoAutenticado}`;
                 const textoAlerta = [
                     '🚨 *ALERTA DE COMBUSTIBLE: EXCESO DE CAPACIDAD DE TANQUE*',
                     '',
@@ -541,7 +568,7 @@ router.post(
     }
 );
 
-router.get('/historial-movimientos', verificarToken, validarRolAdminFlotilla, async (req, res) => {
+router.get('/historial-movimientos', verificarToken, verificarRol(rolesAdminFlotilla), async (req, res) => {
     try {
         const [rows] = await pool.query(`
             SELECT 
@@ -564,7 +591,7 @@ router.get('/historial-movimientos', verificarToken, validarRolAdminFlotilla, as
     }
 });
 
-router.get('/historial-combustible', verificarToken, validarRolAdminFlotilla, async (req, res) => {
+router.get('/historial-combustible', verificarToken, verificarRol(rolesAdminFlotilla), async (req, res) => {
     try {
         const [rows] = await pool.query(`
             SELECT 
