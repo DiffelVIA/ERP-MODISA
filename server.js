@@ -11,6 +11,7 @@ const {
   iniciarWhatsApp,
   verificarYNotificarContratosSinFirma,
   verificarYNotificarMinutasPendientes,
+  notificarEstatusMatutinoFlotilla,
   verificarYNotificarFlotillaSinResguardo
 } = require('./src/services/whatsapp');
 const authRouter = require('./src/routes/auth');
@@ -113,17 +114,11 @@ app.listen(PORT, () => {
       } catch (err) {
           console.error('❌ Error en tarea programada de préstamos:', err.message);
       }
-
-      try {
-          await verificarYNotificarFlotillaSinResguardo();
-      } catch (err) {
-          console.error('❌ Error en tarea programada de flotilla:', err.message);
-      }
   };
 
   const iniciarCronDiario = () => {
       const msFaltantes = calcularTiempoSiguienteEjecucion();
-      console.log(`⏱️ Próxima verificación automática (contratos, minutas, préstamos y flotilla) programada en ${(msFaltantes / 1000 / 60 / 60).toFixed(2)} horas (8:30 AM hora México).`);
+      console.log(`⏱️ Próxima verificación automática (contratos, minutas y préstamos) programada en ${(msFaltantes / 1000 / 60 / 60).toFixed(2)} horas (8:30 AM hora México).`);
 
       setTimeout(() => {
           ejecutarRevisionesDiarias();
@@ -132,4 +127,53 @@ app.listen(PORT, () => {
   };
 
   iniciarCronDiario();
+
+  let ultimaEjecucionMatutinaFlotilla = '';
+  let ultimaEjecucionCierreViernesFlotilla = '';
+
+  const revisarHorariosFlotilla = async () => {
+      try {
+          const ahora = new Date();
+          const partes = new Intl.DateTimeFormat('en-US', {
+              timeZone: ZONA_HORARIA,
+              hour12: false,
+              weekday: 'short',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit'
+          }).formatToParts(ahora);
+
+          const mapa = {};
+          for (const p of partes) {
+              mapa[p.type] = p.value;
+          }
+
+          const diaSemana = mapa.weekday;
+          const fechaClave = `${mapa.year}-${mapa.month}-${mapa.day}`;
+          const hora = parseInt(mapa.hour === '24' ? '0' : mapa.hour, 10);
+          const minuto = parseInt(mapa.minute, 10);
+
+          const diasHabiles = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+          if (diasHabiles.includes(diaSemana) && hora === 9 && minuto === 0) {
+              if (ultimaEjecucionMatutinaFlotilla !== fechaClave) {
+                  ultimaEjecucionMatutinaFlotilla = fechaClave;
+                  await notificarEstatusMatutinoFlotilla();
+              }
+          }
+
+          if (diaSemana === 'Fri' && hora === 20 && minuto === 0) {
+              if (ultimaEjecucionCierreViernesFlotilla !== fechaClave) {
+                  ultimaEjecucionCierreViernesFlotilla = fechaClave;
+                  await verificarYNotificarFlotillaSinResguardo();
+              }
+          }
+      } catch (err) {
+          console.error('❌ Error en tareas programadas de flotilla:', err.message);
+      }
+  };
+
+  setInterval(revisarHorariosFlotilla, 30 * 1000);
+  console.log('⏱️ Programador de flotilla activo (Lunes a Viernes 9:00 AM | Cierre Viernes 8:00 PM hora México).');
 });

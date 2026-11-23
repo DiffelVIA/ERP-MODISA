@@ -216,6 +216,11 @@ const formatearMonedaMXN = (valor) => {
     });
 };
 
+const obtenerJidGrupoFlotilla = () => {
+    const jid = process.env.WHATSAPP_GROUP_FLOTILLA_ID || process.env.WHATSAPP_FLOTILLA_JID;
+    return jid ? String(jid).trim() : null;
+};
+
 const notificarModificacionContrato = async (contractKey, targetGroupJid, detalleCambio = null) => {
     try {
         if (!sock || !whatsappConectado) {
@@ -640,97 +645,181 @@ const verificarYNotificarMinutasPendientes = async () => {
 
 const notificarAlertaFlotilla = async (mensajeAlerta) => {
     try {
-        const jidDestino = process.env.WHATSAPP_FLOTILLA_JID
-            ? String(process.env.WHATSAPP_FLOTILLA_JID).trim()
-            : null;
+        const jidDestino = obtenerJidGrupoFlotilla();
         if (!jidDestino) {
-            console.warn('⚠️ No se envió alerta de flotilla: WHATSAPP_FLOTILLA_JID no está configurado.');
-            return;
+            console.warn('⚠️ No se envió notificación de flotilla: WHATSAPP_GROUP_FLOTILLA_ID no está configurado.');
+            return { success: false, message: 'WHATSAPP_GROUP_FLOTILLA_ID no está configurado.' };
         }
         const listo = await esperarConexionWhatsApp(15000);
         if (!listo) {
-            console.warn('⚠️ No se envió alerta de flotilla: WhatsApp no está conectado.');
-            return;
+            console.warn('⚠️ No se envió notificación de flotilla: WhatsApp no está conectado.');
+            return { success: false, message: 'WhatsApp no está conectado.' };
         }
         await sock.sendMessage(jidDestino, { text: mensajeAlerta });
-        console.log(`📲 Alerta de flotilla enviada al grupo ${jidDestino}.`);
+        console.log(`📲 Notificación de flotilla enviada al grupo ${jidDestino}.`);
+        return { success: true, message: 'Notificación enviada al grupo de flotilla.' };
     } catch (error) {
-        console.error('❌ Error al enviar alerta de flotilla por WhatsApp:', error.message);
+        console.error('❌ Error al enviar notificación de flotilla por WhatsApp:', error.message);
+        return { success: false, message: error.message };
+    }
+};
+
+const notificarEstatusMatutinoFlotilla = async () => {
+    try {
+        const jidDestino = obtenerJidGrupoFlotilla();
+        if (!jidDestino) {
+            return { success: false, message: 'WHATSAPP_GROUP_FLOTILLA_ID no configurado.' };
+        }
+
+        const listo = await esperarConexionWhatsApp();
+        if (!listo) {
+            console.warn('⚠️ No se ejecutó el pase de lista matutino de flotilla: WhatsApp no está conectado.');
+            return { success: false, message: 'WhatsApp no está conectado.' };
+        }
+
+        const [unidades] = await pool.query(`
+            SELECT 
+                v.id_vehicle,
+                v.unit_name,
+                v.status,
+                v.last_location,
+                CONCAT(e.name, ' ', e.last_name) AS conductor,
+                p.project_name AS proyecto
+            FROM vehicles v
+            LEFT JOIN employees e ON v.current_driver_id = e.id_employee
+            LEFT JOIN projects p ON v.current_project_id = p.id_project
+            ORDER BY v.id_vehicle ASC
+        `);
+
+        if (unidades.length === 0) {
+            return { success: true, message: 'No hay camionetas registradas.' };
+        }
+
+        const lineas = unidades.map(u => {
+            const nombreUnidad = sanearTextoWhatsApp(u.unit_name, 50);
+            if (u.status === 'En uso') {
+                const conductor = sanearTextoWhatsApp(u.conductor || 'Sin asignar', 60);
+                const obra = sanearTextoWhatsApp(u.proyecto || u.last_location || 'Obra', 60);
+                return `• Camioneta "${nombreUnidad}" en posesión de ${conductor} (Obra: ${obra})`;
+            }
+            if (u.status === 'Mantenimiento') {
+                return `• Camioneta "${nombreUnidad}" en mantenimiento`;
+            }
+            return `• Camioneta "${nombreUnidad}" está disponible`;
+        });
+
+        const mensaje = [
+            '📋 *Estatus de Flotilla — 9:00 AM*',
+            '',
+            ...lineas
+        ].join('\n');
+
+        await sock.sendMessage(jidDestino, { text: mensaje });
+        console.log(`📲 Estatus matutino de flotilla enviado a (${jidDestino}).`);
+
+        return { success: true, message: 'Estatus matutino de flotilla enviado correctamente.' };
+    } catch (error) {
+        console.error('❌ Error al enviar estatus matutino de flotilla:', error);
+        throw error;
     }
 };
 
 const verificarYNotificarFlotillaSinResguardo = async () => {
     try {
-        const jidDestino = process.env.WHATSAPP_FLOTILLA_JID
-            ? String(process.env.WHATSAPP_FLOTILLA_JID).trim()
-            : null;
+        const jidDestino = obtenerJidGrupoFlotilla();
         if (!jidDestino) {
-            return { success: false, message: 'WHATSAPP_FLOTILLA_JID no configurado.' };
+            return { success: false, message: 'WHATSAPP_GROUP_FLOTILLA_ID no configurado.' };
         }
 
         const listo = await esperarConexionWhatsApp();
         if (!listo) {
-            console.warn('⚠️ No se ejecutó la revisión de flotilla: WhatsApp no está conectado.');
+            console.warn('⚠️ No se ejecutó el cierre semanal de flotilla: WhatsApp no está conectado.');
             return { success: false, message: 'WhatsApp no está conectado.' };
         }
 
-        const partesMexico = new Intl.DateTimeFormat('en-US', {
-            timeZone: 'America/Mexico_City',
-            weekday: 'short',
-            hour: 'numeric',
-            hour12: false
-        }).formatToParts(new Date());
+        const hoyMexico = obtenerFechaHoyMexico();
 
-        const diaStr = partesMexico.find(p => p.type === 'weekday')?.value || '';
-        const horaMexico = parseInt(partesMexico.find(p => p.type === 'hour')?.value || '0', 10);
-
-        const esFinDeSemana = diaStr === 'Sun' || diaStr === 'Sat' || (diaStr === 'Fri' && horaMexico >= 19);
-        if (!esFinDeSemana) {
-            return { success: true, message: 'Día hábil en horario laboral; no aplica alerta de resguardo.' };
-        }
-
-        const [unidadesEnUso] = await pool.query(`
+        const [unidades] = await pool.query(`
             SELECT 
-                v.unit_name, 
-                v.plate, 
-                v.last_location, 
-                CONCAT(e.name, ' ', e.last_name) AS conductor
+                v.id_vehicle,
+                v.unit_name,
+                v.status,
+                v.last_location,
+                CONCAT(e.name, ' ', e.last_name) AS conductor_actual,
+                p.project_name AS proyecto_actual
             FROM vehicles v
             LEFT JOIN employees e ON v.current_driver_id = e.id_employee
-            WHERE v.status = 'En uso'
+            LEFT JOIN projects p ON v.current_project_id = p.id_project
+            ORDER BY v.id_vehicle ASC
         `);
 
-        if (unidadesEnUso.length === 0) {
-            console.log('✅ Todas las camionetas cuentan con resguardo o están disponibles.');
-            return { success: true, message: 'Todas las unidades están resguardadas.' };
+        if (unidades.length === 0) {
+            return { success: true, message: 'No hay camionetas registradas.' };
         }
 
-        const lineas = unidadesEnUso.map(u => {
-            const unidadLimpia = sanearTextoWhatsApp(u.unit_name, 50);
-            const placaLimpia = sanearTextoWhatsApp(u.plate, 25);
-            const conductorLimpio = sanearTextoWhatsApp(u.conductor || 'Sin asignar', 60);
-            const ubicacionLimpia = sanearTextoWhatsApp(u.last_location || 'Obra', 80);
-            return `• ${unidadLimpia} (${placaLimpia}) — Responsable: ${conductorLimpio} — Ubicación: ${ubicacionLimpia}`;
+        const [resguardosHoy] = await pool.query(`
+            SELECT 
+                vl.id_vehicle,
+                vl.log_type,
+                vl.created_at,
+                CONCAT(e.name, ' ', e.last_name) AS residente
+            FROM vehicle_logs vl
+            INNER JOIN employees e ON vl.id_employee = e.id_employee
+            WHERE vl.log_type IN ('Resguardo_FinSemana', 'Entrega')
+              AND DATE(CONVERT_TZ(vl.created_at, '+00:00', '-06:00')) = ?
+            ORDER BY vl.created_at DESC
+        `, [hoyMexico]);
+
+        const mapaResguardos = new Map();
+        for (const r of resguardosHoy) {
+            if (!mapaResguardos.has(r.id_vehicle)) {
+                mapaResguardos.set(r.id_vehicle, r);
+            }
+        }
+
+        const lineas = unidades.map(u => {
+            const nombreUnidad = sanearTextoWhatsApp(u.unit_name, 50);
+
+            if (u.status === 'En uso') {
+                const conductor = sanearTextoWhatsApp(u.conductor_actual || 'Sin asignar', 60);
+                const obra = sanearTextoWhatsApp(u.proyecto_actual || u.last_location || 'Obra', 60);
+                return `• ⚠️ Camioneta "${nombreUnidad}" NO ha sido resguardada — Sigue en posesión de ${conductor} (Obra: ${obra})`;
+            }
+
+            if (u.status === 'Mantenimiento') {
+                return `• Camioneta "${nombreUnidad}" en mantenimiento`;
+            }
+
+            const reg = mapaResguardos.get(u.id_vehicle);
+            if (reg) {
+                const residente = sanearTextoWhatsApp(reg.residente, 60);
+                const horaFormateada = new Intl.DateTimeFormat('es-MX', {
+                    timeZone: 'America/Mexico_City',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                }).format(new Date(reg.created_at));
+                return `• Camioneta "${nombreUnidad}" ha sido resguardada a las ${horaFormateada} hrs por ${residente}`;
+            }
+
+            return `• Camioneta "${nombreUnidad}" está disponible (sin salidas hoy)`;
         });
 
         const mensaje = [
-            '🚨 ALERTA DE RESGUARDO DE FLOTILLA (FIN DE SEMANA)',
+            '🔒 *Cierre Semanal de Resguardo — Viernes 8:00 PM*',
             '',
-            'Las siguientes camionetas siguen marcadas En uso y no cuentan con registro de resguardo en oficina:',
-            ...lineas,
-            '',
-            'Sistema ERP MODISA'
+            ...lineas
         ].join('\n');
 
         await sock.sendMessage(jidDestino, { text: mensaje });
-        console.log(`📲 Alerta de resguardo de flotilla enviada a (${jidDestino}) por ${unidadesEnUso.length} unidad(es).`);
+        console.log(`📲 Cierre semanal de resguardo enviado a (${jidDestino}).`);
 
         return {
             success: true,
-            message: `Alerta enviada por ${unidadesEnUso.length} unidad(es) sin resguardo.`
+            message: 'Reporte de cierre semanal de resguardo enviado.'
         };
     } catch (error) {
-        console.error('❌ Error en la verificación automática de resguardo de flotilla:', error);
+        console.error('❌ Error en el cierre semanal de resguardo de flotilla:', error);
         throw error;
     }
 };
@@ -743,5 +832,6 @@ module.exports = {
     notificarMinutasAplazadas,
     verificarYNotificarMinutasPendientes,
     notificarAlertaFlotilla,
+    notificarEstatusMatutinoFlotilla,
     verificarYNotificarFlotillaSinResguardo
 };

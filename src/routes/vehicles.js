@@ -5,7 +5,11 @@ const pool = require('../config/db');
 const upload = require('../middlewares/uploads');
 const { subirArchivoADrive } = require('../services/drive');
 const { verificarToken } = require('../middlewares/authMiddleware');
-const { notificarAlertaFlotilla } = require('../services/whatsapp');
+const {
+    notificarAlertaFlotilla,
+    notificarEstatusMatutinoFlotilla,
+    verificarYNotificarFlotillaSinResguardo
+} = require('../services/whatsapp');
 
 const ID_CARPETA_DRIVE_CAMIONETAS_USO = process.env.DRIVE_FOLDER_CAMIONETAS_USO_ID || '13kiySRnXEuU409n6k65u5HGzpOff9IhS';
 const ID_CARPETA_DRIVE_CAMIONETAS_GASOLINA = process.env.DRIVE_FOLDER_CAMIONETAS_GASOLINA_ID || '118IWpms96Pcrxe1ypKGC3eNjsHPIu_6T';
@@ -54,13 +58,27 @@ const validarRolAdminFlotilla = (req, res, next) => {
     next();
 };
 
+const obtenerHoraMexico = () => {
+    return new Intl.DateTimeFormat('es-MX', {
+        timeZone: 'America/Mexico_City',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    }).format(new Date());
+};
+
 const esHorarioFinDeSemana = () => {
-    const ahora = new Date();
-    const dia = ahora.getDay();
-    const hora = ahora.getHours();
-    if (dia === 0) return true;
-    if (dia === 6 && hora >= 14) return true;
-    if (dia === 5 && hora >= 20) return true;
+    const partes = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Mexico_City',
+        weekday: 'short',
+        hour: 'numeric',
+        hour12: false
+    }).formatToParts(new Date());
+    const dia = partes.find(p => p.type === 'weekday')?.value || '';
+    const hora = parseInt(partes.find(p => p.type === 'hour')?.value || '0', 10);
+    if (dia === 'Sun') return true;
+    if (dia === 'Sat' && hora >= 14) return true;
+    if (dia === 'Fri' && hora >= 20) return true;
     return false;
 };
 
@@ -153,6 +171,31 @@ router.put('/unidades/:id', verificarToken, validarRolAdminFlotilla, async (req,
     } catch (error) {
         console.error('❌ Error al actualizar unidad:', error);
         res.status(500).json({ error: 'Error al actualizar la unidad.' });
+    }
+});
+
+router.post('/probar-whatsapp', verificarToken, validarRolAdminFlotilla, async (req, res) => {
+    try {
+        const { tipo } = req.body || {};
+        if (tipo === 'matutino') {
+            const resp = await notificarEstatusMatutinoFlotilla();
+            return res.json(resp);
+        }
+        if (tipo === 'cierre_viernes') {
+            const resp = await verificarYNotificarFlotillaSinResguardo();
+            return res.json(resp);
+        }
+        const horaMx = obtenerHoraMexico();
+        const mensajePrueba = [
+            '🔔 *Prueba de Conexión — Flotilla MODISA*',
+            '',
+            `Grupo de WhatsApp vinculado correctamente (${horaMx} hrs).`
+        ].join('\n');
+        const resp = await notificarAlertaFlotilla(mensajePrueba);
+        return res.json(resp);
+    } catch (error) {
+        console.error('❌ Error al probar notificación de flotilla:', error);
+        res.status(500).json({ error: 'Error al enviar el mensaje de prueba a WhatsApp.' });
     }
 });
 
@@ -277,22 +320,39 @@ router.post(
             await connection.commit();
             limpiarArchivosTemporales(req.files);
 
-            if (alertaFinDeSemana === 1) {
-                const [empRows] = await pool.query(`SELECT CONCAT(name, ' ', last_name) AS nombre FROM employees WHERE id_employee = ?`, [id_employee]);
-                const conductorNombre = empRows.length > 0 ? empRows[0].nombre : `ID ${id_employee}`;
-                const textoAlerta = [
-                    '⚠️ *MOVIMIENTO DE CAMIONETA EN FIN DE SEMANA*',
-                    '',
-                    `• *Unidad:* ${unidad.unit_name} (${unidad.plate})`,
-                    `• *Movimiento:* ${log_type}`,
-                    `• *Responsable:* ${conductorNombre}`,
-                    `• *Destino:* ${destination_or_origin.trim()}`,
-                    `• *Odómetro:* ${odometroNuevo.toLocaleString('es-MX')} km`,
-                    `• *GPS:* ${gps_coordinates || 'No disponible'}`,
-                    '',
-                    '_Sistema ERP MODISA_'
-                ].join('\n');
-                notificarAlertaFlotilla(textoAlerta);
+            try {
+                const [empRows] = await pool.query(
+                    `SELECT CONCAT(name, ' ', last_name) AS nombre FROM employees WHERE id_employee = ?`,
+                    [id_employee]
+                );
+                const conductorNombre = empRows.length > 0 ? empRows[0].nombre.trim() : `ID ${id_employee}`;
+                const horaRegistro = obtenerHoraMexico();
+
+                let nombreObra = destination_or_origin.trim();
+                if (id_project) {
+                    const [projRows] = await pool.query(`SELECT project_name FROM projects WHERE id_project = ?`, [id_project]);
+                    if (projRows.length > 0 && projRows[0].project_name) {
+                        nombreObra = projRows[0].project_name.trim();
+                    }
+                }
+
+                let textoNotificacion = '';
+                if (log_type === 'Salida' || log_type === 'Relevo') {
+                    const etiquetaAccion = log_type === 'Relevo' ? 'Relevo de Unidad' : 'Salida de Unidad';
+                    textoNotificacion = [
+                        `🛻 *${etiquetaAccion}*`,
+                        `Camioneta "${unidad.unit_name}" asignada a ${conductorNombre} — Obra: ${nombreObra} (Odómetro: ${odometroNuevo.toLocaleString('es-MX')} km)`
+                    ].join('\n');
+                } else {
+                    textoNotificacion = [
+                        `✅ *Resguardo de Unidad*`,
+                        `Camioneta "${unidad.unit_name}" ha sido resguardada a las ${horaRegistro} hrs por ${conductorNombre} (Odómetro: ${odometroNuevo.toLocaleString('es-MX')} km)`
+                    ].join('\n');
+                }
+
+                notificarAlertaFlotilla(textoNotificacion);
+            } catch (errWa) {
+                console.error('⚠️ Error al preparar notificación en tiempo real de flotilla:', errWa.message);
             }
 
             res.status(201).json({
