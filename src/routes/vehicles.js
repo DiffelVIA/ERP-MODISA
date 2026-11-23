@@ -7,7 +7,8 @@ const { subirArchivoADrive } = require('../services/drive');
 const { verificarToken } = require('../middlewares/authMiddleware');
 const { notificarAlertaFlotilla } = require('../services/whatsapp');
 
-const ID_CARPETA_DRIVE_FLOTILLA = process.env.DRIVE_FOLDER_FLOTILLA_ID || '1T_WFb1LnEgzUk-eyNjv-qKW3XR5jAR1K';
+const ID_CARPETA_DRIVE_CAMIONETAS_USO = process.env.DRIVE_FOLDER_CAMIONETAS_USO_ID || '13kiySRnXEuU409n6k65u5HGzpOff9IhS';
+const ID_CARPETA_DRIVE_CAMIONETAS_GASOLINA = process.env.DRIVE_FOLDER_CAMIONETAS_GASOLINA_ID || '118IWpms96Pcrxe1ypKGC3eNjsHPIu_6T';
 
 const rolesAdminFlotilla = [
     'director operativo',
@@ -231,8 +232,8 @@ router.post(
                 return res.status(400).json({ error: 'La unidad se encuentra en Mantenimiento y no puede asignarse.' });
             }
 
-            const urlDashboard = await subirArchivoADrive(fileDashboard, ID_CARPETA_DRIVE_FLOTILLA);
-            const urlExterior = await subirArchivoADrive(fileExterior, ID_CARPETA_DRIVE_FLOTILLA);
+            const urlDashboard = await subirArchivoADrive(fileDashboard, ID_CARPETA_DRIVE_CAMIONETAS_USO);
+            const urlExterior = await subirArchivoADrive(fileExterior, ID_CARPETA_DRIVE_CAMIONETAS_USO);
 
             const alertaFinDeSemana = (log_type === 'Salida' || log_type === 'Relevo') && esHorarioFinDeSemana() ? 1 : 0;
 
@@ -383,8 +384,8 @@ router.post(
                 });
             }
 
-            const urlTicket = await subirArchivoADrive(fileTicket, ID_CARPETA_DRIVE_FLOTILLA);
-            const urlPump = await subirArchivoADrive(filePump, ID_CARPETA_DRIVE_FLOTILLA);
+            const urlTicket = await subirArchivoADrive(fileTicket, ID_CARPETA_DRIVE_CAMIONETAS_GASOLINA);
+            const urlPump = await subirArchivoADrive(filePump, ID_CARPETA_DRIVE_CAMIONETAS_GASOLINA);
 
             const capacidadTanque = parseFloat(unidad.tank_capacity_liters) || 80;
             const excedeCapacidad = litrosNum > capacidadTanque ? 1 : 0;
