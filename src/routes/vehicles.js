@@ -103,11 +103,30 @@ router.get('/unidades', verificarToken, async (req, res) => {
 
 router.get('/proyectos-activos', verificarToken, async (req, res) => {
     try {
+        const idUsuario = req.usuario?.id_user || req.usuario?.id || null;
+        const rolNorm = normalizarTextoRol(req.usuario?.rol || '');
+        const esAdmin = rolesAdminFlotilla.some(r => rolNorm === r || (rolNorm.includes('gerente') && rolNorm.includes('administrac')));
+
+        if (esAdmin) {
+            const [rows] = await pool.query(`
+                SELECT id_project, project_name, location 
+                FROM projects 
+                WHERE status = 'Active'
+                ORDER BY project_name ASC
+            `);
+            return res.json(rows);
+        }
+
+        if (!idUsuario) {
+            return res.json([]);
+        }
+
         const [rows] = await pool.query(`
-            SELECT id_project, project_name 
+            SELECT id_project, project_name, location 
             FROM projects 
+            WHERE id_user = ? AND status = 'Active'
             ORDER BY project_name ASC
-        `);
+        `, [idUsuario]);
         res.json(rows);
     } catch (error) {
         console.error('❌ Error al consultar proyectos para flotilla:', error);
@@ -222,7 +241,7 @@ router.post(
         const fileDashboard = req.files && req.files.photo_dashboard ? req.files.photo_dashboard[0] : null;
         const fileExterior = req.files && req.files.photo_exterior ? req.files.photo_exterior[0] : null;
 
-        if (!id_vehicle || !id_employee || !log_type || !odometer_reading || !fuel_level || !destination_or_origin) {
+        if (!id_vehicle || !id_employee || !log_type || !odometer_reading || !fuel_level) {
             limpiarArchivosTemporales(req.files);
             return res.status(400).json({ error: 'Completa todos los campos obligatorios de la bitácora.' });
         }
@@ -275,6 +294,21 @@ router.post(
                 return res.status(400).json({ error: 'La unidad se encuentra en Mantenimiento y no puede asignarse.' });
             }
 
+            let nombreObra = 'Uso General / Comisión';
+            if (id_project) {
+                const [projRows] = await connection.query(
+                    `SELECT project_name, location FROM projects WHERE id_project = ?`,
+                    [id_project]
+                );
+                if (projRows.length > 0 && projRows[0].project_name) {
+                    nombreObra = projRows[0].project_name.trim();
+                }
+            }
+
+            const ubicacionFinal = log_type === 'Entrega'
+                ? 'Oficina Central (Resguardo)'
+                : (destination_or_origin && destination_or_origin.trim() ? destination_or_origin.trim() : nombreObra);
+
             const urlDashboard = await subirArchivoADrive(fileDashboard, ID_CARPETA_DRIVE_CAMIONETAS_USO);
             const urlExterior = await subirArchivoADrive(fileExterior, ID_CARPETA_DRIVE_CAMIONETAS_USO);
 
@@ -291,7 +325,7 @@ router.post(
                     log_type,
                     odometroNuevo,
                     fuel_level.trim(),
-                    destination_or_origin.trim(),
+                    ubicacionFinal,
                     notes ? notes.trim() : null,
                     urlDashboard,
                     urlExterior,
@@ -305,10 +339,9 @@ router.post(
                     `UPDATE vehicles 
                      SET status = 'En uso', current_odometer = ?, current_driver_id = ?, current_project_id = ?, last_location = ?
                      WHERE id_vehicle = ?`,
-                    [odometroNuevo, id_employee, id_project || null, destination_or_origin.trim(), id_vehicle]
+                    [odometroNuevo, id_employee, id_project || null, ubicacionFinal, id_vehicle]
                 );
             } else {
-                const ubicacionFinal = destination_or_origin.trim() || 'Oficina Central (Resguardo)';
                 await connection.query(
                     `UPDATE vehicles 
                      SET status = 'Disponible', current_odometer = ?, current_driver_id = NULL, current_project_id = NULL, last_location = ?
@@ -328,20 +361,12 @@ router.post(
                 const conductorNombre = empRows.length > 0 ? empRows[0].nombre.trim() : `ID ${id_employee}`;
                 const horaRegistro = obtenerHoraMexico();
 
-                let nombreObra = destination_or_origin.trim();
-                if (id_project) {
-                    const [projRows] = await pool.query(`SELECT project_name FROM projects WHERE id_project = ?`, [id_project]);
-                    if (projRows.length > 0 && projRows[0].project_name) {
-                        nombreObra = projRows[0].project_name.trim();
-                    }
-                }
-
                 let textoNotificacion = '';
                 if (log_type === 'Salida' || log_type === 'Relevo') {
                     const etiquetaAccion = log_type === 'Relevo' ? 'Relevo de Unidad' : 'Salida de Unidad';
                     textoNotificacion = [
                         `🛻 *${etiquetaAccion}*`,
-                        `Camioneta "${unidad.unit_name}" asignada a ${conductorNombre} — Obra: ${nombreObra} (Odómetro: ${odometroNuevo.toLocaleString('es-MX')} km)`
+                        `Camioneta "${unidad.unit_name}" asignada a ${conductorNombre} — Obra: ${ubicacionFinal} (Odómetro: ${odometroNuevo.toLocaleString('es-MX')} km)`
                     ].join('\n');
                 } else {
                     textoNotificacion = [

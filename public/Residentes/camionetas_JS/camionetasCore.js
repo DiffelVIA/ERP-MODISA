@@ -152,17 +152,6 @@
             });
         }
 
-        const selMovTipo = document.getElementById('mov-tipo');
-        if (selMovTipo) {
-            selMovTipo.addEventListener('change', () => {
-                const inputDestino = document.getElementById('mov-destino');
-                if (!inputDestino) return;
-                if (selMovTipo.value === 'Entrega') {
-                    inputDestino.value = 'Oficina Central (Resguardo)';
-                }
-            });
-        }
-
         const selCombUnidad = document.getElementById('comb-unidad');
         if (selCombUnidad) {
             selCombUnidad.addEventListener('change', () => {
@@ -233,10 +222,9 @@
         const idProject = document.getElementById('mov-proyecto').value;
         const odometer = document.getElementById('mov-odometro').value;
         const fuelLevel = document.getElementById('mov-combustible').value;
-        const destination = document.getElementById('mov-destino').value.trim();
         const notes = document.getElementById('mov-notas').value.trim();
 
-        if (!idVehicle || !logType || !odometer || !fuelLevel || !destination) {
+        if (!idVehicle || !logType || !odometer || !fuelLevel) {
             mostrarMensaje('Por favor completa todos los campos obligatorios marcados con *.', true);
             return;
         }
@@ -246,6 +234,11 @@
             return;
         }
 
+        const proyectoSeleccionado = listaProyectos.find(p => String(p.id_project) === String(idProject));
+        const ubicacionCalculada = logType === 'Entrega'
+            ? 'Oficina Central (Resguardo)'
+            : (proyectoSeleccionado ? proyectoSeleccionado.project_name : 'Uso General / Comisión');
+
         const formData = new FormData();
         formData.append('id_vehicle', idVehicle);
         formData.append('id_employee', idEmpleado);
@@ -253,7 +246,7 @@
         formData.append('log_type', logType);
         formData.append('odometer_reading', odometer);
         formData.append('fuel_level', fuelLevel);
-        formData.append('destination_or_origin', destination);
+        formData.append('destination_or_origin', ubicacionCalculada);
         if (notes) formData.append('notes', notes);
         formData.append('gps_coordinates', window.CamionetasCamera.obtenerCoordenadasActuales());
         formData.append('photo_dashboard', fotosProcesadas.tablero);
