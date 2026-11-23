@@ -10,7 +10,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 const {
   iniciarWhatsApp,
   verificarYNotificarContratosSinFirma,
-  verificarYNotificarMinutasPendientes
+  verificarYNotificarMinutasPendientes,
+  verificarYNotificarFlotillaSinResguardo
 } = require('./src/services/whatsapp');
 const authRouter = require('./src/routes/auth');
 const projectsRouter = require('./src/routes/projects');
@@ -25,6 +26,7 @@ const dashboardRouter = require('./src/routes/dashboardBackend');
 const supervisionRouter = require('./src/routes/supervision');
 const kpiRouter = require('./src/routes/kpi');
 const vacacionesRouter = require('./src/routes/vacaciones');
+const vehiclesRouter = require('./src/routes/vehicles');
 const {
   router: prestamosRouter,
   verificarYNotificarPrestamosPorVencer
@@ -50,6 +52,7 @@ app.use('/api/kpi', kpiRouter);
 
 app.use('/api/vacaciones', vacacionesRouter);
 app.use('/api/prestamos', prestamosRouter);
+app.use('/api/camionetas', vehiclesRouter);
 
 app.use('/api', categoriesRouter);
 app.use('/api', minutesRouter);
@@ -110,11 +113,17 @@ app.listen(PORT, () => {
       } catch (err) {
           console.error('❌ Error en tarea programada de préstamos:', err.message);
       }
+
+      try {
+          await verificarYNotificarFlotillaSinResguardo();
+      } catch (err) {
+          console.error('❌ Error en tarea programada de flotilla:', err.message);
+      }
   };
 
   const iniciarCronDiario = () => {
       const msFaltantes = calcularTiempoSiguienteEjecucion();
-      console.log(`⏱️ Próxima verificación automática (contratos, minutas y préstamos) programada en ${(msFaltantes / 1000 / 60 / 60).toFixed(2)} horas (8:30 AM hora México).`);
+      console.log(`⏱️ Próxima verificación automática (contratos, minutas, préstamos y flotilla) programada en ${(msFaltantes / 1000 / 60 / 60).toFixed(2)} horas (8:30 AM hora México).`);
 
       setTimeout(() => {
           ejecutarRevisionesDiarias();

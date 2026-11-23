@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Flotilla | MODISA</title>
+    <script src="/timeout.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <link class="favicon" rel="icon" type="image/x-icon" href="/img/MODISA-favicon.ico">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/camionetas.css">
+</head>
+<body>
+    <header id="header">
+        <div>
+            <img src="/img/logo.png" alt="logo" id="logo">
+        </div>
+        <nav>
+            <ul>
+                <li><a href="/principal.html?panel=control">Volver a Control Operativo</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main id="contenedor-principal-admin" class="main-tabla">
+        <div class="encabezado-admin-flotilla">
+            <div>
+                <h1>Control y Auditoría de Flotilla</h1>
+                <p class="flotilla-subtitulo">Monitoreo en tiempo real de unidades, resguardos de fin de semana, consumo de vales/tarjetas y rendimiento km/L.</p>
+            </div>
+            <div class="acciones-admin-flotilla">
+                <button type="button" class="btn" data-action="abrir-modal-nueva-unidad">+ Agregar Camioneta</button>
+                <button type="button" class="btn" id="descargar" data-action="exportar-excel-flotilla">Exportar Excel</button>
+            </div>
+        </div>
+
+        <section id="grid-unidades-admin" class="grid-unidades"></section>
+
+        <div class="barra-controles-admin">
+            <div class="tabs-flotilla">
+                <button type="button" class="btn-tab-flotilla activo" data-action="tab-admin" data-tab="movimientos">Bitácora de Salidas y Resguardos</button>
+                <button type="button" class="btn-tab-flotilla" data-action="tab-admin" data-tab="combustible">Cargas de Gasolina y Rendimiento</button>
+            </div>
+
+            <div class="grupo-busqueda-admin">
+                <select id="filtro-admin-unidad">
+                    <option value="">Todas las camionetas</option>
+                </select>
+                <input type="text" id="filtro-admin-busqueda" placeholder="Buscar conductor, obra o folio...">
+            </div>
+        </div>
+
+        <section id="seccion-tabla-movimientos" class="tabla tabla-flotilla-admin">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha y Hora</th>
+                        <th>Camioneta</th>
+                        <th>Movimiento</th>
+                        <th>Responsable</th>
+                        <th>Obra / Proyecto</th>
+                        <th>Destino / Entrega</th>
+                        <th>Odómetro</th>
+                        <th>Tanque</th>
+                        <th>Evidencias</th>
+                        <th>Alerta</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-movimientos-admin"></tbody>
+            </table>
+        </section>
+
+        <section id="seccion-tabla-combustible" class="tabla tabla-flotilla-admin panel-oculto">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha y Hora</th>
+                        <th>Camioneta</th>
+                        <th>Responsable</th>
+                        <th>Obra</th>
+                        <th>Odómetro</th>
+                        <th>Km Recorridos</th>
+                        <th>Litros</th>
+                        <th>Rendimiento</th>
+                        <th>Monto</th>
+                        <th>Método / Folio</th>
+                        <th>Evidencias</th>
+                        <th>Alerta</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-combustible-admin"></tbody>
+            </table>
+        </section>
+    </main>
+
+    <div id="modal-unidad" class="modal-flotilla-fondo panel-oculto">
+        <div class="modal-flotilla-caja contenedor-formulario">
+            <h2 id="titulo-modal-unidad">Configurar Camioneta</h2>
+            <form id="form-admin-unidad">
+                <input type="hidden" id="edit-id-vehicle">
+                <div class="campo-flotilla">
+                    <label for="edit-unit-name">Nombre de Unidad *</label>
+                    <input type="text" id="edit-unit-name" required placeholder="Ej. Camioneta 01">
+                </div>
+                <div class="campo-flotilla">
+                    <label for="edit-plate">Placas *</label>
+                    <input type="text" id="edit-plate" required placeholder="Ej. MOD-001-A">
+                </div>
+                <div class="campo-flotilla">
+                    <label for="edit-brand-model">Marca y Modelo *</label>
+                    <input type="text" id="edit-brand-model" required placeholder="Ej. Nissan NP300 Frontier">
+                </div>
+                <div class="campo-flotilla">
+                    <label for="edit-tank-capacity">Capacidad de Tanque (Litros) *</label>
+                    <input type="number" id="edit-tank-capacity" step="0.5" min="20" required value="80">
+                </div>
+                <div class="campo-flotilla">
+                    <label for="edit-odometer">Odómetro Actual (km) *</label>
+                    <input type="number" id="edit-odometer" step="1" min="0" required value="0">
+                </div>
+                <div class="campo-flotilla" id="grupo-edit-status">
+                    <label for="edit-status">Estado Operativo</label>
+                    <select id="edit-status">
+                        <option value="Disponible">Disponible</option>
+                        <option value="En uso">En uso</option>
+                        <option value="Mantenimiento">Mantenimiento</option>
+                    </select>
+                </div>
+                <div class="modal-flotilla-acciones">
+                    <button type="button" class="btn" data-action="cerrar-modal-unidad">Cancelar</button>
+                    <button type="submit" class="btn" id="guardar">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <footer id="footer">
+        <p>Software especializado MODISA ® 2026</p>
+    </footer>
+
+    <script src="camionetas_admin_JS/adminCamionetasApi.js"></script>
+    <script src="camionetas_admin_JS/adminCamionetasUi.js"></script>
+    <script src="camionetas_admin_JS/adminCamionetasCore.js"></script>
+</body>
+</html>
