@@ -57,6 +57,20 @@
         return rolesPermitidos.some(r => rolNorm === r || (rolNorm.includes('gerente') && rolNorm.includes('administrac')));
     }
 
+    function tienePermisoFlotilla(rolTexto) {
+        const rolNorm = normalizarRol(rolTexto);
+        if (!rolNorm) return false;
+        const rolesPermitidos = [
+            'director operativo',
+            'director general',
+            'gerente administracion',
+            'gerente de administracion',
+            'subdirector de obra',
+            'compras'
+        ];
+        return rolesPermitidos.some(r => rolNorm === r || (rolNorm.includes('gerente') && rolNorm.includes('administrac')));
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         renderizarSaludoUsuario();
         cargarNotificacionesMinutas();
@@ -76,6 +90,7 @@
         const tarjetasSub = document.querySelectorAll('.tarjeta-sub');
         const tarjetaEmpleados = document.getElementById('tarjeta-empleados');
         const tarjetaPrestamos = document.getElementById('tarjeta-prestamos');
+        const tarjetaControlFlotilla = document.getElementById('tarjeta-control-flotilla');
 
         if (tarjetaEmpleados) {
             const rolLimpio = rolUsuario ? rolUsuario.trim().toLowerCase() : '';
@@ -101,6 +116,14 @@
             }
         }
 
+        if (tarjetaControlFlotilla) {
+            if (tienePermisoFlotilla(rolUsuario)) {
+                tarjetaControlFlotilla.style.display = '';
+            } else {
+                tarjetaControlFlotilla.style.display = 'none';
+            }
+        }
+
         if (btnRegistroMinuta) {
             btnRegistroMinuta.addEventListener('click', (e) =>{
                 e.preventDefault();
@@ -121,6 +144,9 @@
             tarjetasSub.forEach(sub => {
                 if (sub.getAttribute('data-seccion') === seccionObjetivo) {
                     if (sub.id === 'tarjeta-prestamos' && !tienePermisoPrestamos(rolUsuario)) {
+                        sub.classList.add('panel-oculto');
+                        sub.style.display = 'none';
+                    } else if (sub.id === 'tarjeta-control-flotilla' && !tienePermisoFlotilla(rolUsuario)) {
                         sub.classList.add('panel-oculto');
                         sub.style.display = 'none';
                     } else {
