@@ -157,10 +157,8 @@
             selMovTipo.addEventListener('change', () => {
                 const inputDestino = document.getElementById('mov-destino');
                 if (!inputDestino) return;
-                if (selMovTipo.value === 'Resguardo_FinSemana') {
-                    inputDestino.value = 'Oficina Central (Resguardo Fin de Semana)';
-                } else if (selMovTipo.value === 'Entrega') {
-                    inputDestino.value = 'Oficina Central';
+                if (selMovTipo.value === 'Entrega') {
+                    inputDestino.value = 'Oficina Central (Resguardo)';
                 }
             });
         }

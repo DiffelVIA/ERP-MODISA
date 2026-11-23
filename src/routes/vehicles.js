@@ -232,7 +232,7 @@ router.post(
             return res.status(400).json({ error: 'Las fotografías del tablero y del exterior de la unidad son obligatorias.' });
         }
 
-        const tiposPermitidos = ['Salida', 'Entrega', 'Relevo', 'Resguardo_FinSemana'];
+        const tiposPermitidos = ['Salida', 'Relevo', 'Entrega'];
         if (!tiposPermitidos.includes(log_type)) {
             limpiarArchivosTemporales(req.files);
             return res.status(400).json({ error: 'Tipo de movimiento no válido.' });
@@ -308,7 +308,7 @@ router.post(
                     [odometroNuevo, id_employee, id_project || null, destination_or_origin.trim(), id_vehicle]
                 );
             } else {
-                const ubicacionFinal = log_type === 'Resguardo_FinSemana' ? 'Oficina Central (Resguardo Fin de Semana)' : destination_or_origin.trim();
+                const ubicacionFinal = destination_or_origin.trim() || 'Oficina Central (Resguardo)';
                 await connection.query(
                     `UPDATE vehicles 
                      SET status = 'Disponible', current_odometer = ?, current_driver_id = NULL, current_project_id = NULL, last_location = ?

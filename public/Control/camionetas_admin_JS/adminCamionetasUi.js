@@ -57,8 +57,9 @@
         }
 
         tbody.innerHTML = lista.map(m => {
-            let claseTipo = 'estado-neutro';
-            if (m.log_type === 'Resguardo_FinSemana') claseTipo = 'estado-disponible';
+            const esEntrega = m.log_type === 'Entrega' || m.log_type === 'Resguardo_FinSemana';
+            const claseTipo = esEntrega ? 'estado-disponible' : 'estado-neutro';
+            const etiquetaTipo = esEntrega ? 'Entrega' : m.log_type;
 
             const alertaBadge = m.is_weekend_alert
                 ? `<span class="badge-estado estado-alerta">Uso Fin de Semana</span>`
@@ -68,7 +69,7 @@
                 <tr>
                     <td>${formatearFechaHora(m.created_at)}</td>
                     <td><strong>${escaparHTML(m.unit_name)}</strong><span class="texto-subdato">${escaparHTML(m.plate)}</span></td>
-                    <td><span class="badge-estado ${claseTipo}">${escaparHTML(m.log_type.replace('_', ' '))}</span></td>
+                    <td><span class="badge-estado ${claseTipo}">${escaparHTML(etiquetaTipo)}</span></td>
                     <td>${escaparHTML(m.conductor_nombre)}</td>
                     <td>${escaparHTML(m.project_name)}</td>
                     <td>${escaparHTML(m.destination_or_origin)}</td>
