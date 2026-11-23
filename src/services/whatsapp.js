@@ -254,7 +254,7 @@ const verificarYNotificarContratosSinFirma = async () => {
             return { success: false, message: 'WhatsApp no está conectado.' };
         }
 
-        console.log('🔍 Ejecutando revisión automática de contratos sin seguimiento (≥ 7 días)...');
+        console.log('🔍 Ejecutando revisión automática de contratos sin seguimiento (≥ 2 días)...');
 
         const sql = `
             SELECT 
@@ -269,7 +269,7 @@ const verificarYNotificarContratosSinFirma = async () => {
                 DATEDIFF(NOW(), c.created_at) AS dias_transcurridos
             FROM contracts c
             LEFT JOIN projects p ON c.id_project = p.id_project
-            WHERE DATEDIFF(NOW(), c.created_at) >= 7
+            WHERE DATEDIFF(NOW(), c.created_at) >= 2
               AND LOWER(TRIM(IFNULL(c.status, ''))) != 'rechazado'
               AND LOWER(TRIM(IFNULL(c.status_direccion, ''))) != 'rechazado'
               AND LOWER(TRIM(IFNULL(c.estado_costos, ''))) != 'rechazado'
@@ -283,7 +283,7 @@ const verificarYNotificarContratosSinFirma = async () => {
         const [contratos] = await pool.query(sql);
 
         if (contratos.length === 0) {
-            console.log('✅ No hay contratos con falta de seguimiento mayores a 7 días hoy.');
+            console.log('✅ No hay contratos con falta de seguimiento mayores a 2 días hoy.');
             return { success: true, message: 'No hay contratos con falta de seguimiento hoy.' };
         }
 
