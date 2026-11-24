@@ -19,6 +19,8 @@
         if (!texto) return '';
         return texto
             .toString()
+            .replace(/Ã±/g, "n")
+            .replace(/Ã‘/g, "n")
             .toLowerCase()
             .normalize("NFD")
             .replace(/[\u0300-\u036f]/g, "")
@@ -69,7 +71,7 @@
             const permitidoLimpio = limpiarTexto(rolPermitido);
             return rolUsuarioLimpio === permitidoLimpio
                 || (rolUsuarioLimpio.includes("gerente") && rolUsuarioLimpio.includes("administrac"))
-                || (rolUsuarioLimpio.includes("gerente") && rolUsuarioLimpio.includes("diseno"));
+                || (rolUsuarioLimpio.includes("gerente") && (rolUsuarioLimpio.includes("diseno") || rolUsuarioLimpio.includes("disea o")));
         });
 
         const esCostos = rolUsuarioLimpio.includes("costos");

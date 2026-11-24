@@ -12,18 +12,22 @@ const { gmail } = require('../config/google');
 const normalizarRolContrato = (rol) => {
   if (!rol) return '';
   return String(rol)
+    .replace(/Ã±/g, 'n')
+    .replace(/Ã‘/g, 'n')
     .trim()
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\s+/g, ' ');
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 };
 
 const esGerenteDiseno = (rolNormalizado) => {
   if (!rolNormalizado) return false;
   return rolNormalizado === 'gerente de diseno'
     || rolNormalizado === 'gerente diseno'
-    || (rolNormalizado.includes('gerente') && rolNormalizado.includes('diseno'));
+    || (rolNormalizado.includes('gerente') && (rolNormalizado.includes('diseno') || rolNormalizado.includes('disea o')));
 };
 
 async function enviarCorreoRechazoDireccion(idContrato, comentarioRechazo) {
