@@ -421,4 +421,4 @@ router.get('/historial-movimientos', verificarToken, verificarRol(rolesAdminFlot
     }
 });
 
-module.exports = router;
+module.exports = router; 
