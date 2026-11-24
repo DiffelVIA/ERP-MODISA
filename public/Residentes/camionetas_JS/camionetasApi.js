@@ -38,16 +38,6 @@
         return data;
     }
 
-    async function obtenerProyectos() {
-        const res = await fetch(`${API_BASE}/proyectos-activos`, {
-            headers: obtenerHeadersAuth(true)
-        });
-        if (manejarRespuestaNoAutorizada(res)) return [];
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Error al obtener las obras.');
-        return data;
-    }
-
     async function enviarMovimiento(formData) {
         const res = await fetch(`${API_BASE}/movimiento`, {
             method: 'POST',
@@ -62,7 +52,6 @@
 
     window.CamionetasApi = {
         obtenerUnidades,
-        obtenerProyectos,
         enviarMovimiento
     };
 })();

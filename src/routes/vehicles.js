@@ -34,18 +34,6 @@ const limpiarArchivosTemporales = (files) => {
     });
 };
 
-const esUsuarioAdminFlotilla = (rol) => {
-    if (!rol) return false;
-    const rolNorm = String(rol)
-        .trim()
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/_/g, ' ')
-        .replace(/\s+/g, ' ');
-    return rolesAdminFlotilla.some(r => rolNorm === r || (rolNorm.includes('gerente') && rolNorm.includes('administrac')));
-};
-
 const obtenerHoraMexico = () => {
     return new Intl.DateTimeFormat('es-MX', {
         timeZone: 'America/Mexico_City',
@@ -75,49 +63,15 @@ router.get('/unidades', verificarToken, async (req, res) => {
         const [rows] = await pool.query(`
             SELECT 
                 v.*,
-                CONCAT(e.name, ' ', e.last_name) AS conductor_actual,
-                p.project_name AS proyecto_actual
+                CONCAT(e.name, ' ', e.last_name) AS conductor_actual
             FROM vehicles v
             LEFT JOIN employees e ON v.current_driver_id = e.id_employee
-            LEFT JOIN projects p ON v.current_project_id = p.id_project
             ORDER BY v.id_vehicle ASC
         `);
         res.json(rows);
     } catch (error) {
         console.error('❌ Error al consultar unidades:', error);
         res.status(500).json({ error: 'Error al obtener las camionetas registradas.' });
-    }
-});
-
-router.get('/proyectos-activos', verificarToken, async (req, res) => {
-    try {
-        const idEmpleado = req.usuario?.id_employee || null;
-        const esAdmin = esUsuarioAdminFlotilla(req.usuario?.rol);
-
-        if (esAdmin) {
-            const [rows] = await pool.query(`
-                SELECT id_project, project_name, location 
-                FROM projects 
-                WHERE status = 'Active'
-                ORDER BY project_name ASC
-            `);
-            return res.json(rows);
-        }
-
-        if (!idEmpleado) {
-            return res.json([]);
-        }
-
-        const [rows] = await pool.query(`
-            SELECT id_project, project_name, location 
-            FROM projects 
-            WHERE id_user = ? AND status = 'Active'
-            ORDER BY project_name ASC
-        `, [idEmpleado]);
-        res.json(rows);
-    } catch (error) {
-        console.error('❌ Error al consultar proyectos para flotilla:', error);
-        res.status(500).json({ error: 'Error al cargar la lista de obras.' });
     }
 });
 
@@ -210,12 +164,12 @@ router.post(
     verificarToken,
     upload.fields([
         { name: 'photo_dashboard', maxCount: 1 },
-        { name: 'photo_exterior', maxCount: 1 }
+        { name: 'photo_exterior', maxCount: 1 },
+        { name: 'photo_exterior_rear', maxCount: 1 }
     ]),
     async (req, res) => {
         const {
             id_vehicle,
-            id_project,
             log_type,
             odometer_reading,
             fuel_level,
@@ -225,10 +179,10 @@ router.post(
         } = req.body;
 
         const idEmpleadoAutenticado = req.usuario?.id_employee || null;
-        const esAdmin = esUsuarioAdminFlotilla(req.usuario?.rol);
 
         const fileDashboard = req.files && req.files.photo_dashboard ? req.files.photo_dashboard[0] : null;
         const fileExterior = req.files && req.files.photo_exterior ? req.files.photo_exterior[0] : null;
+        const fileExteriorRear = req.files && req.files.photo_exterior_rear ? req.files.photo_exterior_rear[0] : null;
 
         if (!idEmpleadoAutenticado) {
             limpiarArchivosTemporales(req.files);
@@ -240,9 +194,9 @@ router.post(
             return res.status(400).json({ error: 'Completa todos los campos obligatorios de la bitácora.' });
         }
 
-        if (!fileDashboard || !fileExterior) {
+        if (!fileDashboard || !fileExterior || !fileExteriorRear) {
             limpiarArchivosTemporales(req.files);
-            return res.status(400).json({ error: 'Las fotografías del tablero y del exterior de la unidad son obligatorias.' });
+            return res.status(400).json({ error: 'Las 3 fotografías obligatorias (tablero, esquina delantera izquierda y esquina trasera derecha) son requeridas.' });
         }
 
         const tiposPermitidos = ['Salida', 'Relevo', 'Entrega'];
@@ -288,43 +242,23 @@ router.post(
                 return res.status(400).json({ error: 'La unidad se encuentra en Mantenimiento y no puede asignarse.' });
             }
 
-            let nombreObra = 'Uso General / Comisión';
-            let proyectoValidoId = null;
-
-            if (id_project) {
-                const sqlProyecto = esAdmin
-                    ? `SELECT id_project, project_name, location FROM projects WHERE id_project = ? AND status = 'Active'`
-                    : `SELECT id_project, project_name, location FROM projects WHERE id_project = ? AND id_user = ? AND status = 'Active'`;
-                const paramsProyecto = esAdmin ? [id_project] : [id_project, idEmpleadoAutenticado];
-
-                const [projRows] = await connection.query(sqlProyecto, paramsProyecto);
-                if (projRows.length === 0) {
-                    await connection.rollback();
-                    limpiarArchivosTemporales(req.files);
-                    return res.status(403).json({ error: 'La obra seleccionada no está activa o no está asignada a tu usuario.' });
-                }
-
-                proyectoValidoId = projRows[0].id_project;
-                nombreObra = projRows[0].project_name.trim();
-            }
-
             const ubicacionFinal = log_type === 'Entrega'
                 ? 'Oficina Central (Resguardo)'
-                : (destination_or_origin && destination_or_origin.trim() ? destination_or_origin.trim() : nombreObra);
+                : (destination_or_origin && destination_or_origin.trim() ? destination_or_origin.trim() : 'Uso General / Comisión');
 
             const urlDashboard = await subirArchivoADrive(fileDashboard, ID_CARPETA_DRIVE_CAMIONETAS_USO);
             const urlExterior = await subirArchivoADrive(fileExterior, ID_CARPETA_DRIVE_CAMIONETAS_USO);
+            const urlExteriorRear = await subirArchivoADrive(fileExteriorRear, ID_CARPETA_DRIVE_CAMIONETAS_USO);
 
             const alertaFinDeSemana = (log_type === 'Salida' || log_type === 'Relevo') && esHorarioFinDeSemana() ? 1 : 0;
 
             await connection.query(
                 `INSERT INTO vehicle_logs 
-                 (id_vehicle, id_employee, id_project, log_type, odometer_reading, fuel_level, destination_or_origin, notes, photo_dashboard_url, photo_exterior_url, gps_coordinates, is_weekend_alert)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                 (id_vehicle, id_employee, id_project, log_type, odometer_reading, fuel_level, destination_or_origin, notes, photo_dashboard_url, photo_exterior_url, photo_exterior_rear_url, gps_coordinates, is_weekend_alert)
+                 VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     id_vehicle,
                     idEmpleadoAutenticado,
-                    proyectoValidoId,
                     log_type,
                     odometroNuevo,
                     fuel_level.trim(),
@@ -332,7 +266,8 @@ router.post(
                     notes ? notes.trim() : null,
                     urlDashboard,
                     urlExterior,
-                    gps_coordinates || null,
+                    urlExteriorRear,
+                    gps_coordinates ? String(gps_coordinates).trim().slice(0, 120) : null,
                     alertaFinDeSemana
                 ]
             );
@@ -340,9 +275,9 @@ router.post(
             if (log_type === 'Salida' || log_type === 'Relevo') {
                 await connection.query(
                     `UPDATE vehicles 
-                     SET status = 'En uso', current_odometer = ?, current_driver_id = ?, current_project_id = ?, last_location = ?
+                     SET status = 'En uso', current_odometer = ?, current_driver_id = ?, current_project_id = NULL, last_location = ?
                      WHERE id_vehicle = ?`,
-                    [odometroNuevo, idEmpleadoAutenticado, proyectoValidoId, ubicacionFinal, id_vehicle]
+                    [odometroNuevo, idEmpleadoAutenticado, ubicacionFinal, id_vehicle]
                 );
             } else {
                 await connection.query(
@@ -369,7 +304,7 @@ router.post(
                     const etiquetaAccion = log_type === 'Relevo' ? 'Relevo de Unidad' : 'Salida de Unidad';
                     textoNotificacion = [
                         `🛻 *${etiquetaAccion}*`,
-                        `Camioneta "${unidad.unit_name}" asignada a ${conductorNombre} — Obra: ${ubicacionFinal} (Odómetro: ${odometroNuevo.toLocaleString('es-MX')} km)`
+                        `Camioneta "${unidad.unit_name}" asignada a ${conductorNombre} — Destino: ${ubicacionFinal} (Odómetro: ${odometroNuevo.toLocaleString('es-MX')} km)`
                     ].join('\n');
                 } else {
                     textoNotificacion = [
@@ -405,12 +340,10 @@ router.get('/historial-movimientos', verificarToken, verificarRol(rolesAdminFlot
                 vl.*,
                 v.unit_name,
                 v.plate,
-                CONCAT(e.name, ' ', e.last_name) AS conductor_nombre,
-                COALESCE(p.project_name, 'Sin proyecto asignado') AS project_name
+                CONCAT(e.name, ' ', e.last_name) AS conductor_nombre
             FROM vehicle_logs vl
             INNER JOIN vehicles v ON vl.id_vehicle = v.id_vehicle
             INNER JOIN employees e ON vl.id_employee = e.id_employee
-            LEFT JOIN projects p ON vl.id_project = p.id_project
             ORDER BY vl.created_at DESC
             LIMIT 300
         `);
@@ -421,4 +354,4 @@ router.get('/historial-movimientos', verificarToken, verificarRol(rolesAdminFlot
     }
 });
 
-module.exports = router; 
+module.exports = router;

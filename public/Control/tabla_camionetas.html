@@ -28,7 +28,7 @@
         <div class="encabezado-admin-flotilla">
             <div>
                 <h1>Control y Auditoría de Flotilla</h1>
-                <p class="flotilla-subtitulo">Monitoreo en tiempo real de unidades, resguardos de fin de semana, consumo de vales/tarjetas y rendimiento km/L.</p>
+                <p class="flotilla-subtitulo">Monitoreo en tiempo real de unidades, salidas, relevos y resguardos con evidencia fotográfica.</p>
             </div>
             <div class="acciones-admin-flotilla">
                 <button type="button" class="btn" data-action="abrir-modal-nueva-unidad">+ Agregar Camioneta</button>
@@ -39,16 +39,11 @@
         <section id="grid-unidades-admin" class="grid-unidades"></section>
 
         <div class="barra-controles-admin">
-            <div class="tabs-flotilla">
-                <button type="button" class="btn-tab-flotilla activo" data-action="tab-admin" data-tab="movimientos">Bitácora de Salidas y Resguardos</button>
-                <button type="button" class="btn-tab-flotilla" data-action="tab-admin" data-tab="combustible">Cargas de Gasolina y Rendimiento</button>
-            </div>
-
             <div class="grupo-busqueda-admin">
                 <select id="filtro-admin-unidad">
                     <option value="">Todas las camionetas</option>
                 </select>
-                <input type="text" id="filtro-admin-busqueda" placeholder="Buscar conductor, obra o folio...">
+                <input type="text" id="filtro-admin-busqueda" placeholder="Buscar conductor o movimiento...">
             </div>
         </div>
 
@@ -60,7 +55,6 @@
                         <th>Camioneta</th>
                         <th>Movimiento</th>
                         <th>Responsable</th>
-                        <th>Obra / Proyecto</th>
                         <th>Destino / Entrega</th>
                         <th>Odómetro</th>
                         <th>Tanque</th>
@@ -69,28 +63,6 @@
                     </tr>
                 </thead>
                 <tbody id="tbody-movimientos-admin"></tbody>
-            </table>
-        </section>
-
-        <section id="seccion-tabla-combustible" class="tabla tabla-flotilla-admin panel-oculto">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Fecha y Hora</th>
-                        <th>Camioneta</th>
-                        <th>Responsable</th>
-                        <th>Obra</th>
-                        <th>Odómetro</th>
-                        <th>Km Recorridos</th>
-                        <th>Litros</th>
-                        <th>Rendimiento</th>
-                        <th>Monto</th>
-                        <th>Método / Folio</th>
-                        <th>Evidencias</th>
-                        <th>Alerta</th>
-                    </tr>
-                </thead>
-                <tbody id="tbody-combustible-admin"></tbody>
             </table>
         </section>
     </main>

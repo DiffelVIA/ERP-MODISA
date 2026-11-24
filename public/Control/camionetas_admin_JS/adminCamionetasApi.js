@@ -11,8 +11,20 @@
         };
     }
 
+    function manejarRespuestaNoAutorizada(res) {
+        if (res.status === 401) {
+            localStorage.removeItem('jwtToken');
+            localStorage.removeItem('userRol');
+            sessionStorage.removeItem('usuarioMODISA');
+            window.location.replace('/');
+            return true;
+        }
+        return false;
+    }
+
     async function obtenerUnidades() {
         const res = await fetch(`${API_BASE}/unidades`, { headers: obtenerHeaders() });
+        if (manejarRespuestaNoAutorizada(res)) return [];
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Error al cargar unidades.');
         return data;
@@ -20,15 +32,9 @@
 
     async function obtenerHistorialMovimientos() {
         const res = await fetch(`${API_BASE}/historial-movimientos`, { headers: obtenerHeaders() });
+        if (manejarRespuestaNoAutorizada(res)) return [];
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Error al cargar bitácora.');
-        return data;
-    }
-
-    async function obtenerHistorialCombustible() {
-        const res = await fetch(`${API_BASE}/historial-combustible`, { headers: obtenerHeaders() });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Error al cargar combustible.');
         return data;
     }
 
@@ -40,6 +46,7 @@
             headers: obtenerHeaders(),
             body: JSON.stringify(datos)
         });
+        if (manejarRespuestaNoAutorizada(res)) return { success: false };
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Error al guardar la unidad.');
         return data;
@@ -48,7 +55,6 @@
     window.AdminCamionetasApi = {
         obtenerUnidades,
         obtenerHistorialMovimientos,
-        obtenerHistorialCombustible,
         guardarUnidad
     };
 })();

@@ -35,6 +35,11 @@
                 return;
             }
 
+            if (file.type && !file.type.startsWith('image/')) {
+                reject(new Error('El archivo seleccionado no es una imagen válida.'));
+                return;
+            }
+
             const lector = new FileReader();
             lector.onload = (evento) => {
                 const img = new Image();
@@ -53,6 +58,7 @@
 
                     const ahora = new Date();
                     const fechaHoraStr = ahora.toLocaleString('es-MX', {
+                        timeZone: 'America/Mexico_City',
                         year: 'numeric',
                         month: '2-digit',
                         day: '2-digit',
@@ -64,7 +70,7 @@
                     const lineasSello = [
                         `MODISA FLOTILLA | ${fechaHoraStr}`,
                         `Resp: ${metadatos.usuario || 'N/A'} | Unidad: ${metadatos.unidad || 'N/A'}`,
-                        `Obra: ${metadatos.proyecto || 'Sin obra'} | GPS: ${coordenadasActuales}`
+                        `Mov: ${metadatos.movimiento || 'N/A'} | GPS: ${coordenadasActuales}`
                     ];
 
                     const fontSize = Math.max(14, Math.round(ancho * 0.018));

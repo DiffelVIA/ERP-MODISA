@@ -57,13 +57,6 @@
                     </div>
 
                     <div class="campo-flotilla">
-                        <label for="mov-proyecto">Obra / Proyecto Asignado</label>
-                        <select id="mov-proyecto">
-                            <option value="">Selecciona obra (opcional en resguardo)...</option>
-                        </select>
-                    </div>
-
-                    <div class="campo-flotilla">
                         <label for="mov-odometro">Odómetro Actual (km) *</label>
                         <input type="number" id="mov-odometro" min="0" step="1" placeholder="Ej. 45820" required>
                         <small id="hint-odometro-mov" class="hint-campo"></small>
@@ -89,17 +82,24 @@
 
                 <div class="grid-campos-flotilla">
                     <div class="caja-evidencia-camara">
-                        <span class="titulo-evidencia">1. Foto de Tablero (Odómetro y Nivel) *</span>
+                        <span class="titulo-evidencia">1. Foto de Odómetro / Tablero *</span>
                         <label for="input-foto-tablero" class="btn-camara">📷 Tomar Foto de Tablero</label>
                         <input type="file" id="input-foto-tablero" accept="image/*" capture="environment">
                         <img id="preview-foto-tablero" class="preview-foto-flotilla panel-oculto" alt="Vista previa tablero">
                     </div>
 
                     <div class="caja-evidencia-camara">
-                        <span class="titulo-evidencia">2. Foto Exterior de la Camioneta *</span>
-                        <label for="input-foto-exterior" class="btn-camara">📷 Tomar Foto Exterior</label>
+                        <span class="titulo-evidencia">2. Foto Esquina Delantera Izquierda (Frente y Costado) *</span>
+                        <label for="input-foto-exterior" class="btn-camara">📷 Tomar Foto Delantera Izq.</label>
                         <input type="file" id="input-foto-exterior" accept="image/*" capture="environment">
-                        <img id="preview-foto-exterior" class="preview-foto-flotilla panel-oculto" alt="Vista previa exterior">
+                        <img id="preview-foto-exterior" class="preview-foto-flotilla panel-oculto" alt="Vista previa esquina delantera izquierda en diagonal">
+                    </div>
+
+                    <div class="caja-evidencia-camara">
+                        <span class="titulo-evidencia">3. Foto Esquina Trasera Derecha (Trasero y Costado) *</span>
+                        <label for="input-foto-trasera-der" class="btn-camara">📷 Tomar Foto Trasera Der.</label>
+                        <input type="file" id="input-foto-trasera-der" accept="image/*" capture="environment">
+                        <img id="preview-foto-trasera-der" class="preview-foto-flotilla panel-oculto" alt="Vista previa esquina trasera derecha en diagonal">
                     </div>
                 </div>
 

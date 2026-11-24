@@ -1,9 +1,9 @@
 (() => {
     let listaUnidades = [];
-    let listaProyectos = [];
     const fotosProcesadas = {
         tablero: null,
-        exterior: null
+        exterior: null,
+        traseraDer: null
     };
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -34,12 +34,8 @@
 
     async function cargarCatalogosIniciales() {
         try {
-            const [unidades, proyectos] = await Promise.all([
-                window.CamionetasApi.obtenerUnidades(),
-                window.CamionetasApi.obtenerProyectos()
-            ]);
+            const unidades = await window.CamionetasApi.obtenerUnidades();
             listaUnidades = unidades;
-            listaProyectos = proyectos;
             renderizarTarjetasUnidades();
             poblarSelects();
         } catch (error) {
@@ -82,13 +78,6 @@
 
         const selMovUnidad = document.getElementById('mov-unidad');
         if (selMovUnidad) selMovUnidad.innerHTML = opcionesUnidades;
-
-        const opcionesProyectos = ['<option value="">Selecciona obra / proyecto...</option>'].concat(
-            listaProyectos.map(p => `<option value="${p.id_project}">${escaparHTML(p.project_name)}</option>`)
-        ).join('');
-
-        const selMovProy = document.getElementById('mov-proyecto');
-        if (selMovProy) selMovProy.innerHTML = opcionesProyectos;
     }
 
     function obtenerTextoSelect(idSelect) {
@@ -131,14 +120,15 @@
             });
         }
 
-        vincularInputCamara('input-foto-tablero', 'preview-foto-tablero', 'tablero', 'mov-unidad', 'mov-proyecto');
-        vincularInputCamara('input-foto-exterior', 'preview-foto-exterior', 'exterior', 'mov-unidad', 'mov-proyecto');
+        vincularInputCamara('input-foto-tablero', 'preview-foto-tablero', 'tablero', 'mov-unidad', 'mov-tipo');
+        vincularInputCamara('input-foto-exterior', 'preview-foto-exterior', 'exterior', 'mov-unidad', 'mov-tipo');
+        vincularInputCamara('input-foto-trasera-der', 'preview-foto-trasera-der', 'traseraDer', 'mov-unidad', 'mov-tipo');
 
         const formMov = document.getElementById('form-movimiento-unidad');
         if (formMov) formMov.addEventListener('submit', manejarSubmitMovimiento);
     }
 
-    function vincularInputCamara(inputId, previewId, claveFoto, selectUnidadId, selectProyectoId) {
+    function vincularInputCamara(inputId, previewId, claveFoto, selectUnidadId, selectMovimientoId) {
         const input = document.getElementById(inputId);
         const preview = document.getElementById(previewId);
         if (!input || !preview) return;
@@ -152,7 +142,7 @@
                 const metadatos = {
                     usuario: nombre,
                     unidad: obtenerTextoSelect(selectUnidadId) || 'Sin seleccionar',
-                    proyecto: obtenerTextoSelect(selectProyectoId) || 'Sin obra'
+                    movimiento: obtenerTextoSelect(selectMovimientoId) || 'Sin seleccionar'
                 };
                 const { archivoFinal, previewUrl } = await window.CamionetasCamera.procesarFotoConMarcaAgua(archivo, metadatos);
                 fotosProcesadas[claveFoto] = archivoFinal;
@@ -178,7 +168,6 @@
 
         const idVehicle = document.getElementById('mov-unidad').value;
         const logType = document.getElementById('mov-tipo').value;
-        const idProject = document.getElementById('mov-proyecto').value;
         const odometer = document.getElementById('mov-odometro').value;
         const fuelLevel = document.getElementById('mov-combustible').value;
         const notes = document.getElementById('mov-notas').value.trim();
@@ -188,20 +177,18 @@
             return;
         }
 
-        if (!fotosProcesadas.tablero || !fotosProcesadas.exterior) {
-            mostrarMensaje('Debes capturar ambas fotografías (Tablero y Exterior) antes de guardar.', true);
+        if (!fotosProcesadas.tablero || !fotosProcesadas.exterior || !fotosProcesadas.traseraDer) {
+            mostrarMensaje('Debes capturar las 3 fotografías obligatorias (Tablero, Esquina delantera izquierda y Esquina trasera derecha) antes de guardar.', true);
             return;
         }
 
-        const proyectoSeleccionado = listaProyectos.find(p => String(p.id_project) === String(idProject));
         const ubicacionCalculada = logType === 'Entrega'
             ? 'Oficina Central (Resguardo)'
-            : (proyectoSeleccionado ? proyectoSeleccionado.project_name : 'Uso General / Comisión');
+            : 'Uso General / Comisión';
 
         const formData = new FormData();
         formData.append('id_vehicle', idVehicle);
         formData.append('id_employee', idEmpleado);
-        if (idProject) formData.append('id_project', idProject);
         formData.append('log_type', logType);
         formData.append('odometer_reading', odometer);
         formData.append('fuel_level', fuelLevel);
@@ -210,6 +197,7 @@
         formData.append('gps_coordinates', window.CamionetasCamera.obtenerCoordenadasActuales());
         formData.append('photo_dashboard', fotosProcesadas.tablero);
         formData.append('photo_exterior', fotosProcesadas.exterior);
+        formData.append('photo_exterior_rear', fotosProcesadas.traseraDer);
 
         btn.disabled = true;
         btn.textContent = 'Subiendo evidencias y guardando...';
@@ -220,7 +208,8 @@
             e.target.reset();
             fotosProcesadas.tablero = null;
             fotosProcesadas.exterior = null;
-            limpiarPreviews(['preview-foto-tablero', 'preview-foto-exterior']);
+            fotosProcesadas.traseraDer = null;
+            limpiarPreviews(['preview-foto-tablero', 'preview-foto-exterior', 'preview-foto-trasera-der']);
             await cargarCatalogosIniciales();
         } catch (error) {
             mostrarMensaje(error.message, true);

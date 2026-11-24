@@ -7,8 +7,6 @@
 
     let unidades = [];
     let movimientos = [];
-    let cargasCombustible = [];
-    let tabActiva = 'movimientos';
 
     const rolesPermitidos = [
         'director operativo',
@@ -56,15 +54,13 @@
 
     async function cargarTodo() {
         try {
-            const [resUnidades, resMovs, resComb] = await Promise.all([
+            const [resUnidades, resMovs] = await Promise.all([
                 window.AdminCamionetasApi.obtenerUnidades(),
-                window.AdminCamionetasApi.obtenerHistorialMovimientos(),
-                window.AdminCamionetasApi.obtenerHistorialCombustible()
+                window.AdminCamionetasApi.obtenerHistorialMovimientos()
             ]);
 
             unidades = resUnidades;
             movimientos = resMovs;
-            cargasCombustible = resComb;
 
             poblarFiltroUnidades();
             window.AdminCamionetasUi.renderizarTarjetasUnidades(unidades);
@@ -77,8 +73,9 @@
     function poblarFiltroUnidades() {
         const sel = document.getElementById('filtro-admin-unidad');
         if (!sel) return;
+        const { escaparHTML } = window.AdminCamionetasUi;
         sel.innerHTML = ['<option value="">Todas las camionetas</option>'].concat(
-            unidades.map(u => `<option value="${u.id_vehicle}">${u.unit_name} (${u.plate})</option>`)
+            unidades.map(u => `<option value="${escaparHTML(u.id_vehicle)}">${escaparHTML(u.unit_name)} (${escaparHTML(u.plate)})</option>`)
         ).join('');
     }
 
@@ -90,22 +87,12 @@
             const matchUnidad = !idUnidad || String(m.id_vehicle) === String(idUnidad);
             const matchTexto = !texto ||
                 (m.conductor_nombre || '').toLowerCase().includes(texto) ||
-                (m.project_name || '').toLowerCase().includes(texto) ||
+                (m.log_type || '').toLowerCase().includes(texto) ||
                 (m.destination_or_origin || '').toLowerCase().includes(texto);
             return matchUnidad && matchTexto;
         });
 
-        const combFiltrados = cargasCombustible.filter(c => {
-            const matchUnidad = !idUnidad || String(c.id_vehicle) === String(idUnidad);
-            const matchTexto = !texto ||
-                (c.conductor_nombre || '').toLowerCase().includes(texto) ||
-                (c.project_name || '').toLowerCase().includes(texto) ||
-                (c.voucher_or_card_ref || '').toLowerCase().includes(texto);
-            return matchUnidad && matchTexto;
-        });
-
         window.AdminCamionetasUi.renderizarTablaMovimientos(movFiltrados);
-        window.AdminCamionetasUi.renderizarTablaCombustible(combFiltrados);
     }
 
     function configurarEventos() {
@@ -114,21 +101,7 @@
             if (!btn) return;
             const action = btn.getAttribute('data-action');
 
-            if (action === 'tab-admin') {
-                tabActiva = btn.getAttribute('data-tab');
-                document.querySelectorAll('.btn-tab-flotilla').forEach(b => b.classList.remove('activo'));
-                btn.classList.add('activo');
-
-                const secMov = document.getElementById('seccion-tabla-movimientos');
-                const secComb = document.getElementById('seccion-tabla-combustible');
-                if (tabActiva === 'movimientos') {
-                    secMov.classList.remove('panel-oculto');
-                    secComb.classList.add('panel-oculto');
-                } else {
-                    secMov.classList.add('panel-oculto');
-                    secComb.classList.remove('panel-oculto');
-                }
-            } else if (action === 'abrir-modal-nueva-unidad') {
+            if (action === 'abrir-modal-nueva-unidad') {
                 abrirModalUnidad(null);
             } else if (action === 'editar-unidad') {
                 const id = btn.getAttribute('data-id');
@@ -194,12 +167,11 @@
         const wb = XLSX.utils.book_new();
 
         const hojaMovs = movimientos.map(m => ({
-            'Fecha': new Date(m.created_at).toLocaleString('es-MX'),
+            'Fecha': new Date(m.created_at).toLocaleString('es-MX', { timeZone: 'America/Mexico_City' }),
             'Camioneta': m.unit_name,
             'Placas': m.plate,
             'Movimiento': m.log_type,
             'Responsable': m.conductor_nombre,
-            'Obra': m.project_name,
             'Destino/Entrega': m.destination_or_origin,
             'Odómetro (km)': m.odometer_reading,
             'Nivel Combustible': m.fuel_level,
@@ -207,26 +179,9 @@
             'Alerta Fin de Semana': m.is_weekend_alert ? 'SÍ' : 'NO'
         }));
 
-        const hojaComb = cargasCombustible.map(c => ({
-            'Fecha': new Date(c.created_at).toLocaleString('es-MX'),
-            'Camioneta': c.unit_name,
-            'Placas': c.plate,
-            'Responsable': c.conductor_nombre,
-            'Obra': c.project_name,
-            'Odómetro (km)': c.odometer_reading,
-            'Km Recorridos': c.km_recorridos ?? '---',
-            'Litros': Number(c.liters),
-            'Rendimiento (km/L)': c.rendimiento_km_l ?? '---',
-            'Monto ($ MXN)': Number(c.total_amount),
-            'Método Pago': c.payment_source,
-            'Folio / Tarjeta': c.voucher_or_card_ref,
-            'Exceso Tanque': c.over_capacity_alert ? 'SÍ' : 'NO'
-        }));
-
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hojaMovs), 'Bitacora_Movimientos');
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hojaComb), 'Cargas_Combustible');
 
-        const fechaHoy = new Date().toISOString().split('T')[0];
+        const fechaHoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
         XLSX.writeFile(wb, `Reporte_Flotilla_MODISA_${fechaHoy}.xlsx`);
     }
 })();
