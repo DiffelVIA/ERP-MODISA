@@ -16,7 +16,9 @@
     function manejarRespuestaNoAutorizada(response) {
         if (response.status === 401) {
             localStorage.removeItem('jwtToken');
-            window.location.href = '/index.html';
+            localStorage.removeItem('userRol');
+            sessionStorage.removeItem('usuarioMODISA');
+            window.location.replace('/');
             return true;
         }
         return false;

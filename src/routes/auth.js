@@ -6,7 +6,13 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const { gmail, oauth2Client, SCOPES } = require('../config/google');
 
-// MODIFICACIÓN SOLUCIÓN (Ciberseguridad): Helper para escapar HTML y prevenir XSS en plantillas de correo y vistas de callback
+function obtenerJwtSecret() {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('La variable de entorno JWT_SECRET no está configurada en el servidor.');
+  }
+  return process.env.JWT_SECRET;
+}
+
 function escapeHTMLAuth(str) {
   if (!str) return '';
   return String(str)
@@ -44,24 +50,27 @@ const createRawMessage = ({ from, to, subject, html }) => {
     .replace(/=+$/, '');
 };
 
-// MODIFICACIÓN SOLUCIÓN (Ciberseguridad): Generar parámetro 'state' firmado anti-CSRF para el flujo OAuth2 de Google
 router.get('/google/login', (req, res) => {
-  const stateToken = jwt.sign(
-    { purpose: 'google_oauth_connect', nonce: crypto.randomBytes(16).toString('hex') },
-    process.env.JWT_SECRET || 'secreto_fallback_temp',
-    { expiresIn: '10m' }
-  );
+  try {
+    const stateToken = jwt.sign(
+      { purpose: 'google_oauth_connect', nonce: crypto.randomBytes(16).toString('hex') },
+      obtenerJwtSecret(),
+      { expiresIn: '10m' }
+    );
 
-  const authUrl = oauth2Client.generateAuthUrl({
-    access_type: 'offline',
-    prompt: 'consent',
-    scope: SCOPES,
-    state: stateToken
-  });
-  res.redirect(authUrl);
+    const authUrl = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      prompt: 'consent',
+      scope: SCOPES,
+      state: stateToken
+    });
+    res.redirect(authUrl);
+  } catch (err) {
+    console.error('❌ Error de configuración JWT en google/login:', err.message);
+    res.status(500).send('Error de configuración de seguridad en el servidor.');
+  }
 });
 
-// MODIFICACIÓN SOLUCIÓN (Ciberseguridad & UX): Validar parámetro 'state' anti-CSRF, escapar salida HTML y añadir botón de copiado rápido
 router.get('/google/callback', async (req, res) => {
   const { code, state } = req.query;
   if (!code) {
@@ -75,7 +84,7 @@ router.get('/google/callback', async (req, res) => {
   try {
     const decodedState = jwt.verify(
       String(state),
-      process.env.JWT_SECRET || 'secreto_fallback_temp'
+      obtenerJwtSecret()
     );
     if (!decodedState || decodedState.purpose !== 'google_oauth_connect') {
       return res.status(403).send('Estado de autorización inválido.');
@@ -110,9 +119,14 @@ router.get('/google/callback', async (req, res) => {
 });
 
 router.post('/login', async (req, res) => {
-  const { correo, contrasena } = req.body;
+  const { correo, contrasena } = req.body || {};
+
+  if (typeof correo !== 'string' || typeof contrasena !== 'string' || !correo.trim() || !contrasena.trim()) {
+    return res.status(400).json({ mensaje: 'Debes proporcionar correo y contraseña válidos.' });
+  }
 
   try {
+    const jwtSecret = obtenerJwtSecret();
     const [usuarios] = await pool.query(
       'SELECT id_employee, name, password, job_title, first_entry FROM employees WHERE email = ?',
       [correo.trim()]
@@ -136,7 +150,7 @@ router.post('/login', async (req, res) => {
         nombre: usuarioBD.name,
         rol: usuarioBD.job_title
       },
-      process.env.JWT_SECRET || 'secreto_fallback_temp',
+      jwtSecret,
       { expiresIn: '12h' }
     );
 
@@ -155,8 +169,13 @@ router.post('/login', async (req, res) => {
 });
 
 router.put('/update-password', async (req, res) => {
-  const { correo, nuevaContrasena } = req.body;
+  const { correo, nuevaContrasena } = req.body || {};
+  if (typeof correo !== 'string' || typeof nuevaContrasena !== 'string' || !correo.trim() || !nuevaContrasena.trim()) {
+    return res.status(400).json({ error: 'Datos de actualización inválidos.' });
+  }
+
   try {
+    const jwtSecret = obtenerJwtSecret();
     const hashContrasena = await bcrypt.hash(nuevaContrasena.trim(), 10);
     await pool.query(
       'UPDATE employees SET password = ?, first_entry = 0 WHERE email = ?',
@@ -168,6 +187,10 @@ router.put('/update-password', async (req, res) => {
       [correo.trim()]
     );
 
+    if (usuarios.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado.' });
+    }
+
     const usuarioBD = usuarios[0];
 
     const token = jwt.sign({
@@ -175,16 +198,16 @@ router.put('/update-password', async (req, res) => {
         nombre: usuarioBD.name,
         rol: usuarioBD.job_title
       },
-      process.env.JWT_SECRET || 'secreto_fallback_temp',
+      jwtSecret,
       { expiresIn: '12h' }
     );
 
     res.json({ 
       token,
       mensaje: 'Contraseña actualizada', 
-      id_employee: usuarios[0].id_employee,
-      nombre: usuarios[0].name,
-      rol: usuarios[0].job_title 
+      id_employee: usuarioBD.id_employee,
+      nombre: usuarioBD.name,
+      rol: usuarioBD.job_title 
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -192,7 +215,10 @@ router.put('/update-password', async (req, res) => {
 });
 
 router.post('/verify-identity', async (req, res) => {
-  const { name, email } = req.body;
+  const { name, email } = req.body || {};
+  if (typeof name !== 'string' || typeof email !== 'string' || !name.trim() || !email.trim()) {
+    return res.status(400).json({ mensaje: 'Nombre y correo son requeridos.' });
+  }
 
   try {
     const [resultado] = await pool.query(
@@ -212,7 +238,10 @@ router.post('/verify-identity', async (req, res) => {
 });
 
 router.post('/request-reset', async (req, res) => {
-  const { email } = req.body;
+  const { email } = req.body || {};
+  if (typeof email !== 'string' || !email.trim()) {
+    return res.status(400).json({ mensaje: 'El correo electrónico es requerido.' });
+  }
 
   try {
     const [resultado] = await pool.query(
@@ -227,7 +256,6 @@ router.post('/request-reset', async (req, res) => {
     }
 
     const usuario = resultado[0];
-    // MODIFICACIÓN SOLUCIÓN: Corregir coincidencia de identificador rawToken
     const rawToken = crypto.randomBytes(32).toString('hex');
     const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
     const expires = new Date(Date.now() + 5 * 60 * 1000);
@@ -253,7 +281,6 @@ router.post('/request-reset', async (req, res) => {
       </div>
     `;
 
-    // MODIFICACIÓN SOLUCIÓN: Usar GMAIL_USER (noreply@modisa.com.mx) como remitente oficial
     const senderEmail = (process.env.GMAIL_USER || process.env.GMAIL_FROM_EMAIL || 'noreply@modisa.com.mx').trim();
 
     const rawMessage = createRawMessage({
@@ -281,7 +308,10 @@ router.post('/request-reset', async (req, res) => {
 });
 
 router.post('/verify-token', async (req, res) => {
-  const { token } = req.body;
+  const { token } = req.body || {};
+  if (typeof token !== 'string' || !token.trim()) {
+    return res.status(400).json({ mensaje: 'El token es requerido.' });
+  }
 
   try {
     const hashedToken = crypto.createHash('sha256').update(token.trim()).digest('hex');
@@ -302,7 +332,10 @@ router.post('/verify-token', async (req, res) => {
 });
 
 router.put('/reset-password', async (req, res) => {
-  const { token, nuevaContrasena } = req.body;
+  const { token, nuevaContrasena } = req.body || {};
+  if (typeof token !== 'string' || typeof nuevaContrasena !== 'string' || !token.trim() || !nuevaContrasena.trim()) {
+    return res.status(400).json({ mensaje: 'Datos inválidos para restablecer contraseña.' });
+  }
 
   try {
     const hashedToken = crypto.createHash('sha256').update(token.trim()).digest('hex');
@@ -318,7 +351,6 @@ router.put('/reset-password', async (req, res) => {
 
     const hashContrasena = await bcrypt.hash(nuevaContrasena.trim(), 10);
 
-    // MODIFICACIÓN SOLUCIÓN: Filtrar UPDATE usando hashedToken.trim() (coincidiendo con el valor almacenado en BD)
     await pool.query(
       'UPDATE employees SET password = ?, reset_token = NULL, reset_expires = NULL, first_entry = 0 WHERE reset_token = ?',
       [hashContrasena, hashedToken.trim()]

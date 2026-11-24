@@ -47,9 +47,9 @@
 
     function obtenerContextoPermisos() {
         const userToken = window.obtenerUsuarioDesdeToken ? window.obtenerUsuarioDesdeToken() : null;
-        const rolRaw = (userToken && userToken.rol)
-            ? userToken.rol
-            : (obtenerRolDesdeJWT() || localStorage.getItem('userRol') || '');
+        const rolRaw = (userToken && (userToken.rol || userToken.role || userToken.job_title))
+            ? (userToken.rol || userToken.role || userToken.job_title)
+            : obtenerRolDesdeJWT();
 
         const rolUsuarioLimpio = limpiarTexto(rolRaw);
 
@@ -61,12 +61,15 @@
             "subdirector de obra",
             "gerente de costos",
             "residente de obra",
-            "gerente de diseno"
+            "gerente de diseno",
+            "gerente diseno"
         ];
 
         const tieneAcceso = Boolean(rolUsuarioLimpio) && rolesPermitidos.some(rolPermitido => {
             const permitidoLimpio = limpiarTexto(rolPermitido);
-            return rolUsuarioLimpio === permitidoLimpio || (rolUsuarioLimpio.includes("gerente") && rolUsuarioLimpio.includes("administrac"));
+            return rolUsuarioLimpio === permitidoLimpio
+                || (rolUsuarioLimpio.includes("gerente") && rolUsuarioLimpio.includes("administrac"))
+                || (rolUsuarioLimpio.includes("gerente") && rolUsuarioLimpio.includes("diseno"));
         });
 
         const esCostos = rolUsuarioLimpio.includes("costos");

@@ -19,6 +19,13 @@ const normalizarRolContrato = (rol) => {
     .replace(/\s+/g, ' ');
 };
 
+const esGerenteDiseno = (rolNormalizado) => {
+  if (!rolNormalizado) return false;
+  return rolNormalizado === 'gerente de diseno'
+    || rolNormalizado === 'gerente diseno'
+    || (rolNormalizado.includes('gerente') && rolNormalizado.includes('diseno'));
+};
+
 async function enviarCorreoRechazoDireccion(idContrato, comentarioRechazo) {
   try {
     const sqlContrato = `
@@ -252,10 +259,11 @@ router.get('/', verificarToken, async (req, res) => {
             'gerente de costos',
             'costos',
             'director general',
-            'gerente de diseno'
+            'gerente de diseno',
+            'gerente diseno'
         ];
 
-        const esRolGlobal = rolesGlobales.includes(userRol);
+        const esRolGlobal = rolesGlobales.includes(userRol) || esGerenteDiseno(userRol);
 
         let sql = `
             SELECT 
@@ -328,7 +336,7 @@ router.put('/:id/actualizar-control', verificarToken, async (req, res) => {
     const usuarioSesion = req.usuario;
     const userRol = normalizarRolContrato(usuarioSesion && usuarioSesion.rol);
 
-    if (userRol === 'gerente de diseno') {
+    if (esGerenteDiseno(userRol)) {
         return res.status(403).json({ error: "⛔ Acceso denegado: Tu perfil tiene permisos exclusivamente de consulta." });
     }
 
@@ -458,6 +466,13 @@ router.put('/:id/actualizar-url', verificarToken, async (req, res) => {
 
     const userRol = normalizarRolContrato(usuarioSesion && usuarioSesion.rol);
 
+    if (esGerenteDiseno(userRol)) {
+        return res.status(403).json({
+            success: false,
+            error: "⛔ Acceso denegado: Tu perfil tiene permisos exclusivamente de consulta."
+        });
+    }
+
     const esCostos = userRol.includes('costos');
     if (!esCostos) {
         return res.status(403).json({
@@ -546,6 +561,13 @@ router.delete('/:id', verificarToken, async (req, res) => {
     const usuarioSesion = req.usuario;
 
     const userRol = normalizarRolContrato(usuarioSesion && usuarioSesion.rol);
+
+    if (esGerenteDiseno(userRol)) {
+        return res.status(403).json({
+            success: false,
+            error: "⛔ Acceso denegado: Tu perfil tiene permisos exclusivamente de consulta."
+        });
+    }
 
     const rolesAutorizados = ['gerente de costos', 'costos', 'residente de obra', 'residente'];
 
