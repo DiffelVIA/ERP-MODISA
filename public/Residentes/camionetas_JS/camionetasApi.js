@@ -4,20 +4,35 @@
         : 'https://erp-modisa.onrender.com/api/camionetas';
 
     function obtenerHeadersAuth(esJson = true) {
-        const { token } = window.CamionetasAuth.obtenerDatosUsuarioSesion();
-        const headers = {
-            'Authorization': `Bearer ${token}`
-        };
+        const sesion = window.CamionetasAuth?.obtenerDatosUsuarioSesion
+            ? window.CamionetasAuth.obtenerDatosUsuarioSesion()
+            : { token: localStorage.getItem('jwtToken') || '' };
+        const headers = {};
+        if (sesion.token) {
+            headers['Authorization'] = `Bearer ${sesion.token}`;
+        }
         if (esJson) {
             headers['Content-Type'] = 'application/json';
         }
         return headers;
     }
 
+    function manejarRespuestaNoAutorizada(res) {
+        if (res.status === 401) {
+            localStorage.removeItem('jwtToken');
+            localStorage.removeItem('userRol');
+            sessionStorage.removeItem('usuarioMODISA');
+            window.location.replace('/');
+            return true;
+        }
+        return false;
+    }
+
     async function obtenerUnidades() {
         const res = await fetch(`${API_BASE}/unidades`, {
             headers: obtenerHeadersAuth(true)
         });
+        if (manejarRespuestaNoAutorizada(res)) return [];
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Error al obtener las camionetas.');
         return data;
@@ -27,6 +42,7 @@
         const res = await fetch(`${API_BASE}/proyectos-activos`, {
             headers: obtenerHeadersAuth(true)
         });
+        if (manejarRespuestaNoAutorizada(res)) return [];
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Error al obtener las obras.');
         return data;
@@ -38,26 +54,15 @@
             headers: obtenerHeadersAuth(false),
             body: formData
         });
+        if (manejarRespuestaNoAutorizada(res)) return { success: false };
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Error al registrar el movimiento.');
-        return data;
-    }
-
-    async function enviarCombustible(formData) {
-        const res = await fetch(`${API_BASE}/combustible`, {
-            method: 'POST',
-            headers: obtenerHeadersAuth(false),
-            body: formData
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Error al registrar la carga de gasolina.');
         return data;
     }
 
     window.CamionetasApi = {
         obtenerUnidades,
         obtenerProyectos,
-        enviarMovimiento,
-        enviarCombustible
+        enviarMovimiento
     };
 })();

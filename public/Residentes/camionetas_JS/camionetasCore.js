@@ -3,9 +3,7 @@
     let listaProyectos = [];
     const fotosProcesadas = {
         tablero: null,
-        exterior: null,
-        ticket: null,
-        bomba: null
+        exterior: null
     };
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -83,18 +81,14 @@
         ).join('');
 
         const selMovUnidad = document.getElementById('mov-unidad');
-        const selCombUnidad = document.getElementById('comb-unidad');
         if (selMovUnidad) selMovUnidad.innerHTML = opcionesUnidades;
-        if (selCombUnidad) selCombUnidad.innerHTML = opcionesUnidades;
 
         const opcionesProyectos = ['<option value="">Selecciona obra / proyecto...</option>'].concat(
             listaProyectos.map(p => `<option value="${p.id_project}">${escaparHTML(p.project_name)}</option>`)
         ).join('');
 
         const selMovProy = document.getElementById('mov-proyecto');
-        const selCombProy = document.getElementById('comb-proyecto');
         if (selMovProy) selMovProy.innerHTML = opcionesProyectos;
-        if (selCombProy) selCombProy.innerHTML = opcionesProyectos;
     }
 
     function obtenerTextoSelect(idSelect) {
@@ -121,21 +115,6 @@
             const accion = btnAction.getAttribute('data-action');
             if (accion === 'actualizar-gps') {
                 inicializarGPS();
-            } else if (accion === 'cambiar-tab') {
-                ocultarMensaje();
-                const tab = btnAction.getAttribute('data-tab');
-                document.querySelectorAll('.btn-tab-flotilla').forEach(b => b.classList.remove('activo'));
-                btnAction.classList.add('activo');
-
-                const panelMov = document.getElementById('panel-movimiento');
-                const panelComb = document.getElementById('panel-combustible');
-                if (tab === 'movimiento') {
-                    panelMov.classList.remove('panel-oculto');
-                    panelComb.classList.add('panel-oculto');
-                } else {
-                    panelMov.classList.add('panel-oculto');
-                    panelComb.classList.remove('panel-oculto');
-                }
             }
         });
 
@@ -152,31 +131,11 @@
             });
         }
 
-        const selCombUnidad = document.getElementById('comb-unidad');
-        if (selCombUnidad) {
-            selCombUnidad.addEventListener('change', () => {
-                const unidad = listaUnidades.find(u => String(u.id_vehicle) === String(selCombUnidad.value));
-                const hintOdo = document.getElementById('hint-odometro-comb');
-                const hintTanque = document.getElementById('hint-tanque-comb');
-                const inputOdo = document.getElementById('comb-odometro');
-                if (unidad) {
-                    if (hintOdo) hintOdo.textContent = `Último odómetro: ${Number(unidad.current_odometer).toLocaleString('es-MX')} km`;
-                    if (hintTanque) hintTanque.textContent = `Capacidad nominal del tanque: ${unidad.tank_capacity_liters} litros`;
-                    if (inputOdo) inputOdo.min = unidad.current_odometer;
-                }
-            });
-        }
-
         vincularInputCamara('input-foto-tablero', 'preview-foto-tablero', 'tablero', 'mov-unidad', 'mov-proyecto');
         vincularInputCamara('input-foto-exterior', 'preview-foto-exterior', 'exterior', 'mov-unidad', 'mov-proyecto');
-        vincularInputCamara('input-foto-ticket', 'preview-foto-ticket', 'ticket', 'comb-unidad', 'comb-proyecto');
-        vincularInputCamara('input-foto-bomba', 'preview-foto-bomba', 'bomba', 'comb-unidad', 'comb-proyecto');
 
         const formMov = document.getElementById('form-movimiento-unidad');
         if (formMov) formMov.addEventListener('submit', manejarSubmitMovimiento);
-
-        const formComb = document.getElementById('form-combustible-unidad');
-        if (formComb) formComb.addEventListener('submit', manejarSubmitCombustible);
     }
 
     function vincularInputCamara(inputId, previewId, claveFoto, selectUnidadId, selectProyectoId) {
@@ -268,70 +227,6 @@
         } finally {
             btn.disabled = false;
             btn.textContent = 'Guardar Registro de Bitácora';
-        }
-    }
-
-    async function manejarSubmitCombustible(e) {
-        e.preventDefault();
-        ocultarMensaje();
-
-        const btn = document.getElementById('btn-submit-combustible');
-        const { idEmpleado } = window.CamionetasAuth.obtenerDatosUsuarioSesion();
-
-        if (!idEmpleado) {
-            mostrarMensaje('No se pudo identificar tu usuario de empleado. Vuelve a iniciar sesión.', true);
-            return;
-        }
-
-        const idVehicle = document.getElementById('comb-unidad').value;
-        const idProject = document.getElementById('comb-proyecto').value;
-        const odometer = document.getElementById('comb-odometro').value;
-        const liters = document.getElementById('comb-litros').value;
-        const totalAmount = document.getElementById('comb-monto').value;
-        const paymentSource = document.getElementById('comb-metodo').value;
-        const reference = document.getElementById('comb-referencia').value.trim();
-        const station = document.getElementById('comb-estacion').value.trim();
-
-        if (!idVehicle || !odometer || !liters || !totalAmount || !paymentSource || !reference) {
-            mostrarMensaje('Por favor completa todos los campos obligatorios de la carga de gasolina.', true);
-            return;
-        }
-
-        if (!fotosProcesadas.ticket || !fotosProcesadas.bomba) {
-            mostrarMensaje('Debes capturar la foto del Ticket y la foto de Bomba/Tablero.', true);
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('id_vehicle', idVehicle);
-        formData.append('id_employee', idEmpleado);
-        if (idProject) formData.append('id_project', idProject);
-        formData.append('odometer_reading', odometer);
-        formData.append('liters', liters);
-        formData.append('total_amount', totalAmount);
-        formData.append('payment_source', paymentSource);
-        formData.append('voucher_or_card_ref', reference);
-        if (station) formData.append('station_name', station);
-        formData.append('gps_coordinates', window.CamionetasCamera.obtenerCoordenadasActuales());
-        formData.append('photo_ticket', fotosProcesadas.ticket);
-        formData.append('photo_pump', fotosProcesadas.bomba);
-
-        btn.disabled = true;
-        btn.textContent = 'Guardando ticket y carga...';
-
-        try {
-            const resp = await window.CamionetasApi.enviarCombustible(formData);
-            mostrarMensaje(resp.message, Boolean(resp.over_capacity_alert));
-            e.target.reset();
-            fotosProcesadas.ticket = null;
-            fotosProcesadas.bomba = null;
-            limpiarPreviews(['preview-foto-ticket', 'preview-foto-bomba']);
-            await cargarCatalogosIniciales();
-        } catch (error) {
-            mostrarMensaje(error.message, true);
-        } finally {
-            btn.disabled = false;
-            btn.textContent = 'Guardar Carga de Combustible';
         }
     }
 })();

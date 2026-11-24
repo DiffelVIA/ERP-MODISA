@@ -25,7 +25,7 @@
 
     <main class="flotilla-wrapper">
         <h1>Bitácora de Camionetas Utilitarias</h1>
-        <p class="flotilla-subtitulo">Registro obligatorio de salidas, entregas o resguardo de fin de semana en oficina y cargas de combustible con evidencia fotográfica certificada.</p>
+        <p class="flotilla-subtitulo">Registro obligatorio de salidas, relevos y entregas o resguardo en oficina con evidencia fotográfica certificada.</p>
 
         <section id="grid-estado-unidades" class="grid-unidades"></section>
 
@@ -35,11 +35,6 @@
         </div>
 
         <div id="contenedor-mensaje-estado" class="mensaje-flotilla panel-oculto"></div>
-
-        <div class="tabs-flotilla">
-            <button type="button" class="btn-tab-flotilla activo" data-action="cambiar-tab" data-tab="movimiento">🚙 Salida / Entrega / Resguardo</button>
-            <button type="button" class="btn-tab-flotilla" data-action="cambiar-tab" data-tab="combustible">⛽ Carga de Gasolina (Vales / Tarjeta)</button>
-        </div>
 
         <section id="panel-movimiento" class="panel-card-flotilla contenedor-formulario">
             <form id="form-movimiento-unidad" novalidate>
@@ -94,7 +89,7 @@
 
                 <div class="grid-campos-flotilla">
                     <div class="caja-evidencia-camara">
-                        <span class="titulo-evidencia">1. Foto de Tablero (Odómetro y Gasolina) *</span>
+                        <span class="titulo-evidencia">1. Foto de Tablero (Odómetro y Nivel) *</span>
                         <label for="input-foto-tablero" class="btn-camara">📷 Tomar Foto de Tablero</label>
                         <input type="file" id="input-foto-tablero" accept="image/*" capture="environment">
                         <img id="preview-foto-tablero" class="preview-foto-flotilla panel-oculto" alt="Vista previa tablero">
@@ -109,80 +104,6 @@
                 </div>
 
                 <button type="submit" id="btn-submit-movimiento" class="btn-guardar-flotilla">Guardar Registro de Bitácora</button>
-            </form>
-        </section>
-
-        <section id="panel-combustible" class="panel-card-flotilla contenedor-formulario panel-oculto">
-            <form id="form-combustible-unidad" novalidate>
-                <div class="grid-campos-flotilla">
-                    <div class="campo-flotilla">
-                        <label for="comb-unidad">Camioneta *</label>
-                        <select id="comb-unidad" required>
-                            <option value="">Selecciona una unidad...</option>
-                        </select>
-                    </div>
-
-                    <div class="campo-flotilla">
-                        <label for="comb-proyecto">Obra / Proyecto Asociado</label>
-                        <select id="comb-proyecto">
-                            <option value="">Selecciona obra...</option>
-                        </select>
-                    </div>
-
-                    <div class="campo-flotilla">
-                        <label for="comb-odometro">Odómetro al Cargar (km) *</label>
-                        <input type="number" id="comb-odometro" min="0" step="1" placeholder="Ej. 45910" required>
-                        <small id="hint-odometro-comb" class="hint-campo"></small>
-                    </div>
-
-                    <div class="campo-flotilla">
-                        <label for="comb-litros">Litros Cargados *</label>
-                        <input type="number" id="comb-litros" min="0.1" step="0.01" placeholder="Ej. 48.50" required>
-                        <small id="hint-tanque-comb" class="hint-campo"></small>
-                    </div>
-
-                    <div class="campo-flotilla">
-                        <label for="comb-monto">Monto Total ($ MXN) *</label>
-                        <input type="number" id="comb-monto" min="1" step="0.01" placeholder="Ej. 1180.00" required>
-                    </div>
-
-                    <div class="campo-flotilla">
-                        <label for="comb-metodo">Método de Pago *</label>
-                        <select id="comb-metodo" required>
-                            <option value="">Selecciona método...</option>
-                            <option value="Vale de Gasolina">Vale de Gasolina</option>
-                            <option value="Tarjeta Gasolinera">Tarjeta Gasolinera</option>
-                        </select>
-                    </div>
-
-                    <div class="campo-flotilla">
-                        <label for="comb-referencia">Folio de Vale o Últimos 4 Dígitos Tarjeta *</label>
-                        <input type="text" id="comb-referencia" maxlength="80" placeholder="Ej. Vale #8492 / Tarjeta 4512" required>
-                    </div>
-
-                    <div class="campo-flotilla">
-                        <label for="comb-estacion">Estación de Servicio</label>
-                        <input type="text" id="comb-estacion" maxlength="120" placeholder="Ej. Pemex / Mobil Periférico">
-                    </div>
-                </div>
-
-                <div class="grid-campos-flotilla">
-                    <div class="caja-evidencia-camara">
-                        <span class="titulo-evidencia">1. Foto del Ticket de Gasolina *</span>
-                        <label for="input-foto-ticket" class="btn-camara">📷 Tomar Foto del Ticket</label>
-                        <input type="file" id="input-foto-ticket" accept="image/*" capture="environment">
-                        <img id="preview-foto-ticket" class="preview-foto-flotilla panel-oculto" alt="Vista previa ticket">
-                    </div>
-
-                    <div class="caja-evidencia-camara">
-                        <span class="titulo-evidencia">2. Foto de Bomba / Tablero *</span>
-                        <label for="input-foto-bomba" class="btn-camara">📷 Tomar Foto de Bomba</label>
-                        <input type="file" id="input-foto-bomba" accept="image/*" capture="environment">
-                        <img id="preview-foto-bomba" class="preview-foto-flotilla panel-oculto" alt="Vista previa bomba">
-                    </div>
-                </div>
-
-                <button type="submit" id="btn-submit-combustible" class="btn-guardar-flotilla">Guardar Carga de Combustible</button>
             </form>
         </section>
     </main>
