@@ -9,6 +9,16 @@ const { notificarModificacionContrato } = require('../services/whatsapp');
 
 const { gmail } = require('../config/google');
 
+const normalizarRolContrato = (rol) => {
+  if (!rol) return '';
+  return String(rol)
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ');
+};
+
 async function enviarCorreoRechazoDireccion(idContrato, comentarioRechazo) {
   try {
     const sqlContrato = `
@@ -126,7 +136,7 @@ async function enviarCorreoRechazoDireccion(idContrato, comentarioRechazo) {
 
 router.post('/', upload.single('pdfFile'), async (req, res) => {
     const userRol = req.headers['x-user-rol'];
-    const rolNormalizado = userRol ? userRol.trim().toLowerCase() : '';
+    const rolNormalizado = normalizarRolContrato(userRol);
 
     const pdfFile = req.file;
 
@@ -224,14 +234,14 @@ router.post('/', upload.single('pdfFile'), async (req, res) => {
 router.get('/', verificarToken, async (req, res) => {
     try {
         const usuarioSesion = req.usuario;
-        
-        const userRol = usuarioSesion && usuarioSesion.rol 
-            ? usuarioSesion.rol.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') 
-            : (req.headers['x-user-rol'] ? req.headers['x-user-rol'].trim().toLowerCase() : '');
+        const userRol = normalizarRolContrato(usuarioSesion && usuarioSesion.rol);
+        const employeeId = usuarioSesion
+            ? (usuarioSesion.id_employee || usuarioSesion.id_user || null)
+            : null;
 
-        const employeeId = usuarioSesion 
-            ? (usuarioSesion.id_employee || usuarioSesion.id_user) 
-            : req.headers['x-employee-id'];
+        if (!userRol) {
+            return res.status(403).json({ error: "⛔ Acceso denegado: Rol de sesión no válido." });
+        }
 
         const rolesGlobales = [
             'director operativo',
@@ -241,7 +251,8 @@ router.get('/', verificarToken, async (req, res) => {
             'compras',
             'gerente de costos',
             'costos',
-            'director general'
+            'director general',
+            'gerente de diseno'
         ];
 
         const esRolGlobal = rolesGlobales.includes(userRol);
@@ -293,7 +304,10 @@ router.get('/', verificarToken, async (req, res) => {
         
         const queryParams = [];
 
-        if (!esRolGlobal && employeeId) {
+        if (!esRolGlobal) {
+            if (!employeeId) {
+                return res.json([]);
+            }
             sql += ` WHERE (p.id_user = ? OR c.id_employee = ?)`;
             queryParams.push(employeeId, employeeId);
         }
@@ -312,6 +326,11 @@ router.get('/', verificarToken, async (req, res) => {
 router.put('/:id/actualizar-control', verificarToken, async (req, res) => {
     const { id } = req.params;
     const usuarioSesion = req.usuario;
+    const userRol = normalizarRolContrato(usuarioSesion && usuarioSesion.rol);
+
+    if (userRol === 'gerente de diseno') {
+        return res.status(403).json({ error: "⛔ Acceso denegado: Tu perfil tiene permisos exclusivamente de consulta." });
+    }
 
     let { 
         status, 
@@ -324,13 +343,13 @@ router.put('/:id/actualizar-control', verificarToken, async (req, res) => {
         comentarios_administracion
     } = req.body;
 
-    const userRol = usuarioSesion && usuarioSesion.rol 
-        ? usuarioSesion.rol.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') 
-        : '';
-
     const esCostos = userRol.includes('costos');
     const esDireccion = userRol.includes('director operativo');
     const esCompras = userRol.includes('compras') || (userRol.includes('gerente') && userRol.includes('administrac'));
+
+    if (!esCostos && !esDireccion && !esCompras) {
+        return res.status(403).json({ error: "⛔ Acceso denegado: No cuentas con permisos para modificar el control de contratos." });
+    }
 
     try {
         const [contratoExistente] = await pool.query(
@@ -437,9 +456,7 @@ router.put('/:id/actualizar-url', verificarToken, async (req, res) => {
     const usuarioSesion = req.usuario;
     const { contract_file_url } = req.body;
 
-    const userRol = usuarioSesion && usuarioSesion.rol 
-        ? usuarioSesion.rol.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') 
-        : '';
+    const userRol = normalizarRolContrato(usuarioSesion && usuarioSesion.rol);
 
     const esCostos = userRol.includes('costos');
     if (!esCostos) {
@@ -528,9 +545,7 @@ router.delete('/:id', verificarToken, async (req, res) => {
     const { id } = req.params;
     const usuarioSesion = req.usuario;
 
-    const userRol = usuarioSesion && usuarioSesion.rol 
-        ? usuarioSesion.rol.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') 
-        : '';
+    const userRol = normalizarRolContrato(usuarioSesion && usuarioSesion.rol);
 
     const rolesAutorizados = ['gerente de costos', 'costos', 'residente de obra', 'residente'];
 

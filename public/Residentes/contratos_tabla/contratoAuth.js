@@ -60,7 +60,8 @@
             "director operativo",
             "subdirector de obra",
             "gerente de costos",
-            "residente de obra"
+            "residente de obra",
+            "gerente de diseno"
         ];
 
         const tieneAcceso = Boolean(rolUsuarioLimpio) && rolesPermitidos.some(rolPermitido => {
